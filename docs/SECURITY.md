@@ -27,10 +27,15 @@ M0 contains no Binance private API, account API, balance lookup, position lookup
 - The Dashboard, Signals, Signal Detail, Analytics, and System pages require Supabase Auth.
 - Server-side session validation follows current Supabase SSR guidance; server code does not trust an unvalidated cookie session.
 - Public-schema tables have RLS enabled in the migration.
-- `user_decisions` is scoped with `auth.uid()` for every read/write policy.
-- Authenticated role access without an ownership predicate is not sufficient for user-owned data.
+- `authenticated` is not an application authorization decision. Every global TradePulse read requires an enabled row in `tradepulse_authorized_users` for the current `auth.uid()`.
+- The current model is deliberately simple: an explicit allowlist with one `OWNER` row and zero or more `AUTHORIZED` rows. Both enabled labels grant the same read boundary; the owner distinction is for provisioning ownership, not a browser role-management API. The migration does not seed a real owner; provisioning is a server-side/admin operation using the Auth user UUID.
+- `tradepulse_authorized_users` is itself RLS-protected. A browser session can see only its own authorization row and has no insert, update, or delete policy.
+- `user_decisions` requires both explicit TradePulse authorization and `(select auth.uid()) = user_id` for every read/write policy. It remains strictly user-owned.
+- Global tables have no browser write policies. Their authenticated table grants are filtered by the explicit authorization predicate.
 - Browser code uses only Supabase URL and publishable key.
 - The secret/service-level client is server-only and is reserved for bounded server operations.
+
+The authorized-user predicate is evaluated against a database table rather than user-editable JWT metadata. Removing or disabling an authorization row therefore changes the database decision directly and does not depend on a stale client-controlled claim.
 
 ## Cron endpoint
 
@@ -44,13 +49,16 @@ The future `POST /api/cron/scan` endpoint must:
 6. use a finite runtime and a bounded request budget;
 7. be configured only in Supabase Cron / Vercel server settings, never in browser variables.
 
-M0 includes and tests the isolated authorization helper but does not expose the formal scan route.
+M0 includes and tests the isolated cron-header authorization helper but does not expose the formal scan route.
 
 ## Data integrity and privacy
 
 - Formal signals are immutable snapshots; later strategy changes never rewrite them.
 - Composite database uniqueness prevents duplicate signal fingerprints.
+- `signal_scores` has a database `CHECK` constraint requiring `total_score` to equal the exact sum of its five components.
+- The signal persistence service calculates one score value and writes `signals.score` and `signal_scores.total_score` in one transaction; deferred database triggers reject a missing score row or cross-table mismatch. No layer may silently accept two different values.
 - Notification uniqueness prevents duplicate delivery records.
+- `scan_runs.run_key` is unique per planned UTC scan cycle. Retries lock and reuse the same row, and an unexpired lease prevents a second worker from running the full cycle concurrently.
 - All database timestamps are UTC `timestamptz`.
 - Structured logs include timestamp, environment, scan ID, symbol, operation, status, and error code, but not credentials or full user tokens.
 - Error messages stored in `system_events` and `notifications` must be sanitized before persistence.
@@ -78,7 +86,7 @@ M0 includes and tests the isolated authorization helper but does not expose the 
 
 | Threat | Control |
 | --- | --- |
-| Anonymous access to signals | Auth gate plus RLS with no anon policy |
+| Anonymous or unauthorized access to signals | Auth gate plus explicit authorized-user RLS with no anon policy |
 | User decision reassignment | `auth.uid()` `USING` and `WITH CHECK` policies |
 | Duplicate cron or email | Authenticated endpoint plus database uniqueness |
 | Preview alert leakage | Safe mode and environment-separated recipients |

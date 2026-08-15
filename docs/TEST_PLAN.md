@@ -13,6 +13,8 @@ Status: M0 test strategy
 - Score components and grade boundaries cover exact edges: 69, 70, 74, 75, 84, 85, and 100.
 - Entry/stop/TP/TIME_EXIT reference formulas and R calculations are deterministic.
 - Signal fingerprints and notification policy are deterministic.
+- Score consistency tests prove the five components sum to `total_score` and that `signals.score` cannot differ from it in the persistence contract.
+- Scan idempotency tests prove one stable run key per planned UTC cycle, duplicate-cycle skip behavior, and retry of the same row after failure or lease expiry.
 - Email templates contain every required field and the no-trading disclaimer.
 
 ### Strategy tests
@@ -32,7 +34,9 @@ Every rule in `docs/STRATEGY.md` must have a fixed candle fixture with the expec
 - MarketDataProvider adapter maps public exchange responses to normalized candles.
 - Invalid data prevents signal persistence and creates `DATA_ERROR` or `SCAN_FAILED`.
 - Database migration applies to a disposable development database and RLS policies behave as designed.
+- RLS isolation test design below proves an authenticated user without an authorization row cannot read global TradePulse tables, while an enabled authorized user can read them.
 - Signal insertion is idempotent for the same version/symbol/direction/candle tuple.
+- A duplicate planned scan cycle conflicts on `scan_runs.run_key` and does not create a second run row.
 - Notification records transition PENDING → SENT or PENDING → FAILED.
 - Forward tracker creates one terminal result and does not mutate the signal snapshot.
 
@@ -51,6 +55,26 @@ Every rule in `docs/STRATEGY.md` must have a fixed candle fixture with the expec
 - Malformed or non-Bearer header returns 401/403.
 - Correct secret permits the handler.
 - Repeating the same scheduled hour cannot create a duplicate signal or email.
+
+### M0 database/RLS test design
+
+These cases are intended to run against an explicitly selected disposable Supabase project or local database after the migration is applied. M0 does not apply migrations to a remote project, so these database tests are designed but not executed here.
+
+| Case | Session/role | Expected result |
+| --- | --- | --- |
+| Anonymous read of each global table | `anon` | Denied by grant and/or RLS |
+| Authenticated user absent from `tradepulse_authorized_users` reads `signals`, `signal_scores`, `signal_results`, `notifications`, `scan_runs`, `system_events`, `strategy_versions`, `backtest_runs`, or `backtest_signals` | `authenticated`, `auth.uid() = user_a` | Empty result / denied; no global rows visible |
+| Enabled owner reads global tables | `authenticated`, `auth.uid() = owner_id`, matching enabled row | Rows visible |
+| Disabled owner reads global tables | `authenticated`, matching row with `enabled = false` | No global rows visible |
+| Authorized user reads authorization table | `authenticated` | Only that user's authorization row visible |
+| User decision read/write for own row | Authorized `user_a` | Own row allowed |
+| User decision read/write for another user's row | Authorized `user_a`, row `user_b` | Denied by `auth.uid()` ownership predicate |
+| Non-authorized user decision read/write | Authenticated `user_b` without allowlist row | Denied even when `user_id = user_b` |
+| Score total mismatch | Database transaction | Component `CHECK` rejects a non-sum; deferred trigger rejects a mismatch with `signals.score` |
+| Signal without score row | Database transaction commit | Deferred trigger rejects the incomplete signal snapshot |
+| Duplicate scan claim | Two workers, same `run_key` | One unique row; second worker skips or retries the locked existing row according to lease/status |
+
+The RLS assertions must inspect both table privileges and visible rows. Tests must not use a service-level key to simulate a browser session; service credentials bypass RLS and are server-only.
 
 ### Backtest regression tests
 
@@ -80,7 +104,7 @@ npm test
 npm run build
 ```
 
-M0 unit tests cover fixed configuration, health redaction, and cron authorization. Domain, database, SMTP, and E2E tests are planned for their milestones because the corresponding systems are intentionally not implemented yet.
+M0 unit tests cover fixed configuration, health redaction, cron authorization, score consistency, and scan-run idempotency. Database/RLS, domain, SMTP, and E2E tests are planned or designed for their milestones because the corresponding systems are intentionally not implemented yet.
 
 ## Test data and safety
 
