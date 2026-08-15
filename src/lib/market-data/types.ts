@@ -21,8 +21,9 @@ export type Candle = Readonly<{
 
 export type ServerTime = Readonly<{
   serverTime: number;
-  requestStartedAt: number;
-  requestCompletedAt: number;
+  operationStartedAt: number;
+  attemptStartedAt: number;
+  attemptCompletedAt: number;
   roundTripMs: number;
   estimatedClockOffsetMs: number;
   requestWeight?: string;
@@ -77,8 +78,8 @@ export type MarketSnapshot = Readonly<{
   serverTime?: ServerTime;
   symbols: Readonly<Record<ResearchSymbol, SymbolSnapshotResult>>;
   diagnostics: Readonly<{
-    requestStartedAt: number;
-    requestCompletedAt: number;
+    operationStartedAt: number;
+    operationCompletedAt: number;
     roundTripMs: number;
     requestCount: number;
     requestWeightHeaders: readonly string[];

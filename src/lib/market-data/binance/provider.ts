@@ -127,8 +127,9 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
     const response = await this.client.getServerTime();
     return {
       serverTime: response.data.serverTime,
-      requestStartedAt: response.diagnostics.requestStartedAt,
-      requestCompletedAt: response.diagnostics.requestCompletedAt,
+      operationStartedAt: response.diagnostics.operationStartedAt,
+      attemptStartedAt: response.diagnostics.attemptStartedAt,
+      attemptCompletedAt: response.diagnostics.attemptCompletedAt,
       roundTripMs: response.diagnostics.roundTripMs,
       estimatedClockOffsetMs: response.diagnostics.estimatedClockOffsetMs ?? 0,
       ...(response.diagnostics.requestWeight
@@ -159,7 +160,7 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
 
   async getMarketSnapshot(): Promise<MarketSnapshot> {
     const generatedAt = this.now();
-    const requestStartedAt = this.now();
+    const operationStartedAt = this.now();
     let requestCount = 0;
     const requestWeightHeaders: string[] = [];
 
@@ -169,8 +170,9 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
       const response = await this.client.getServerTime();
       serverTime = {
         serverTime: response.data.serverTime,
-        requestStartedAt: response.diagnostics.requestStartedAt,
-        requestCompletedAt: response.diagnostics.requestCompletedAt,
+        operationStartedAt: response.diagnostics.operationStartedAt,
+        attemptStartedAt: response.diagnostics.attemptStartedAt,
+        attemptCompletedAt: response.diagnostics.attemptCompletedAt,
         roundTripMs: response.diagnostics.roundTripMs,
         estimatedClockOffsetMs: response.diagnostics.estimatedClockOffsetMs ?? 0,
         ...(response.diagnostics.requestWeight
@@ -184,7 +186,7 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
       const details = toErrorDetails(error, {});
       return this.createSystemFailureSnapshot({
         generatedAt,
-        requestStartedAt,
+        operationStartedAt,
         requestCount,
         requestWeightHeaders,
         error: details,
@@ -213,7 +215,7 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
       const details = toErrorDetails(error, {});
       return this.createSystemFailureSnapshot({
         generatedAt,
-        requestStartedAt,
+        operationStartedAt,
         requestCount,
         requestWeightHeaders,
         serverTime,
@@ -293,7 +295,7 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
     const validSymbolCount = RESEARCH_SYMBOLS.filter(
       (symbol) => symbols[symbol].status === "VALID",
     ).length;
-    const requestCompletedAt = this.now();
+    const operationCompletedAt = this.now();
 
     return Object.freeze({
       status: validSymbolCount === RESEARCH_SYMBOLS.length ? "VALID" : validSymbolCount > 0 ? "PARTIAL" : "INVALID",
@@ -302,9 +304,9 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
       serverTime,
       symbols,
       diagnostics: {
-        requestStartedAt,
-        requestCompletedAt,
-        roundTripMs: Math.max(0, requestCompletedAt - requestStartedAt),
+        operationStartedAt,
+        operationCompletedAt,
+        roundTripMs: Math.max(0, operationCompletedAt - operationStartedAt),
         requestCount,
         requestWeightHeaders: Object.freeze([...requestWeightHeaders]),
       },
@@ -345,7 +347,7 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
 
   private createSystemFailureSnapshot(input: {
     generatedAt: number;
-    requestStartedAt: number;
+    operationStartedAt: number;
     requestCount: number;
     requestWeightHeaders: readonly string[];
     serverTime?: ServerTime;
@@ -359,7 +361,7 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
         return [symbol, createSymbolSnapshot(symbol, datasets)];
       }),
     )) as Readonly<Record<ResearchSymbol, SymbolSnapshotResult>>;
-    const requestCompletedAt = this.now();
+    const operationCompletedAt = this.now();
 
     return Object.freeze({
       status: "INVALID",
@@ -368,9 +370,9 @@ export class BinanceMarketDataProvider implements MarketDataProvider {
       ...(input.serverTime ? { serverTime: input.serverTime } : {}),
       symbols,
       diagnostics: {
-        requestStartedAt: input.requestStartedAt,
-        requestCompletedAt,
-        roundTripMs: Math.max(0, requestCompletedAt - input.requestStartedAt),
+        operationStartedAt: input.operationStartedAt,
+        operationCompletedAt,
+        roundTripMs: Math.max(0, operationCompletedAt - input.operationStartedAt),
         requestCount: input.requestCount,
         requestWeightHeaders: Object.freeze([...input.requestWeightHeaders]),
       },

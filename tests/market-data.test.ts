@@ -4,6 +4,7 @@ import { RESEARCH_SYMBOLS, type ResearchSymbol } from "@/lib/config/constants";
 import {
   BinanceMarketDataProvider,
   BinancePublicClient,
+  BINANCE_MAX_RETRY_DELAY_MS,
   INTERVAL_MS,
   MarketDataError,
   buildClosedCandleDataset,
@@ -239,7 +240,7 @@ describe("M1 Binance public client", () => {
         headers: { "x-mbx-used-weight-1m": "3" },
       });
     });
-    const clock = [1_000, 1_120];
+    const clock = [1_000, 1_100, 1_120, 2_000, 2_100, 2_200];
     const client = new BinancePublicClient({
       fetchImpl,
       now: () => clock.shift() ?? 1_120,
@@ -250,7 +251,11 @@ describe("M1 Binance public client", () => {
     const klineResponse = await client.getKlines("BTCUSDT", "4h");
 
     expect(serverTime.data.serverTime).toBe(SERVER_TIME);
-    expect(serverTime.diagnostics.estimatedClockOffsetMs).toBe(SERVER_TIME - 1_060);
+    expect(serverTime.diagnostics.operationStartedAt).toBe(1_000);
+    expect(serverTime.diagnostics.attemptStartedAt).toBe(1_100);
+    expect(serverTime.diagnostics.attemptCompletedAt).toBe(1_120);
+    expect(serverTime.diagnostics.roundTripMs).toBe(20);
+    expect(serverTime.diagnostics.estimatedClockOffsetMs).toBe(SERVER_TIME - 1_110);
     expect(serverTime.diagnostics.requestWeight).toBe("3");
     expect(klineResponse.diagnostics.requestWeight).toBe("3");
     expect(new URL(requestedUrls[1]).pathname).toBe("/fapi/v1/klines");
@@ -275,6 +280,53 @@ describe("M1 Binance public client", () => {
     expect(rateLimitedFetch).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenCalledWith(200);
 
+    const maxDelaySleep = vi.fn(async () => undefined);
+    const maxDelayFetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429, headers: { "retry-after": "5" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ serverTime: SERVER_TIME }), { status: 200 }));
+    const maxDelayClient = new BinancePublicClient({
+      fetchImpl: maxDelayFetch,
+      sleep: maxDelaySleep,
+      random: () => 0,
+    });
+    await maxDelayClient.getServerTime();
+    expect(maxDelayFetch).toHaveBeenCalledTimes(2);
+    expect(maxDelaySleep).toHaveBeenCalledWith(BINANCE_MAX_RETRY_DELAY_MS);
+
+    const overMaxSleep = vi.fn(async () => undefined);
+    const overMaxFetch = vi.fn().mockResolvedValue(
+      new Response("", { status: 429, headers: { "retry-after": "5.001" } }),
+    );
+    const overMaxClient = new BinancePublicClient({
+      fetchImpl: overMaxFetch,
+      sleep: overMaxSleep,
+    });
+    await expect(overMaxClient.getServerTime()).rejects.toMatchObject({
+      code: "RATE_LIMITED",
+      retryable: false,
+      diagnostics: {
+        retryAfterMs: BINANCE_MAX_RETRY_DELAY_MS + 1,
+        maxRetryDelayMs: BINANCE_MAX_RETRY_DELAY_MS,
+      },
+    });
+    expect(overMaxFetch).toHaveBeenCalledTimes(1);
+    expect(overMaxSleep).not.toHaveBeenCalled();
+
+    const invalidRetryAfterSleep = vi.fn(async () => undefined);
+    const invalidRetryAfterFetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429, headers: { "retry-after": "not-a-delay" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ serverTime: SERVER_TIME }), { status: 200 }));
+    const invalidRetryAfterClient = new BinancePublicClient({
+      fetchImpl: invalidRetryAfterFetch,
+      sleep: invalidRetryAfterSleep,
+      random: () => 0,
+    });
+    await invalidRetryAfterClient.getServerTime();
+    expect(invalidRetryAfterFetch).toHaveBeenCalledTimes(2);
+    expect(invalidRetryAfterSleep).toHaveBeenCalledWith(100);
+
     const upstreamFetch = vi
       .fn()
       .mockResolvedValueOnce(new Response("", { status: 500 }))
@@ -296,6 +348,45 @@ describe("M1 Binance public client", () => {
       code: "INVALID_RESPONSE",
       retryable: false,
     });
+  });
+
+  it("uses the final successful attempt for clock offset and excludes retry backoff", async () => {
+    const sleep = vi.fn(async () => undefined);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429, headers: { "retry-after": "0.2" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ serverTime: SERVER_TIME }), { status: 200 }));
+    const clock = [1_000, 1_100, 1_200, 9_000, 10_000];
+    const client = new BinancePublicClient({
+      fetchImpl,
+      sleep,
+      now: () => clock.shift() ?? 10_000,
+    });
+
+    const response = await client.getServerTime();
+
+    expect(sleep).toHaveBeenCalledWith(200);
+    expect(response.diagnostics.operationStartedAt).toBe(1_000);
+    expect(response.diagnostics.attempts).toBe(2);
+    expect(response.diagnostics.attemptStartedAt).toBe(9_000);
+    expect(response.diagnostics.attemptCompletedAt).toBe(10_000);
+    expect(response.diagnostics.roundTripMs).toBe(1_000);
+    expect(response.diagnostics.estimatedClockOffsetMs).toBe(SERVER_TIME - 9_500);
+  });
+
+  it("classifies HTTP 451 as an upstream access restriction", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("", { status: 451 }));
+    const client = new BinancePublicClient({
+      fetchImpl,
+      sleep: async () => undefined,
+    });
+
+    await expect(client.getServerTime()).rejects.toMatchObject({
+      code: "UPSTREAM_ACCESS_RESTRICTED",
+      retryable: false,
+      diagnostics: { httpStatus: 451 },
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("classifies an aborted request as a bounded timeout", async () => {

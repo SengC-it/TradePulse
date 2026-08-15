@@ -71,7 +71,7 @@ floor(serverTime / intervalMs) * intervalMs - intervalMs
 
 The latest returned closed candle must equal that open time. Otherwise the dataset is `STALE_DATA`.
 
-The server-time response also records request start/end, round-trip latency, estimated midpoint clock offset, and the optional Binance request-weight header. Clock offset is diagnostic only and never changes candle timestamps or close status.
+The server-time response records the operation start, the final successful HTTP attempt start/end, that attempt's round-trip latency, estimated midpoint clock offset, and the optional Binance request-weight header. `estimatedClockOffsetMs` is calculated only from the final successful attempt's midpoint; retry and backoff time are excluded from the clock estimate.
 
 ## Validation and fail-closed policy
 
@@ -98,7 +98,8 @@ No gap is filled. No candle is interpolated, forward-filled, backward-filled, se
 
 ```text
 SERVER_TIME_UNAVAILABLE  HTTP_TIMEOUT       NETWORK_ERROR
-RATE_LIMITED             UPSTREAM_5XX       INVALID_RESPONSE
+RATE_LIMITED             UPSTREAM_5XX       UPSTREAM_ACCESS_RESTRICTED
+INVALID_RESPONSE
 INVALID_SYMBOL           SYMBOL_UNAVAILABLE INSUFFICIENT_HISTORY
 INVALID_TIMESTAMP        INVALID_NUMBER     INVALID_OHLC
 OUT_OF_ORDER_CANDLES     DUPLICATE_CANDLE   CANDLE_GAP
@@ -111,8 +112,11 @@ Raw upstream bodies and arbitrary headers are never copied into error messages o
 
 - Every request uses an `AbortController` with a default 5-second timeout.
 - At most three total attempts are allowed.
+- Retry sleeps are bounded by `BINANCE_MAX_RETRY_DELAY_MS = 5000` milliseconds.
 - Only network errors, HTTP 408, HTTP 429, and HTTP 5xx responses are retryable.
-- HTTP 429 honors `Retry-After` when it is a valid numeric delay.
+- HTTP 429 honors `Retry-After` when it is valid and no greater than 5000 milliseconds.
+- When `Retry-After` exceeds 5000 milliseconds, the invocation stops retrying immediately and returns `RATE_LIMITED` without sleeping or issuing another request.
+- An invalid `Retry-After` falls back to the bounded exponential delay; it never creates an unbounded sleep.
 - Other retryable failures use bounded exponential backoff with jitter.
 - Ordinary 4xx responses and malformed successful responses fail immediately.
 - The adapter records optional request-weight headers for diagnostics but does not depend on them for correctness.
@@ -131,7 +135,7 @@ It requests the five approved symbols at both supported timeframes and prints se
 ## Known risks
 
 - Binance maintenance, rate limits, WAF behavior, or public schema changes can make a snapshot partial or invalid.
-- Binance can return an upstream location-eligibility response such as HTTP 451; M1 reports that as invalid public data and does not bypass the restriction.
+- Binance can return an upstream location-eligibility response such as HTTP 451; M1 reports it as `UPSTREAM_ACCESS_RESTRICTED` and does not bypass the restriction.
 - A local clock offset can affect diagnostics, but it cannot affect closed-candle acceptance because Binance server time is authoritative.
 - Exact freshness intentionally fails closed when the upstream latest candle is delayed.
 - M1 does not persist candles; historical data retention and backtest loading remain M3 work.

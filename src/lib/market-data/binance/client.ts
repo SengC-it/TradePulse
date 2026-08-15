@@ -4,6 +4,7 @@ import { MarketDataError, type SafeDiagnostics } from "../errors.ts";
 import {
   BINANCE_HTTP_TIMEOUT_MS,
   BINANCE_MAX_ATTEMPTS,
+  BINANCE_MAX_RETRY_DELAY_MS,
   REQUESTED_CANDLE_LIMIT,
   isMarketTimeframe,
   type MarketTimeframe,
@@ -13,8 +14,9 @@ export const BINANCE_PUBLIC_BASE_URL = "https://fapi.binance.com";
 
 export type BinanceRequestDiagnostics = SafeDiagnostics &
   Readonly<{
-    requestStartedAt: number;
-    requestCompletedAt: number;
+    operationStartedAt: number;
+    attemptStartedAt: number;
+    attemptCompletedAt: number;
     roundTripMs: number;
     attempts: number;
   }>;
@@ -66,18 +68,41 @@ function parseServerTime(value: unknown): number {
   return serverTime;
 }
 
-function parseRetryAfterMilliseconds(value: string | null, now: number): number | undefined {
-  if (!value) {
-    return undefined;
+type RetryAfterDecision = Readonly<{
+  delayMs?: number;
+  exceedsMax: boolean;
+}>;
+
+function parseRetryAfterMilliseconds(
+  value: string | null,
+  now: number,
+  maxRetryDelayMs: number,
+): RetryAfterDecision {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) {
+    return { exceedsMax: false };
   }
 
-  const seconds = Number(value);
+  const seconds = Number(normalizedValue);
+  let delayMs: number | undefined;
   if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.ceil(seconds * 1000);
+    const rawDelayMs = seconds * 1000;
+    if (!Number.isFinite(rawDelayMs)) {
+      return { delayMs: maxRetryDelayMs + 1, exceedsMax: true };
+    }
+    delayMs = Math.ceil(rawDelayMs);
+  } else {
+    const retryAt = Date.parse(normalizedValue);
+    if (!Number.isFinite(retryAt)) {
+      return { exceedsMax: false };
+    }
+    delayMs = Math.max(0, retryAt - now);
   }
 
-  const retryAt = Date.parse(value);
-  return Number.isFinite(retryAt) ? Math.max(0, retryAt - now) : undefined;
+  return {
+    delayMs,
+    exceedsMax: delayMs > maxRetryDelayMs,
+  };
 }
 
 function getRequestWeight(response: Response): string | undefined {
@@ -118,7 +143,7 @@ export class BinancePublicClient {
     const response = await this.getJson<unknown>("/fapi/v1/time");
     const serverTime = parseServerTime(response.data);
     const midpoint = Math.round(
-      (response.diagnostics.requestStartedAt + response.diagnostics.requestCompletedAt) / 2,
+      (response.diagnostics.attemptStartedAt + response.diagnostics.attemptCompletedAt) / 2,
     );
 
     return {
@@ -179,15 +204,16 @@ export class BinancePublicClient {
       url.searchParams.set(key, value);
     }
 
-    const requestStartedAt = this.now();
+    const operationStartedAt = this.now();
     let lastError: MarketDataError | undefined;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       lastError = undefined;
+      const attemptStartedAt = this.now();
       const controller = new AbortController();
       const timeoutHandle = setTimeout(() => controller.abort(), this.timeoutMs);
       let response: Response | undefined;
-      let requestCompletedAt = requestStartedAt;
+      let attemptCompletedAt = attemptStartedAt;
 
       try {
         response = await this.fetchImpl(url, {
@@ -195,9 +221,9 @@ export class BinancePublicClient {
           headers: { accept: "application/json" },
           signal: controller.signal,
         });
-        requestCompletedAt = this.now();
+        attemptCompletedAt = this.now();
       } catch (error) {
-        requestCompletedAt = this.now();
+        attemptCompletedAt = this.now();
         clearTimeout(timeoutHandle);
         const isTimeout = isAbortError(error);
         lastError = new MarketDataError({
@@ -207,9 +233,10 @@ export class BinancePublicClient {
           diagnostics: {
             endpoint: path,
             attempts: attempt,
-            requestStartedAt,
-            requestCompletedAt,
-            roundTripMs: Math.max(0, requestCompletedAt - requestStartedAt),
+            operationStartedAt,
+            attemptStartedAt,
+            attemptCompletedAt,
+            roundTripMs: Math.max(0, attemptCompletedAt - attemptStartedAt),
           },
         });
       }
@@ -230,9 +257,10 @@ export class BinancePublicClient {
           diagnostics: {
             endpoint: path,
             attempts: attempt,
-            requestStartedAt,
-            requestCompletedAt,
-            roundTripMs: Math.max(0, requestCompletedAt - requestStartedAt),
+            operationStartedAt,
+            attemptStartedAt,
+            attemptCompletedAt,
+            roundTripMs: Math.max(0, attemptCompletedAt - attemptStartedAt),
           },
         });
       }
@@ -241,18 +269,26 @@ export class BinancePublicClient {
       const requestDiagnostics: BinanceRequestDiagnostics = {
         endpoint: path,
         attempts: attempt,
-        requestStartedAt,
-        requestCompletedAt,
-        roundTripMs: Math.max(0, requestCompletedAt - requestStartedAt),
+        operationStartedAt,
+        attemptStartedAt,
+        attemptCompletedAt,
+        roundTripMs: Math.max(0, attemptCompletedAt - attemptStartedAt),
         ...(getRequestWeight(response) ? { requestWeight: getRequestWeight(response) } : {}),
       };
 
       if (!response.ok) {
-        const retryAfterMs = parseRetryAfterMilliseconds(response.headers.get("retry-after"), this.now());
         const isRateLimited = response.status === 429;
         const isTimeout = response.status === 408;
         const isUpstreamFailure = response.status >= 500 && response.status <= 599;
-        const retryable = isRateLimited || isTimeout || isUpstreamFailure;
+        const isAccessRestricted = response.status === 451;
+        const retryAfter = isRateLimited
+          ? parseRetryAfterMilliseconds(
+              response.headers.get("retry-after"),
+              attemptCompletedAt,
+              BINANCE_MAX_RETRY_DELAY_MS,
+            )
+          : { exceedsMax: false };
+        const retryable = (isRateLimited || isTimeout || isUpstreamFailure) && !retryAfter.exceedsMax;
         lastError = new MarketDataError({
           code: isRateLimited
             ? "RATE_LIMITED"
@@ -260,26 +296,34 @@ export class BinancePublicClient {
               ? "HTTP_TIMEOUT"
               : isUpstreamFailure
                 ? "UPSTREAM_5XX"
+                : isAccessRestricted
+                  ? "UPSTREAM_ACCESS_RESTRICTED"
                 : "INVALID_RESPONSE",
           message: isRateLimited
-            ? "Binance rate limit was reached."
+            ? retryAfter.exceedsMax
+              ? "Binance rate limit requested a retry delay above the configured maximum."
+              : "Binance rate limit was reached."
             : isTimeout
               ? "Binance public request timed out upstream."
               : isUpstreamFailure
                 ? "Binance public endpoint returned an upstream server error."
+                : isAccessRestricted
+                  ? "Binance public endpoint access is restricted in this environment."
                 : "Binance public endpoint returned an invalid HTTP status.",
           retryable,
           diagnostics: {
             ...requestDiagnostics,
             httpStatus: response.status,
-            ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+            ...(retryAfter.delayMs !== undefined ? { retryAfterMs: retryAfter.delayMs } : {}),
+            ...(isRateLimited ? { maxRetryDelayMs: BINANCE_MAX_RETRY_DELAY_MS } : {}),
           },
         });
 
         if (!retryable || attempt >= this.maxAttempts) {
           throw lastError;
         }
-        await this.sleep(retryAfterMs ?? this.getRetryDelay(attempt));
+        const retryDelay = retryAfter.delayMs ?? this.getRetryDelay(attempt);
+        await this.sleep(Math.min(BINANCE_MAX_RETRY_DELAY_MS, retryDelay));
         continue;
       }
 
@@ -307,7 +351,10 @@ export class BinancePublicClient {
   }
 
   private getRetryDelay(attempt: number): number {
-    const exponentialDelay = Math.min(1_000, 100 * 2 ** (attempt - 1));
-    return exponentialDelay + Math.floor(Math.max(0, Math.min(1, this.random())) * exponentialDelay);
+    const exponentialDelay = Math.min(BINANCE_MAX_RETRY_DELAY_MS, 100 * 2 ** (attempt - 1));
+    return Math.min(
+      BINANCE_MAX_RETRY_DELAY_MS,
+      exponentialDelay + Math.floor(Math.max(0, Math.min(1, this.random())) * exponentialDelay),
+    );
   }
 }

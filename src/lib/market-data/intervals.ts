@@ -11,6 +11,7 @@ export const REQUIRED_CLOSED_CANDLES = 250;
 export const REQUESTED_CANDLE_LIMIT = REQUIRED_CLOSED_CANDLES + 1;
 export const BINANCE_HTTP_TIMEOUT_MS = 5_000;
 export const BINANCE_MAX_ATTEMPTS = 3;
+export const BINANCE_MAX_RETRY_DELAY_MS = 5_000;
 export const BINANCE_MAX_CONCURRENCY = 4;
 
 export function isMarketTimeframe(value: unknown): value is MarketTimeframe {

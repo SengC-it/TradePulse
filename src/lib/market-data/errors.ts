@@ -7,6 +7,7 @@ export const MARKET_DATA_ERROR_CODES = [
   "NETWORK_ERROR",
   "RATE_LIMITED",
   "UPSTREAM_5XX",
+  "UPSTREAM_ACCESS_RESTRICTED",
   "INVALID_RESPONSE",
   "INVALID_SYMBOL",
   "SYMBOL_UNAVAILABLE",
@@ -26,12 +27,14 @@ export type SafeDiagnostics = Readonly<{
   endpoint?: string;
   httpStatus?: number;
   attempts?: number;
-  requestStartedAt?: number;
-  requestCompletedAt?: number;
+  operationStartedAt?: number;
+  attemptStartedAt?: number;
+  attemptCompletedAt?: number;
   roundTripMs?: number;
   estimatedClockOffsetMs?: number;
   requestWeight?: string;
   retryAfterMs?: number;
+  maxRetryDelayMs?: number;
   expectedLatestOpenTime?: number;
   actualLatestOpenTime?: number;
   previousOpenTime?: number;
