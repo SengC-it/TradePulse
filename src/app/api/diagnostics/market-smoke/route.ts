@@ -77,6 +77,7 @@ export async function GET(request: Request) {
       {
         ok: snapshot.status === "VALID",
         runtime: "nodejs",
+        nodeVersion: process.version,
         region: runtimeRegion,
         serverTime: snapshot.serverTime?.serverTime ?? null,
         snapshotStatus: snapshot.status,
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
       {
         ok: false,
         runtime: "nodejs",
+        nodeVersion: process.version,
         region: runtimeRegion,
         serverTime: null,
         snapshotStatus: "INVALID",
