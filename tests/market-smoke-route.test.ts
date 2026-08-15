@@ -95,14 +95,28 @@ function makeSnapshot(status: MarketSnapshot["status"]): MarketSnapshot {
   } as unknown as MarketSnapshot;
 }
 
-function makeRequest(authorized = true): Request {
+function makeRequest(
+  authorized = true,
+  useDiagnosticHeader = false,
+): Request {
+  const headers = new Headers();
+  if (authorized) {
+    headers.set(
+      useDiagnosticHeader
+        ? "x-tradepulse-market-smoke-secret"
+        : "authorization",
+      useDiagnosticHeader ? TEST_SECRET : `Bearer ${TEST_SECRET}`,
+    );
+  }
+
   return new Request("https://example.test/api/diagnostics/market-smoke", {
-    headers: authorized ? { authorization: `Bearer ${TEST_SECRET}` } : undefined,
+    headers: authorized ? headers : undefined,
   });
 }
 
 beforeEach(() => {
   process.env.CRON_SECRET = TEST_SECRET;
+  process.env.TRADEPULSE_MARKET_SMOKE_SECRET = TEST_SECRET;
   getMarketSnapshot.mockReset();
   mockedProvider.mockImplementation(
     function MockProvider() {
@@ -113,6 +127,7 @@ beforeEach(() => {
 
 afterAll(() => {
   delete process.env.CRON_SECRET;
+  delete process.env.TRADEPULSE_MARKET_SMOKE_SECRET;
 });
 
 describe("market smoke diagnostic route HTTP semantics", () => {
@@ -157,6 +172,14 @@ describe("market smoke diagnostic route HTTP semantics", () => {
     expect(response.status).toBe(401);
     expect(body).toEqual({ error: "unauthorized" });
     expect(getMarketSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("accepts the temporary server-only diagnostic secret header", async () => {
+    getMarketSnapshot.mockResolvedValue(makeSnapshot("VALID"));
+
+    const response = await GET(makeRequest(true, true));
+
+    expect(response.status).toBe(200);
   });
 
   it("returns 500 with a safe body when the provider throws unexpectedly", async () => {

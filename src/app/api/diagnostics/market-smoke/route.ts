@@ -63,8 +63,23 @@ function diagnosticHeaders(): HeadersInit {
   return { "Cache-Control": "no-store" };
 }
 
+function isAuthorizedDiagnosticRequest(request: Request): boolean {
+  const diagnosticSecret = request.headers.get("x-tradepulse-market-smoke-secret");
+  if (diagnosticSecret) {
+    const authorizationRequest = new Request(request, {
+      headers: { authorization: `Bearer ${diagnosticSecret}` },
+    });
+    return isAuthorizedCronRequest(
+      authorizationRequest,
+      process.env.TRADEPULSE_MARKET_SMOKE_SECRET,
+    );
+  }
+
+  return isAuthorizedCronRequest(request, process.env.CRON_SECRET);
+}
+
 export async function GET(request: Request) {
-  if (!isAuthorizedCronRequest(request, process.env.CRON_SECRET)) {
+  if (!isAuthorizedDiagnosticRequest(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
