@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-Status: M0 decision record
+Status: M1 decision record (M0 decisions retained)
 
 ## ADR-001 — Use Next.js App Router on Vercel
 
@@ -55,6 +55,12 @@ Status: M0 decision record
 - **Decision:** A/B notifications are enabled by policy; C is disabled by default, and Preview is safe mode.
 - **Reason:** A preview or incomplete environment must not send production alerts accidentally.
 - **Consequence:** Notification policy is centralized and audited, not a user-editable strategy parameter.
+
+## ADR-010 — REST over WebSocket for current TradePulse
+
+- **Decision:** M1 uses Binance USDⓈ-M Futures public REST endpoints for server time, ExchangeInfo, and 1h/4h Kline snapshots. It does not implement WebSocket or a long-lived stream consumer.
+- **Reason:** TradePulse currently consumes closed hourly and four-hour candles from a finite serverless request. REST is simpler, deterministic, bounded, and compatible with the current Vercel architecture.
+- **Consequence:** Each snapshot requests a bounded recent history and fails closed on bad or stale data. A future need for second-level data must trigger a new architecture review before WebSocket work begins.
 
 ## Open decisions
 
