@@ -85,7 +85,10 @@ export async function GET(request: Request) {
         datasets: summarizeSnapshot(snapshot),
         errorCode: snapshot.error?.code ?? null,
       },
-      { headers: diagnosticHeaders() },
+      {
+        status: snapshot.status === "VALID" ? 200 : 503,
+        headers: diagnosticHeaders(),
+      },
     );
   } catch {
     return Response.json(
@@ -107,7 +110,7 @@ export async function GET(request: Request) {
         ),
         errorCode: "INVALID_RESPONSE",
       },
-      { headers: diagnosticHeaders() },
+      { status: 500, headers: diagnosticHeaders() },
     );
   }
 }
