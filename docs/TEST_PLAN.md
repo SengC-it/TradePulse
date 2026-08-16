@@ -15,11 +15,26 @@ Status: M2-A test design (M0 and M1 coverage retained)
   average-loss/average-gain edge results 100, 0, and 50.
 - ATR14 tests prove true-range selection, first high-low TR fallback, SMA
   seeding, Wilder smoothing, and forming-candle exclusion.
+- Fail-closed denominator tests prove ATR14_1H = 0 makes a candidate
+  ineligible and ATR14_4H = 0 prevents normalized regime or Trend Strength
+  values from qualifying.
+- Required-indicator validation tests prove missing, undefined, NaN, and
+  infinite indicator/reference values make the candidate ineligible and never
+  produce an Infinity, NaN, or fallback score.
+- Warm-up tests prove insufficient EMA200 history, RSI14 history, or ATR14
+  history makes the candidate ineligible without shortening a period,
+  changing a seed, extrapolating, or using a fallback indicator.
+- Volume denominator tests prove fewer than 20 prior fully closed quoteVolume
+  candles and a previous20QuoteVolumeMean of 0 make the candidate ineligible.
+- No-epsilon tests prove invalid ATR and volume denominators never use zero,
+  epsilon, Infinity, or another substitute.
 - Market regime tests have explicit LONG_ONLY, SHORT_ONLY, and NO_TRADE cases,
   including strict directional boundaries.
 - BTC regime tests cover BTC_STRONG_BULL, BTC_STRONG_BEAR, BTC_NEUTRAL, and
   the exact directional gating table. BTCUSDT proves that cross-symbol gating
   is not applied to itself.
+- Invalid BTCUSDT 4H input tests prove non-BTC candidates are blocked and the
+  invalid input is never converted into BTC_NEUTRAL.
 - Pullback tests cover EMA20/EMA50 touches, LOW versus HIGH directionality,
   every W_t position from t-1 through t-5, highest applicable depth, and
   recency bonuses.
@@ -61,6 +76,9 @@ expected business result. Tests must prove that:
 - all component thresholds and grade thresholds match the frozen tables;
 - equal-score candidates use the fixed research-universe order;
 - the engine returns serializable deterministic output without side effects.
+- invalid BTC regime input blocks non-BTC candidates and cannot produce a
+  BTC_NEUTRAL result;
+- invalid ATR, volume, or warm-up input produces NO FORMAL SIGNAL.
 
 ### Integration tests
 

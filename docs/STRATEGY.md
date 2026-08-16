@@ -82,6 +82,59 @@ use Wilder smoothing:
 
 No forming candle may be used.
 
+## Indicator availability and fail-closed policy
+
+Every required indicator and reference value must exist and be finite before a
+baseline-001 evaluation can qualify a candidate.
+
+### ATR denominators
+
+Any ATR used as a denominator must satisfy:
+
+    ATR14 > 0
+
+If required ATR14_1H or ATR14_4H is missing, undefined, NaN, infinite, or
+less than or equal to 0, the affected strategy evaluation is INELIGIBLE.
+
+The engine must not calculate BTC normalized regime thresholds, normalized
+Trend Strength values, breakoutDistance, or stop_atr with an invalid ATR
+denominator. It must not substitute Infinity, zero, epsilon, or any other
+fallback.
+
+### Volume denominator
+
+The volume denominator is:
+
+    previous20QuoteVolumeMean
+
+It must be finite and greater than 0. If fewer than 20 prior fully closed 1H
+candles are available, the mean is missing or non-finite, or the mean is less
+than or equal to 0, the candidate is INELIGIBLE.
+
+The engine must not substitute zero, Infinity, epsilon, or any other fallback
+for the volume denominator.
+
+### Indicator warm-up
+
+If any indicator required by baseline-001 is unavailable because there is
+insufficient fully closed-candle history, the Strategy Engine fails closed:
+the candidate is ineligible and there is NO FORMAL SIGNAL.
+
+Indicator functions may represent pre-warm-up EMA, RSI, or ATR values as
+unavailable according to the implementation contract. Unavailable values must
+never qualify a candidate or produce a score. The engine must not extrapolate,
+shorten the period, change the seed, or silently use a fallback indicator.
+
+### BTC dependency
+
+For non-BTC symbols, missing or invalid required BTCUSDT 4H inputs or BTC
+regime indicators block the candidate. Invalid BTC regime input must not be
+silently treated as BTC_NEUTRAL.
+
+BTC_NEUTRAL is valid only when it has been computed from valid BTC inputs.
+
+This policy preserves the project principle: No Data > Bad Signal.
+
 ## 4H symbol market regime
 
 Evaluate each symbol using the most recent fully closed 4H candle.

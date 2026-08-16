@@ -102,7 +102,8 @@ Status: M1 decision record (M0 decisions retained)
 
 - **Decision:** Entry is the current fully closed signal-candle close for
   research reference only. The stop uses exactly W_t with a 0.2 ATR14_1H
-  offset, risk is inclusive from 0.8R to 3.0R, and TP remains exactly 2R.
+  offset, stop_atr is inclusive from 0.8 to 3.0 ATR multiples, and TP
+  remains exactly 2R.
   The score allocation is 40/20/20/10/10, grades are A 85–100, B 75–84,
   C 70–74, and below 70 is not a formal signal. Ranking is total score
   descending, then the fixed research-universe order.
