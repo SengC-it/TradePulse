@@ -4,6 +4,8 @@ Every milestone ends with a review, documentation update, acceptance check, and 
 
 ## M0 — Foundation & Architecture
 
+Status: CLOSED
+
 ### Scope
 
 Repository initialization, minimal Next.js App Router app, configuration boundaries, architecture and product documents, strategy specification, migration-based database design, Auth/Cron/SMTP/security design, and verification scripts.
@@ -34,6 +36,8 @@ M1 market data and every later engine, scan, email, dashboard, and deployment.
 
 ## M1 — Market Data
 
+Status: CLOSED / MERGED TO main
+
 ### Scope
 
 Implement `MarketDataProvider` and Binance public REST adapter for the approved five symbols, 1H/4H candles, server time, completeness, ordering, freshness, malformed-data validation, bounded retry, and partial snapshot reporting.
@@ -62,35 +66,91 @@ Exchange rate limits, maintenance, clock skew, and API schema changes.
 
 Indicators, strategy, scoring, alerts, database writes, and trading.
 
+## M2-A — Strategy Specification Freeze
+
+Status: Documentation-only planning milestone
+
+### Scope
+
+Freeze baseline-001 indicator formulas, market regimes, BTC directional gate,
+1H candidate rules, entry/stop/TP references, score, grades, and deterministic
+ranking. M2-A changes documentation only.
+
+### Deliverables
+
+Update only:
+
+- docs/STRATEGY.md
+- docs/DECISIONS.md
+- docs/ROADMAP.md
+- docs/TEST_PLAN.md
+
+### Tests
+
+Document exact boundary tests for every frozen formula and eligibility rule.
+No indicator or Strategy Engine implementation is added in M2-A.
+
+### Integration tests
+
+None. M2-A does not add runtime, database, Cron, notification, or trading
+integration.
+
+### Acceptance criteria
+
+The baseline-001 contract is explicit, closed-candle-only, deterministic,
+versioned, and consistent with ADR-004. The pull request contains only the
+four documentation files, normal CI passes, and the Draft PR is not merged.
+
+### Known risks
+
+Implementation must preserve the frozen formulas and must not invent the
+M6-deferred TIME_EXIT price, same-candle TP/SL ordering, or invalidation event
+ordering.
+
+### Out of scope
+
+Indicators, Strategy Engine code, persistence, Cron, SMTP, dashboard,
+backtesting, production deployment, and all trading capability.
+
 ## M2 — Indicators & Strategy Engine
 
 ### Scope
 
-Implement approved indicators, BTC/symbol regimes after open decisions are approved, candidate rules, score, grade, and ranking in one pure Strategy Engine.
+After M2-A approval, implement the frozen baseline-001 indicators, BTC/symbol
+regimes, candidate rules, score, grade, and ranking in one pure Strategy
+Engine.
 
 ### Deliverables
 
-Indicator modules, domain types, Strategy Engine, score/ranking modules, and complete deterministic fixtures.
+Indicator modules, domain types, Strategy Engine, score/ranking modules, and
+complete deterministic fixtures.
 
 ### Tests
 
-Unit and strategy tests for every formula and boundary; shared-engine contract tests.
+Unit and strategy tests for every formula and boundary; shared-engine contract
+tests; closed-candle-only tests; and tests proving no infrastructure imports or
+side effects.
 
 ### Integration tests
 
-Market-data fixture to candidate output; no external send.
+Market-data fixture to candidate output; no external send and no database
+write.
 
 ### Acceptance criteria
 
-All approved rules are testable, closed-candle-only, versioned, and identical for future realtime/backtest callers.
+All baseline-001 rules are testable, closed-candle-only, versioned, and
+identical for future realtime/backtest callers. M6-deferred decisions remain
+explicitly deferred.
 
 ### Known risks
 
-Ambiguous rules may be incorrectly frozen; no implementation before human decisions are recorded.
+Look-ahead bias, incorrect indicator seeding, boundary-condition drift, and
+accidental coupling to Binance or infrastructure.
 
 ### Out of scope
 
-Persistence, Cron, SMTP, dashboard, and real trading.
+Persistence, Cron, SMTP, dashboard, backtesting, M6 event resolution, and real
+trading.
 
 ## M3 — Backtest
 
