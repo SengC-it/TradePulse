@@ -2,6 +2,11 @@ name: M1 Remote Smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      preview_url:
+        description: TradePulse Vercel Preview URL
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      M1_PREVIEW_URL: ${{ vars.M1_PREVIEW_URL }}
+      PREVIEW_URL: ${{ inputs.preview_url }}
 
     steps:
       - name: Validate Preview target
@@ -20,12 +25,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -z "${M1_PREVIEW_URL:-}" ]]; then
-            echo "M1 SMOKE BLOCKED: MISSING VARIABLE M1_PREVIEW_URL" >&2
+          if [[ -z "${PREVIEW_URL:-}" ]]; then
+            echo "M1 SMOKE BLOCKED: MISSING PREVIEW URL" >&2
             exit 1
           fi
 
-          preview_url="${M1_PREVIEW_URL%/}"
+          preview_url="${PREVIEW_URL%/}"
           if [[ "$preview_url" != https://tradepulse-*.vercel.app ]]; then
             echo "M1 SMOKE BLOCKED: invalid TradePulse Preview URL" >&2
             exit 1
@@ -50,7 +55,7 @@ jobs:
 
           response_file="$(mktemp)"
           trap 'rm -f "$response_file"' EXIT
-          endpoint="${M1_PREVIEW_URL%/}/api/diagnostics/market-smoke"
+          endpoint="${PREVIEW_URL%/}/api/diagnostics/market-smoke"
 
           set +e
           http_status="$(curl \
