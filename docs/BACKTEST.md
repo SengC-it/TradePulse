@@ -38,6 +38,52 @@ the run fails closed as incomplete.
 The OOS period is locked before any baseline results are inspected. OOS data
 must not be used to tune, select, or alter baseline-001 parameters.
 
+## Period membership and settlement-tail policy
+
+Period membership is determined only by the signal/evaluation time:
+
+```text
+signalTime = evaluationTime = C_t.closeTime
+```
+
+A signal belongs to DEV only when `signalTime` is inside the frozen DEV range,
+and belongs to OOS only when `signalTime` is inside the frozen OOS range.
+Candles after a period end must never create evaluations or signals for the
+prior period.
+
+### DEV settlement boundary
+
+OOS candles must never be used to settle a DEV position. A DEV formal signal is
+executable only when its maximum possible `bt-policy-001` settlement horizon
+can be completed using fully closed 1H candles whose `closeTime` remains inside
+the DEV period. The horizon includes the next-open entry candle and all 24
+held candles.
+
+When that horizon would cross the DEV end, record:
+
+```text
+PERIOD_END_CENSORED
+```
+
+The signal remains in the formal-signal count, but is not an executed trade and
+contributes no PnL or R. Report it separately. It is not
+`ENTRY_OUTSIDE_BRACKET` and must not be counted in the execution denominator.
+
+### OOS settlement-only tail
+
+An OOS signal may use a settlement-only tail after the frozen OOS end. The
+loader may retrieve enough fully closed 1H candles and required official public
+funding records to settle positions opened by OOS signals. The maximum tail is
+the next-open entry candle plus 24 held 1H candles after the last possible OOS
+entry.
+
+Tail data may settle existing OOS signals and provide funding for those
+positions, but it must never create a Strategy Engine evaluation, formal
+signal, or change OOS membership. The manifest must explicitly identify these
+rows and funding records as `settlementOnly` post-OOS data. If required tail
+data is incomplete, the run is `DATA_INCOMPLETE`; M3-C cannot claim a complete
+OOS baseline result.
+
 ## Historical universe and data source
 
 The universe is exactly:
@@ -187,19 +233,78 @@ For TP/SL, `rawExitPrice` is the corresponding frozen reference. For
 `TIME_EXIT`, it is the 24th held candle close. Slippage is embedded in the
 entry and exit fills and must not be charged a second time.
 
+## Event times and TP/SL audit convention
+
+The backtest records these deterministic times:
+
+```text
+signalTime = C_t.closeTime
+entryTime  = openTime of the next 1H candle used for rawEntryPrice
+```
+
+For `TIME_EXIT`:
+
+```text
+exitTime = closeTime of the 24th held 1H candle
+```
+
+For TP/SL, `exitCandle` is the first held 1H candle whose OHLC satisfies the
+frozen TP/SL resolution. Because OHLC does not reveal the intrabar trigger
+timestamp, use its close only for deterministic report and audit ordering:
+
+```text
+exitTime = exitCandle.closeTime
+```
+
+This audit `exitTime` must not be treated as proof that a TP/SL trigger occurred
+at the candle close. Funding uses the separate timestamp policy below and must
+not invent intrabar event ordering from this report boundary.
+
 ## Funding
 
 The baseline includes actual historical funding events from the official
-public source. Missing, incomplete, or invalid required funding data is
-`DATA_INCOMPLETE`; it must not be replaced by zero or silently ignored.
+public source. Every required record must contain:
 
-Include an event when:
+- finite `fundingRate`;
+- valid `fundingTime`;
+- finite, positive official `markPrice`.
+
+Missing, incomplete, non-finite, or invalid required funding data is
+`DATA_INCOMPLETE`. A missing mark price must not use a candle close, candle
+open, average price, zero, or any other fallback.
+
+Funding timestamps are expected to be exchange funding timestamps. A funding
+event can be charged only when the position was already open:
+
+```text
+entryTime < fundingTime
+```
+
+Therefore `fundingTime == entryTime` is always excluded; no real exchange
+priority is inferred at an identical entry timestamp.
+
+For a TP/SL exit, include an event at the exit candle boundary only when the
+ordering is deterministic:
+
+- if `fundingTime == exitCandle.openTime` and `entryTime < fundingTime`,
+  include it because the position existed before the exit candle began;
+- if `exitCandle.openTime < fundingTime < exitCandle.closeTime`, mark the
+  affected trade and baseline run `SETTLEMENT_AMBIGUOUS` because OHLC cannot
+  establish whether funding or the intrabar TP/SL happened first;
+- do not include an event merely because the audit `exitTime` equals
+  `exitCandle.closeTime`; without an independent ordering, that boundary is
+  also `SETTLEMENT_AMBIGUOUS` rather than an invented intrabar sequence.
+
+Funding events after entry and before the exit candle are included when their
+ordering is unambiguous. For `TIME_EXIT`, include an event when:
 
 ```text
 entryTime < fundingTime <= exitTime
 ```
 
-For one base-asset unit, using the event's official mark price when available:
+because TIME_EXIT occurs deterministically at the held candle close.
+
+For one base-asset unit, using the event's official mark price:
 
 ```text
 LONG funding PnL  = -fundingRate * markPrice
@@ -257,10 +362,13 @@ Report separately for `DEV`, `OOS`, and `COMBINED`:
 - total formal signals;
 - executed trades;
 - `ENTRY_OUTSIDE_BRACKET` count;
+- `PERIOD_END_CENSORED` count;
+- `SETTLEMENT_AMBIGUOUS` count/status;
 - execution/fill rate;
 - TP, SL, and TIME_EXIT counts;
 - gross R and net R;
 - win rate, loss rate, breakeven count;
+- breakeven rate;
 - profit factor and expectancy R;
 - median R, average win R, average loss R;
 - best trade R and worst trade R;
@@ -271,24 +379,116 @@ Report separately for `DEV`, `OOS`, and `COMBINED`:
 - top symbol share of positive net R;
 - largest single-trade share of positive net R.
 
-Win is `netR > 0`, loss is `netR < 0`, and breakeven is `netR == 0`.
-Expectancy is `mean(netR)`. Profit factor is:
+Performance metrics use executed trades only. `ENTRY_OUTSIDE_BRACKET` and
+`PERIOD_END_CENSORED` remain formal signals, are not executed trades, and
+contribute no PnL or R. `DATA_INCOMPLETE` or `SETTLEMENT_AMBIGUOUS` affecting
+the required baseline run makes that run incomplete; those outcomes must not
+be silently discarded.
+
+Define the execution denominator and fill rate exactly as:
 
 ```text
-sum(all positive netR) / abs(sum(all negative netR))
+eligibleExecutionSignals = formalSignals - PERIOD_END_CENSORED
+executionFillRate = executedTrades / eligibleExecutionSignals
 ```
 
-Never serialize JavaScript `Infinity`. If positive trades exist and losing R
-is zero, use `profitFactor = null` and
-`profitFactorStatus = NO_LOSSES`. If there are no executed trades, use
-`profitFactor = null` and `profitFactorStatus = NO_TRADES`.
+`ENTRY_OUTSIDE_BRACKET` remains in `eligibleExecutionSignals` because it is a
+formal signal that failed the frozen execution model. If
+`eligibleExecutionSignals == 0`, `executionFillRate = null`.
 
-Calculate drawdown only from the deterministic signal sequence ordered by:
+For each executed trade:
 
-1. signal/evaluation time ascending;
-2. fixed symbol order: BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, BNBUSDT.
+```text
+grossR = priceR
+```
 
-Label it `signalSequenceMaxDrawdownR`; never call it portfolio drawdown.
+Aggregate `grossR` is `sum(priceR)`. It includes adverse slippage already
+embedded in `entryFill` and `exitFill`, but excludes fees and funding. `netR`
+remains:
+
+```text
+netR = priceR - feeR + fundingR
+```
+
+Win is `netR > 0`, loss is `netR < 0`, and breakeven is `netR == 0`.
+Expectancy is `mean(netR)`. With `executedTrades > 0`:
+
+```text
+winRate        = wins / executedTrades
+lossRate       = losses / executedTrades
+breakevenRate  = breakevens / executedTrades
+```
+
+When `executedTrades == 0`, all three rates are `null`.
+
+Profit factor uses:
+
+```text
+positiveR = sum(netR where netR > 0)
+negativeR = abs(sum(netR where netR < 0))
+```
+
+If `executedTrades == 0`, use `profitFactor = null` and
+`profitFactorStatus = NO_TRADES`. Otherwise, if `negativeR == 0`—including an
+all-breakeven executed set—use `profitFactor = null` and
+`profitFactorStatus = NO_LOSSES`. Otherwise:
+
+```text
+profitFactor = positiveR / negativeR
+profitFactorStatus = NORMAL
+```
+
+Never serialize JavaScript `Infinity` or `NaN`.
+
+Calculate `signalSequenceMaxDrawdownR` from executed trades ordered by:
+
+1. `signalTime` ascending;
+2. fixed symbol order: BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, BNBUSDT;
+3. `LONG` before `SHORT` if the same symbol and signal time contain more than
+   one direction.
+
+Define:
+
+```text
+equity_0 = 0 R
+equity_n = cumulative sum of netR through trade n
+runningPeak_n = max(0, equity_1, ..., equity_n)
+drawdown_n = runningPeak_n - equity_n
+signalSequenceMaxDrawdownR = max(drawdown_n)
+```
+
+This is a signal-sequence drawdown, never a portfolio drawdown.
+
+Define each executed trade's active interval as the closed interval
+`[entryTime, exitTime]`. Two trades overlap when those intervals have a
+non-empty time intersection. An executed trade is an overlapping trade if it
+overlaps at least one other executed trade.
+
+```text
+overlappingSignalRate =
+  overlapping executed trades / executedTrades
+```
+
+If `executedTrades == 0`, `overlappingSignalRate = null`. Report the overlap
+count as well as the rate; pair-count or combination-count is not the primary
+overlap rate.
+
+For concentration, define:
+
+```text
+totalPositiveNetR = sum(max(netR, 0)) across executed trades
+symbolPositiveNetR = sum(max(netR, 0)) for each symbol
+topSymbolShareOfPositiveNetR = max(symbolPositiveNetR) / totalPositiveNetR
+largestSingleTradeShareOfPositiveNetR =
+  max(max(netR, 0)) / totalPositiveNetR
+```
+
+Do not net negative trades against a symbol's positive contribution. If
+`totalPositiveNetR == 0`, both concentration metrics are `null` and
+`concentrationStatus = NO_POSITIVE_R`.
+
+Month breakdowns use the UTC calendar month of `signalTime`, never entry or
+exit month.
 
 ## Research acceptance gate
 
@@ -301,6 +501,9 @@ Minimum sample:
 
 Below either minimum, report `INSUFFICIENT_SAMPLE`, never PASS.
 
+DEV is descriptive/in-sample evidence only. The formal baseline acceptance
+gate applies to COMBINED and OOS.
+
 Baseline-001 gate:
 
 | Set | Requirements |
@@ -308,13 +511,16 @@ Baseline-001 gate:
 | COMBINED | `netR > 0`, `expectancyR > 0`, `profitFactor >= 1.25` |
 | OOS | `netR > 0`, `expectancyR > 0`, `profitFactor >= 1.10` |
 
-Concentration requirements for the applicable report are:
+Concentration must pass separately for both COMBINED and OOS:
 
 - top symbol share of positive net R <= 60%;
 - largest single-trade share of positive net R <= 20%.
 
-If any requirement fails, baseline-001 is not accepted as statistically
-validated. No automatic tuning or OOS-driven threshold changes are allowed.
+Any null or undefined concentration metric at an acceptance gate is FAIL, not
+PASS. Any `DATA_INCOMPLETE` or `SETTLEMENT_AMBIGUOUS` affecting a required
+baseline run produces `INCOMPLETE`, not PASS. If any requirement fails,
+baseline-001 is not accepted as statistically validated. No automatic tuning
+or OOS-driven threshold changes are allowed.
 
 ## M3 sub-gates and stop boundary
 

@@ -148,49 +148,83 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
 - At least 205 fully closed 4H and 55 fully closed 1H warm-up candles are
   required before the first evaluation; warm-up rows never enter statistics.
+- Period membership uses signal/evaluation time only. A DEV signal that can
+  complete its next-open plus 24-held-candle horizon inside DEV is allowed;
+  one crossing the DEV end is `PERIOD_END_CENSORED`, remains a formal signal,
+  and is not an executed trade.
+- No OOS candle or OOS funding record settles a DEV signal. An OOS signal near
+  the OOS end may use a manifest-marked settlement-only tail; post-OOS tail
+  rows never generate Strategy Engine evaluations or OOS formal signals.
+- An incomplete required OOS settlement tail produces `DATA_INCOMPLETE` and
+  prevents a complete OOS baseline result.
 - The universe fixture contains exactly BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT,
   and BNBUSDT, and rejects private/alternate data sources.
 - Historical fixtures reject non-chronological rows, duplicates, gaps,
   malformed/non-finite OHLC, forming or misaligned candles, and missing
   funding; no sort, gap fill, synthetic row, zero funding, or other fallback
   is allowed. The manifest includes provider, ranges, row count, retrieval
-  time, and checksum fields.
+  time, checksum fields, and settlement-only tail identification.
 - As-of fixtures prove `evaluationTime = C_t.closeTime`, every candle supplied
   to `evaluateStrategy(...)` has `closeTime <= evaluationTime`, and future
   data fails closed with `FUTURE_DATA`.
 - Realtime-shaped and backtest-shaped fixtures call the same Strategy Engine
   and produce equivalent candidate and score output. All evaluations are
   retained, while below-70 evaluations produce no simulated trade.
-- Next-open entry fixtures prove that the signal candle close is never a fill,
-  adverse 5 bps LONG and SHORT slippage, strict stop/TP bracket validation,
-  and `ENTRY_OUTSIDE_BRACKET` without a fabricated fill.
+- Entry fixtures prove `signalTime = C_t.closeTime`,
+  `entryTime = nextCandle.openTime`, and that the signal candle close is never
+  a fill. They prove adverse 5 bps LONG and SHORT slippage, strict stop/TP
+  bracket validation, and `ENTRY_OUTSIDE_BRACKET` without a fabricated fill.
+- Settlement fixtures prove TP-only, SL-only, LONG/SHORT stop and TP
+  inequalities, conservative SL-first behavior when both are touched, and
+  `TIME_EXIT` at the closeTime of the 24th held candle.
+- TP/SL exit fixtures use the first qualifying held candle and its closeTime
+  only as the deterministic audit `exitTime`; they do not invent an intrabar
+  trigger timestamp.
 - Fee fixtures apply 5 bps on both entry and exit, and prove slippage is not
-  charged a second time.
-- Settlement fixtures prove the first held candle is the next-open candle,
-  TP-only, SL-only, LONG/SHORT stop and TP inequalities, conservative
-  SL-first behavior when both are touched, and `TIME_EXIT` at the close of the
-  24th held candle.
-- Exit fixtures prove adverse exit slippage for TP/SL and raw close treatment
-  for TIME_EXIT.
-- Funding fixtures include only events with `entryTime < fundingTime <=
-  exitTime`, cover positive and negative funding on both directions, apply the
-  funding timestamp boundary, and fail closed on missing or incomplete
-  required public funding data.
+  charged a second time. Gross R equals price R and excludes fees/funding.
+- Funding fixtures require finite funding rate, valid funding time, and finite
+  positive official mark price; missing or invalid mark price is
+  `DATA_INCOMPLETE` with no candle-price fallback.
+- Funding fixtures exclude `fundingTime == entryTime`, include funding at the
+  TP/SL exit candle open when the entry is earlier, and mark funding strictly
+  inside the TP/SL exit candle as `SETTLEMENT_AMBIGUOUS`.
+- TIME_EXIT funding fixtures include events satisfying
+  `entryTime < fundingTime <= exitTime`; positive and negative funding both
+  use the frozen LONG/SHORT sign convention.
 - R fixtures prove canonical signal stop distance, price/fee/funding/net R,
   and no double-counted slippage.
 - Metric fixtures cover DEV/OOS/COMBINED evaluations, formal signals,
-  executions, bracket exclusions, exits, gross/net R, win/loss/breakeven,
+  executions, `ENTRY_OUTSIDE_BRACKET`, `PERIOD_END_CENSORED`, incomplete and
+  ambiguous statuses, exits, gross/net R, win/loss/breakeven rates,
   expectancy, profit factor, medians, averages, extrema, fees, funding,
   symbol/direction/grade/regime/month breakdowns, overlap, top-symbol share,
   and largest-trade share.
-- Profit-factor fixtures return `null` with `NO_LOSSES` or `NO_TRADES` rather
-  than Infinity; drawdown fixtures use the deterministic signal sequence
-  ordering and label the result `signalSequenceMaxDrawdownR`, never portfolio
+- Execution fill fixtures use
+  `eligibleExecutionSignals = formalSignals - PERIOD_END_CENSORED`, retain
+  `ENTRY_OUTSIDE_BRACKET` in the denominator, and return a null fill rate when
+  the denominator is zero.
+- Rate fixtures return null rates when there are no executed trades. Profit
+  factor fixtures return `null` with `NO_LOSSES` for zero negative R,
+  including all-breakeven trades, `NO_TRADES` for zero trades, and `NORMAL`
+  otherwise; they never output Infinity or NaN.
+- Drawdown fixtures order executed trades by signalTime, fixed symbol order,
+  and LONG before SHORT for an exact symbol/time tie; they use an equity-zero
+  baseline and label the result `signalSequenceMaxDrawdownR`, never portfolio
   drawdown.
-- Acceptance fixtures enforce COMBINED executed >=100, OOS executed >=30,
-  positive net R and expectancy, PF >=1.25 combined/PF >=1.10 OOS, top symbol
-  share <=60%, and largest trade share <=20%; failure is not converted to a
-  pass by tuning.
+- Overlap fixtures use closed intervals `[entryTime, exitTime]`, count an
+  executed trade once if it overlaps any other, report count and rate, and do
+  not use pair count as the primary rate.
+- Concentration fixtures sum only positive net R per symbol and trade, return
+  null with `NO_POSITIVE_R` when the positive total is zero, and do not net
+  negative trades against positive symbol contributions.
+- Month breakdown fixtures attribute by UTC signalTime calendar month, not
+  entry or exit month.
+- Acceptance fixtures treat DEV as descriptive only; enforce COMBINED
+  executed >=100 and OOS executed >=30, positive net R and expectancy,
+  PF >=1.25 combined/PF >=1.10 OOS, and concentration limits separately for
+  both COMBINED and OOS. Null concentration metrics and any
+  `DATA_INCOMPLETE`/`SETTLEMENT_AMBIGUOUS` in a required run fail acceptance;
+  failure is never converted to a pass by tuning.
 - Repeated-run fixtures produce byte-equivalent reports from the same
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
