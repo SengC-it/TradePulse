@@ -114,7 +114,7 @@ backtesting, production deployment, and all trading capability.
 
 ## M2-B — Indicators & Pure Strategy Engine
 
-Status: IMPLEMENTED / DRAFT PR
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -155,35 +155,143 @@ accidental coupling to Binance or infrastructure.
 Persistence, Cron, SMTP, dashboard, backtesting, M6 event resolution, and real
 trading.
 
-## M3 — Backtest
+## M3-A — Backtest Specification Freeze
+
+Status: SPECIFICATION FROZEN / DOCUMENTATION ONLY
 
 ### Scope
 
-Historical data loading and a Backtest Runner that calls the M2 Strategy Engine.
+Freeze the auditable historical research protocol for baseline-001 without
+fetching data or implementing a Backtest Runner.
 
 ### Deliverables
 
-Backtest input contract, result persistence, metrics, and report export.
+Update only the M3-A specification documents:
+
+- `docs/BACKTEST.md`
+- `docs/DECISIONS.md`
+- `docs/ROADMAP.md`
+- `docs/TEST_PLAN.md`
+- `README.md`
 
 ### Tests
 
-Regression fixtures, shared-engine equivalence, metric edge cases, and drawdown tests.
+Document deterministic M3-B tests for data integrity, as-of slicing, shared
+Strategy Engine use, execution settlement, funding, R normalization, metrics,
+and acceptance gates. Run the normal repository typecheck, lint, test, and
+build checks; no external historical data is required for M3-A.
 
 ### Integration tests
 
-Historical data adapter to backtest output on a disposable development database.
+None. M3-A does not add a loader, Binance request, Supabase write, Cron,
+notification, deployment, or historical result.
 
 ### Acceptance criteria
 
-Reports include all required metrics and identify strategy version, data period, symbols, and assumptions.
+`baseline-001` and `bt-policy-001` are separate and explicit; DEV and locked
+OOS periods, warm-up exclusion, the five-symbol public-data universe, the
+closed-candle as-of clock, next-open fill, conservative settlement, funding,
+signal-level metrics, and sample/concentration gates are frozen. The PR
+contains documentation only, normal CI passes, and the Draft PR is not
+merged.
 
 ### Known risks
 
-Look-ahead bias, incomplete historical candles, same-candle TP/SL ambiguity, and survivorship bias.
+Look-ahead bias, incomplete historical data, unverified funding coverage,
+execution-policy drift, and interpreting signal-level results as portfolio
+performance.
 
 ### Out of scope
 
-Automated optimization, parameter tuning without approval, live scan, notifications, and trading.
+Historical downloading, Backtest Runner code, persistence, optimization,
+parameter tuning, realtime scanning, notifications, M6 forward tracking,
+production deployment, and all trading capability.
+
+## M3-B — Historical Loader + Deterministic Backtest Runner
+
+Status: PLANNED / NOT STARTED
+
+### Scope
+
+Load auditable Binance USDⓈ-M Futures public historical candles and funding
+records, build as-of inputs, call the existing M2 Strategy Engine, and apply
+`bt-policy-001` deterministically.
+
+### Deliverables
+
+Historical loader, integrity validation, manifest/checksum, deterministic
+signal-level runner, and DEV/OOS/COMBINED report output. No second strategy
+implementation is permitted.
+
+### Tests
+
+The M3-B tests documented in `docs/TEST_PLAN.md`, including no-future-data,
+warm-up, duplicate/gap/malformed-data failure, entry bracket, SL-first,
+24-bar TIME_EXIT, funding, R/fee/slippage, metric edge cases, deterministic
+drawdown, and acceptance-gate fixtures.
+
+### Integration tests
+
+Approved public Binance historical-data retrieval and reproducible local
+report generation. No private API, account data, database persistence, or
+production deployment is assumed.
+
+### Acceptance criteria
+
+Reports include both version identifiers, data manifests, DEV/OOS/COMBINED
+metrics, all frozen assumptions, incomplete-data outcomes, and explicit
+signal-level disclaimers. M3-B does not tune baseline-001.
+
+### Known risks
+
+Look-ahead bias, incomplete historical candles, settlement-policy drift, and
+survivorship bias.
+
+### Out of scope
+
+Automated optimization, parameter tuning without approval, M3-C acceptance,
+live scan, notifications, M6 forward tracking, and trading.
+
+## M3-C — Baseline Historical Run + Evidence Review
+
+Status: PLANNED / NOT STARTED
+
+### Scope
+
+Run the frozen baseline protocol on the approved historical data and review
+the evidence against the M3 acceptance gate.
+
+### Deliverables
+
+Reproducible DEV/OOS/COMBINED report, manifest/checksum evidence, sample-size
+and concentration checks, and a documented acceptance or
+`INSUFFICIENT_SAMPLE`/failed-gate result.
+
+### Tests
+
+Re-run the deterministic M3-B fixtures and verify report reproducibility from
+the recorded inputs, versions, and policy assumptions.
+
+### Integration tests
+
+A separately approved public-data historical run only. No private Binance
+interface, alternate provider, optimization, or production state.
+
+### Acceptance criteria
+
+The result is accepted only when the frozen sample, performance, and
+concentration requirements pass. A failed or insufficient result is reported
+as-is; no thresholds are changed to obtain a pass.
+
+### Known risks
+
+Historical source changes, funding coverage, sample scarcity, concentration,
+and non-portfolio interpretation.
+
+### Out of scope
+
+Parameter tuning, robustness optimization, realtime scanning, M4, M6 policy
+decisions, production deployment, and trading.
 
 ## M4 — Realtime Scanner
 

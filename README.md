@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M2-B — Indicators & Pure Strategy Engine**.
+Current milestone: **M3-A — Backtest Specification Freeze**.
 
 ## Boundary
 
@@ -12,9 +12,11 @@ TRADEPULSE DOES NOT TRADE
 
 The current project has no Binance private API integration, account access, wallet connection, order creation, order modification, cancellation, leverage control, margin control, or automated execution. It uses Binance USDⓈ-M Futures public market data only in later milestones. A signal is a research alert and reference value, not an order or a promise of profit.
 
-M1 provides the validated public market-data layer. M2-B adds only the pure,
-framework-independent indicator and Strategy Engine layer; persistence,
-scanning, notifications, backtesting, and deployment remain out of scope.
+M1 provides the validated public market-data layer. M2-B provides the pure,
+framework-independent indicator and Strategy Engine layer. M3-A adds only the
+documentation freeze for a future signal-level backtest; the backtest runner,
+historical downloader, persistence, scanning, notifications, and deployment
+remain out of scope.
 
 ## Architecture
 
@@ -54,7 +56,7 @@ npm run dev
 
 Open `http://localhost:3000`. The non-sensitive health endpoint is available at `http://localhost:3000/api/health`.
 
-No production Supabase project, Gmail App Password, Binance account, API key, or real notification recipient is required for M1 or M2-B.
+No production Supabase project, Gmail App Password, Binance account, API key, or real notification recipient is required for M1, M2-B, or M3-A.
 
 ## Commands
 
@@ -100,8 +102,10 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | --- | --- |
 | M0 | Foundation & Architecture |
 | M1 | Binance public market data and candle validation (closed) |
-| M2-B | Indicators, regimes, pure strategy engine, scoring, ranking (in review) |
-| M3 | Backtest runner and performance metrics |
+| M2-B | Indicators, regimes, pure strategy engine, scoring, ranking (closed) |
+| M3-A | Backtest specification freeze (documentation only) |
+| M3-B | Historical loader and deterministic backtest runner (planned) |
+| M3-C | Baseline historical run and evidence review (planned) |
 | M4 | Realtime scanner, protected endpoint, persistence |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
@@ -116,6 +120,7 @@ Each milestone requires tests, documentation updates, acceptance review, and an 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Market data](docs/MARKET_DATA.md)
 - [Strategy specification](docs/STRATEGY.md)
+- [Backtest specification](docs/BACKTEST.md)
 - [Database design](docs/DATABASE.md)
 - [Notification design](docs/NOTIFICATIONS.md)
 - [Security design](docs/SECURITY.md)

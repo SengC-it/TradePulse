@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-Status: M1 decision record (M0 decisions retained)
+Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
 
 ## ADR-001 — Use Next.js App Router on Vercel
 
@@ -122,14 +122,60 @@ Status: M1 decision record (M0 decisions retained)
 - **Consequence:** The engine imports no Binance URL or client, performs no
   HTTP request, database write, email send, or trading action.
 
+## ADR-016 — Separate strategy and backtest policy versions
+
+- **Decision:** Keep `strategyVersion = baseline-001` separate from
+  `backtestPolicyVersion = bt-policy-001`. The strategy version identifies
+  candidate eligibility, score, and frozen research references. The backtest
+  policy version identifies hypothetical fills, slippage, fees, funding,
+  settlement, time exit, and metric treatment.
+- **Reason:** Historical execution assumptions must be changeable and
+  auditable without silently changing the Strategy Engine or historical signal
+  meaning.
+- **Consequence:** Every report records both versions. A change to a frozen
+  strategy rule requires a reviewed Strategy Change and a new strategy
+  version; a change only to historical execution assumptions creates a new
+  backtest policy version.
+
+## ADR-017 — Freeze research periods and warm-up rules
+
+- **Decision:** Freeze the DEV period at
+  `2023-01-01T00:00:00.000Z` through `2025-12-31T23:59:59.999Z` and lock the
+  OOS period at `2026-01-01T00:00:00.000Z` through
+  `2026-08-15T23:59:59.999Z`. Before the first evaluation, at least 205 fully
+  closed 4H candles and 55 fully closed 1H candles are required; warm-up rows
+  are excluded from statistics.
+- **Reason:** The evaluation boundary and indicator warm-up must be fixed
+  before results are inspected to prevent look-ahead and OOS tuning.
+- **Consequence:** Missing warm-up or evaluation data fails closed as
+  `DATA_INCOMPLETE`. OOS data cannot select or tune baseline-001 parameters.
+
+## ADR-018 — Signal-level conservative historical settlement
+
+- **Decision:** The M3 backtest is signal-level research, not a portfolio
+  simulation. `bt-policy-001` uses the next fully closed 1H open with 5 bps
+  adverse slippage per side, 5 bps entry and exit fees, strict entry-bracket
+  validation, actual public funding records, conservative SL-first ordering
+  when TP and SL share a candle, and a 24-held-candle `TIME_EXIT` at the
+  applicable raw close.
+- **Reason:** These assumptions make the hypothetical settlement deterministic
+  while keeping it separate from the frozen Strategy Engine and future
+  production forward tracking.
+- **Consequence:** Below-70 evaluations remain research-only; invalid fills
+  are recorded as `ENTRY_OUTSIDE_BRACKET`, and missing required data fails
+  closed. Overlapping signals are allowed and must be reported as such. The
+  SL-first and 24-bar rules apply only to `bt-policy-001` and do not decide M6
+  forward-tracking behavior.
+
 ## Deferred decisions
 
-The following decisions are explicitly marked DEFERRED_TO_M6 and must not be
-invented during M2:
+The following decisions remain explicitly marked `DEFERRED_TO_M6` for
+production forward tracking and must not be inferred from the historical
+backtest policy:
 
-- TIME_EXIT execution/reference price;
-- same-candle TP/SL ordering;
 - forward-tracking invalidation event ordering.
 
-They do not block M2 Strategy Engine implementation. No other baseline-001
-strategy rule remains open for M2-A.
+`bt-policy-001` defines a historical-only TIME_EXIT price and same-candle
+ordering for M3 research. Those assumptions do not change baseline-001 or
+settle the M6 production policy. No other baseline-001 strategy rule remains
+open for M2-A.
