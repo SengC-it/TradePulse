@@ -1,0 +1,148 @@
+name: M1 Remote Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: TradePulse Vercel Preview URL
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Vercel Preview market smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: ${{ inputs.preview_url }}
+
+    steps:
+      - name: Validate Preview target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${PREVIEW_URL:-}" ]]; then
+            echo "M1 SMOKE BLOCKED: MISSING PREVIEW URL" >&2
+            exit 1
+          fi
+
+          preview_url="${PREVIEW_URL%/}"
+          if [[ "$preview_url" != https://tradepulse-*.vercel.app ]]; then
+            echo "M1 SMOKE BLOCKED: invalid TradePulse Preview URL" >&2
+            exit 1
+          fi
+
+          echo "Preview target configured: $preview_url"
+
+      - name: Request Vercel diagnostic function and assert smoke
+        shell: bash
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          TRADEPULSE_MARKET_SMOKE_SECRET: ${{ secrets.TRADEPULSE_MARKET_SMOKE_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" || -z "${TRADEPULSE_MARKET_SMOKE_SECRET:-}" ]]; then
+            echo "M1 SMOKE BLOCKED: MISSING SECRET" >&2
+            exit 1
+          fi
+
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          endpoint="${PREVIEW_URL%/}/api/diagnostics/market-smoke"
+
+          set +e
+          http_status="$(curl \
+            --silent \
+            --show-error \
+            --location \
+            --max-time 120 \
+            --connect-timeout 20 \
+            --retry 0 \
+            --request GET \
+            --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
+            --header "x-tradepulse-market-smoke-secret: ${TRADEPULSE_MARKET_SMOKE_SECRET}" \
+            --output "$response_file" \
+            --write-out "%{http_code}" \
+            "$endpoint")"
+          curl_exit=$?
+          set -e
+
+          if (( curl_exit != 0 )); then
+            echo "M1 REMOTE SMOKE CLIENT FAILURE"
+            echo "curlExitCode: $curl_exit"
+            exit 1
+          fi
+
+          if [[ "$http_status" == "451" ]]; then
+            echo "HTTP Status: 451"
+            echo "M1 VERCEL SIN1 BINANCE ACCESS BLOCKED"
+            exit 1
+          fi
+
+          if ! jq -e . "$response_file" >/dev/null 2>&1; then
+            echo "HTTP Status: $http_status"
+            echo "errorCode: INVALID_JSON"
+            echo "M1 REMOTE SMOKE CLIENT FAILURE"
+            exit 1
+          fi
+
+          ok="$(jq -r 'if .ok == true then "true" else "false" end' "$response_file")"
+          snapshot_status="$(jq -r '.snapshotStatus // "NOT_OBSERVED"' "$response_file")"
+          runtime="$(jq -r '.runtime // "NOT_OBSERVED"' "$response_file")"
+          node_version="$(jq -r '.nodeVersion // "NOT_OBSERVED"' "$response_file")"
+          region="$(jq -r '.region // "NOT_OBSERVED"' "$response_file")"
+          server_time="$(jq -r '.serverTime // "NOT_OBSERVED"' "$response_file")"
+          latency_ms="$(jq -r '.latencyMs // "NOT_OBSERVED"' "$response_file")"
+          error_code="$(jq -r '.errorCode // "NONE"' "$response_file")"
+
+          echo "HTTP Status: $http_status"
+          echo "ok: $ok"
+          echo "snapshotStatus: $snapshot_status"
+          echo "runtime: $runtime"
+          echo "nodeVersion: $node_version"
+          echo "region: $region"
+          echo "Binance serverTime: $server_time"
+          echo "latencyMs: $latency_ms"
+          echo "errorCode: $error_code"
+
+          datasets=(
+            "BTCUSDT 1h"
+            "BTCUSDT 4h"
+            "ETHUSDT 1h"
+            "ETHUSDT 4h"
+            "SOLUSDT 1h"
+            "SOLUSDT 4h"
+            "XRPUSDT 1h"
+            "XRPUSDT 4h"
+            "BNBUSDT 1h"
+            "BNBUSDT 4h"
+          )
+
+          assertion_failed=0
+          for dataset in "${datasets[@]}"; do
+            dataset_status="$(jq -r --arg dataset "$dataset" '.datasets[$dataset].status // "NOT_OBSERVED"' "$response_file")"
+            closed_count="$(jq -r --arg dataset "$dataset" '.datasets[$dataset].closedCandleCount // "NOT_OBSERVED"' "$response_file")"
+            echo "$dataset: $dataset_status / $closed_count"
+            if [[ "$dataset_status" != "VALID" || "$closed_count" != "250" ]]; then
+              assertion_failed=1
+            fi
+          done
+
+          if [[ "$error_code" == "UPSTREAM_ACCESS_RESTRICTED" ]]; then
+            echo "M1 VERCEL SIN1 BINANCE ACCESS BLOCKED"
+            exit 1
+          fi
+
+          if [[ "$http_status" != "200" || "$ok" != "true" || "$snapshot_status" != "VALID" || "$region" != "sin1" || "$runtime" != "nodejs" || "$assertion_failed" != "0" ]]; then
+            echo "M1 REMOTE SMOKE ASSERTION FAILURE"
+            exit 1
+          fi
+
+          echo "M1 PUBLIC SMOKE PASS"
