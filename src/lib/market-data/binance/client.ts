@@ -3,6 +3,8 @@ import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../../config/constants.ts
 import { MarketDataError, type SafeDiagnostics } from "../errors.ts";
 import {
   BINANCE_HTTP_TIMEOUT_MS,
+  BINANCE_FUNDING_RATE_MAX_LIMIT,
+  BINANCE_HISTORICAL_KLINE_MAX_LIMIT,
   BINANCE_MAX_ATTEMPTS,
   BINANCE_MAX_RETRY_DELAY_MS,
   REQUESTED_CANDLE_LIMIT,
@@ -181,7 +183,7 @@ export class BinancePublicClient {
       });
     }
 
-    if (!Number.isInteger(limit) || limit < 1 || limit > 1_500) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > BINANCE_HISTORICAL_KLINE_MAX_LIMIT) {
       throw new MarketDataError({
         code: "INVALID_RESPONSE",
         message: "Kline limit must be between 1 and Binance's public maximum of 1500.",
@@ -194,6 +196,109 @@ export class BinancePublicClient {
     return this.getJson<unknown>("/fapi/v1/klines", {
       symbol,
       interval: timeframe,
+      limit: String(limit),
+    });
+  }
+
+  async getKlinesRange(
+    symbol: ResearchSymbol,
+    timeframe: MarketTimeframe,
+    startTime: number,
+    endTime: number,
+    limit = BINANCE_HISTORICAL_KLINE_MAX_LIMIT,
+  ): Promise<BinanceResponse<unknown>> {
+    if (!isResearchSymbol(symbol)) {
+      throw new MarketDataError({
+        code: "INVALID_SYMBOL",
+        message: "Requested symbol is outside the approved research universe.",
+        retryable: false,
+      });
+    }
+
+    if (!isMarketTimeframe(timeframe)) {
+      throw new MarketDataError({
+        code: "INVALID_RESPONSE",
+        message: "Requested timeframe is outside the M1 timeframe set.",
+        symbol,
+        retryable: false,
+      });
+    }
+
+    if (
+      !Number.isInteger(startTime) ||
+      startTime < 0 ||
+      !Number.isInteger(endTime) ||
+      endTime < startTime
+    ) {
+      throw new MarketDataError({
+        code: "INVALID_TIMESTAMP",
+        message: "Historical Kline range must use an ordered UTC epoch millisecond interval.",
+        symbol,
+        timeframe,
+        retryable: false,
+      });
+    }
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > BINANCE_HISTORICAL_KLINE_MAX_LIMIT) {
+      throw new MarketDataError({
+        code: "INVALID_RESPONSE",
+        message: "Historical Kline limit must be between 1 and Binance's public maximum of 1500.",
+        symbol,
+        timeframe,
+        retryable: false,
+      });
+    }
+
+    return this.getJson<unknown>("/fapi/v1/klines", {
+      symbol,
+      interval: timeframe,
+      startTime: String(startTime),
+      endTime: String(endTime),
+      limit: String(limit),
+    });
+  }
+
+  async getFundingRateHistory(
+    symbol: ResearchSymbol,
+    startTime: number,
+    endTime: number,
+    limit = BINANCE_FUNDING_RATE_MAX_LIMIT,
+  ): Promise<BinanceResponse<unknown>> {
+    if (!isResearchSymbol(symbol)) {
+      throw new MarketDataError({
+        code: "INVALID_SYMBOL",
+        message: "Requested symbol is outside the approved research universe.",
+        retryable: false,
+      });
+    }
+
+    if (
+      !Number.isInteger(startTime) ||
+      startTime < 0 ||
+      !Number.isInteger(endTime) ||
+      endTime < startTime
+    ) {
+      throw new MarketDataError({
+        code: "INVALID_TIMESTAMP",
+        message: "Funding history range must use an ordered UTC epoch millisecond interval.",
+        symbol,
+        retryable: false,
+      });
+    }
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > BINANCE_FUNDING_RATE_MAX_LIMIT) {
+      throw new MarketDataError({
+        code: "INVALID_RESPONSE",
+        message: "Funding history limit must be between 1 and Binance's public maximum of 1000.",
+        symbol,
+        retryable: false,
+      });
+    }
+
+    return this.getJson<unknown>("/fapi/v1/fundingRate", {
+      symbol,
+      startTime: String(startTime),
+      endTime: String(endTime),
       limit: String(limit),
     });
   }

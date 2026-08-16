@@ -157,7 +157,7 @@ trading.
 
 ## M3-A — Backtest Specification Freeze
 
-Status: SPECIFICATION FROZEN / DOCUMENTATION ONLY
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -209,7 +209,7 @@ production deployment, and all trading capability.
 
 ## M3-B — Historical Loader + Deterministic Backtest Runner
 
-Status: PLANNED / NOT STARTED
+Status: IMPLEMENTED / DRAFT PR
 
 ### Scope
 
@@ -219,8 +219,11 @@ records, build as-of inputs, call the existing M2 Strategy Engine, and apply
 
 ### Deliverables
 
-Historical loader, integrity validation, manifest/checksum, deterministic
-signal-level runner, and DEV/OOS/COMBINED report output. No second strategy
+Historical loader, integrity validation, required manifest/checksum coverage,
+authoritative fully-closed candle validation, deterministic indexed
+signal-level runner, exact 250/250 as-of Strategy Engine windows, frozen
+24-held-candle settlement, funding/R/fee/slippage metrics, acceptance evaluator,
+stable report serialization, CLI, and mocked tests. No second strategy
 implementation is permitted.
 
 ### Tests
@@ -232,15 +235,19 @@ drawdown, and acceptance-gate fixtures.
 
 ### Integration tests
 
-Approved public Binance historical-data retrieval and reproducible local
-report generation. No private API, account data, database persistence, or
-production deployment is assumed.
+The loader is wired to the verified official Binance USDⓈ-M Futures public
+Kline and funding endpoints, while CI uses mocked transport. Reproducible
+local report generation is available through `npm run backtest:run`; no
+private API, account data, database persistence, or production deployment is
+assumed.
 
 ### Acceptance criteria
 
-Reports include both version identifiers, data manifests, DEV/OOS/COMBINED
-metrics, all frozen assumptions, incomplete-data outcomes, and explicit
-signal-level disclaimers. M3-B does not tune baseline-001.
+Reports include both version identifiers, required data manifests, separate
+DEV/OOS/COMBINED metrics and acceptance fields, an overall decision requiring
+COMBINED plus OOS for a COMBINED report, all frozen assumptions,
+incomplete-data outcomes, and explicit signal-level disclaimers. M3-B does
+not tune baseline-001 and does not run M3-C.
 
 ### Known risks
 

@@ -1,6 +1,6 @@
 # TradePulse Architecture
 
-Status: M2-B indicators and pure Strategy Engine implementation
+Status: M3-B historical loader and deterministic backtest runner (Draft PR)
 Runtime baseline: Node.js 22+
 Deployment baseline: Next.js App Router on Vercel
 
@@ -63,6 +63,8 @@ src/
   app/                 App Router pages and Route Handlers
   lib/
     market-data/       Provider interface, Binance REST adapter, parser, and validation
+    historical-data/   Historical Binance pagination, validation, manifests, and checksums
+    backtest/          As-of windows, settlement, metrics, acceptance, reports, and runner
     analytics/         Future performance queries and metric definitions
     config/            Centralized, audited application configuration
     indicators/        Pure EMA/RSI/ATR calculations
@@ -74,13 +76,16 @@ src/
     strategy/          Single Source of Truth for baseline-001 rules
     supabase/          Browser and server SSR client boundaries
     types/             Shared domain types
-backtest/              Future runner that imports the same Strategy Engine
+scripts/backtest-run.ts M3-B local historical report CLI; generated output is ignored
 supabase/migrations/   Versioned SQL schema; never Dashboard-only changes
 tests/                 Unit and integration tests
 docs/                  Product, architecture, strategy, security, and test design
 ```
 
-M1 adds only the public market-data layer under `src/lib/market-data/`. It does not add indicators, a Strategy Engine, persistence of candles, notifications, or trading capability.
+M1 adds the public market-data layer under `src/lib/market-data/`. M3-B adds
+historical retrieval under `src/lib/historical-data/` and deterministic
+signal-level research under `src/lib/backtest/`; it does not add candle
+persistence, Supabase writes, notifications, scanning, or trading capability.
 
 ## M1 market-data flow
 
@@ -112,6 +117,37 @@ Vercel, Supabase, SMTP, React, or database modules.
 The same `evaluateStrategy` function is reusable by future realtime and
 backtest adapters. M2-B performs no persistence, network access, scheduling,
 notification, or outcome resolution.
+
+## M3-B historical backtest flow
+
+1. `BinanceHistoricalDataLoader` calls only the public USDⓈ-M Futures Kline
+   and funding-rate endpoints through the existing bounded Binance client.
+   It captures authoritative Binance server time once per study load and
+   rejects every candle whose close is not strictly before that time.
+2. The loader paginates explicit ranges, validates chronological/aligned
+   candles and funding records, requires the official funding `markPrice`, and
+   records canonical SHA-256 manifests. No sort, gap fill, synthetic row,
+   private API, or alternate provider is allowed.
+3. The range builder separates the 55/205 indicator minimums from the 250
+   strategy window and requests 250-candle 1H/4H historical lookback. The
+   backtest clock enumerates fully closed 1H signal points inside DEV or OOS.
+   Historical series are prevalidated and indexed once; each point uses binary
+   lookup and an exact 250-candle slice as-of `evaluationTime = C_t.closeTime`.
+4. The adapter calls the existing `evaluateStrategy(...)` once per evaluation
+   and retains every returned evaluation. Only formal candidates with
+   `totalScore >= 70` enter the frozen `bt-policy-001` settlement adapter.
+5. Settlement uses exactly 24 held 1H candles total: the next-open entry is
+   held #1 and the close of held #24 is TIME_EXIT. DEV crossing is
+   `PERIOD_END_CENSORED`; OOS post-end rows are settlement-only and never
+   generate evaluations.
+6. The runner requires provider- and checksum-bearing manifests for every
+   approved symbol's base 1H/4H/funding data and, for OOS/COMBINED, the
+   settlement-only 1H/funding tails. Missing coverage is `INCOMPLETE` and can
+   never produce a formal PASS. It computes signal-level R/fee/funding
+   metrics, deterministic ordering/drawdown/overlap/concentration, separate
+   DEV/OOS/COMBINED metrics, and an overall acceptance decision. It writes
+   only ignored local output through the CLI; it does not persist to Supabase
+   or send notifications.
 
 ## Realtime scan lifecycle
 
@@ -164,9 +200,9 @@ An environment name is never inferred to mean a production database. Remote migr
 
 The system follows **No Data > Bad Signal**. Every future scan must make it possible to answer whether Cron ran, the endpoint authenticated, data arrived, data was rejected, a candidate existed, a score was filtered, a signal was persisted, and an email was sent. `scan_runs`, `system_events`, `signals`, and `notifications` form the durable audit trail; Vercel runtime logs and Supabase Cron history provide transport-level evidence.
 
-## M1 and M2-B non-goals
+## M1, M2-B, and M3-B non-goals
 
-No backtest runner, formal scanner endpoint, candle persistence, Cron,
-notifications, SMTP send, dashboard auth page, production Supabase application,
-WebSocket stream, TIME_EXIT/TP-SL outcome resolution, or trading capability is
-created in M1 or M2-B.
+No formal scanner endpoint, candle persistence, Cron, notifications, SMTP send,
+dashboard auth page, production Supabase application, WebSocket stream,
+optimization, parameter tuning, M3-C historical acceptance study, or trading
+capability is created in M1, M2-B, or M3-B.

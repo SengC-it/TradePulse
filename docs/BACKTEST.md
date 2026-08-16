@@ -1,6 +1,6 @@
 # TradePulse Backtest Specification
 
-Status: M3-A specification freeze; no Backtest Runner is implemented.
+Status: M3-B implementation / Draft PR; M3-C historical study has not been run.
 
 This document freezes the historical research protocol for baseline-001. It
 defines a separate execution and settlement policy so that a change in
@@ -30,10 +30,15 @@ All timestamps are UTC and inclusive:
 | OOS | `2026-01-01T00:00:00.000Z` | `2026-08-15T23:59:59.999Z` | LOCKED |
 
 Warm-up candles may be loaded before each period's start, but warm-up rows
-must not enter performance statistics. Before the first evaluated signal time,
-the loader must provide at least 205 fully closed 4H candles and 55 fully
-closed 1H candles. If the required warm-up or evaluation data is unavailable,
-the run fails closed as incomplete.
+must not enter performance statistics. The frozen indicator minimums remain
+55 fully closed 1H candles and 205 fully closed 4H candles. They are not the
+historical loader lookback. To satisfy the realtime-equivalent StrategyInput
+contract at the first hourly evaluation, the loader requests at least
+`periodStart - 250 * 1H` and `periodStart - 250 * 4H` respectively. The
+explicit policy fields are `indicatorWarmupMinimum1h = 55`,
+`indicatorWarmupMinimum4h = 205`, `strategyWindowCandles = 250`, and
+`historicalLookback1h = historicalLookback4h = 250`. If an exact 250/250
+window is unavailable, the run fails closed as incomplete.
 
 The OOS period is locked before any baseline results are inspected. OOS data
 must not be used to tune, select, or alter baseline-001 parameters.
@@ -101,9 +106,36 @@ settlement, official public historical funding records for the same symbols.
 No Binance API key, private API, account data, trading endpoint, proxy, VPN, or
 alternate market-data provider is permitted.
 
-The exact endpoint paths and current public API contract must be verified
-against official Binance documentation during M3-B implementation. M3-A makes
-no network request and does not select an implementation endpoint.
+The M3-B adapter uses only the verified official public endpoints below. No
+credential is required and no private/trading endpoint is allowed.
+
+## M3-B verified historical transport contract
+
+The implementation was checked against the [official Binance USDⓈ-M Futures
+REST documentation](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data#get-funding-rate-history).
+
+- Klines use `GET https://fapi.binance.com/fapi/v1/klines` with `symbol`,
+  `interval`, inclusive `startTime`/`endTime`, and `limit` up to 1500. The
+  twelve-field response is parsed into the normalized `Candle` model; rows
+  are never sorted, filled, or synthesized.
+- Funding uses `GET https://fapi.binance.com/fapi/v1/fundingRate` with
+  `symbol`, inclusive `startTime`/`endTime`, and `limit` up to 1000. The
+  documented response includes `fundingRate`, `fundingTime`, and the official
+  `markPrice`. A missing or invalid `markPrice` is `DATA_INCOMPLETE`; no
+  candle-price fallback is permitted.
+- Kline pagination advances only to the next expected open time. Funding
+  pagination advances strictly after the last accepted `fundingTime`. A
+  repeated page, gap, duplicate, malformed row, or non-progressing cursor
+  fails closed.
+- Each loaded dataset records provider, endpoint, requested and actual
+  ranges, row count, retrieval time, settlement-only classification, and a
+  SHA-256 checksum over canonical normalized rows. Retrieval time is excluded
+  from the checksum.
+
+The official contract confirms that funding mark price is available. If a
+future upstream contract removes it, the loader must stop with
+`MARK_PRICE_UNAVAILABLE`/`DATA_INCOMPLETE`; it must not substitute another
+price or provider.
 
 ## Historical data integrity
 
@@ -131,6 +163,16 @@ M3-B must produce an auditable manifest containing at least:
 - deterministic checksum/hash where practical;
 - funding source and equivalent coverage details when funding is required.
 
+For formal Binance historical loading, `BinancePublicClient.getServerTime()`
+is fetched once per study load. Every supplied historical candle must satisfy
+`candle.closeTime < binanceServerTime`; a candle at or after that authoritative
+time is `DATA_INCOMPLETE`. The loader never uses local `Date.now()` as market
+time authority and never accepts a forming candle's partial High/Low. The
+funding base range ends at the exact frozen period end, including its final
+millisecond. For OOS and COMBINED, settlement-only funding starts at the next
+millisecond and covers the held #24 settlement boundary; funding coverage is
+event-timestamp based and does not assume an 8-hour cadence.
+
 ## Backtest clock and shared Strategy Engine
 
 Evaluate baseline-001 at every fully closed 1H evaluation point. For signal
@@ -157,6 +199,21 @@ evaluations with `formalSignal == true` and `totalScore >= 70` enter the
 hypothetical execution simulation. Below-70 candidates may be counted as
 research evaluations but do not create simulated trades or contribute PnL/R
 metrics.
+
+For every evaluation, the backtest adapter passes exactly 250 latest fully
+closed 1H candles and exactly 250 latest fully closed 4H candles for every
+approved symbol. Each supplied candle satisfies `closeTime <= evaluationTime`.
+The adapter never passes full history, a 205/55 warm-up slice, 251 candles, or
+an expanding window to `evaluateStrategy(...)`; the 205 4H and 55 1H values
+remain minimum historical warm-up availability requirements only. Missing an
+exact 250/250 window is `DATA_INCOMPLETE`.
+
+Historical series are validated once and indexed by symbol/timeframe. Each
+evaluation uses a binary search for the right-most `closeTime <= evaluationTime`
+and slices exactly `[index - 249, index]`. The shared 1H evaluation timeline is
+alignment-checked once across all symbols. The runner therefore never performs
+a full-history `filter`/cross-symbol `some` scan for every hourly evaluation,
+while retaining the same no-future, no-gap, deterministic contract.
 
 ## Entry model
 
@@ -529,6 +586,14 @@ baseline run produces `INCOMPLETE`, not PASS. If any requirement fails,
 baseline-001 is not accepted as statistically validated. No automatic tuning
 or OOS-driven threshold changes are allowed.
 
+The report's `selectedPeriodAcceptance` (also retained as the compatibility
+field `acceptance`) describes only the requested report period. The formal
+`overallAcceptance` is the decision used by `report.status`: for OOS it equals
+OOS acceptance; for COMBINED it requires both COMBINED and OOS acceptance with
+precedence `INCOMPLETE > INSUFFICIENT_SAMPLE > FAIL > PASS`. DEV remains
+`DESCRIPTIVE` and is not an acceptance gate. `acceptanceByPeriod` retains the
+individual diagnostics so a COMBINED report cannot show PASS while OOS fails.
+
 ## M3 sub-gates and stop boundary
 
 ### M3-A — Backtest Specification Freeze
@@ -539,10 +604,13 @@ historical result.
 
 ### M3-B — Historical Loader + Deterministic Backtest Runner
 
-Future implementation only. It must load auditable public data, build as-of
-inputs, call the existing `evaluateStrategy(...)`, apply `bt-policy-001`, and
-produce deterministic DEV/OOS/COMBINED reports. It must not implement a second
-strategy or optimization system.
+Implemented in the M3-B Draft PR. The loader, validation, pagination,
+required manifest coverage/checksum audit, indexed as-of window builder,
+shared-Strategy-Engine runner,
+bt-policy-001 settlement, funding, R metrics, deterministic report serializer,
+acceptance evaluator, and `npm run backtest:run -- --period DEV|OOS|COMBINED`
+CLI are present. CI uses mocked transport only; the formal M3-C historical
+study is not run as part of M3-B.
 
 ### M3-C — Baseline Historical Run + Evidence Review
 
@@ -550,7 +618,7 @@ Future real historical run and acceptance decision. Only after the baseline
 results are known may separate robustness research such as Monte Carlo or
 parameter sensitivity be considered.
 
-M3-A does not enter M3-B or M3-C and does not enter M4.
+M3-B stops before M3-C and does not enter M4.
 
 ## M6 boundary
 
