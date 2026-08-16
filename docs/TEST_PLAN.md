@@ -1,7 +1,7 @@
 # TradePulse Test Plan
 
-Status: M3-A backtest specification freeze and deterministic test design
-(M0-M2-B coverage retained)
+Status: M3-B historical loader and deterministic backtest runner implemented;
+M3-C study not run (M0-M2-B coverage retained)
 
 ## Test layers
 
@@ -235,13 +235,35 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
 
-## M3-A execution boundary
+### M3-B implemented test coverage
 
-M3-A is documentation-only. It adds no historical downloader, Binance request,
-Backtest Runner, persistence, Strategy Engine change, API route, Cron,
-notification, deployment, or generated result. The backtest regression cases
-above are the deterministic test contract for M3-B and are not claimed as
-implemented by this specification-freeze PR.
+The M3-B implementation adds deterministic tests in
+`tests/m3-backtest.test.ts` for the following executable contracts:
+
+- Binance historical Kline pagination advances by the next accepted open time
+  and rejects duplicate, gap, malformed, and non-progressing data;
+- official funding records require finite rate, valid time, and finite positive
+  `markPrice`; no candle-price fallback is accepted;
+- every Strategy Engine invocation is built from exactly 250 latest fully
+  closed 1H candles and exactly 250 latest fully closed 4H candles for all five
+  symbols, with `closeTime <= evaluationTime`;
+- the next-open entry is held #1, held #24 is the final held candle, and no
+  held #25 exists;
+- TIME_EXIT, SL-first same-candle resolution, DEV #24 period censorship,
+  bracket rejection, funding inclusion, and funding-order ambiguity;
+- deterministic R/fee/funding metrics, no Infinity/NaN serialization,
+  positive-only concentration, acceptance precedence, and byte-stable reports.
+
+The test transport is mocked. No CI test downloads historical data or calls
+Binance.
+
+## M3-A and M3-B execution boundary
+
+M3-A was documentation-only and is closed. M3-B adds only the historical
+loader, deterministic backtest adapter, metrics, acceptance evaluator, report
+serializer, CLI, and mocked tests described above. It does not add a new
+strategy, alter baseline-001, add persistence, API routes, Cron,
+notifications, deployment, optimization, or M3-C historical evidence.
 
 ## M2-B execution boundary
 
