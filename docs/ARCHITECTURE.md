@@ -98,13 +98,15 @@ Vercel, Supabase, SMTP, React, or database modules.
 ## M2-B pure domain flow
 
 1. Receive the five approved symbols with normalized, fully closed 1H and 4H
-   candle arrays.
-2. Calculate EMA20/50/200, RSI14, and ATR14 with explicit pre-warm-up
+   candle arrays plus an explicit historical `evaluationTime`.
+2. Reject any supplied candle with `closeTime > evaluationTime` before it can
+   affect indicators, regimes, BTC gating, or scoring.
+3. Calculate EMA20/50/200, RSI14, and ATR14 with explicit pre-warm-up
    unavailable values.
-3. Calculate the latest symbol 4H regime and the BTCUSDT 4H regime.
-4. Apply BTC directional gating and the frozen 1H pullback, breakout, RSI,
+4. Calculate the latest symbol 4H regime and the BTCUSDT 4H regime.
+5. Apply BTC directional gating and the frozen 1H pullback, breakout, RSI,
    volume, and stop guard rules.
-5. Calculate the five score components, total score, grade, formal eligibility,
+6. Calculate the five score components, total score, grade, formal eligibility,
    and deterministic research-universe ranking.
 
 The same `evaluateStrategy` function is reusable by future realtime and

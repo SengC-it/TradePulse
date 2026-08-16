@@ -71,16 +71,19 @@ export function calculateBTCRegime(input: BTCRegimeInput): BTCRegime | null {
     return null;
   }
 
-  const closeDistance = Math.abs(close - ema200) / atr14;
-  const emaSpread = Math.abs(ema50 - ema200) / atr14;
-  const emaSlope = Math.abs(ema200 - ema200FiveBarsAgo) / atr14;
+  const bullCloseDistance = (close - ema200) / atr14;
+  const bullEmaSpread = (ema50 - ema200) / atr14;
+  const bullEmaSlope = (ema200 - ema200FiveBarsAgo) / atr14;
+  const bearCloseDistance = (ema200 - close) / atr14;
+  const bearEmaSpread = (ema200 - ema50) / atr14;
+  const bearEmaSlope = (ema200FiveBarsAgo - ema200) / atr14;
 
   if (
     close > ema50 &&
     ema50 > ema200 &&
-    closeDistance >= 1 &&
-    emaSpread >= 0.5 &&
-    emaSlope >= 0.1
+    bullCloseDistance >= 1 &&
+    bullEmaSpread >= 0.5 &&
+    bullEmaSlope >= 0.1
   ) {
     return "BTC_STRONG_BULL";
   }
@@ -88,9 +91,9 @@ export function calculateBTCRegime(input: BTCRegimeInput): BTCRegime | null {
   if (
     close < ema50 &&
     ema50 < ema200 &&
-    closeDistance >= 1 &&
-    emaSpread >= 0.5 &&
-    emaSlope >= 0.1
+    bearCloseDistance >= 1 &&
+    bearEmaSpread >= 0.5 &&
+    bearEmaSlope >= 0.1
   ) {
     return "BTC_STRONG_BEAR";
   }

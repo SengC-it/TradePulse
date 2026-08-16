@@ -74,19 +74,24 @@ function validCandle(candle: Candle, symbol: ResearchSymbol, timeframe: string):
   return candle.closeTime > candle.openTime && candle.high >= candle.low;
 }
 
-function validCandleSeries(
+function validateCandleSeries(
   candles: readonly Candle[],
   symbol: ResearchSymbol,
   timeframe: string,
-): boolean {
+  evaluationTime: number,
+): StrategyReasonCode | null {
   if (candles.length === 0) {
-    return false;
+    return "INVALID_CANDLE_SERIES";
   }
 
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
     if (!candle || !validCandle(candle, symbol, timeframe)) {
-      return false;
+      return "INVALID_CANDLE_SERIES";
+    }
+
+    if (candle.closeTime > evaluationTime) {
+      return "FUTURE_DATA";
     }
 
     const previous = candles[index - 1];
@@ -94,11 +99,11 @@ function validCandleSeries(
       previous &&
       (candle.openTime <= previous.openTime || candle.closeTime <= previous.closeTime)
     ) {
-      return false;
+      return "INVALID_CANDLE_SERIES";
     }
   }
 
-  return true;
+  return null;
 }
 
 function valueAt(series: IndicatorSeries, index: number): number | null {
@@ -266,6 +271,27 @@ function evaluateDirection(
 }
 
 export function evaluateStrategy(input: StrategyInput): StrategyEngineResult {
+  if (!finite(input.evaluationTime)) {
+    const evaluations = RESEARCH_SYMBOLS.flatMap((symbol) =>
+      STRATEGY_DIRECTIONS.map((direction) =>
+        invalidEvaluation(
+          symbol,
+          direction,
+          "TIME_ALIGNMENT_INVALID",
+          null,
+          null,
+        ),
+      ),
+    );
+
+    return Object.freeze({
+      strategyVersion: STRATEGY_VERSION,
+      btcRegime: null,
+      evaluations: Object.freeze(evaluations),
+      rankedCandidates: Object.freeze([]),
+    });
+  }
+
   const derivedBySymbol = new Map<ResearchSymbol, DerivedDataset>();
   const validationReasons = new Map<ResearchSymbol, StrategyReasonCode>();
 
@@ -276,11 +302,24 @@ export function evaluateStrategy(input: StrategyInput): StrategyEngineResult {
       continue;
     }
 
-    if (
-      !validCandleSeries(dataset.candles1h, symbol, TIMEFRAMES.signal) ||
-      !validCandleSeries(dataset.candles4h, symbol, TIMEFRAMES.trend)
-    ) {
-      validationReasons.set(symbol, "INVALID_CANDLE_SERIES");
+    const signalValidation = validateCandleSeries(
+      dataset.candles1h,
+      symbol,
+      TIMEFRAMES.signal,
+      input.evaluationTime,
+    );
+    const trendValidation = validateCandleSeries(
+      dataset.candles4h,
+      symbol,
+      TIMEFRAMES.trend,
+      input.evaluationTime,
+    );
+
+    if (signalValidation !== null || trendValidation !== null) {
+      validationReasons.set(
+        symbol,
+        signalValidation ?? trendValidation ?? "INVALID_CANDLE_SERIES",
+      );
       continue;
     }
 

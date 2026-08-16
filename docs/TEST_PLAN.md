@@ -51,6 +51,10 @@ Status: M2-B implementation and deterministic test coverage (M0/M1 coverage reta
   BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, BNBUSDT tie order.
 - Strategy Engine boundary tests prove no Binance URL/client, HTTP, database,
   email, or trading dependency and no side effects.
+- As-of/look-ahead tests prove every consumed candle has `closeTime <=
+  evaluationTime`, future 4H data fails closed before symbol/BTC regime or
+  score calculation, and invalid evaluation time never falls back to the wall
+  clock.
 - Signal fingerprints and notification policy are deterministic.
 - Score consistency tests prove the five components sum to `total_score` and that `signals.score` cannot differ from it in the persistence contract.
 - Scan idempotency tests prove one stable run key per planned UTC cycle, duplicate-cycle skip behavior, and retry of the same row after failure or lease expiry.
@@ -79,6 +83,8 @@ expected business result. Tests must prove that:
 - invalid BTC regime input blocks non-BTC candidates and cannot produce a
   BTC_NEUTRAL result;
 - invalid ATR, volume, or warm-up input produces NO FORMAL SIGNAL.
+- an as-of historical dataset and an equivalent realtime-shaped dataset produce
+  the same result, while future candles produce `FUTURE_DATA`.
 
 ### Integration tests
 
@@ -145,7 +151,7 @@ candidate, score, ranking, and engine tests described above. The implemented
 tests use deterministic in-memory Candle fixtures only; they do not call
 Binance, Supabase, HTTP, SMTP, or any other external service.
 
-The M2-B suite currently contains 45 passing tests across the existing M0/M1
+The M2-B suite currently contains 51 passing tests across the existing M0/M1
 coverage and the new indicator/Strategy Engine coverage. Realtime-shaped and
 backtest-shaped normalized inputs are both evaluated through the same engine
 and are asserted to produce deeply equivalent results.

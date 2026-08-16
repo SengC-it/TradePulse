@@ -18,6 +18,8 @@ export const STRATEGY_REASON_CODES = [
   "INSUFFICIENT_HISTORY",
   "INDICATOR_UNAVAILABLE",
   "INVALID_CANDLE_SERIES",
+  "FUTURE_DATA",
+  "TIME_ALIGNMENT_INVALID",
   "INVALID_ATR",
   "INVALID_VOLUME_BASELINE",
   "INVALID_BTC_INPUT",
@@ -40,6 +42,7 @@ export type StrategyDataset = Readonly<{
 }>;
 
 export type StrategyInput = Readonly<{
+  evaluationTime: number;
   datasets: Readonly<Record<ResearchSymbol, StrategyDataset | null>>;
 }>;
 

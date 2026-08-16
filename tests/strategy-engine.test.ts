@@ -15,6 +15,7 @@ import type { Candle } from "@/lib/market-data/types";
 
 const HOUR_MS = 3_600_000;
 const FOUR_HOUR_MS = 14_400_000;
+const DEFAULT_EVALUATION_TIME = 4_000_000_000;
 
 function makeCandle(
   symbol: ResearchSymbol,
@@ -187,8 +188,10 @@ function makeDataset(
 
 function makeEngineInput(
   overrides: Partial<Record<ResearchSymbol, StrategyDataset | null>> = {},
+  evaluationTime = DEFAULT_EVALUATION_TIME,
 ): StrategyInput {
   return {
+    evaluationTime,
     datasets: Object.fromEntries(
       RESEARCH_SYMBOLS.map((symbol) => [
         symbol,
@@ -266,6 +269,27 @@ describe("M2-B regimes, candidate rules, and score", () => {
     ).toBe("BTC_NEUTRAL");
     expect(
       calculateBTCRegime({ close: 110, ema50: 105, ema200: 100, ema200FiveBarsAgo: 99.01, atr14: 10 }),
+    ).toBe("BTC_NEUTRAL");
+  });
+
+  it("rejects a wrong-direction BTC EMA200 slope", () => {
+    expect(
+      calculateBTCRegime({
+        close: 110,
+        ema50: 105,
+        ema200: 100,
+        ema200FiveBarsAgo: 101,
+        atr14: 10,
+      }),
+    ).toBe("BTC_NEUTRAL");
+    expect(
+      calculateBTCRegime({
+        close: 90,
+        ema50: 95,
+        ema200: 100,
+        ema200FiveBarsAgo: 99,
+        atr14: 10,
+      }),
     ).toBe("BTC_NEUTRAL");
   });
 
@@ -559,7 +583,8 @@ describe("M2-B regimes, candidate rules, and score", () => {
 
 describe("M2-B pure Strategy Engine", () => {
   it("produces the same deterministic result for realtime and backtest-shaped inputs", () => {
-    const input = makeEngineInput();
+    const evaluationTime = makeDataset("BTCUSDT").candles4h.at(-1)?.closeTime ?? 0;
+    const input = makeEngineInput({}, evaluationTime);
     const realtimeResult = evaluateStrategy(input);
     const backtestResult = evaluateStrategy(structuredClone(input) as StrategyInput);
 
@@ -568,6 +593,69 @@ describe("M2-B pure Strategy Engine", () => {
     expect(realtimeResult.btcRegime).toBe("BTC_STRONG_BULL");
     expect(realtimeResult.rankedCandidates.map((candidate) => candidate.symbol)).toEqual(RESEARCH_SYMBOLS);
     expect(realtimeResult.rankedCandidates.every((candidate) => candidate.formalSignal)).toBe(true);
+  });
+
+  it("allows a normalized dataset whose latest closed candles are at the as-of time", () => {
+    const evaluationTime = makeDataset("BTCUSDT").candles4h.at(-1)?.closeTime ?? 0;
+    const result = evaluateStrategy(makeEngineInput({}, evaluationTime));
+
+    expect(result.btcRegime).toBe("BTC_STRONG_BULL");
+    expect(result.evaluations.every((evaluation) => evaluation.reason !== "FUTURE_DATA")).toBe(true);
+  });
+
+  it("fails closed when a supplied 4H candle is after evaluationTime", () => {
+    const evaluationTime = makeDataset("ETHUSDT").candles4h.at(-1)?.closeTime ?? 0;
+    const futureEthTrend = [
+      ...makeDataset("ETHUSDT").candles4h,
+      makeCandle("ETHUSDT", "4h", 205, 305, 306, 304),
+    ];
+    const futureEthResult = evaluateStrategy(
+      makeEngineInput(
+        {
+          ETHUSDT: { ...makeDataset("ETHUSDT"), candles4h: futureEthTrend },
+        },
+        evaluationTime,
+      ),
+    );
+    const ethEvaluation = futureEthResult.evaluations.find(
+      (evaluation) => evaluation.symbol === "ETHUSDT" && evaluation.direction === "LONG",
+    );
+
+    expect(ethEvaluation?.reason).toBe("FUTURE_DATA");
+    expect(ethEvaluation?.candidate).toBeNull();
+    expect(futureEthResult.rankedCandidates.some((candidate) => candidate.symbol === "ETHUSDT")).toBe(false);
+
+    const futureBtcTrend = [
+      ...makeDataset("BTCUSDT").candles4h,
+      makeCandle("BTCUSDT", "4h", 205, 305, 306, 304),
+    ];
+    const futureBtcResult = evaluateStrategy(
+      makeEngineInput(
+        {
+          BTCUSDT: { ...makeDataset("BTCUSDT"), candles4h: futureBtcTrend },
+        },
+        evaluationTime,
+      ),
+    );
+
+    expect(futureBtcResult.btcRegime).toBeNull();
+    expect(
+      futureBtcResult.evaluations.find(
+        (evaluation) => evaluation.symbol === "ETHUSDT" && evaluation.direction === "LONG",
+      )?.reason,
+    ).toBe("INVALID_BTC_INPUT");
+    expect(futureBtcResult.rankedCandidates).toEqual([]);
+  });
+
+  it("rejects a non-finite evaluationTime without consulting the wall clock", () => {
+    const result = evaluateStrategy({
+      ...makeEngineInput(),
+      evaluationTime: Number.NaN,
+    });
+
+    expect(result.btcRegime).toBeNull();
+    expect(result.evaluations.every((evaluation) => evaluation.reason === "TIME_ALIGNMENT_INVALID")).toBe(true);
+    expect(result.rankedCandidates).toEqual([]);
   });
 
   it("fails closed for warm-up, invalid candles, zero denominators, and zero volume means", () => {
