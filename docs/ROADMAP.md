@@ -68,7 +68,7 @@ Indicators, strategy, scoring, alerts, database writes, and trading.
 
 ## M2-A — Strategy Specification Freeze
 
-Status: Documentation-only planning milestone
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -112,18 +112,20 @@ ordering.
 Indicators, Strategy Engine code, persistence, Cron, SMTP, dashboard,
 backtesting, production deployment, and all trading capability.
 
-## M2 — Indicators & Strategy Engine
+## M2-B — Indicators & Pure Strategy Engine
+
+Status: IMPLEMENTED / DRAFT PR
 
 ### Scope
 
-After M2-A approval, implement the frozen baseline-001 indicators, BTC/symbol
-regimes, candidate rules, score, grade, and ranking in one pure Strategy
-Engine.
+Implement the frozen baseline-001 indicators, BTC/symbol regimes, candidate
+rules, score, grade, and ranking in one pure Strategy Engine.
 
 ### Deliverables
 
 Indicator modules, domain types, Strategy Engine, score/ranking modules, and
-complete deterministic fixtures.
+complete deterministic fixtures are implemented under `src/lib/indicators/`,
+`src/lib/strategy/`, and `tests/`.
 
 ### Tests
 
@@ -140,7 +142,8 @@ write.
 
 All baseline-001 rules are testable, closed-candle-only, versioned, and
 identical for future realtime/backtest callers. M6-deferred decisions remain
-explicitly deferred.
+explicitly deferred. Normal local verification passes without external
+services.
 
 ### Known risks
 

@@ -1,6 +1,6 @@
 # TradePulse Architecture
 
-Status: M1 market-data implementation
+Status: M2-B indicators and pure Strategy Engine implementation
 Runtime baseline: Node.js 22+
 Deployment baseline: Next.js App Router on Vercel
 
@@ -46,7 +46,7 @@ flowchart TD
 
 ### Binance
 
-- Is an interchangeable public market-data adapter in the future M1 implementation.
+- Is an interchangeable public market-data adapter implemented in M1.
 - The Strategy Engine receives normalized candles and context, never Binance URLs or SDK details.
 - No private endpoint, account endpoint, API key, order endpoint, or withdrawal capability is part of the current architecture.
 
@@ -65,13 +65,13 @@ src/
     market-data/       Provider interface, Binance REST adapter, parser, and validation
     analytics/         Future performance queries and metric definitions
     config/            Centralized, audited application configuration
-    indicators/        Future EMA/RSI/ATR/volume calculations
+    indicators/        Pure EMA/RSI/ATR calculations
     market-data/       MarketDataProvider and Binance adapter boundary
     notifications/     Future email policy, template, and delivery adapter
     scoring/           Future component score and grade calculation
     security/          Auth, cron, and secret-handling helpers
     signals/           Future snapshot, idempotency, and lifecycle services
-    strategy/          Single Source of Truth for future strategy rules
+    strategy/          Single Source of Truth for baseline-001 rules
     supabase/          Browser and server SSR client boundaries
     types/             Shared domain types
 backtest/              Future runner that imports the same Strategy Engine
@@ -91,7 +91,27 @@ M1 adds only the public market-data layer under `src/lib/market-data/`. It does 
 5. Validation rejects malformed, out-of-order, duplicate, gapped, forming, insufficient, or stale data.
 6. The provider returns `VALID`, `PARTIAL`, or `INVALID` per-symbol results in an immutable-oriented `MarketSnapshot`.
 
-The future M2 Strategy Engine consumes only the normalized dataset and never imports Binance URLs, raw Kline arrays, or the HTTP client.
+The M2-B Strategy Engine consumes only normalized closed candles and pure
+domain values. It never imports Binance URLs, raw Kline arrays, HTTP clients,
+Vercel, Supabase, SMTP, React, or database modules.
+
+## M2-B pure domain flow
+
+1. Receive the five approved symbols with normalized, fully closed 1H and 4H
+   candle arrays plus an explicit historical `evaluationTime`.
+2. Reject any supplied candle with `closeTime > evaluationTime` before it can
+   affect indicators, regimes, BTC gating, or scoring.
+3. Calculate EMA20/50/200, RSI14, and ATR14 with explicit pre-warm-up
+   unavailable values.
+4. Calculate the latest symbol 4H regime and the BTCUSDT 4H regime.
+5. Apply BTC directional gating and the frozen 1H pullback, breakout, RSI,
+   volume, and stop guard rules.
+6. Calculate the five score components, total score, grade, formal eligibility,
+   and deterministic research-universe ranking.
+
+The same `evaluateStrategy` function is reusable by future realtime and
+backtest adapters. M2-B performs no persistence, network access, scheduling,
+notification, or outcome resolution.
 
 ## Realtime scan lifecycle
 
@@ -144,6 +164,9 @@ An environment name is never inferred to mean a production database. Remote migr
 
 The system follows **No Data > Bad Signal**. Every future scan must make it possible to answer whether Cron ran, the endpoint authenticated, data arrived, data was rejected, a candidate existed, a score was filtered, a signal was persisted, and an email was sent. `scan_runs`, `system_events`, `signals`, and `notifications` form the durable audit trail; Vercel runtime logs and Supabase Cron history provide transport-level evidence.
 
-## M1 non-goals
+## M1 and M2-B non-goals
 
-No indicator implementation, Strategy Engine, backtest, formal scanner endpoint, candle persistence, SMTP send, dashboard auth page, production Supabase application, WebSocket stream, or trading capability is created in M1.
+No backtest runner, formal scanner endpoint, candle persistence, Cron,
+notifications, SMTP send, dashboard auth page, production Supabase application,
+WebSocket stream, TIME_EXIT/TP-SL outcome resolution, or trading capability is
+created in M1 or M2-B.
