@@ -56,10 +56,13 @@ prior period.
 OOS candles must never be used to settle a DEV position. A DEV formal signal is
 executable only when its maximum possible `bt-policy-001` settlement horizon
 can be completed using fully closed 1H candles whose `closeTime` remains inside
-the DEV period. The horizon includes the next-open entry candle and all 24
-held candles.
+the DEV period. The horizon contains exactly 24 held 1H candles total: held
+candle #1 is the next 1H candle whose open is used for `rawEntryPrice`, and
+held candles #2 through #24 are the following 23 fully closed 1H candles. The
+closeTime of held candle #24 is the final required settlement boundary.
 
-When that horizon would cross the DEV end, record:
+When the closeTime of required held candle #24 would be after the frozen DEV
+end, record:
 
 ```text
 PERIOD_END_CENSORED
@@ -73,9 +76,11 @@ contributes no PnL or R. Report it separately. It is not
 
 An OOS signal may use a settlement-only tail after the frozen OOS end. The
 loader may retrieve enough fully closed 1H candles and required official public
-funding records to settle positions opened by OOS signals. The maximum tail is
-the next-open entry candle plus 24 held 1H candles after the last possible OOS
-entry.
+funding records to settle positions opened by OOS signals. For the last eligible
+OOS signal, the settlement-only tail contains at most 24 held 1H candles:
+held candle #1 is the next-open entry candle and held candle #24 is the last
+required candle. The tail also includes required funding records through the
+resulting settlement boundary. There is no held candle #25 in `bt-policy-001`.
 
 Tail data may settle existing OOS signals and provide funding for those
 positions, but it must never create a Strategy Engine evaluation, formal
@@ -218,9 +223,11 @@ For `bt-policy-001`, if TP and SL are both touched in the same candle, `SL`
 wins. OHLC data does not reveal intrabar order, so this is the conservative
 historical assumption.
 
-The maximum hold is 24 completed 1H candles after entry. The next-open candle
-is held candle 1. If neither TP nor SL occurs within those 24 held candles,
-settle as `TIME_EXIT` using the close of the 24th held candle.
+There are exactly 24 held 1H candles total. The next-open entry candle is held
+candle #1; held candles #2 through #24 are the following 23 fully closed 1H
+candles. If neither TP nor SL occurs within held candles #1 through #24,
+settle as `TIME_EXIT` at the closeTime of held candle #24. There is no held
+candle #25 in `bt-policy-001`.
 
 Exit slippage is adverse and uses the same 5 bps assumption:
 
@@ -245,7 +252,7 @@ entryTime  = openTime of the next 1H candle used for rawEntryPrice
 For `TIME_EXIT`:
 
 ```text
-exitTime = closeTime of the 24th held 1H candle
+exitTime = closeTime of held candle #24
 ```
 
 For TP/SL, `exitCandle` is the first held 1H candle whose OHLC satisfies the

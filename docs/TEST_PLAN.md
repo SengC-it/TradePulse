@@ -148,13 +148,15 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
 - At least 205 fully closed 4H and 55 fully closed 1H warm-up candles are
   required before the first evaluation; warm-up rows never enter statistics.
-- Period membership uses signal/evaluation time only. A DEV signal that can
-  complete its next-open plus 24-held-candle horizon inside DEV is allowed;
-  one crossing the DEV end is `PERIOD_END_CENSORED`, remains a formal signal,
-  and is not an executed trade.
+- Period membership uses signal/evaluation time only. A DEV signal whose
+  required held candle #24 closeTime is inside DEV is allowed; one whose held
+  #24 closeTime crosses the DEV end is `PERIOD_END_CENSORED`, remains a formal
+  signal, and is not an executed trade. No candle after held #24 is required.
 - No OOS candle or OOS funding record settles a DEV signal. An OOS signal near
-  the OOS end may use a manifest-marked settlement-only tail; post-OOS tail
-  rows never generate Strategy Engine evaluations or OOS formal signals.
+  the OOS end may use a manifest-marked settlement-only tail containing at
+  most 24 held candles: the next-open entry is held #1 and held #24 is last.
+  Post-OOS tail rows never generate Strategy Engine evaluations or OOS formal
+  signals, and no held #25 exists.
 - An incomplete required OOS settlement tail produces `DATA_INCOMPLETE` and
   prevents a complete OOS baseline result.
 - The universe fixture contains exactly BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT,
@@ -175,8 +177,12 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   a fill. They prove adverse 5 bps LONG and SHORT slippage, strict stop/TP
   bracket validation, and `ENTRY_OUTSIDE_BRACKET` without a fabricated fill.
 - Settlement fixtures prove TP-only, SL-only, LONG/SHORT stop and TP
-  inequalities, conservative SL-first behavior when both are touched, and
-  `TIME_EXIT` at the closeTime of the 24th held candle.
+  inequalities, that the next-open entry candle is held #1, that exactly 24
+  held candles exist, conservative SL-first behavior when both are touched,
+  and `TIME_EXIT` at the closeTime of held candle #24.
+- Horizon fixtures prove no held #25 exists, DEV censorship is based only on
+  held #24 closeTime, and the OOS settlement tail ends no later than held #24
+  settlement plus required funding coverage.
 - TP/SL exit fixtures use the first qualifying held candle and its closeTime
   only as the deterministic audit `exitTime`; they do not invent an intrabar
   trigger timestamp.
