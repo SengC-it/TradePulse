@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M0 — Foundation & Architecture**.
+Current milestone: **M1 — Market Data**.
 
 ## Boundary
 
@@ -12,7 +12,7 @@ TRADEPULSE DOES NOT TRADE
 
 The current project has no Binance private API integration, account access, wallet connection, order creation, order modification, cancellation, leverage control, margin control, or automated execution. It uses Binance USDⓈ-M Futures public market data only in later milestones. A signal is a research alert and reference value, not an order or a promise of profit.
 
-M0 deliberately does not implement the market scanner, indicator engine, strategy engine, backtest runner, formal cron scan, Gmail signal sending, or production deployment.
+M1 implements only the validated public market-data layer. It does not implement indicators, strategy, scoring, signals, notifications, persistence of candles, or production deployment.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ npm run dev
 
 Open `http://localhost:3000`. The non-sensitive health endpoint is available at `http://localhost:3000/api/health`.
 
-No production Supabase project, Gmail App Password, Binance account, or real notification recipient is required for M0.
+No production Supabase project, Gmail App Password, Binance account, API key, or real notification recipient is required for M1.
 
 ## Commands
 
@@ -62,6 +62,7 @@ npm run typecheck  # TypeScript check
 npm run lint       # ESLint flat-config check
 npm test           # deterministic unit tests
 npm run build      # production build
+npm run market:smoke # manual public Binance market-data smoke test
 npm run verify     # typecheck, lint, tests, and build
 ```
 
@@ -79,13 +80,13 @@ The complete variable inventory and preview-safe notification defaults are in [.
 
 ## Supabase
 
-The initial database design is committed as a migration under `supabase/migrations/`. M0 does not apply it to any remote project. Use a separately identified development project and the Supabase CLI workflow before applying migrations.
+The initial database design is committed as a migration under `supabase/migrations/`. M1 does not add a candles or market-data table and does not apply migrations to any remote project. Use a separately identified development project and the Supabase CLI workflow before applying migrations.
 
 The migration enables RLS on every `public` table, keeps user decisions scoped to `auth.uid()`, and creates no real-trading tables. See [docs/DATABASE.md](docs/DATABASE.md).
 
 ## Vercel and scheduling
 
-Vercel runs the Next.js application and Node.js Route Handlers. Supabase Cron is the planned hourly scheduler and will call a protected `POST /api/cron/scan` endpoint with `Authorization: Bearer <CRON_SECRET>`. The formal scanner endpoint is intentionally out of scope for M0 and is not deployed by this repository yet.
+Vercel runs the Next.js application and Node.js Route Handlers. Supabase Cron is the planned hourly scheduler and will call a protected `POST /api/cron/scan` endpoint with `Authorization: Bearer <CRON_SECRET>`. The formal scanner endpoint is intentionally out of scope for M1 and is not deployed by this repository yet.
 
 ## Gmail SMTP
 
@@ -111,6 +112,7 @@ Each milestone requires tests, documentation updates, acceptance review, and an 
 
 - [PRD](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Market data](docs/MARKET_DATA.md)
 - [Strategy specification](docs/STRATEGY.md)
 - [Database design](docs/DATABASE.md)
 - [Notification design](docs/NOTIFICATIONS.md)

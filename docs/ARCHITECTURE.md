@@ -1,6 +1,6 @@
 # TradePulse Architecture
 
-Status: M0 foundation design
+Status: M1 market-data implementation
 Runtime baseline: Node.js 22+
 Deployment baseline: Next.js App Router on Vercel
 
@@ -62,6 +62,7 @@ flowchart TD
 src/
   app/                 App Router pages and Route Handlers
   lib/
+    market-data/       Provider interface, Binance REST adapter, parser, and validation
     analytics/         Future performance queries and metric definitions
     config/            Centralized, audited application configuration
     indicators/        Future EMA/RSI/ATR/volume calculations
@@ -79,7 +80,18 @@ tests/                 Unit and integration tests
 docs/                  Product, architecture, strategy, security, and test design
 ```
 
-M0 creates only the minimal app, configuration boundary, SSR client helpers, cron authorization helper, and health route. The domain engines above remain deliberately unimplemented until their milestones.
+M1 adds only the public market-data layer under `src/lib/market-data/`. It does not add indicators, a Strategy Engine, persistence of candles, notifications, or trading capability.
+
+## M1 market-data flow
+
+1. `BinanceMarketDataProvider` requests Binance server time from `/fapi/v1/time`.
+2. It validates the five approved symbols against `/fapi/v1/exchangeInfo`.
+3. It requests 251 recent 1h/4h Kline rows through `BinancePublicClient` with bounded timeout, retry, and concurrency.
+4. The Binance parser converts the twelve-field array into the provider-independent `Candle` model.
+5. Validation rejects malformed, out-of-order, duplicate, gapped, forming, insufficient, or stale data.
+6. The provider returns `VALID`, `PARTIAL`, or `INVALID` per-symbol results in an immutable-oriented `MarketSnapshot`.
+
+The future M2 Strategy Engine consumes only the normalized dataset and never imports Binance URLs, raw Kline arrays, or the HTTP client.
 
 ## Realtime scan lifecycle
 
@@ -132,6 +144,6 @@ An environment name is never inferred to mean a production database. Remote migr
 
 The system follows **No Data > Bad Signal**. Every future scan must make it possible to answer whether Cron ran, the endpoint authenticated, data arrived, data was rejected, a candidate existed, a score was filtered, a signal was persisted, and an email was sent. `scan_runs`, `system_events`, `signals`, and `notifications` form the durable audit trail; Vercel runtime logs and Supabase Cron history provide transport-level evidence.
 
-## M0 non-goals
+## M1 non-goals
 
-No formal scanner endpoint, Binance adapter, indicator implementation, Strategy Engine implementation, backtest, SMTP send, dashboard auth page, production Supabase application, or Vercel deployment is created in M0.
+No indicator implementation, Strategy Engine, backtest, formal scanner endpoint, candle persistence, SMTP send, dashboard auth page, production Supabase application, WebSocket stream, or trading capability is created in M1.

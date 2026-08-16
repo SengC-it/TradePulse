@@ -1,6 +1,6 @@
 # TradePulse Test Plan
 
-Status: M0 test strategy
+Status: M1 test strategy (M0 coverage retained)
 
 ## Test layers
 
@@ -92,6 +92,27 @@ After the private dashboard exists:
 - authenticated user can create/update only their own manual decision;
 - no page includes buy/sell/order/wallet/account-balance controls;
 - System view explains scan and notification outcomes.
+
+## M1 market-data tests
+
+M1 adds deterministic tests in `tests/market-data.test.ts` for:
+
+- 1h/4h interval definitions and Binance twelve-field Kline normalization;
+- closed-candle filtering using Binance server time, including forming-candle exclusion;
+- exact 250-candle history selection and deterministic freshness boundaries;
+- numeric, timestamp, OHLC, ordering, duplicate, gap, and insufficient-history failures;
+- documented request parameters for `/fapi/v1/klines` and server-time diagnostics, including operation versus final-attempt timing;
+- bounded 429/5xx retry, `Retry-After` below/equal/above the maximum, invalid `Retry-After`, ordinary 4xx fail-fast behavior, timeout classification, and HTTP 451 access restriction classification;
+- a mocked Binance provider contract for all five symbols and both timeframes;
+- partial snapshot behavior when one approved symbol is unavailable.
+
+The M1 tests never call Binance. The manual public smoke test is separate:
+
+```powershell
+npm run market:smoke
+```
+
+It is allowed to access only Binance public market-data endpoints and requires no credentials.
 
 ## M0 executed checks
 

@@ -2,7 +2,7 @@
   "name": "tradepulse",
   "version": "0.1.0",
   "private": true,
-  "description": "TradePulse M0 foundation for crypto market analysis and signal research.",
+  "description": "TradePulse M1 public market-data foundation for crypto analysis and signal research.",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "market:smoke": "node --experimental-strip-types --no-warnings scripts/market-smoke.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {

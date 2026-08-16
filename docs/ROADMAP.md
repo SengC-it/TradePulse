@@ -36,11 +36,11 @@ M1 market data and every later engine, scan, email, dashboard, and deployment.
 
 ### Scope
 
-Implement `MarketDataProvider` and Binance public adapter for the approved five symbols, 1H/4H candles, server time, completeness, ordering, freshness, and malformed-data validation.
+Implement `MarketDataProvider` and Binance public REST adapter for the approved five symbols, 1H/4H candles, server time, completeness, ordering, freshness, malformed-data validation, bounded retry, and partial snapshot reporting.
 
 ### Deliverables
 
-Normalized candle types, provider adapter, validation service, fixtures, provider error codes, and market-data tests.
+Normalized candle types, provider adapter, validation service, deterministic fixtures, provider error codes, mocked provider contract tests, and a manual public smoke-test command.
 
 ### Tests
 
