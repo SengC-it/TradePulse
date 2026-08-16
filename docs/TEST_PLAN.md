@@ -1,17 +1,56 @@
 # TradePulse Test Plan
 
-Status: M1 test strategy (M0 coverage retained)
+Status: M2-A test design (M0 and M1 coverage retained)
 
 ## Test layers
 
 ### Unit tests
 
-- Config constants preserve the approved five-symbol universe, score allocation, grade thresholds, and strategy version.
+- Config constants preserve the approved five-symbol universe, score allocation,
+  grade thresholds, and strategy version baseline-001.
 - Candle completeness and validation functions reject forming, stale, missing, out-of-order, or malformed candles.
-- EMA20/50/200, RSI14, ATR14, and approved volume calculations use deterministic fixtures.
-- Market regime and candidate rules have explicit LONG, SHORT, and NO_TRADE cases.
-- Score components and grade boundaries cover exact edges: 69, 70, 74, 75, 84, 85, and 100.
-- Entry/stop/TP/TIME_EXIT reference formulas and R calculations are deterministic.
+- EMA20/50/200 tests prove standard alpha, SMA seeding for each period,
+  recurrence, and forming-candle exclusion.
+- RSI14 tests prove Wilder SMA seeding, Wilder smoothing, and the exact
+  average-loss/average-gain edge results 100, 0, and 50.
+- ATR14 tests prove true-range selection, first high-low TR fallback, SMA
+  seeding, Wilder smoothing, and forming-candle exclusion.
+- Fail-closed denominator tests prove ATR14_1H = 0 makes a candidate
+  ineligible and ATR14_4H = 0 prevents normalized regime or Trend Strength
+  values from qualifying.
+- Required-indicator validation tests prove missing, undefined, NaN, and
+  infinite indicator/reference values make the candidate ineligible and never
+  produce an Infinity, NaN, or fallback score.
+- Warm-up tests prove insufficient EMA200 history, RSI14 history, or ATR14
+  history makes the candidate ineligible without shortening a period,
+  changing a seed, extrapolating, or using a fallback indicator.
+- Volume denominator tests prove fewer than 20 prior fully closed quoteVolume
+  candles and a previous20QuoteVolumeMean of 0 make the candidate ineligible.
+- No-epsilon tests prove invalid ATR and volume denominators never use zero,
+  epsilon, Infinity, or another substitute.
+- Market regime tests have explicit LONG_ONLY, SHORT_ONLY, and NO_TRADE cases,
+  including strict directional boundaries.
+- BTC regime tests cover BTC_STRONG_BULL, BTC_STRONG_BEAR, BTC_NEUTRAL, and
+  the exact directional gating table. BTCUSDT proves that cross-symbol gating
+  is not applied to itself.
+- Invalid BTCUSDT 4H input tests prove non-BTC candidates are blocked and the
+  invalid input is never converted into BTC_NEUTRAL.
+- Pullback tests cover EMA20/EMA50 touches, LOW versus HIGH directionality,
+  every W_t position from t-1 through t-5, highest applicable depth, and
+  recency bonuses.
+- Breakout tests cover distance <= 0, the strict 0 to 0.10 interval, and the
+  0.10, 0.25, and 0.50 thresholds for both directions.
+- RSI candidate tests cover strict edges at 30, 50, and 70.
+- Score component tests cover every threshold and prove that the five
+  components sum to total_score.
+- Entry/stop/TP tests prove the current closed-candle entry reference, exact
+  W_t exclusion of the signal candle, stop offsets, inclusive stop_atr
+  boundaries 0.8 and 3.0, rejection outside the guard, and fixed 2R TP.
+- Grade boundaries cover exact totals 69, 70, 74, 75, 84, 85, and 100.
+- Deterministic ranking tests prove total-score descending order followed by
+  BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, BNBUSDT tie order.
+- Strategy Engine boundary tests prove no Binance URL/client, HTTP, database,
+  email, or trading dependency and no side effects.
 - Signal fingerprints and notification policy are deterministic.
 - Score consistency tests prove the five components sum to `total_score` and that `signals.score` cannot differ from it in the persistence contract.
 - Scan idempotency tests prove one stable run key per planned UTC cycle, duplicate-cycle skip behavior, and retry of the same row after failure or lease expiry.
@@ -19,20 +58,36 @@ Status: M1 test strategy (M0 coverage retained)
 
 ### Strategy tests
 
-Every rule in `docs/STRATEGY.md` must have a fixed candle fixture with the expected business result. Tests must prove that:
+Every rule in docs/STRATEGY.md must have a fixed candle fixture with the
+expected business result. Tests must prove that:
 
 - a valid 4H LONG_ONLY fixture produces LONG eligibility;
 - a valid 4H SHORT_ONLY fixture produces SHORT eligibility;
-- neither condition produces NO_TRADE;
+- an incomplete or mixed 4H condition produces NO_TRADE;
+- BTC_STRONG_BULL blocks SHORT and permits LONG for non-BTC symbols;
+- BTC_STRONG_BEAR blocks LONG and permits SHORT for non-BTC symbols;
+- BTC_NEUTRAL permits both directions according to the symbol regime;
+- BTCUSDT is not cross-gated by its own BTC regime;
 - a forming 1H candle never produces a formal candidate;
-- pullback, breakout, RSI, and regime gates are all required;
-- the short mirror uses exact high/low and RSI intervals;
-- BTC open-decision behavior cannot be silently assumed active.
+- pullback, breakout, RSI, stop guard, and BTC gates are all required;
+- the short mirror uses exact high/low, breakout, stop, and RSI intervals;
+- strict RSI edges at 30, 50, and 70 are rejected where the candidate rule
+  requires an open interval;
+- all component thresholds and grade thresholds match the frozen tables;
+- equal-score candidates use the fixed research-universe order;
+- the engine returns serializable deterministic output without side effects.
+- invalid BTC regime input blocks non-BTC candidates and cannot produce a
+  BTC_NEUTRAL result;
+- invalid ATR, volume, or warm-up input produces NO FORMAL SIGNAL.
 
 ### Integration tests
 
 - MarketDataProvider adapter maps public exchange responses to normalized candles.
+- A normalized closed-candle fixture produces the same Strategy Engine result
+  regardless of whether it is supplied by a realtime or backtest adapter.
 - Invalid data prevents signal persistence and creates `DATA_ERROR` or `SCAN_FAILED`.
+- The Strategy Engine performs no database write, email send, HTTP request, or
+  trading action.
 - Database migration applies to a disposable development database and RLS policies behave as designed.
 - RLS isolation test design below proves an authenticated user without an authorization row cannot read global TradePulse tables, while an enabled authorized user can read them.
 - Signal insertion is idempotent for the same version/symbol/direction/candle tuple.
@@ -82,6 +137,13 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 - A frozen fixture produces the same candidate and score in both adapters.
 - Historical signal snapshots keep their original strategy version.
 - Metrics cover total signals, win rate, net R, profit factor, expectancy, average win/loss R, maximum drawdown, direction, symbol, and grade.
+
+## M2-A execution boundary
+
+M2-A documents the tests above but does not add their implementation or
+execute a Strategy Engine. The M2-A pull request must contain documentation
+only. Indicator, candidate, score, ranking, and pure-engine tests begin only
+after the M2-A specification is accepted.
 
 ### E2E tests
 
