@@ -75,6 +75,55 @@ export function evaluateBacktestAcceptance(input: Readonly<{
 
 export const evaluateAcceptance = evaluateBacktestAcceptance;
 
+export function evaluateOverallBacktestAcceptance(input: Readonly<{
+  period: BacktestPeriod;
+  acceptanceByPeriod: Readonly<Record<"DEV" | "OOS" | "COMBINED", BacktestAcceptance | null>>;
+}>): BacktestAcceptance {
+  const selected = input.acceptanceByPeriod[input.period];
+  if (input.period === "DEV") {
+    return selected ?? Object.freeze({
+      status: "INCOMPLETE",
+      reasons: Object.freeze(["DEV acceptance is unavailable because the run is incomplete."]),
+      checks: Object.freeze({}),
+    });
+  }
+  if (input.period === "OOS") {
+    return selected ?? Object.freeze({
+      status: "INCOMPLETE",
+      reasons: Object.freeze(["OOS acceptance is unavailable because the run is incomplete."]),
+      checks: Object.freeze({}),
+    });
+  }
+
+  const combined = input.acceptanceByPeriod.COMBINED;
+  const oos = input.acceptanceByPeriod.OOS;
+  const acceptances = [combined, oos].filter((value): value is BacktestAcceptance => value !== null);
+  const statuses = acceptances.map((acceptance) => acceptance.status);
+  const status = statuses.includes("INCOMPLETE")
+    ? "INCOMPLETE"
+    : statuses.includes("INSUFFICIENT_SAMPLE")
+      ? "INSUFFICIENT_SAMPLE"
+      : statuses.includes("FAIL")
+        ? "FAIL"
+        : statuses.length === 2 && statuses.every((value) => value === "PASS")
+          ? "PASS"
+          : "INCOMPLETE";
+  const reasons = acceptances.flatMap((acceptance) => acceptance.reasons);
+  if (status !== "PASS" && acceptances.length < 2) reasons.push("Both COMBINED and OOS acceptance decisions are required.");
+  const checks = Object.fromEntries(
+    acceptances.flatMap((acceptance, index) =>
+      Object.entries(acceptance.checks).map(([key, value]) => [`${index === 0 ? "combined" : "oos"}.${key}`, value]),
+    ),
+  );
+  return Object.freeze({
+    status,
+    reasons: Object.freeze(reasons),
+    checks: Object.freeze(checks),
+  });
+}
+
+export const evaluateOverallAcceptance = evaluateOverallBacktestAcceptance;
+
 export const acceptancePolicy = Object.freeze({
   combinedMinimumExecutedTrades: 100,
   oosMinimumExecutedTrades: 30,

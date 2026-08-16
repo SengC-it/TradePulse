@@ -17,6 +17,11 @@ export const BACKTEST_PERIOD_RANGES = Object.freeze({
 
 export const BACKTEST_POLICY = Object.freeze({
   strategyWindowCandles: 250,
+  indicatorWarmupMinimum1h: 55,
+  indicatorWarmupMinimum4h: 205,
+  historicalLookback1h: 250,
+  historicalLookback4h: 250,
+  // Compatibility names retained for the frozen M3-A documentation contract.
   warmupCandles1h: 55,
   warmupCandles4h: 205,
   slippageRate: 0.0005,

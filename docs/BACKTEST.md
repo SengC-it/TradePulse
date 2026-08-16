@@ -30,10 +30,15 @@ All timestamps are UTC and inclusive:
 | OOS | `2026-01-01T00:00:00.000Z` | `2026-08-15T23:59:59.999Z` | LOCKED |
 
 Warm-up candles may be loaded before each period's start, but warm-up rows
-must not enter performance statistics. Before the first evaluated signal time,
-the loader must provide at least 205 fully closed 4H candles and 55 fully
-closed 1H candles. If the required warm-up or evaluation data is unavailable,
-the run fails closed as incomplete.
+must not enter performance statistics. The frozen indicator minimums remain
+55 fully closed 1H candles and 205 fully closed 4H candles. They are not the
+historical loader lookback. To satisfy the realtime-equivalent StrategyInput
+contract at the first hourly evaluation, the loader requests at least
+`periodStart - 250 * 1H` and `periodStart - 250 * 4H` respectively. The
+explicit policy fields are `indicatorWarmupMinimum1h = 55`,
+`indicatorWarmupMinimum4h = 205`, `strategyWindowCandles = 250`, and
+`historicalLookback1h = historicalLookback4h = 250`. If an exact 250/250
+window is unavailable, the run fails closed as incomplete.
 
 The OOS period is locked before any baseline results are inspected. OOS data
 must not be used to tune, select, or alter baseline-001 parameters.
@@ -158,6 +163,16 @@ M3-B must produce an auditable manifest containing at least:
 - deterministic checksum/hash where practical;
 - funding source and equivalent coverage details when funding is required.
 
+For formal Binance historical loading, `BinancePublicClient.getServerTime()`
+is fetched once per study load. Every supplied historical candle must satisfy
+`candle.closeTime < binanceServerTime`; a candle at or after that authoritative
+time is `DATA_INCOMPLETE`. The loader never uses local `Date.now()` as market
+time authority and never accepts a forming candle's partial High/Low. The
+funding base range ends at the exact frozen period end, including its final
+millisecond. For OOS and COMBINED, settlement-only funding starts at the next
+millisecond and covers the held #24 settlement boundary; funding coverage is
+event-timestamp based and does not assume an 8-hour cadence.
+
 ## Backtest clock and shared Strategy Engine
 
 Evaluate baseline-001 at every fully closed 1H evaluation point. For signal
@@ -192,6 +207,13 @@ The adapter never passes full history, a 205/55 warm-up slice, 251 candles, or
 an expanding window to `evaluateStrategy(...)`; the 205 4H and 55 1H values
 remain minimum historical warm-up availability requirements only. Missing an
 exact 250/250 window is `DATA_INCOMPLETE`.
+
+Historical series are validated once and indexed by symbol/timeframe. Each
+evaluation uses a binary search for the right-most `closeTime <= evaluationTime`
+and slices exactly `[index - 249, index]`. The shared 1H evaluation timeline is
+alignment-checked once across all symbols. The runner therefore never performs
+a full-history `filter`/cross-symbol `some` scan for every hourly evaluation,
+while retaining the same no-future, no-gap, deterministic contract.
 
 ## Entry model
 
@@ -564,6 +586,14 @@ baseline run produces `INCOMPLETE`, not PASS. If any requirement fails,
 baseline-001 is not accepted as statistically validated. No automatic tuning
 or OOS-driven threshold changes are allowed.
 
+The report's `selectedPeriodAcceptance` (also retained as the compatibility
+field `acceptance`) describes only the requested report period. The formal
+`overallAcceptance` is the decision used by `report.status`: for OOS it equals
+OOS acceptance; for COMBINED it requires both COMBINED and OOS acceptance with
+precedence `INCOMPLETE > INSUFFICIENT_SAMPLE > FAIL > PASS`. DEV remains
+`DESCRIPTIVE` and is not an acceptance gate. `acceptanceByPeriod` retains the
+individual diagnostics so a COMBINED report cannot show PASS while OOS fails.
+
 ## M3 sub-gates and stop boundary
 
 ### M3-A — Backtest Specification Freeze
@@ -575,7 +605,8 @@ historical result.
 ### M3-B — Historical Loader + Deterministic Backtest Runner
 
 Implemented in the M3-B Draft PR. The loader, validation, pagination,
-manifest/checksum, as-of window builder, shared-Strategy-Engine runner,
+required manifest coverage/checksum audit, indexed as-of window builder,
+shared-Strategy-Engine runner,
 bt-policy-001 settlement, funding, R metrics, deterministic report serializer,
 acceptance evaluator, and `npm run backtest:run -- --period DEV|OOS|COMBINED`
 CLI are present. CI uses mocked transport only; the formal M3-C historical

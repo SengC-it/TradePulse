@@ -1,14 +1,15 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { RESEARCH_SYMBOLS } from "../src/lib/config/constants.ts";
 import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/loader.ts";
-import { BACKTEST_PERIOD_RANGES, BACKTEST_POLICY, isBacktestPeriod, type BacktestPeriod } from "../src/lib/backtest/constants.ts";
+import { isBacktestPeriod, type BacktestPeriod } from "../src/lib/backtest/constants.ts";
+import { buildHistoricalLoadRanges } from "../src/lib/backtest/ranges.ts";
 import { runBacktest } from "../src/lib/backtest/runner.ts";
 import { serializeBacktestReport } from "../src/lib/backtest/report.ts";
 import type { BacktestData } from "../src/lib/backtest/types.ts";
 import type { HistoricalStudyData } from "../src/lib/historical-data/types.ts";
-import { INTERVAL_MS } from "../src/lib/market-data/intervals.ts";
 
 function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -23,41 +24,7 @@ function periodFromArguments(): BacktestPeriod {
   return value;
 }
 
-function floorToInterval(value: number, interval: number): number {
-  return Math.floor(value / interval) * interval;
-}
-
-function loadRanges(period: BacktestPeriod): Readonly<{
-  candleRange: Readonly<Record<"1h" | "4h", { startTime: number; endTime: number; settlementOnly?: boolean }>>;
-  fundingRange: { startTime: number; endTime: number; settlementOnly?: boolean };
-  settlementTail?: {
-    candleRange: { startTime: number; endTime: number; settlementOnly?: boolean };
-    fundingRange: { startTime: number; endTime: number; settlementOnly?: boolean };
-  };
-}> {
-  const startPeriod = period === "OOS" ? BACKTEST_PERIOD_RANGES.OOS : BACKTEST_PERIOD_RANGES.DEV;
-  const endPeriod = period === "DEV" ? BACKTEST_PERIOD_RANGES.DEV : BACKTEST_PERIOD_RANGES.OOS;
-  const warmupStart = startPeriod.startTime - BACKTEST_POLICY.warmupCandles4h * INTERVAL_MS["4h"];
-  const baseEnd1h = floorToInterval(endPeriod.endTime, INTERVAL_MS["1h"]);
-  const baseEnd4h = floorToInterval(endPeriod.endTime, INTERVAL_MS["4h"]);
-  const tailStart = baseEnd1h + INTERVAL_MS["1h"];
-  const tailEnd = baseEnd1h + BACKTEST_POLICY.heldCandleCount * INTERVAL_MS["1h"];
-  return {
-    candleRange: {
-      "1h": { startTime: warmupStart, endTime: baseEnd1h },
-      "4h": { startTime: floorToInterval(warmupStart, INTERVAL_MS["4h"]), endTime: baseEnd4h },
-    },
-    fundingRange: { startTime: warmupStart, endTime: baseEnd1h },
-    ...(period !== "DEV"
-      ? {
-          settlementTail: {
-            candleRange: { startTime: tailStart, endTime: tailEnd },
-            fundingRange: { startTime: tailStart, endTime: tailEnd + INTERVAL_MS["1h"] - 1 },
-          },
-        }
-      : {}),
-  };
-}
+export { buildHistoricalLoadRanges as loadRanges } from "../src/lib/backtest/ranges.ts";
 
 function toBacktestData(study: HistoricalStudyData): BacktestData {
   const datasets = Object.fromEntries(
@@ -72,13 +39,13 @@ function toBacktestData(study: HistoricalStudyData): BacktestData {
   const funding = Object.fromEntries(
     RESEARCH_SYMBOLS.map((symbol) => [symbol, study.funding[symbol].records]),
   ) as BacktestData["funding"];
-  return { datasets, funding, manifests: study.manifests };
+  return { datasets, funding, manifests: study.manifests, serverTime: study.serverTime };
 }
 
 async function main(): Promise<void> {
   const period = periodFromArguments();
   const loader = new BinanceHistoricalDataLoader();
-  const study = await loader.loadStudyData(loadRanges(period));
+  const study = await loader.loadStudyData(buildHistoricalLoadRanges(period));
   const report = runBacktest({ period, data: toBacktestData(study) });
   const outputDirectory = path.resolve(process.cwd(), ".tmp", "backtest");
   mkdirSync(outputDirectory, { recursive: true });
@@ -91,4 +58,6 @@ async function main(): Promise<void> {
   console.log(`Executed trades: ${report.metrics.executedTrades}`);
 }
 
-await main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  await main();
+}

@@ -122,14 +122,17 @@ notification, or outcome resolution.
 
 1. `BinanceHistoricalDataLoader` calls only the public USDⓈ-M Futures Kline
    and funding-rate endpoints through the existing bounded Binance client.
+   It captures authoritative Binance server time once per study load and
+   rejects every candle whose close is not strictly before that time.
 2. The loader paginates explicit ranges, validates chronological/aligned
    candles and funding records, requires the official funding `markPrice`, and
    records canonical SHA-256 manifests. No sort, gap fill, synthetic row,
    private API, or alternate provider is allowed.
-3. The backtest clock enumerates fully closed 1H signal points inside DEV or
-   OOS. At every point, `buildStrategyInput` supplies exactly 250 latest
-   closed 1H and exactly 250 latest closed 4H candles for each approved symbol,
-   all as-of `evaluationTime = C_t.closeTime`.
+3. The range builder separates the 55/205 indicator minimums from the 250
+   strategy window and requests 250-candle 1H/4H historical lookback. The
+   backtest clock enumerates fully closed 1H signal points inside DEV or OOS.
+   Historical series are prevalidated and indexed once; each point uses binary
+   lookup and an exact 250-candle slice as-of `evaluationTime = C_t.closeTime`.
 4. The adapter calls the existing `evaluateStrategy(...)` once per evaluation
    and retains every returned evaluation. Only formal candidates with
    `totalScore >= 70` enter the frozen `bt-policy-001` settlement adapter.
@@ -137,10 +140,14 @@ notification, or outcome resolution.
    held #1 and the close of held #24 is TIME_EXIT. DEV crossing is
    `PERIOD_END_CENSORED`; OOS post-end rows are settlement-only and never
    generate evaluations.
-6. The runner computes signal-level R/fee/funding metrics, deterministic
-   ordering/drawdown/overlap/concentration, separate DEV/OOS/COMBINED metrics,
-   and stable JSON reports. It writes only ignored local output through the
-   CLI; it does not persist to Supabase or send notifications.
+6. The runner requires provider- and checksum-bearing manifests for every
+   approved symbol's base 1H/4H/funding data and, for OOS/COMBINED, the
+   settlement-only 1H/funding tails. Missing coverage is `INCOMPLETE` and can
+   never produce a formal PASS. It computes signal-level R/fee/funding
+   metrics, deterministic ordering/drawdown/overlap/concentration, separate
+   DEV/OOS/COMBINED metrics, and an overall acceptance decision. It writes
+   only ignored local output through the CLI; it does not persist to Supabase
+   or send notifications.
 
 ## Realtime scan lifecycle
 

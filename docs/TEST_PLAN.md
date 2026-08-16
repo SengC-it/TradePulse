@@ -148,6 +148,17 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
 - At least 205 fully closed 4H and 55 fully closed 1H warm-up candles are
   required before the first evaluation; warm-up rows never enter statistics.
+- The CLI range helper separately requests 250 historical 1H and 250
+  historical 4H candles before each first evaluation; DEV and OOS first
+  evaluation fixtures must build a successful exact 250/250 StrategyInput.
+- The base funding request ends at the exact frozen period end, includes an
+  event at the final hour open plus one millisecond, and the OOS settlement-
+  only funding request starts at the next millisecond and reaches the held
+  #24 settlement boundary without assuming an 8-hour cadence.
+- Binance server time is fetched once per historical study load. A candle
+  with `closeTime < serverTime` is accepted; equal or later closeTime is
+  `DATA_INCOMPLETE`, including a forming OOS settlement-tail candle. No
+  partial High/Low may enter settlement.
 - Period membership uses signal/evaluation time only. A DEV signal whose
   required held candle #24 closeTime is inside DEV is allowed; one whose held
   #24 closeTime crosses the DEV end is `PERIOD_END_CENSORED`, remains a formal
@@ -169,6 +180,9 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 - As-of fixtures prove `evaluationTime = C_t.closeTime`, every candle supplied
   to `evaluateStrategy(...)` has `closeTime <= evaluationTime`, and future
   data fails closed with `FUTURE_DATA`.
+- Historical indexes are built and cross-symbol 1H timelines are aligned once;
+  binary right-most-closed lookup supplies `[index - 249, index]` exactly,
+  with no expanding windows or per-hour full-history scans.
 - Realtime-shaped and backtest-shaped fixtures call the same Strategy Engine
   and produce equivalent candidate and score output. All evaluations are
   retained, while below-70 evaluations produce no simulated trade.
@@ -231,6 +245,14 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   both COMBINED and OOS. Null concentration metrics and any
   `DATA_INCOMPLETE`/`SETTLEMENT_AMBIGUOUS` in a required run fail acceptance;
   failure is never converted to a pass by tuning.
+- Overall acceptance fixtures enforce `INCOMPLETE > INSUFFICIENT_SAMPLE >
+  FAIL > PASS`; a COMBINED report requires both COMBINED and OOS acceptance,
+  while OOS overall acceptance equals OOS acceptance. The selected-period
+  compatibility field must not mask a failed OOS gate.
+- Manifest fixtures require base 1H, base 4H, and base funding manifests for
+  every approved symbol, plus settlement-only 1H and funding manifests for
+  OOS/COMBINED. Provider mismatch, missing coverage, invalid checksum, or
+  missing tail boundary produces `INCOMPLETE` and never formal PASS.
 - Repeated-run fixtures produce byte-equivalent reports from the same
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
@@ -242,6 +264,9 @@ The M3-B implementation adds deterministic tests in
 
 - Binance historical Kline pagination advances by the next accepted open time
   and rejects duplicate, gap, malformed, and non-progressing data;
+- the formal CLI range helper requests 250/250 history, covers exact period
+  and settlement funding boundaries, and the server-time closure guard rejects
+  forming candles;
 - official funding records require finite rate, valid time, and finite positive
   `markPrice`; no candle-price fallback is accepted;
 - every Strategy Engine invocation is built from exactly 250 latest fully
@@ -252,7 +277,8 @@ The M3-B implementation adds deterministic tests in
 - TIME_EXIT, SL-first same-candle resolution, DEV #24 period censorship,
   bracket rejection, funding inclusion, and funding-order ambiguity;
 - deterministic R/fee/funding metrics, no Infinity/NaN serialization,
-  positive-only concentration, acceptance precedence, and byte-stable reports.
+  positive-only concentration, exact acceptance boundaries, overall
+  COMBINED+OOS acceptance, required manifest coverage, and byte-stable reports.
 
 The test transport is mocked. No CI test downloads historical data or calls
 Binance.

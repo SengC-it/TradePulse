@@ -1,4 +1,4 @@
-import { RESEARCH_SYMBOLS } from "../config/constants.ts";
+import { INTERVAL_MS } from "../market-data/intervals.ts";
 import type { StrategyCandidate } from "../strategy/types.ts";
 import { evaluateStrategy } from "../strategy/engine.ts";
 import { BacktestError } from "./errors.ts";
@@ -9,8 +9,12 @@ import {
   BACKTEST_SYMBOL_ORDER,
   type BacktestPeriod,
 } from "./constants.ts";
-import { evaluateBacktestAcceptance } from "./acceptance.ts";
+import {
+  evaluateBacktestAcceptance,
+  evaluateOverallBacktestAcceptance,
+} from "./acceptance.ts";
 import { calculateBacktestBreakdown, calculateBacktestMetrics } from "./metrics.ts";
+import { validateRequiredManifestCoverage } from "./manifests.ts";
 import { emptyBacktestSignalResult, settleBacktestSignal, snapshotFromCandidate } from "./settlement.ts";
 import type {
   BacktestData,
@@ -20,7 +24,14 @@ import type {
   BacktestRunStatus,
   BacktestSignalResult,
 } from "./types.ts";
-import { buildStrategyInput, getHeldCandles, findSignalCandle } from "./windows.ts";
+import {
+  buildHistoricalIndexes,
+  buildStrategyInputFromIndexes,
+  evaluationTimesForPeriod,
+  findCandleIndexAtCloseTime,
+  getHeldCandlesFromIndex,
+  type HistoricalIndexes,
+} from "./windows.ts";
 
 type SinglePeriodResult = Readonly<{
   evaluations: readonly BacktestEvaluation[];
@@ -29,32 +40,9 @@ type SinglePeriodResult = Readonly<{
   status: BacktestRunStatus;
 }>;
 
-function signalTimes(data: BacktestData, period: Exclude<BacktestPeriod, "COMBINED">): readonly number[] {
-  const range = BACKTEST_PERIOD_RANGES[period];
-  const timeline = data.datasets.BTCUSDT?.candles1h.filter(
-    (candle) => candle.closeTime >= range.startTime && candle.closeTime <= range.endTime,
-  );
-  if (!timeline || timeline.length === 0) {
-    throw new BacktestError("DATA_INCOMPLETE", `No 1H evaluation points are available for ${period}.`);
-  }
-
-  const times: number[] = [];
-  for (const candle of timeline) {
-    for (const symbol of RESEARCH_SYMBOLS) {
-      const hasPoint = data.datasets[symbol]?.candles1h.some((item) => item.closeTime === candle.closeTime);
-      if (!hasPoint) {
-        throw new BacktestError("DATA_INCOMPLETE", `${symbol} is missing the ${period} evaluation candle at ${candle.closeTime}.`);
-      }
-    }
-    times.push(candle.closeTime);
-  }
-  return Object.freeze(times);
-}
-
 function statusFromResults(
   signalResults: readonly BacktestSignalResult[],
   diagnostics: readonly string[],
-  period: Exclude<BacktestPeriod, "COMBINED">,
 ): BacktestRunStatus {
   if (
     diagnostics.length > 0 ||
@@ -62,14 +50,10 @@ function statusFromResults(
   ) {
     return "INCOMPLETE";
   }
-  if (period === "DEV") return "PASS";
   return "PASS";
 }
 
-function periodCensoredResult(
-  candidate: StrategyCandidate,
-  signalTime: number,
-): BacktestSignalResult {
+function periodCensoredResult(candidate: StrategyCandidate, signalTime: number): BacktestSignalResult {
   return emptyBacktestSignalResult(
     snapshotFromCandidate(candidate, signalTime),
     "PERIOD_END_CENSORED",
@@ -83,17 +67,19 @@ function incompleteResult(candidate: StrategyCandidate, signalTime: number, diag
 
 function candidateResults(
   data: BacktestData,
+  indexes: HistoricalIndexes,
   candidate: StrategyCandidate,
   signalTime: number,
   period: Exclude<BacktestPeriod, "COMBINED">,
 ): BacktestSignalResult {
   const snapshot = snapshotFromCandidate(candidate, signalTime);
-  const signalCandle = data.datasets[candidate.symbol]?.candles1h
-    ? findSignalCandle(data.datasets[candidate.symbol].candles1h, signalTime)
-    : null;
+  const indexedDataset = indexes.bySymbol[candidate.symbol];
+  const signalIndex = findCandleIndexAtCloseTime(indexedDataset.candles1h, signalTime);
+  const signalCandle = signalIndex < 0 ? undefined : indexedDataset.candles1h.candles[signalIndex];
   if (!signalCandle) return incompleteResult(candidate, signalTime, "Signal candle is unavailable.");
 
-  const expectedHeld24Close = signalCandle.openTime + BACKTEST_POLICY.heldCandleCount * 60 * 60 * 1000 + 60 * 60 * 1000 - 1;
+  const expectedHeld24Close =
+    signalCandle.openTime + (BACKTEST_POLICY.heldCandleCount + 1) * INTERVAL_MS["1h"] - 1;
   const periodEnd = BACKTEST_PERIOD_RANGES[period].endTime;
   if (period === "DEV" && expectedHeld24Close > periodEnd) {
     return periodCensoredResult(candidate, signalTime);
@@ -101,15 +87,13 @@ function candidateResults(
 
   let heldCandles;
   try {
-    heldCandles = getHeldCandles(data.datasets[candidate.symbol].candles1h, signalTime);
+    heldCandles = getHeldCandlesFromIndex(indexedDataset.candles1h, signalTime);
   } catch (error) {
-    return Object.freeze({
-      ...emptyBacktestSignalResult(
-        snapshot,
-        "DATA_INCOMPLETE",
-        error instanceof Error ? error.message : "Required held candles are unavailable.",
-      ),
-    });
+    return incompleteResult(
+      candidate,
+      signalTime,
+      error instanceof Error ? error.message : "Required held candles are unavailable.",
+    );
   }
   return settleBacktestSignal({
     snapshot,
@@ -123,6 +107,7 @@ function candidateResults(
 
 function runSinglePeriod(
   data: BacktestData,
+  indexes: HistoricalIndexes,
   period: Exclude<BacktestPeriod, "COMBINED">,
 ): SinglePeriodResult {
   const evaluations: BacktestEvaluation[] = [];
@@ -130,7 +115,7 @@ function runSinglePeriod(
   const diagnostics: string[] = [];
   let times: readonly number[];
   try {
-    times = signalTimes(data, period);
+    times = evaluationTimesForPeriod(indexes, period);
   } catch (error) {
     return {
       evaluations: Object.freeze([]),
@@ -140,10 +125,12 @@ function runSinglePeriod(
     };
   }
 
+  // The indexes were fully validated once before either DEV or OOS starts.
+  // Each evaluation performs binary lookup and a fixed-size slice only.
   for (const evaluationTime of times) {
     let input;
     try {
-      input = buildStrategyInput(data.datasets, evaluationTime);
+      input = buildStrategyInputFromIndexes(indexes, evaluationTime);
     } catch (error) {
       diagnostics.push(error instanceof Error ? error.message : `Strategy window is incomplete at ${evaluationTime}.`);
       break;
@@ -163,11 +150,11 @@ function runSinglePeriod(
       }),
     );
     for (const candidate of formalCandidates) {
-      signalResults.push(candidateResults(data, candidate, evaluationTime, period));
+      signalResults.push(candidateResults(data, indexes, candidate, evaluationTime, period));
     }
   }
 
-  const status = statusFromResults(signalResults, diagnostics, period);
+  const status = statusFromResults(signalResults, diagnostics);
   return Object.freeze({
     evaluations: Object.freeze(evaluations),
     signalResults: Object.freeze(signalResults),
@@ -176,9 +163,16 @@ function runSinglePeriod(
   });
 }
 
-function statusFromAcceptance(
-  acceptance: ReturnType<typeof evaluateBacktestAcceptance>,
-): BacktestRunStatus {
+function incompletePeriodResult(diagnostics: readonly string[]): SinglePeriodResult {
+  return Object.freeze({
+    evaluations: Object.freeze([]),
+    signalResults: Object.freeze([]),
+    diagnostics: Object.freeze([...diagnostics]),
+    status: "INCOMPLETE",
+  });
+}
+
+function statusFromAcceptance(acceptance: ReturnType<typeof evaluateBacktestAcceptance>): BacktestRunStatus {
   switch (acceptance.status) {
     case "INCOMPLETE":
       return "INCOMPLETE";
@@ -192,21 +186,39 @@ function statusFromAcceptance(
   }
 }
 
+function sortManifests(data: BacktestData): BacktestData["manifests"] {
+  return Object.freeze([...(data.manifests ?? [])].sort((left, right) => {
+    const leftKey = `${left.kind}:${left.symbol}:${"timeframe" in left ? left.timeframe : "funding"}`;
+    const rightKey = `${right.kind}:${right.symbol}:${"timeframe" in right ? right.timeframe : "funding"}`;
+    return leftKey.localeCompare(rightKey);
+  }));
+}
+
 export function runBacktest(input: BacktestRunInput): BacktestReport {
-  if (input.data.manifests?.some((manifest) => manifest.provider !== "binance-usdm-public")) {
-    throw new BacktestError("INVALID_INPUT", "Backtest data must use the approved Binance public provider.");
+  const manifestCoverage = validateRequiredManifestCoverage(input.data.manifests, input.period);
+  let indexes: HistoricalIndexes | undefined;
+  let preparationDiagnostics: readonly string[] = manifestCoverage.diagnostics;
+  if (manifestCoverage.valid) {
+    try {
+      indexes = buildHistoricalIndexes(input.data.datasets);
+    } catch (error) {
+      preparationDiagnostics = Object.freeze([
+        error instanceof Error ? error.message : "Historical indexes could not be built.",
+      ]);
+    }
   }
 
-  const devRun = input.period === "OOS" ? null : runSinglePeriod(input.data, "DEV");
-  const oosRun = input.period === "DEV" ? null : runSinglePeriod(input.data, "OOS");
+  const runFor = (period: Exclude<BacktestPeriod, "COMBINED">): SinglePeriodResult =>
+    indexes ? runSinglePeriod(input.data, indexes, period) : incompletePeriodResult(preparationDiagnostics);
+  const devRun = input.period === "OOS" ? null : runFor("DEV");
+  const oosRun = input.period === "DEV" ? null : runFor("OOS");
   const runs = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
   const evaluations = runs.flatMap((run) => run.evaluations);
   const signalResults = runs.flatMap((run) => run.signalResults);
   const diagnostics = runs.flatMap((run) => run.diagnostics);
   const devMetrics = devRun ? calculateBacktestMetrics({ evaluations: devRun.evaluations, signalResults: devRun.signalResults }) : null;
   const oosMetrics = oosRun ? calculateBacktestMetrics({ evaluations: oosRun.evaluations, signalResults: oosRun.signalResults }) : null;
-  const combinedMetrics =
-    input.period === "COMBINED" ? calculateBacktestMetrics({ evaluations, signalResults }) : null;
+  const combinedMetrics = input.period === "COMBINED" ? calculateBacktestMetrics({ evaluations, signalResults }) : null;
   const devAcceptance = devMetrics
     ? evaluateBacktestAcceptance({ period: "DEV", metrics: devMetrics, runStatus: devRun?.status })
     : null;
@@ -214,27 +226,23 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
     ? evaluateBacktestAcceptance({ period: "OOS", metrics: oosMetrics, runStatus: oosRun?.status })
     : null;
   const combinedAcceptance = combinedMetrics
-    ? evaluateBacktestAcceptance({ period: "COMBINED", metrics: combinedMetrics, runStatus: runs.some((run) => run.status === "INCOMPLETE") ? "INCOMPLETE" : "PASS" })
+    ? evaluateBacktestAcceptance({
+        period: "COMBINED",
+        metrics: combinedMetrics,
+        runStatus: runs.some((run) => run.status === "INCOMPLETE") ? "INCOMPLETE" : "PASS",
+      })
     : null;
-  const metrics = input.period === "DEV" ? devMetrics! : input.period === "OOS" ? oosMetrics! : combinedMetrics!;
-  const acceptance = input.period === "DEV" ? devAcceptance! : input.period === "OOS" ? oosAcceptance! : combinedAcceptance!;
-  const acceptanceValues = [devAcceptance, oosAcceptance, combinedAcceptance].filter(
-    (value): value is NonNullable<typeof value> => value !== null,
-  );
-  const status =
-    acceptanceValues.some((value) => value.status === "INCOMPLETE")
-      ? "INCOMPLETE"
-      : acceptanceValues.some((value) => value.status === "INSUFFICIENT_SAMPLE")
-        ? "INSUFFICIENT_SAMPLE"
-        : acceptanceValues.some((value) => value.status === "FAIL")
-          ? "FAIL"
-          : statusFromAcceptance(acceptance);
+  const acceptanceByPeriod = Object.freeze({ DEV: devAcceptance, OOS: oosAcceptance, COMBINED: combinedAcceptance });
+  const overallAcceptance = evaluateOverallBacktestAcceptance({ period: input.period, acceptanceByPeriod });
+  const selectedPeriodAcceptance = acceptanceByPeriod[input.period];
+  if (!selectedPeriodAcceptance) {
+    throw new BacktestError("DATA_INCOMPLETE", `Acceptance is unavailable for selected period ${input.period}.`);
+  }
+  const metrics = input.period === "DEV" ? devMetrics : input.period === "OOS" ? oosMetrics : combinedMetrics;
+  if (!metrics) {
+    throw new BacktestError("DATA_INCOMPLETE", `Metrics are unavailable for selected period ${input.period}.`);
+  }
   const breakdowns = calculateBacktestBreakdown(signalResults);
-  const manifests = [...(input.data.manifests ?? [])].sort((left, right) => {
-    const leftKey = `${left.kind}:${left.symbol}:${"timeframe" in left ? left.timeframe : "funding"}`;
-    const rightKey = `${right.kind}:${right.symbol}:${"timeframe" in right ? right.timeframe : "funding"}`;
-    return leftKey.localeCompare(rightKey);
-  });
 
   return Object.freeze({
     schemaVersion: "m3-b-report-001",
@@ -246,6 +254,10 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
     timeframes: Object.freeze(["1h", "4h"] as const),
     policy: Object.freeze({
       strategyWindowCandles: BACKTEST_POLICY.strategyWindowCandles,
+      indicatorWarmupMinimum1h: BACKTEST_POLICY.indicatorWarmupMinimum1h,
+      indicatorWarmupMinimum4h: BACKTEST_POLICY.indicatorWarmupMinimum4h,
+      historicalLookback1h: BACKTEST_POLICY.historicalLookback1h,
+      historicalLookback4h: BACKTEST_POLICY.historicalLookback4h,
       warmupCandles1h: BACKTEST_POLICY.warmupCandles1h,
       warmupCandles4h: BACKTEST_POLICY.warmupCandles4h,
       slippageRate: BACKTEST_POLICY.slippageRate,
@@ -253,12 +265,14 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
       takeProfitR: BACKTEST_POLICY.takeProfitR,
       heldCandleCount: BACKTEST_POLICY.heldCandleCount,
     }),
-    manifests: Object.freeze(manifests),
-    status,
-    acceptance,
+    manifests: sortManifests(input.data),
+    status: statusFromAcceptance(overallAcceptance),
+    acceptance: selectedPeriodAcceptance,
+    selectedPeriodAcceptance,
+    overallAcceptance,
     metrics,
     metricsByPeriod: Object.freeze({ DEV: devMetrics, OOS: oosMetrics, COMBINED: combinedMetrics }),
-    acceptanceByPeriod: Object.freeze({ DEV: devAcceptance, OOS: oosAcceptance, COMBINED: combinedAcceptance }),
+    acceptanceByPeriod,
     breakdowns,
     evaluations: Object.freeze(evaluations),
     signalResults: Object.freeze(signalResults),

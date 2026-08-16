@@ -23,6 +23,8 @@ export type HistoricalCandleValidationOptions = Readonly<{
   timeframe: MarketTimeframe;
   expectedStartTime?: number;
   expectedEndTime?: number;
+  /** Binance server time captured once for the enclosing load operation. */
+  serverTime?: number;
 }>;
 
 export function validateHistoricalCandleSeries(
@@ -49,6 +51,17 @@ export function validateHistoricalCandleSeries(
   }
 
   const seen = new Set<number>();
+  if (
+    options.serverTime !== undefined &&
+    (!Number.isInteger(options.serverTime) || options.serverTime < 0)
+  ) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Authoritative Binance server time is invalid.",
+      symbol: options.symbol,
+      timeframe: options.timeframe,
+    });
+  }
   for (let index = 0; index < candles.length; index += 1) {
     const candle = candles[index];
     try {
@@ -92,6 +105,16 @@ export function validateHistoricalCandleSeries(
         symbol: options.symbol,
         timeframe: options.timeframe,
         diagnostics: { openTime: candle.openTime, closeTime: candle.closeTime, intervalMs },
+      });
+    }
+
+    if (options.serverTime !== undefined && candle.closeTime >= options.serverTime) {
+      throw new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: "Historical candle is not fully closed according to Binance server time.",
+        symbol: options.symbol,
+        timeframe: options.timeframe,
+        diagnostics: { candleCloseTime: candle.closeTime, serverTime: options.serverTime },
       });
     }
 

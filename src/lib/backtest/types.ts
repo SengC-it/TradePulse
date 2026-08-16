@@ -20,7 +20,8 @@ export type BacktestDataset = Readonly<{
 export type BacktestData = Readonly<{
   datasets: Readonly<Record<ResearchSymbol, BacktestDataset>>;
   funding: Readonly<Record<ResearchSymbol, readonly HistoricalFundingRecord[]>>;
-  manifests?: readonly HistoricalManifest[];
+  manifests: readonly HistoricalManifest[];
+  serverTime?: number;
 }>;
 
 export type BacktestSignalSnapshot = Readonly<{
@@ -159,6 +160,10 @@ export type BacktestReport = Readonly<{
   manifests: readonly HistoricalManifest[];
   status: BacktestRunStatus;
   acceptance: BacktestAcceptance;
+  /** Compatibility alias: the acceptance for the selected report period only. */
+  selectedPeriodAcceptance: BacktestAcceptance;
+  /** The formal decision for this report period, including the OOS requirement. */
+  overallAcceptance: BacktestAcceptance;
   metrics: BacktestMetrics;
   metricsByPeriod: Readonly<Record<"DEV" | "OOS" | "COMBINED", BacktestMetrics | null>>;
   acceptanceByPeriod: Readonly<Record<"DEV" | "OOS" | "COMBINED", BacktestAcceptance | null>>;

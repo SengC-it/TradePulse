@@ -73,4 +73,5 @@ export type HistoricalStudyData = Readonly<{
   datasets: Readonly<Record<ResearchSymbol, HistoricalSymbolDataset>>;
   funding: Readonly<Record<ResearchSymbol, HistoricalFundingDataset>>;
   manifests: readonly HistoricalManifest[];
+  serverTime: number;
 }>;

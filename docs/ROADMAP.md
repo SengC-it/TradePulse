@@ -219,7 +219,8 @@ records, build as-of inputs, call the existing M2 Strategy Engine, and apply
 
 ### Deliverables
 
-Historical loader, integrity validation, manifest/checksum, deterministic
+Historical loader, integrity validation, required manifest/checksum coverage,
+authoritative fully-closed candle validation, deterministic indexed
 signal-level runner, exact 250/250 as-of Strategy Engine windows, frozen
 24-held-candle settlement, funding/R/fee/slippage metrics, acceptance evaluator,
 stable report serialization, CLI, and mocked tests. No second strategy
@@ -242,10 +243,11 @@ assumed.
 
 ### Acceptance criteria
 
-Reports include both version identifiers, data manifests, separate DEV/OOS/
-COMBINED metrics and acceptance fields, all frozen assumptions,
-incomplete-data outcomes, and explicit signal-level disclaimers. M3-B does not
-tune baseline-001 and does not run M3-C.
+Reports include both version identifiers, required data manifests, separate
+DEV/OOS/COMBINED metrics and acceptance fields, an overall decision requiring
+COMBINED plus OOS for a COMBINED report, all frozen assumptions,
+incomplete-data outcomes, and explicit signal-level disclaimers. M3-B does
+not tune baseline-001 and does not run M3-C.
 
 ### Known risks
 

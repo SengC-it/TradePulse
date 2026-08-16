@@ -28,6 +28,8 @@ export type HistoricalCandleRequest = Readonly<{
   symbol: ResearchSymbol;
   timeframe: MarketTimeframe;
   range: HistoricalRange;
+  /** Captured once by loadStudyData; standalone loads may omit it. */
+  serverTime?: number;
 }>;
 
 export type HistoricalFundingRequest = Readonly<{
@@ -100,8 +102,21 @@ export class BinanceHistoricalDataLoader {
     this.fundingLimit = options.fundingLimit ?? 1_000;
   }
 
+  private async getAuthoritativeServerTime(symbol: ResearchSymbol, timeframe?: MarketTimeframe): Promise<number> {
+    try {
+      const response = await this.client.getServerTime();
+      if (!Number.isInteger(response.data.serverTime) || response.data.serverTime < 0) {
+        throw new Error("Binance server time is invalid.");
+      }
+      return response.data.serverTime;
+    } catch (error) {
+      wrapUpstreamError(error, symbol, timeframe);
+    }
+  }
+
   async loadCandles(request: HistoricalCandleRequest): Promise<HistoricalCandleDataset> {
     assertCandleRange(request);
+    const serverTime = request.serverTime ?? (await this.getAuthoritativeServerTime(request.symbol, request.timeframe));
     const intervalMs = INTERVAL_MS[request.timeframe];
     const candles: Candle[] = [];
     let cursor = request.range.startTime;
@@ -126,6 +141,7 @@ export class BinanceHistoricalDataLoader {
       validateHistoricalCandleSeries(page, {
         symbol: request.symbol,
         timeframe: request.timeframe,
+        serverTime,
       });
       const first = page[0];
       const last = page[page.length - 1];
@@ -173,6 +189,7 @@ export class BinanceHistoricalDataLoader {
       timeframe: request.timeframe,
       expectedStartTime: request.range.startTime,
       expectedEndTime: request.range.endTime,
+      serverTime,
     });
     const retrievedAt = this.now();
     return Object.freeze({
@@ -265,6 +282,8 @@ export class BinanceHistoricalDataLoader {
       fundingRange: HistoricalRange;
     }>;
   }>): Promise<HistoricalStudyData> {
+    const firstSymbol = RESEARCH_SYMBOLS[0] ?? "BTCUSDT";
+    const serverTime = await this.getAuthoritativeServerTime(firstSymbol);
     const datasets = {} as Record<ResearchSymbol, HistoricalSymbolDataset>;
     const funding = {} as Record<ResearchSymbol, HistoricalFundingDataset>;
     const manifests = [] as HistoricalStudyData["manifests"][number][];
@@ -272,8 +291,8 @@ export class BinanceHistoricalDataLoader {
       const oneHourRange = "1h" in input.candleRange ? input.candleRange["1h"] : input.candleRange;
       const fourHourRange = "4h" in input.candleRange ? input.candleRange["4h"] : input.candleRange;
       const [baseCandles1h, candles4h, baseFundingDataset] = await Promise.all([
-        this.loadCandles({ symbol, timeframe: "1h", range: oneHourRange }),
-        this.loadCandles({ symbol, timeframe: "4h", range: fourHourRange }),
+        this.loadCandles({ symbol, timeframe: "1h", range: oneHourRange, serverTime }),
+        this.loadCandles({ symbol, timeframe: "4h", range: fourHourRange, serverTime }),
         this.loadFunding({ symbol, range: input.fundingRange }),
       ]);
       let candles1h = baseCandles1h;
@@ -284,6 +303,7 @@ export class BinanceHistoricalDataLoader {
             symbol,
             timeframe: "1h",
             range: { ...input.settlementTail.candleRange, settlementOnly: true },
+            serverTime,
           }),
           this.loadFunding({
             symbol,
@@ -305,6 +325,7 @@ export class BinanceHistoricalDataLoader {
             timeframe: "1h",
             expectedStartTime: baseCandles1h.candles[0]!.openTime,
             expectedEndTime: tailCandles.candles.at(-1)!.openTime,
+            serverTime,
           },
         );
         const combinedFunding = validateFundingRecords(
@@ -323,6 +344,7 @@ export class BinanceHistoricalDataLoader {
       datasets: Object.freeze(datasets),
       funding: Object.freeze(funding),
       manifests: Object.freeze(manifests),
+      serverTime,
     });
   }
 }

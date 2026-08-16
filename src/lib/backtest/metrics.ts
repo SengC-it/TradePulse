@@ -26,6 +26,10 @@ function byNumber(value: number): number {
   return Object.is(value, -0) ? 0 : value;
 }
 
+function roundedMetric(value: number): number {
+  return byNumber(Number(value.toFixed(12)));
+}
+
 function symbolIndex(symbol: string): number {
   const index = BACKTEST_SYMBOL_ORDER.indexOf(symbol as (typeof BACKTEST_SYMBOL_ORDER)[number]);
   return index < 0 ? Number.MAX_SAFE_INTEGER : index;
@@ -156,7 +160,7 @@ export function calculateBacktestMetrics(input: Readonly<{
     winRate: executed.length === 0 ? null : positive.length / executed.length,
     lossRate: executed.length === 0 ? null : negative.length / executed.length,
     breakevenRate: executed.length === 0 ? null : netValues.filter((value) => value === 0).length / executed.length,
-    profitFactor: executed.length === 0 || negativeR === 0 ? null : positiveR / negativeR,
+    profitFactor: executed.length === 0 || negativeR === 0 ? null : roundedMetric(positiveR / negativeR),
     profitFactorStatus: executed.length === 0 ? "NO_TRADES" : negativeR === 0 ? "NO_LOSSES" : "NORMAL",
     expectancyR: average(netValues),
     medianR: median(netValues),
@@ -170,8 +174,8 @@ export function calculateBacktestMetrics(input: Readonly<{
     overlappingTradeCount: overlapCount,
     overlappingSignalRate: executed.length === 0 ? null : overlapCount / executed.length,
     totalPositiveNetR: byNumber(positiveR),
-    topSymbolShareOfPositiveNetR: positiveR === 0 ? null : topSymbolPositive / positiveR,
-    largestSingleTradeShareOfPositiveNetR: positiveR === 0 ? null : largestSinglePositive / positiveR,
+    topSymbolShareOfPositiveNetR: positiveR === 0 ? null : roundedMetric(topSymbolPositive / positiveR),
+    largestSingleTradeShareOfPositiveNetR: positiveR === 0 ? null : roundedMetric(largestSinglePositive / positiveR),
     concentrationStatus: executed.length === 0 ? "NO_TRADES" : positiveR === 0 ? "NO_POSITIVE_R" : "NORMAL",
   };
 
