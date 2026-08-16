@@ -1,6 +1,7 @@
 # TradePulse Test Plan
 
-Status: M2-B implementation and deterministic test coverage (M0/M1 coverage retained)
+Status: M3-A backtest specification freeze and deterministic test design
+(M0-M2-B coverage retained)
 
 ## Test layers
 
@@ -139,10 +140,68 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 
 ### Backtest regression tests
 
-- Backtest calls the same Strategy Engine module as realtime.
-- A frozen fixture produces the same candidate and score in both adapters.
-- Historical signal snapshots keep their original strategy version.
-- Metrics cover total signals, win rate, net R, profit factor, expectancy, average win/loss R, maximum drawdown, direction, symbol, and grade.
+- The report records `strategyVersion = baseline-001` and
+  `backtestPolicyVersion = bt-policy-001` separately; changing historical
+  execution assumptions cannot change the Strategy Engine version.
+- DEV uses exactly `2023-01-01T00:00:00.000Z` through
+  `2025-12-31T23:59:59.999Z`; OOS uses the locked range
+  `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
+- At least 205 fully closed 4H and 55 fully closed 1H warm-up candles are
+  required before the first evaluation; warm-up rows never enter statistics.
+- The universe fixture contains exactly BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT,
+  and BNBUSDT, and rejects private/alternate data sources.
+- Historical fixtures reject non-chronological rows, duplicates, gaps,
+  malformed/non-finite OHLC, forming or misaligned candles, and missing
+  funding; no sort, gap fill, synthetic row, zero funding, or other fallback
+  is allowed. The manifest includes provider, ranges, row count, retrieval
+  time, and checksum fields.
+- As-of fixtures prove `evaluationTime = C_t.closeTime`, every candle supplied
+  to `evaluateStrategy(...)` has `closeTime <= evaluationTime`, and future
+  data fails closed with `FUTURE_DATA`.
+- Realtime-shaped and backtest-shaped fixtures call the same Strategy Engine
+  and produce equivalent candidate and score output. All evaluations are
+  retained, while below-70 evaluations produce no simulated trade.
+- Next-open entry fixtures prove that the signal candle close is never a fill,
+  adverse 5 bps LONG and SHORT slippage, strict stop/TP bracket validation,
+  and `ENTRY_OUTSIDE_BRACKET` without a fabricated fill.
+- Fee fixtures apply 5 bps on both entry and exit, and prove slippage is not
+  charged a second time.
+- Settlement fixtures prove the first held candle is the next-open candle,
+  TP-only, SL-only, LONG/SHORT stop and TP inequalities, conservative
+  SL-first behavior when both are touched, and `TIME_EXIT` at the close of the
+  24th held candle.
+- Exit fixtures prove adverse exit slippage for TP/SL and raw close treatment
+  for TIME_EXIT.
+- Funding fixtures include only events with `entryTime < fundingTime <=
+  exitTime`, cover positive and negative funding on both directions, apply the
+  funding timestamp boundary, and fail closed on missing or incomplete
+  required public funding data.
+- R fixtures prove canonical signal stop distance, price/fee/funding/net R,
+  and no double-counted slippage.
+- Metric fixtures cover DEV/OOS/COMBINED evaluations, formal signals,
+  executions, bracket exclusions, exits, gross/net R, win/loss/breakeven,
+  expectancy, profit factor, medians, averages, extrema, fees, funding,
+  symbol/direction/grade/regime/month breakdowns, overlap, top-symbol share,
+  and largest-trade share.
+- Profit-factor fixtures return `null` with `NO_LOSSES` or `NO_TRADES` rather
+  than Infinity; drawdown fixtures use the deterministic signal sequence
+  ordering and label the result `signalSequenceMaxDrawdownR`, never portfolio
+  drawdown.
+- Acceptance fixtures enforce COMBINED executed >=100, OOS executed >=30,
+  positive net R and expectancy, PF >=1.25 combined/PF >=1.10 OOS, top symbol
+  share <=60%, and largest trade share <=20%; failure is not converted to a
+  pass by tuning.
+- Repeated-run fixtures produce byte-equivalent reports from the same
+  historical inputs, manifest, versions, and policy assumptions; fixtures
+  prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
+
+## M3-A execution boundary
+
+M3-A is documentation-only. It adds no historical downloader, Binance request,
+Backtest Runner, persistence, Strategy Engine change, API route, Cron,
+notification, deployment, or generated result. The backtest regression cases
+above are the deterministic test contract for M3-B and are not claimed as
+implemented by this specification-freeze PR.
 
 ## M2-B execution boundary
 
