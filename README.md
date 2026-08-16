@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M1 — Market Data**.
+Current milestone: **M2-B — Indicators & Pure Strategy Engine**.
 
 ## Boundary
 
@@ -12,7 +12,9 @@ TRADEPULSE DOES NOT TRADE
 
 The current project has no Binance private API integration, account access, wallet connection, order creation, order modification, cancellation, leverage control, margin control, or automated execution. It uses Binance USDⓈ-M Futures public market data only in later milestones. A signal is a research alert and reference value, not an order or a promise of profit.
 
-M1 implements only the validated public market-data layer. It does not implement indicators, strategy, scoring, signals, notifications, persistence of candles, or production deployment.
+M1 provides the validated public market-data layer. M2-B adds only the pure,
+framework-independent indicator and Strategy Engine layer; persistence,
+scanning, notifications, backtesting, and deployment remain out of scope.
 
 ## Architecture
 
@@ -52,7 +54,7 @@ npm run dev
 
 Open `http://localhost:3000`. The non-sensitive health endpoint is available at `http://localhost:3000/api/health`.
 
-No production Supabase project, Gmail App Password, Binance account, API key, or real notification recipient is required for M1.
+No production Supabase project, Gmail App Password, Binance account, API key, or real notification recipient is required for M1 or M2-B.
 
 ## Commands
 
@@ -97,8 +99,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | Milestone | Scope |
 | --- | --- |
 | M0 | Foundation & Architecture |
-| M1 | Binance public market data and candle validation |
-| M2 | Indicators, regimes, strategy engine, scoring, ranking |
+| M1 | Binance public market data and candle validation (closed) |
+| M2-B | Indicators, regimes, pure strategy engine, scoring, ranking (in review) |
 | M3 | Backtest runner and performance metrics |
 | M4 | Realtime scanner, protected endpoint, persistence |
 | M5 | Gmail notifications and delivery tracking |

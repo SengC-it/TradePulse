@@ -1,6 +1,6 @@
 # TradePulse Test Plan
 
-Status: M2-A test design (M0 and M1 coverage retained)
+Status: M2-B implementation and deterministic test coverage (M0/M1 coverage retained)
 
 ## Test layers
 
@@ -138,12 +138,17 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 - Historical signal snapshots keep their original strategy version.
 - Metrics cover total signals, win rate, net R, profit factor, expectancy, average win/loss R, maximum drawdown, direction, symbol, and grade.
 
-## M2-A execution boundary
+## M2-B execution boundary
 
-M2-A documents the tests above but does not add their implementation or
-execute a Strategy Engine. The M2-A pull request must contain documentation
-only. Indicator, candidate, score, ranking, and pure-engine tests begin only
-after the M2-A specification is accepted.
+M2-A was documentation-only and is closed. M2-B implements the pure indicator,
+candidate, score, ranking, and engine tests described above. The implemented
+tests use deterministic in-memory Candle fixtures only; they do not call
+Binance, Supabase, HTTP, SMTP, or any other external service.
+
+The M2-B suite currently contains 45 passing tests across the existing M0/M1
+coverage and the new indicator/Strategy Engine coverage. Realtime-shaped and
+backtest-shaped normalized inputs are both evaluated through the same engine
+and are asserted to produce deeply equivalent results.
 
 ### E2E tests
 
