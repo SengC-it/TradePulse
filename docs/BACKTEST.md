@@ -39,6 +39,31 @@ Any report produced after an approved implementation must identify exactly one
 policy version and must not compare results from `bt-policy-001` and
 `bt-policy-002` as if they were the same historical protocol.
 
+### Explicit policy selection and report schemas
+
+The report schema is frozen per policy:
+
+| Policy | Behavior | Schema |
+| --- | --- | --- |
+| `bt-policy-001` | Immutable legacy funding behavior | `m3-b-report-001` |
+| `bt-policy-002` | Historical funding mark-price compatibility behavior | `m3-b-report-002` |
+
+`m3-b-report-002` includes the funding mark-price provenance and fallback audit
+fields defined below. Those fields must not be silently added to
+`m3-b-report-001`; a report must not claim one policy while serializing the
+other policy's schema.
+
+Formal policy selection is explicit:
+
+```text
+npm run backtest:run -- --period COMBINED --policy bt-policy-002
+```
+
+For formal runs, a missing `--policy` or an unknown policy fails closed.
+`bt-policy-001` selects immutable legacy behavior and `bt-policy-002` selects
+the historical funding compatibility behavior. M3-C replacement evidence must
+explicitly use `--policy bt-policy-002`; no default policy may be inferred.
+
 ## Frozen evaluation periods
 
 All timestamps are UTC and inclusive:
@@ -112,6 +137,30 @@ signal, or change OOS membership. The manifest must explicitly identify these
 rows and funding records as `settlementOnly` post-OOS data. If required tail
 data is incomplete, the run is `DATA_INCOMPLETE`; M3-C cannot claim a complete
 OOS baseline result.
+
+### `bt-policy-002` mark-price historical ranges
+
+The mark-price Kline range is a frozen formal input, not a range derived from
+observed signals, trades, or performance:
+
+```text
+markPriceRange.startTime = fundingRange.startTime - 1 hour
+markPriceRange.endTime   = fundingRange.endTime
+```
+
+The one-hour lead-in intentionally contains the pre-event support candle that
+may be needed by the earliest funding event in the base range. For an OOS or
+COMBINED settlement tail, use exact tail boundaries:
+
+```text
+settlementTail.markPriceRange.startTime = settlementTail.startTime
+settlementTail.markPriceRange.endTime   = settlementTail.fundingRange.endTime
+settlementOnly = true
+```
+
+These ranges are fixed from the corresponding funding ranges and settlement
+tail, never dynamically shortened or extended from observed performance or
+trade results.
 
 ## Historical universe and data source
 
@@ -463,6 +512,21 @@ Every funding charge must retain `fundingTime`, `fundingRate`, `markPrice`, and
 `fundingEventsTotal`, `fundingEventsDirectMarkPrice`,
 `fundingEventsFallbackMarkPrice`, and `fundingFallbackRate`, with fallback
 counts broken down by symbol and UTC year.
+
+The mark-price Kline loader must use the same authoritative Binance
+`serverTime` captured once for the study. Every accepted mark-price candle must
+satisfy:
+
+```text
+closeTime < serverTime
+```
+
+It must validate strict chronological order, exact 1H interval continuity,
+no duplicates, valid timestamps, finite positive OHLC values, and valid OHLC
+relationships (`high >= max(open, close)` and `low <= min(open, close)`, with
+`high >= low`). Sorting, gap filling, interpolation, and synthetic candles
+are forbidden. Any required invalid or missing mark-price data is
+`DATA_INCOMPLETE`.
 
 Whenever fallback data is used, the manifests must include the official
 `/fapi/v1/markPriceKlines` provider/endpoint, symbol, `timeframe = 1h`,

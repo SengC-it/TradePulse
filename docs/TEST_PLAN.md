@@ -228,6 +228,29 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
     breakdowns, and the mark-price manifest are required and deterministic;
   - normalized direct/fallback inputs produce byte-equivalent core reports;
   - no baseline-001 strategy file or threshold changes are present.
+- `bt-policy-002` range fixtures require the base mark-price range to begin
+  exactly one hour before `fundingRange.startTime` and end at
+  `fundingRange.endTime`; the first funding event must be able to use that
+  pre-range support candle.
+- OOS/COMBINED settlement-tail fixtures require
+  `settlementTail.markPriceRange.startTime = settlementTail.startTime`,
+  `settlementTail.markPriceRange.endTime = settlementTail.fundingRange.endTime`,
+  and `settlementOnly = true`.
+- Mark-price integrity fixtures use the same authoritative study server time
+  and reject `closeTime >= serverTime`, duplicate candles, 1H gaps, invalid
+  timestamps, malformed/non-positive/non-finite OHLC, or invalid OHLC
+  relationships. They prove that sorting, gap filling, interpolation, and
+  synthetic candles are never used; required invalid/missing data is
+  `DATA_INCOMPLETE`.
+- Report schema fixtures serialize `bt-policy-001` only as
+  `m3-b-report-001` and `bt-policy-002` only as `m3-b-report-002`, with the
+  latter containing the funding provenance/fallback audit fields. They reject
+  silently extending the legacy schema with incompatible fields.
+- Policy-selection fixtures require an explicit `--policy`: missing policy and
+  unknown policy fail closed, `bt-policy-001` selects immutable legacy
+  behavior, and explicit `bt-policy-002` selects compatibility behavior. The
+  formal M3-C replacement command must include
+  `--period COMBINED --policy bt-policy-002`.
 - Funding fixtures exclude `fundingTime == entryTime`, include funding at the
   TP/SL exit candle open when the entry is earlier, and mark funding strictly
   inside the TP/SL exit candle as `SETTLEMENT_AMBIGUOUS`.

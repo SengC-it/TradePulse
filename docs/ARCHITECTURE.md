@@ -171,6 +171,46 @@ remains `DATA_INCOMPLETE`. Every charge, fallback count, UTC-year/symbol
 breakdown, and fallback manifest hash must be auditable. This boundary changes
 no strategy rule or funding economics and has no observed performance result.
 
+The frozen `bt-policy-002` mark-price ranges are derived only from the funding
+ranges:
+
+```text
+markPriceRange.startTime = fundingRange.startTime - 1 hour
+markPriceRange.endTime   = fundingRange.endTime
+```
+
+For an OOS or COMBINED settlement tail:
+
+```text
+settlementTail.markPriceRange.startTime = settlementTail.startTime
+settlementTail.markPriceRange.endTime   = settlementTail.fundingRange.endTime
+settlementOnly = true
+```
+
+The base lead-in is required so the earliest funding event can use its
+pre-event support candle. These ranges are never derived from observed
+performance or trade results.
+
+Mark-price Klines use the same authoritative study `serverTime` as all other
+historical data and accept only `closeTime < serverTime`. The future loader
+contract requires strict chronological order, exact 1H continuity, no
+duplicates, valid timestamps, finite positive OHLC, and valid OHLC
+relationships. Sorting, gap filling, interpolation, and synthetic candles
+are prohibited; any required invalid or missing data is `DATA_INCOMPLETE`.
+
+Policy selection and report schema are explicit. `bt-policy-001` serializes as
+`m3-b-report-001`; `bt-policy-002` serializes as `m3-b-report-002`, which
+contains the provenance/fallback audit fields. A formal run must supply
+`--policy`; missing or unknown policy fails closed. The formal M3-C replacement
+command is:
+
+```text
+npm run backtest:run -- --period COMBINED --policy bt-policy-002
+```
+
+This is a documentation-only contract; the current M3-B runtime remains on
+the immutable legacy policy until a separate implementation review.
+
 ## Realtime scan lifecycle
 
 The future M4 request is finite and ordered:

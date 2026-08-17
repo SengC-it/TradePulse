@@ -290,6 +290,24 @@ unchanged. No DEV/OOS/COMBINED performance metrics have been observed under
 - Existing funding economics and event timing are unchanged. Charge-level
   provenance, aggregate fallback diagnostics, symbol/UTC-year breakdowns, and
   mark-price manifest hashes are mandatory.
+- Base mark-price ranges are frozen as
+  `startTime = fundingRange.startTime - 1 hour` and
+  `endTime = fundingRange.endTime`. OOS/COMBINED settlement tails use
+  `settlementTail.startTime` through `settlementTail.fundingRange.endTime`
+  with `settlementOnly = true`; ranges are never derived from observed
+  performance or trade results.
+- Mark-price Klines use the same authoritative study `serverTime`, require
+  `closeTime < serverTime`, strict chronological order, exact 1H continuity,
+  no duplicates, valid timestamps, finite positive OHLC, and valid OHLC
+  relationships. Sorting, gap filling, interpolation, and synthetic candles
+  are forbidden; required invalid/missing data is `DATA_INCOMPLETE`.
+- `bt-policy-001` serializes as `m3-b-report-001`; `bt-policy-002` serializes
+  as `m3-b-report-002` with the new provenance/fallback audit fields. The
+  legacy schema must not be silently extended.
+- Formal policy selection is explicit: missing or unknown `--policy` fails
+  closed; `bt-policy-001` selects immutable legacy behavior and
+  `bt-policy-002` selects compatibility behavior. M3-C replacement evidence
+  must use `npm run backtest:run -- --period COMBINED --policy bt-policy-002`.
 
 ### Deliverables
 
