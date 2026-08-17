@@ -325,9 +325,26 @@ export function buildIntrabarSettlementAudit(
       }
     }
     if (result.status === "SETTLEMENT_AMBIGUOUS") {
+      const exitCandleOpenTime = result.settlementAmbiguousExitCandleOpenTime;
+      if (
+        typeof exitCandleOpenTime !== "number" ||
+        !Number.isSafeInteger(exitCandleOpenTime)
+      ) {
+        throw new BacktestError(
+          "DATA_INCOMPLETE",
+          "Intrabar settlement audit is inconsistent: SETTLEMENT_AMBIGUOUS lacks exit candle provenance.",
+        );
+      }
+      const exitCandleDate = new Date(exitCandleOpenTime);
+      if (!Number.isFinite(exitCandleDate.getTime())) {
+        throw new BacktestError(
+          "DATA_INCOMPLETE",
+          "Intrabar settlement audit is inconsistent: SETTLEMENT_AMBIGUOUS has an invalid exit candle timestamp.",
+        );
+      }
       remaining += 1;
       remainingBySymbol[result.snapshot.symbol] += 1;
-      const year = String(new Date(result.snapshot.signalTime).getUTCFullYear());
+      const year = String(exitCandleDate.getUTCFullYear());
       remainingByYear.set(year, (remainingByYear.get(year) ?? 0) + 1);
     }
   }

@@ -118,6 +118,8 @@ export type BacktestSignalResult = Readonly<{
   fundingCharges: readonly BacktestFundingCharge[];
   /** Present only for bt-policy-003; legacy schemas remain unchanged. */
   fundingOrderAudits?: readonly BacktestFundingOrderAudit[];
+  /** Present only for a bt-policy-003 unresolved ambiguity; legacy schemas remain unchanged. */
+  settlementAmbiguousExitCandleOpenTime?: number;
   fundingPnL: number;
   priceR: number | null;
   feeR: number | null;

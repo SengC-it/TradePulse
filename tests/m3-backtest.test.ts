@@ -877,6 +877,7 @@ describe("M3 bt-policy-001 settlement", () => {
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
     expect(ambiguous.status).toBe("SETTLEMENT_AMBIGUOUS");
+    expect(ambiguous).not.toHaveProperty("settlementAmbiguousExitCandleOpenTime");
 
     const timeExit = settleBacktestSignal({
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),

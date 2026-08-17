@@ -17,6 +17,7 @@ import {
 } from "../src/lib/backtest/index.ts";
 import type {
   BacktestData,
+  BacktestSignalResult,
   BacktestSignalSnapshot,
 } from "../src/lib/backtest/types.ts";
 import { INTERVAL_MS } from "../src/lib/market-data/intervals.ts";
@@ -577,5 +578,58 @@ describe("M3-D.1 policy-003 schema and audit", () => {
       conservativeSameMinuteCount: 2,
       intrabarResolvedFundingOrderCount: 0,
     });
+  });
+
+  it("attributes unresolved ambiguity to the exit candle UTC year", () => {
+    const result: BacktestSignalResult = {
+      snapshot: makeSnapshot({ signalTime: Date.parse("2025-12-31T23:00:00.000Z") }),
+      status: "SETTLEMENT_AMBIGUOUS",
+      entryTime: Date.parse("2025-12-31T23:00:00.000Z"),
+      rawEntryPrice: 100,
+      entryFill: 100,
+      exitTime: null,
+      rawExitPrice: null,
+      exitFill: null,
+      heldCandleNumber: null,
+      exitReason: null,
+      fundingCharges: [],
+      fundingOrderAudits: [],
+      settlementAmbiguousExitCandleOpenTime: Date.parse("2026-01-01T00:00:00.000Z"),
+      fundingPnL: 0,
+      priceR: null,
+      feeR: null,
+      fundingR: null,
+      grossR: null,
+      netR: null,
+    };
+
+    const audit = buildIntrabarSettlementAudit([result]);
+
+    expect(audit.remainingSettlementAmbiguousByUtcYear).toEqual({ "2026": 1 });
+    expect(audit.remainingSettlementAmbiguousBySymbol.BTCUSDT).toBe(1);
+  });
+
+  it("fails closed when unresolved ambiguity lacks exit candle provenance", () => {
+    const result: BacktestSignalResult = {
+      snapshot: makeSnapshot({ signalTime: Date.parse("2025-12-31T23:00:00.000Z") }),
+      status: "SETTLEMENT_AMBIGUOUS",
+      entryTime: null,
+      rawEntryPrice: null,
+      entryFill: null,
+      exitTime: null,
+      rawExitPrice: null,
+      exitFill: null,
+      heldCandleNumber: null,
+      exitReason: null,
+      fundingCharges: [],
+      fundingPnL: 0,
+      priceR: null,
+      feeR: null,
+      fundingR: null,
+      grossR: null,
+      netR: null,
+    };
+
+    expect(() => buildIntrabarSettlementAudit([result])).toThrow(/lacks exit candle provenance/);
   });
 });

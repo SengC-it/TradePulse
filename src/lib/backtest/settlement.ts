@@ -130,6 +130,8 @@ function asAmbiguous(
   entryTime: number,
   rawEntryPrice: number,
   entryFill: number,
+  policy: BacktestPolicyVersion,
+  exitCandleOpenTime: number,
   diagnostic: string,
 ): BacktestSignalResult {
   return Object.freeze({
@@ -137,6 +139,7 @@ function asAmbiguous(
     entryTime,
     rawEntryPrice,
     entryFill,
+    ...(policy === "bt-policy-003" ? { settlementAmbiguousExitCandleOpenTime: exitCandleOpenTime } : {}),
   });
 }
 
@@ -371,6 +374,8 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
       entryTime,
       rawEntryPrice,
       entryFill,
+      policy,
+      resolvedExitCandle.openTime,
       "Funding timestamp falls within the TP/SL exit candle before intrabar order is known.",
     );
   }
