@@ -418,10 +418,15 @@ overwritten.
 1m settlement resolution. It uses only official Binance USDⓈ-M Futures 1m
 Klines for the exact ambiguous exit hours, never feeds 1m data to
 `StrategyInput`, and validates exactly 60 closed continuous minutes with the
-same study server time. The first 1m bracket touch determines the exit minute;
-same-minute TP/SL remains SL-first. Funding before/after the exit minute is
+same study server time. `bt-policy-002` first freezes
+`frozenExitReason = TP | SL` on the 1H candle, including its existing SL-first
+result when both brackets are touched; 1m data only locates the first minute
+reproducing that reason. The opposite bracket cannot change it, and failure to
+reproduce it is `DATA_INCOMPLETE`. Each 1m window must also reconcile exactly
+with its 1H open/high/low/close. Funding before/after the exit minute is
 included/excluded by timestamp, while same-minute funding uses the frozen
-conservative negative-cost rule with `CONSERVATIVE_SAME_MINUTE` provenance.
+conservative negative-cost rule with `CONSERVATIVE_SAME_MINUTE` provenance and
+a separate audit record even when a positive credit is excluded.
 
 The new report schema is `m3-b-report-003`. Required intrabar manifests,
 symbol/UTC-year audit counts, and the existing precedence
@@ -437,12 +442,13 @@ database, API, Cron, trading, or production change is included.
 
 ### Tests and acceptance
 
-The deterministic specification tests cover minute ordering, bracket
-resolution, same-minute conservative funding, 60-row integrity, server-time
+The deterministic specification tests cover frozen 1H exit reasons, 1m-only
+time resolution, opposite-bracket rejection, 1m/1H aggregate reconciliation,
+same-minute funding audit inclusion/exclusion, 60-row integrity, server-time
 closure, manifest provenance, report schema selection, unchanged legacy
-policies, and zero-ambiguity acceptance. CI must pass typecheck, lint, tests,
-build, and diff checks. No formal bt-policy-003 historical run is performed in
-M3-D.
+policies, count reconciliation, and zero-ambiguity acceptance. CI must pass
+typecheck, lint, tests, build, and diff checks. No formal bt-policy-003
+historical run is performed in M3-D.
 
 ### Out of scope
 

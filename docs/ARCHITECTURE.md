@@ -253,10 +253,21 @@ OHLC relationships. Sorting, gap filling, interpolation, synthetic candles,
 and assumed paths are forbidden; required invalid or missing data is
 `DATA_INCOMPLETE`.
 
-For a frozen 1H TP/SL exit, walk minutes chronologically and select the first
-minute touching the frozen bracket. LONG uses `low <= stop` / `high >= TP`; SHORT
-uses `high >= stop` / `low <= TP`. Both brackets in one minute resolve SL-first.
-If no minute reproduces the already-determined 1H bracket hit, the result is
+The `bt-policy-002` 1H settlement remains authoritative. Before using 1m data,
+freeze `frozenExitReason = TP | SL`; if the 1H candle touched both brackets,
+the existing 1H conservative rule freezes `SL`. The 1m rows resolve time only:
+for frozen SL, LONG matches `low <= stop` and SHORT matches `high >= stop`; for
+frozen TP, LONG matches `high >= TP` and SHORT matches `low <= TP`. Walk the
+rows chronologically and select the first minute reproducing the frozen reason.
+The opposite bracket cannot change or substitute for that reason. A minute
+touching both brackets satisfies the already-frozen reason; it does not create a
+new 1m SL-first rule. If the frozen reason is not reproduced, the result is
+`DATA_INCOMPLETE`.
+
+Before resolution, the 60 1m rows must reconcile exactly with their official 1H
+exit candle: first open equals 1H open, last close equals 1H close, maximum
+high equals 1H high, and minimum low equals 1H low. No epsilon, sorting, fill,
+interpolation, or inferred path is permitted; any mismatch is
 `DATA_INCOMPLETE`.
 
 Funding ordering remains `entryTime < fundingTime`. For TP/SL exits, funding
@@ -268,6 +279,13 @@ exclude a positive funding PnL, and record zero deterministically when zero.
 The provenance is `CONSERVATIVE_SAME_MINUTE`; this is not selected from
 performance. TIME_EXIT retains `entryTime < fundingTime <= exitTime` and needs
 no 1m data.
+
+Funding ordering is audited separately from applied funding charges. Every
+considered event records `fundingTime`, `theoreticalFundingPnL`, `included`,
+its resolution (`ONE_HOUR_UNAMBIGUOUS`, `ONE_MINUTE_RESOLVED`, or
+`CONSERVATIVE_SAME_MINUTE`), and applicable exit-minute open/close times. A
+positive same-minute funding credit is still audited with `included = false`
+even though it need not appear as an applied `fundingCharge`.
 
 Allowed settlement provenance includes `ONE_HOUR_UNAMBIGUOUS`,
 `ONE_MINUTE_RESOLVED`, and `CONSERVATIVE_SAME_MINUTE`. Every former ambiguity
@@ -283,6 +301,11 @@ are `INCOMPLETE`; unused manifests are optional. `m3-b-report-003` exposes
 reconciled `intrabarSettlementWindowsLoaded`,
 `intrabarResolvedFundingOrderCount`, `conservativeSameMinuteCount`, and
 `remainingSettlementAmbiguousCount`, broken down by symbol and UTC year.
+The first count is unique loaded `symbol + exitCandle.openTime` windows; the
+second counts audit records resolved with 1m chronology; the third counts all
+`CONSERVATIVE_SAME_MINUTE` audit records, included or excluded; and the fourth
+counts unresolved `SETTLEMENT_AMBIGUOUS` results. These counts must reconcile
+with the funding-order audit records.
 
 The existing precedence remains `INCOMPLETE > INSUFFICIENT_SAMPLE > FAIL >
 PASS`, and the prior `bt-policy-002` Formal Run #1 remains a separate immutable

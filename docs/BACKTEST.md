@@ -625,21 +625,60 @@ Sorting, gap filling, interpolation, synthetic candles, and assumed OHLC paths
 are forbidden. Any required missing, duplicate, gapped, malformed, future, or
 otherwise invalid minute data is `DATA_INCOMPLETE`.
 
-### Deterministic exit-minute resolution
+### 1m ↔ 1H aggregate consistency
 
-This process applies only when the frozen 1H settlement already determined a
-TP or SL exit in that candle. Walk the 60 minutes chronologically and select the
-first candle touching either frozen bracket:
+For every required 60-minute settlement window, the official 1m rows must
+reconcile exactly with the corresponding official 1H exit candle. Using the
+repository's exact/no-epsilon rule, require:
 
 ```text
-LONG  SL: low <= frozen stop       LONG  TP: high >= frozen TP
-SHORT SL: high >= frozen stop      SHORT TP: low <= frozen TP
+first 1m open   == 1H open
+last 1m close   == 1H close
+max(1m highs)   == 1H high
+min(1m lows)    == 1H low
 ```
 
-If both brackets are touched in one minute, SL wins, preserving the frozen
-conservative SL-first rule. A later bracket touch cannot override the first
-qualifying minute. If the 1H candle says TP/SL was hit but no minute reproduces
-the hit, the result is `DATA_INCOMPLETE`; no price path is inferred.
+Any mismatch is `DATA_INCOMPLETE`. This reconciliation is required before the
+1m rows may be used to locate a settlement time; contradictory 1m and 1H
+histories must never be resolved by choosing one source, rounding, or inferring
+a price path.
+
+### Frozen 1H exit reason and deterministic exit-minute resolution
+
+`bt-policy-002` remains authoritative for the 1H settlement result. Before any
+1m data is considered, freeze:
+
+```text
+frozenExitReason = TP | SL
+```
+
+If the 1H candle touches both TP and SL, the existing conservative 1H rule
+freezes `frozenExitReason = SL`. `bt-policy-003` must preserve that result.
+1m data resolves time only; it must never choose between TP and SL or redefine
+`frozenExitReason`.
+
+After the reason is frozen, walk the 60 minutes chronologically and select the
+first minute that reproduces that reason only:
+
+```text
+if frozenExitReason = SL:
+  LONG  first minute with low  <= frozen stop
+  SHORT first minute with high >= frozen stop
+
+if frozenExitReason = TP:
+  LONG  first minute with high >= frozen TP
+  SHORT first minute with low  <= frozen TP
+```
+
+The opposite bracket is ignored for the purpose of determining the exit reason.
+For example, if the 1H candle touched both brackets, `bt-policy-002` freezes SL;
+if 1m data touches TP at 10:10 and SL at 10:40, the final reason remains SL and
+the exit minute is 10:40. If the frozen reason is SL but the 1m rows reproduce
+only TP, or the frozen reason is TP but the 1m rows reproduce no TP, the result
+is `DATA_INCOMPLETE`. A minute that touches both brackets satisfies whichever
+reason was already frozen; it does not introduce a new 1m SL-first decision.
+No price path is inferred and no opposite bracket may substitute for a missing
+frozen reason.
 
 ### Funding ordering and conservative same-minute rule
 
@@ -672,6 +711,25 @@ For a same-minute event, a negative `fundingPnL` is included, a positive
 The charge provenance is `CONSERVATIVE_SAME_MINUTE`. This rule is frozen as an
 unfavorable conservative assumption, never selected from observed performance
 and never chosen to improve `netR`.
+
+Every considered funding event also receives a separate funding-order audit
+record, whether or not a funding charge is applied. At minimum it records:
+
+```text
+fundingTime
+theoreticalFundingPnL
+included = true | false
+resolution = ONE_HOUR_UNAMBIGUOUS | ONE_MINUTE_RESOLVED |
+             CONSERVATIVE_SAME_MINUTE
+exitMinuteOpenTime      (when an exit minute applies)
+exitMinuteCloseTime     (when an exit minute applies)
+```
+
+An excluded positive same-minute funding event remains in this audit with
+`included = false` and `resolution = CONSERVATIVE_SAME_MINUTE`; it is not
+required to appear as an applied `fundingCharge`. The audit is the authoritative
+record for funding-order counts and must not be reconstructed from applied
+charges alone.
 
 `TIME_EXIT` is unchanged. It requires no 1m data and retains:
 
@@ -716,13 +774,18 @@ the formal result `INCOMPLETE`; unused intrabar manifests are optional.
 
 `m3-b-report-003` must expose and reconcile these counts at minimum:
 
-- `intrabarSettlementWindowsLoaded`;
-- `intrabarResolvedFundingOrderCount`;
-- `conservativeSameMinuteCount`;
-- `remainingSettlementAmbiguousCount`.
+- `intrabarSettlementWindowsLoaded` is the number of unique
+  `symbol + exitCandle.openTime` windows actually loaded;
+- `intrabarResolvedFundingOrderCount` is the number of funding-order audit
+  records resolved using 1m chronology (`ONE_MINUTE_RESOLVED`);
+- `conservativeSameMinuteCount` is the number of funding-order audit records
+  with `CONSERVATIVE_SAME_MINUTE`, regardless of whether funding was included
+  or excluded;
+- `remainingSettlementAmbiguousCount` is the number of unresolved
+  `SETTLEMENT_AMBIGUOUS` results.
 
-Each is broken down by symbol and UTC year. The existing acceptance precedence
-is unchanged:
+Each count is broken down by symbol and UTC year and must reconcile with the
+funding-order audit records. The existing acceptance precedence is unchanged:
 
 ```text
 INCOMPLETE > INSUFFICIENT_SAMPLE > FAIL > PASS

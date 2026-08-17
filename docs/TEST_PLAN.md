@@ -339,31 +339,45 @@ authorize a backtest rerun:
    `CONSERVATIVE_SAME_MINUTE`.
 6. Zero funding inside the exit minute has deterministic zero impact and the
    same provenance.
-7. The first 1m TP touch resolves the exit minute.
-8. The first 1m SL touch resolves the exit minute.
-9. TP and SL touched in the same 1m candle resolve SL-first.
-10. A later TP cannot override an earlier SL.
-11. A later SL cannot override an earlier TP.
-12. Fewer than 60 required minute candles produce `DATA_INCOMPLETE`.
-13. A 1m continuity gap produces `DATA_INCOMPLETE`.
-14. A duplicate 1m candle produces `DATA_INCOMPLETE`.
-15. Malformed, non-finite, non-positive, or invalid-relationship OHLC produces
+7. Every considered funding event has a separate audit record containing
+   `fundingTime`, theoretical PnL, `included`, resolution, and applicable exit
+   minute boundaries.
+8. A positive same-minute funding event remains audited with `included=false`
+   and no applied `fundingCharge` is required.
+9. A negative same-minute funding event remains audited with `included=true`.
+10. A 1H candle touching TP and SL freezes SL under `bt-policy-002`; if 1m TP
+    occurs before 1m SL, the final exit reason remains SL.
+11. A frozen SL with 1m data reproducing only TP produces `DATA_INCOMPLETE`.
+12. A frozen TP with no 1m candle reproducing TP produces `DATA_INCOMPLETE`.
+13. The opposite 1m bracket cannot redefine or substitute for the frozen 1H
+    exit reason.
+14. A 1m candle touching both brackets satisfies only the already-frozen
+    reason; it does not create a new 1m SL-first decision.
+15. An exact 60-row 1m window reconciles with its 1H candle on first open,
+    last close, maximum high, and minimum low.
+16. Any 1m/1H aggregate mismatch produces `DATA_INCOMPLETE`.
+17. Fewer than 60 required minute candles produce `DATA_INCOMPLETE`.
+18. A 1m continuity gap produces `DATA_INCOMPLETE`.
+19. A duplicate 1m candle produces `DATA_INCOMPLETE`.
+20. Malformed, non-finite, non-positive, or invalid-relationship OHLC produces
     `DATA_INCOMPLETE`.
-16. A minute with `closeTime >= serverTime` is rejected.
-17. A 1H bracket hit without a reproducing 1m hit produces
-    `DATA_INCOMPLETE`.
-18. A settlement-tail intrabar manifest requires `settlementOnly = true`.
-19. A missing required intrabar manifest produces `INCOMPLETE`.
-20. The `bt-policy-002` mark-price fallback rules remain unchanged.
-21. Funding economics and LONG/SHORT funding signs remain unchanged.
-22. `baseline-001` `StrategyInput` remains unchanged and never receives 1m
+21. A minute with `closeTime >= serverTime` is rejected.
+22. A settlement-tail intrabar manifest requires `settlementOnly = true`.
+23. A missing required intrabar manifest produces `INCOMPLETE`.
+24. `conservativeSameMinuteCount` includes both included and excluded
+    same-minute audit events.
+25. `intrabarResolvedFundingOrderCount` counts `ONE_MINUTE_RESOLVED` audit
+    records, and all intrabar counts reconcile with the audit records.
+26. The `bt-policy-002` mark-price fallback rules remain unchanged.
+27. Funding economics and LONG/SHORT funding signs remain unchanged.
+28. `baseline-001` `StrategyInput` remains unchanged and never receives 1m
     candles.
-23. `bt-policy-001` behavior remains unchanged.
-24. `bt-policy-002` behavior remains unchanged, including its ambiguous result
+29. `bt-policy-001` behavior remains unchanged.
+30. `bt-policy-002` behavior remains unchanged, including its ambiguous result
     classification.
-25. `bt-policy-003` serializes only as `m3-b-report-003` and never mutates
+31. `bt-policy-003` serializes only as `m3-b-report-003` and never mutates
     `m3-b-report-002`.
-26. A complete `bt-policy-003` study has zero
+32. A complete `bt-policy-003` study has zero
     `remainingSettlementAmbiguousCount`; any remaining ambiguity keeps the
     formal result `INCOMPLETE`.
 
