@@ -1,7 +1,8 @@
 # TradePulse Test Plan
 
-Status: M3-G baseline-002 research protocol specification / Draft PR;
-M3-E evidence remains immutable and no baseline-002 research experiment has run.
+Status: M3-G CLOSED / MERGED; M3-G.1 research tooling / diagnostics under
+review; M3-E evidence remains immutable and no baseline-002 research experiment
+has run.
 
 ## Test layers
 
@@ -407,8 +408,11 @@ The M3-F implementation adds deterministic tests proving that:
 
 ### M3-G baseline-002 research protocol and M3-G.1 tooling tests
 
-M3-G is documentation-only and executes no historical research. Before any
-future M3-H experiment, the M3-G.1 tooling must have deterministic tests for:
+M3-G is documentation-only and executes no historical research. M3-G.1 adds
+the pure `src/lib/research/` module and the dedicated
+`tests/m3-g1-research-tooling.test.ts` suite. It still uses synthetic fixtures
+only; the dedicated suite currently contains 68 deterministic cases and must
+cover:
 
 1. exact calendar-based fold assignment using the frozen UTC boundaries, with
    no random time shuffle;
@@ -432,7 +436,8 @@ future M3-H experiment, the M3-G.1 tooling must have deterministic tests for:
     baseline-002 freeze commit/time.
 
 These tests must not authorize parameter optimization or alter the immutable
-M3-E evidence, baseline-001, or any frozen backtest policy.
+M3-E evidence, baseline-001, or any frozen backtest policy. M3-G.2 remains NOT
+STARTED, real gate values are not chosen, and baseline-002 is not frozen.
 
 ### M3-G.2 candidate-selection gate-freeze tests
 
