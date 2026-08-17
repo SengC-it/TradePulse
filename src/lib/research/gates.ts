@@ -9,6 +9,7 @@ const GATE_FIELDS = [
   "minimumProfitFactor",
   "maximumSymbolConcentration",
   "maximumSingleTradeConcentration",
+  "maximumFeeBurdenRatio",
   "requiredRedundancyImprovement",
   "minimumFormalSignals",
   "minimumExecutedTrades",
@@ -25,10 +26,11 @@ const GATE_SEMANTICS: Readonly<Record<GateField, Readonly<Pick<NumericSelectionG
   minimumProfitFactor: { direction: "MINIMUM", comparison: "AT_LEAST" },
   maximumSymbolConcentration: { direction: "MAXIMUM", comparison: "AT_MOST" },
   maximumSingleTradeConcentration: { direction: "MAXIMUM", comparison: "AT_MOST" },
+  maximumFeeBurdenRatio: { direction: "MAXIMUM", comparison: "AT_MOST" },
   requiredRedundancyImprovement: { direction: "MINIMUM", comparison: "AT_LEAST" },
   minimumFormalSignals: { direction: "MINIMUM", comparison: "AT_LEAST" },
   minimumExecutedTrades: { direction: "MINIMUM", comparison: "AT_LEAST" },
-  // Maximum allowed complexity delta for the simpler-candidate tie; value supplied later.
+  // Maximum allowed complexity delta for the simpler-candidate tie; value is supplied by a round record.
   complexityTieThreshold: { direction: "MAXIMUM", comparison: "AT_MOST" },
 };
 

@@ -1,8 +1,8 @@
 # TradePulse Test Plan
 
-Status: M3-G CLOSED / MERGED; M3-G.1 research tooling / diagnostics under
-review; M3-E evidence remains immutable and no baseline-002 research experiment
-has run.
+Status: M3-G and M3-G.1 CLOSED / MERGED; M3-G.2 candidate-selection gate
+freeze under review; M3-E evidence remains immutable and no baseline-002
+research experiment has run.
 
 ## Test layers
 
@@ -411,8 +411,7 @@ The M3-F implementation adds deterministic tests proving that:
 M3-G is documentation-only and executes no historical research. M3-G.1 adds
 the pure `src/lib/research/` module and the dedicated
 `tests/m3-g1-research-tooling.test.ts` suite. It still uses synthetic fixtures
-only; the dedicated suite currently contains 68 deterministic cases and must
-cover:
+only; the dedicated suite contains 76 deterministic cases and covers:
 
 1. exact calendar-based fold assignment using the frozen UTC boundaries, with
    no random time shuffle;
@@ -436,32 +435,60 @@ cover:
     baseline-002 freeze commit/time.
 
 These tests must not authorize parameter optimization or alter the immutable
-M3-E evidence, baseline-001, or any frozen backtest policy. M3-G.2 remains NOT
-STARTED, real gate values are not chosen, and baseline-002 is not frozen.
+M3-E evidence, baseline-001, or any frozen backtest policy. M3-G.2 now owns the
+real round-001 gate values, while baseline-002 remains not frozen.
 
 ### M3-G.2 candidate-selection gate-freeze tests
 
 M3-G.2 is a pre-performance specification gate. Its tests may use synthetic
 fixtures only and must prove:
 
-1. the gate record requires exact numeric values, units, denominators, and
-   comparison rules for aggregate improvement, fold improvement, catastrophic
-   folds, net expectancy, profit factor, symbol concentration, single-trade
-   concentration, claimed redundancy improvement, minimum sample, and the
-   complexity/tie rule;
-2. an M3-G.2 gate record cannot be marked frozen without all required fields;
-3. M3-G.2 cannot consume or generate historical candidate-performance results;
-4. M3-G.2 is required and merged before an M3-H performance run can start;
-5. no candidate result, netR/PF/expectancy, or fold comparison is visible at
-   the M3-G.2 freeze point;
-6. gate records and research-round IDs are immutable once M3-H begins;
-7. changing a gate after an M3-H result invalidates the current round and
-   requires a new research-round version and predeclared protocol;
-8. M3-I applies the stored gates without redefining or weakening them;
-9. a mechanically evaluated candidate set with no eligible candidate produces
-   `NO BASELINE-002 CANDIDATE` without relaxing any gate;
-10. the simpler-candidate/tie rule is deterministic and cannot be chosen after
-    candidate results are observed.
+1. the record freezes exact values, units, denominators, and comparison rules
+   for aggregate improvement, fold improvement, catastrophic folds, net
+   expectancy, PF, symbol concentration, single-trade concentration, fee
+   burden, redundancy improvement, minimum samples, and complexity/ties;
+2. all applicable hard gates are conjunctive, the complete hard-gate identity
+   list is SHA-covered, and `complexityTieThreshold` is excluded from
+   eligibility;
+3. N/A is represented as `NOT_APPLICABLE`, is excluded from the conjunction,
+   and is not counted as pass; H1/H4 combinations require redundancy while
+   pure H2/H3/H5 remain N/A;
+4. aggregate PF status is machine-readable: NORMAL is numeric, NO_LOSSES
+   requires all sample gates, NO_TRADES fails, and Infinity is not encoded;
+5. the round ID and tooling source SHA are exact and the record is immutable;
+6. the fold improvement delta is +0.02 and insufficient-sample folds do not
+   count as improved;
+7. catastrophic expectancy/PF/NO_TRADES/sample definitions, the explicit
+   NO_LOSSES exception, and the zero-fold limit are exact;
+8. aggregate validation is exactly the non-overlapping F1-F6 VALIDATION
+   concatenation by signalTime, not an average, research-plus-validation, or
+   alternate period;
+9. all four complexity dimensions have the `NON_NEGATIVE_INTEGER` domain and
+   preserve their frozen order;
+10. aggregate formal and per-fold executed-trade floors are exact;
+11. null concentration or fee burden, NO_TRADES PF, and failed applicable gates
+   cannot pass;
+12. the round becomes immutable at the first M3-H performance result, every
+   listed semantic change invalidates the round, invalidation requires a new
+   research round, and prior results remain `SEEN_DATA`;
+13. a failed candidate cannot weaken the gates and the no-candidate outcome is
+   `NO BASELINE-002 CANDIDATE`;
+14. the frozen complexity dimensions and deterministic tie order are exact;
+15. canonical serialization is byte-stable and its recomputed SHA-256 matches
+   the canonical bytes exactly;
+16. the record has no network, history loader, candidate result, optimizer,
+   baseline-002 strategy, or M3-H execution path.
+
+The catastrophic definition includes:
+
+```text
+noLossesIsCatastrophicSolelyBecausePfNull: false
+```
+
+The pure gate application/evaluator is intentionally deferred to the later
+M3-I application boundary. Therefore this milestone does not mechanically
+evaluate a candidate set or produce a `NO BASELINE-002 CANDIDATE` result; it
+only freezes the record and validates its deterministic contract.
 
 The test plan must continue to reject any implementation that executes a
 historical research run, changes frozen execution economics, modifies

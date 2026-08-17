@@ -578,9 +578,9 @@ when that later freeze occurs.
 - `baseline-001` and `bt-policy-001`/`002`/`003` remain unchanged.
 - No historical performance run, parameter search, optimization, or
   baseline-002 experiment is executed in M3-G.
-- `baseline-002` is **NOT FROZEN**; M3-G.1 tooling, M3-G.2 gate freeze, M3-H
-  experiments, M3-I specification freeze, and M3-J implementation require
-  separate approval.
+- `baseline-002` is **NOT FROZEN**; M3-G.1 is closed and the M3-G.2 gate-freeze
+  Draft is under review. M3-H experiments, M3-I specification freeze, and
+  M3-J implementation still require separate approval.
 - M4, trading, private Binance APIs, persistence, and deployment remain out of
   scope.
 
@@ -603,7 +603,7 @@ failed gate.
 
 ## M3-G.1 — Research Tooling / Diagnostics
 
-Status: UNDER REVIEW
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -627,8 +627,8 @@ only research inputs used in this milestone.
   control-first audit ordering;
 - `m3-g-research-diagnostics-001` provenance/serialization and a
   `bt-policy-003` report contract;
-- M3-G.2 gate schema validation types only, with no production/default numeric
-  gate values and no candidate selector or optimizer.
+- gate schema validation types only; the real round-001 numeric record is
+  frozen separately by M3-G.2.
 
 ### Acceptance boundary
 
@@ -638,15 +638,16 @@ only research inputs used in this milestone.
   candidate result, fold performance comparison, or baseline-001 rerun exists.
 - `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
   `m3-b-report-004`, and M3-E evidence are unchanged.
-- M3-G.2 is **NOT STARTED** and owns all real gate values; `baseline-002` is
-  **NOT FROZEN**. M3-H, M3-I, M3-J, and M4 remain **NOT STARTED**.
+- M3-G.2 owns the real round-001 gate values and is under review in a separate
+  Draft PR; `baseline-002` remains **NOT FROZEN**. M3-H, M3-I, M3-J, and M4
+  remain **NOT STARTED**.
 
 ### Verification
 
-The milestone requires typecheck, lint, deterministic tests, build, and diff
-checks. It must stop before M3-G.2 and before any historical experiment.
+The milestone required typecheck, lint, deterministic tests, build, and diff
+checks. It stopped before M3-G.2 and before any historical experiment.
 
-### Planned M3-G.2 verification
+### M3-G.2 verification baseline
 
 Future tooling tests must prove deterministic fold assignment, no random time
 shuffle or future leakage, baseline-001 control reproducibility, immutable
@@ -656,9 +657,40 @@ symbol/direction/regime breakdowns, retained `studyServerTime`, unchanged
 execution economics, public-data-only access, and no baseline-002 production
 code.
 
+## M3-G.2 — baseline-002 Candidate Selection Gate Freeze
+
+Status: UNDER REVIEW
+
+M3-G.2 freezes exactly one real machine-readable gate record for
+`baseline-002-research-round-001`, sourced from
+`2f2c8f442b86bb730745908a6d6bf6a76ac43dd6`. The record lives in
+`src/lib/research/selection-gates-round-001.ts` and is documented in
+`docs/BASELINE_002_SELECTION_GATES_R1.md`. It includes the aggregate,
+validation-fold, catastrophic-fold, expectancy, PF, concentration,
+redundancy, sample, fee-burden, and complexity-tie rules, with exact units,
+denominators, direction, and comparison semantics. The SHA-covered record also
+contains the all-applicable hard-gate conjunction, complete hard-gate identity
+list, PF status/Infinity semantics, explicit N/A handling, exact F1-F6
+validation construction, non-negative-integer complexity domain, and round
+invalidation contract.
+
+This milestone uses synthetic validation only. It does not run or inspect
+candidate performance, fetch historical data, rerun baseline-001, implement
+baseline-002, or start M3-H. The canonical gate record SHA-256 is recorded in
+the selection-gate document. Gate application/evaluator work remains deferred
+to the later M3-I application boundary.
+
+The gate record becomes immutable at the first M3-H performance result. A later
+change to any recorded gate value, formula, fold-improvement definition,
+catastrophic-fold definition, applicability rule, sample floor, selection tie
+rule, or aggregate-validation definition invalidates round-001 and requires a
+new research-round version. A failed candidate cannot weaken the gates. If no
+candidate later passes every applicable gate, the valid result is
+`NO BASELINE-002 CANDIDATE`.
+
 M3-G.1 and M3-G.2 remain specification/tooling gates only. The sequence is
 M3-G → M3-G.1 → M3-G.2 → M3-H → M3-I → M3-J → forward validation after the
-baseline-002 freeze. No M3-H result exists or is authorized in M3-G.
+baseline-002 freeze. No M3-H result exists or is authorized in M3-G.2.
 
 ## M4 — Realtime Scanner
 

@@ -206,6 +206,42 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   requires a new research-round version and predeclared protocol. M3-I cannot
   weaken a failed gate, and no-candidate is a valid outcome.
 
+## ADR-021 — Freeze baseline-002 research round-001 selection gates
+
+- **Decision:** M3-G.2 freezes exactly one real gate record for
+  `baseline-002-research-round-001`, sourced from
+  `2f2c8f442b86bb730745908a6d6bf6a76ac43dd6`. The record freezes aggregate
+  improvement, validation-fold improvement, catastrophic folds, aggregate
+  expectancy and PF, symbol and single-trade concentration, fee burden,
+  redundancy applicability, sample floors, and complexity/tie semantics.
+- **Reason:** Numeric selection thresholds and applicability rules must exist
+  before any M3-H candidate performance is observed, otherwise the research
+  round permits post-hoc selection.
+- **Consequence:** The canonical machine record is hashed and documented in
+  `docs/BASELINE_002_SELECTION_GATES_R1.md`. All gates are conjunctive;
+  integrity failures are incomplete evidence, and a later gate change after
+  M3-H invalidates round-001. This milestone uses synthetic fixtures only and
+  defers gate application to M3-I. It does not implement baseline-002 or run
+  historical research.
+
+## ADR-022 — Complete the SHA-covered round-001 selection contract
+
+- **Decision:** The M3-G.2 round-001 machine record includes the all-applicable
+  hard-gate conjunction and identities, explicit PF status/Infinity semantics,
+  H1/H4 redundancy applicability and N/A handling, exact F1-F6 validation
+  concatenation, non-negative-integer complexity domains, and structured round
+  invalidation semantics. The canonical record hash is recomputed whenever
+  these frozen semantics change.
+- **Reason:** Critical selection semantics cannot be left only in Markdown;
+  otherwise the recorded `selectionGateSha256` would not attest to the complete
+  contract used by the later research milestone.
+- **Consequence:** `selectionGateSha256` is now
+  `11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd`.
+  `NOT_APPLICABLE` is not a pass, `NO_TRADES` PF fails, failed candidates do
+  not weaken gates, and invalidation requires a new research round with prior
+  results retained as `SEEN_DATA`. No evaluator or candidate performance is
+  introduced in this remediation.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

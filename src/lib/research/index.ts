@@ -6,4 +6,5 @@ export * from "./gates.ts";
 export * from "./registry.ts";
 export * from "./report.ts";
 export * from "./score-buckets.ts";
+export * from "./selection-gates-round-001.ts";
 export * from "./types.ts";
