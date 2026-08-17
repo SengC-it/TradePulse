@@ -38,7 +38,7 @@ export function parseBinanceFundingRateHistory(
       const record = row as Record<string, unknown>;
       const fundingTime = integer(record.fundingTime);
       const fundingRate = finite(record.fundingRate);
-      const markPrice = finite(record.markPrice);
+      const directMarkPrice = finite(record.markPrice);
       if (record.symbol !== symbol || fundingTime === null || fundingTime < 0 || fundingRate === null) {
         throw new HistoricalDataError({
           code: "INVALID_FUNDING",
@@ -46,14 +46,7 @@ export function parseBinanceFundingRateHistory(
           symbol,
         });
       }
-      if (markPrice === null || markPrice <= 0) {
-        throw new HistoricalDataError({
-          code: "MARK_PRICE_UNAVAILABLE",
-          message: "Binance funding-rate row does not provide a finite positive official markPrice.",
-          symbol,
-        });
-      }
-      return Object.freeze({ symbol, fundingTime, fundingRate, markPrice });
+      return Object.freeze({ symbol, fundingTime, fundingRate, directMarkPrice });
     }),
   );
 }

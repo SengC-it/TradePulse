@@ -5,9 +5,11 @@ import type { HistoricalRange } from "../historical-data/types.ts";
 export type HistoricalLoadRanges = Readonly<{
   candleRange: Readonly<Record<"1h" | "4h", HistoricalRange>>;
   fundingRange: HistoricalRange;
+  markPriceRange: HistoricalRange;
   settlementTail?: Readonly<{
     candleRange: HistoricalRange;
     fundingRange: HistoricalRange;
+    markPriceRange: HistoricalRange;
   }>;
 }>;
 
@@ -53,6 +55,10 @@ export function buildHistoricalLoadRanges(period: BacktestPeriod): HistoricalLoa
       startTime: lookbackStart4h,
       endTime: bounds.endTime,
     },
+    markPriceRange: {
+      startTime: lookbackStart4h - INTERVAL_MS["1h"],
+      endTime: bounds.endTime,
+    },
   };
 
   if (period !== "DEV") {
@@ -68,6 +74,11 @@ export function buildHistoricalLoadRanges(period: BacktestPeriod): HistoricalLoa
           settlementOnly: true,
         }),
         fundingRange: Object.freeze({
+          startTime: tailStart,
+          endTime: tailFundingEnd,
+          settlementOnly: true,
+        }),
+        markPriceRange: Object.freeze({
           startTime: tailStart,
           endTime: tailFundingEnd,
           settlementOnly: true,

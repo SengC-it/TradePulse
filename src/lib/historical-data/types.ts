@@ -30,7 +30,8 @@ export type HistoricalFundingRecord = Readonly<{
   symbol: ResearchSymbol;
   fundingTime: number;
   fundingRate: number;
-  markPrice: number;
+  /** The raw funding-history markPrice, normalized to null when unusable. */
+  directMarkPrice: number | null;
 }>;
 
 export type HistoricalFundingManifest = Readonly<{
@@ -49,7 +50,43 @@ export type HistoricalFundingManifest = Readonly<{
   markPriceField: "markPrice";
 }>;
 
-export type HistoricalManifest = HistoricalCandleManifest | HistoricalFundingManifest;
+export type HistoricalMarkPriceCandle = Readonly<{
+  symbol: ResearchSymbol;
+  openTime: number;
+  closeTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}>;
+
+export type HistoricalMarkPriceManifest = Readonly<{
+  kind: "mark-price";
+  provider: typeof HISTORICAL_PROVIDER;
+  source: "/fapi/v1/markPriceKlines";
+  symbol: ResearchSymbol;
+  timeframe: "1h";
+  requestedStartTime: number;
+  requestedEndTime: number;
+  actualStartTime: number | null;
+  actualEndTime: number | null;
+  rowCount: number;
+  retrievedAt: string;
+  sha256: string;
+  settlementOnly: boolean;
+}>;
+
+export type HistoricalMarkPriceDataset = Readonly<{
+  symbol: ResearchSymbol;
+  candles: readonly HistoricalMarkPriceCandle[];
+  manifest: HistoricalMarkPriceManifest;
+  manifests: readonly HistoricalMarkPriceManifest[];
+}>;
+
+export type HistoricalManifest =
+  | HistoricalCandleManifest
+  | HistoricalFundingManifest
+  | HistoricalMarkPriceManifest;
 
 export type HistoricalCandleDataset = Readonly<{
   symbol: ResearchSymbol;
@@ -72,6 +109,7 @@ export type HistoricalSymbolDataset = Readonly<{
 export type HistoricalStudyData = Readonly<{
   datasets: Readonly<Record<ResearchSymbol, HistoricalSymbolDataset>>;
   funding: Readonly<Record<ResearchSymbol, HistoricalFundingDataset>>;
+  markPrice: Readonly<Record<ResearchSymbol, HistoricalMarkPriceDataset | undefined>>;
   manifests: readonly HistoricalManifest[];
   serverTime: number;
 }>;

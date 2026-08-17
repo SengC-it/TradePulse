@@ -303,6 +303,49 @@ export class BinancePublicClient {
     });
   }
 
+  async getMarkPriceKlinesRange(
+    symbol: ResearchSymbol,
+    startTime: number,
+    endTime: number,
+    limit = BINANCE_HISTORICAL_KLINE_MAX_LIMIT,
+  ): Promise<BinanceResponse<unknown>> {
+    if (!isResearchSymbol(symbol)) {
+      throw new MarketDataError({
+        code: "INVALID_SYMBOL",
+        message: "Requested symbol is outside the approved research universe.",
+        retryable: false,
+      });
+    }
+
+    if (!Number.isInteger(startTime) || startTime < 0 || !Number.isInteger(endTime) || endTime < startTime) {
+      throw new MarketDataError({
+        code: "INVALID_TIMESTAMP",
+        message: "Historical mark-price Kline range must use an ordered UTC epoch interval.",
+        symbol,
+        timeframe: "1h",
+        retryable: false,
+      });
+    }
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > BINANCE_HISTORICAL_KLINE_MAX_LIMIT) {
+      throw new MarketDataError({
+        code: "INVALID_RESPONSE",
+        message: "Historical mark-price Kline limit must be between 1 and Binance's public maximum of 1500.",
+        symbol,
+        timeframe: "1h",
+        retryable: false,
+      });
+    }
+
+    return this.getJson<unknown>("/fapi/v1/markPriceKlines", {
+      symbol,
+      interval: "1h",
+      startTime: String(startTime),
+      endTime: String(endTime),
+      limit: String(limit),
+    });
+  }
+
   private async getJson<T>(path: string, query?: Readonly<Record<string, string>>): Promise<BinanceResponse<T>> {
     const url = new URL(path, `${this.baseUrl.replace(/\/$/, "")}/`);
     for (const [key, value] of Object.entries(query ?? {})) {

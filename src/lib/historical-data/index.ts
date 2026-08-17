@@ -4,5 +4,6 @@ export * from "./manifest.ts";
 export * from "./types.ts";
 export * from "./validation.ts";
 export * from "./binance/parser.ts";
+export * from "./binance/mark-price.ts";
 export * from "./binance/loader.ts";
 export * from "./binance/funding.ts";

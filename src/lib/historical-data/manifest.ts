@@ -1,10 +1,12 @@
 import type { MarketTimeframe } from "../market-data/intervals.ts";
 import type { Candle } from "../market-data/types.ts";
-import { checksumCandles, checksumFunding } from "./checksum.ts";
+import { checksumCandles, checksumFunding, checksumMarkPrice } from "./checksum.ts";
 import type {
   HistoricalCandleManifest,
   HistoricalFundingManifest,
   HistoricalFundingRecord,
+  HistoricalMarkPriceCandle,
+  HistoricalMarkPriceManifest,
   HistoricalRange,
   HISTORICAL_PROVIDER,
 } from "./types.ts";
@@ -62,5 +64,28 @@ export function createFundingManifest(input: {
     sha256: checksumFunding(input.records),
     settlementOnly: input.range.settlementOnly ?? false,
     markPriceField: "markPrice",
+  });
+}
+
+export function createMarkPriceManifest(input: {
+  symbol: ResearchSymbol;
+  range: HistoricalRange;
+  candles: readonly HistoricalMarkPriceCandle[];
+  retrievedAt: string | number;
+}): HistoricalMarkPriceManifest {
+  return Object.freeze({
+    kind: "mark-price",
+    provider: "binance-usdm-public" as typeof HISTORICAL_PROVIDER,
+    source: "/fapi/v1/markPriceKlines",
+    symbol: input.symbol,
+    timeframe: "1h" as const,
+    requestedStartTime: input.range.startTime,
+    requestedEndTime: input.range.endTime,
+    actualStartTime: input.candles[0]?.openTime ?? null,
+    actualEndTime: input.candles[input.candles.length - 1]?.closeTime ?? null,
+    rowCount: input.candles.length,
+    retrievedAt: isoTimestamp(input.retrievedAt),
+    sha256: checksumMarkPrice(input.candles),
+    settlementOnly: input.range.settlementOnly ?? false,
   });
 }

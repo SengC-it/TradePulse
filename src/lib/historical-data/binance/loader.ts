@@ -4,17 +4,21 @@ import { parseBinanceKlines } from "../../market-data/binance/parser.ts";
 import { INTERVAL_MS, type MarketTimeframe } from "../../market-data/intervals.ts";
 import type { Candle } from "../../market-data/types.ts";
 import { HistoricalDataError } from "../errors.ts";
-import { createCandleManifest, createFundingManifest } from "../manifest.ts";
+import { createCandleManifest, createFundingManifest, createMarkPriceManifest } from "../manifest.ts";
 import { parseBinanceFundingRateHistory } from "./parser.ts";
+import { parseBinanceMarkPriceKlines } from "./mark-price.ts";
+import { isBacktestPolicy, type BacktestPolicyVersion } from "../../backtest/constants.ts";
 import type {
   HistoricalCandleDataset,
   HistoricalFundingDataset,
   HistoricalFundingRecord,
+  HistoricalMarkPriceCandle,
+  HistoricalMarkPriceDataset,
   HistoricalRange,
   HistoricalStudyData,
   HistoricalSymbolDataset,
 } from "../types.ts";
-import { validateFundingRecords, validateHistoricalCandleSeries } from "../validation.ts";
+import { validateFundingRecords, validateHistoricalCandleSeries, validateMarkPriceCandleSeries } from "../validation.ts";
 
 export type HistoricalLoaderOptions = Readonly<{
   client?: BinancePublicClient;
@@ -22,6 +26,7 @@ export type HistoricalLoaderOptions = Readonly<{
   now?: () => number;
   klineLimit?: number;
   fundingLimit?: number;
+  markPriceLimit?: number;
 }>;
 
 export type HistoricalCandleRequest = Readonly<{
@@ -35,6 +40,14 @@ export type HistoricalCandleRequest = Readonly<{
 export type HistoricalFundingRequest = Readonly<{
   symbol: ResearchSymbol;
   range: HistoricalRange;
+  policy?: BacktestPolicyVersion;
+}>;
+
+export type HistoricalMarkPriceRequest = Readonly<{
+  symbol: ResearchSymbol;
+  range: HistoricalRange;
+  /** Captured once by loadStudyData; standalone loads may omit it. */
+  serverTime?: number;
 }>;
 
 function rangeError(message: string, symbol?: ResearchSymbol, timeframe?: MarketTimeframe): never {
@@ -75,6 +88,17 @@ function assertFundingRange(request: HistoricalFundingRequest): void {
   }
 }
 
+function assertMarkPriceRange(request: HistoricalMarkPriceRequest): void {
+  if (
+    !Number.isInteger(request.range.startTime) ||
+    request.range.startTime < 0 ||
+    !Number.isInteger(request.range.endTime) ||
+    request.range.endTime < request.range.startTime
+  ) {
+    rangeError("Mark-price Kline range must use an ordered UTC epoch interval.", request.symbol, "1h");
+  }
+}
+
 function wrapUpstreamError(error: unknown, symbol: ResearchSymbol, timeframe?: MarketTimeframe): never {
   const upstreamCode =
     typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
@@ -94,12 +118,14 @@ export class BinanceHistoricalDataLoader {
   private readonly now: () => number;
   private readonly klineLimit: number;
   private readonly fundingLimit: number;
+  private readonly markPriceLimit: number;
 
   constructor(options: HistoricalLoaderOptions = {}) {
     this.client = options.client ?? new BinancePublicClient(options.clientOptions);
     this.now = options.now ?? Date.now;
     this.klineLimit = options.klineLimit ?? 1_500;
     this.fundingLimit = options.fundingLimit ?? 1_000;
+    this.markPriceLimit = options.markPriceLimit ?? 1_500;
   }
 
   private async getAuthoritativeServerTime(symbol: ResearchSymbol, timeframe?: MarketTimeframe): Promise<number> {
@@ -208,6 +234,10 @@ export class BinanceHistoricalDataLoader {
 
   async loadFunding(request: HistoricalFundingRequest): Promise<HistoricalFundingDataset> {
     assertFundingRange(request);
+    const policy = request.policy ?? "bt-policy-001";
+    if (!isBacktestPolicy(policy)) {
+      rangeError("Historical funding load requires a supported backtest policy.", request.symbol);
+    }
     const records: HistoricalFundingRecord[] = [];
     let cursor = request.range.startTime;
 
@@ -232,6 +262,7 @@ export class BinanceHistoricalDataLoader {
         symbol: request.symbol,
         startTime: request.range.startTime,
         endTime: request.range.endTime,
+        policy,
       });
       const last = page[page.length - 1];
       if (!last) break;
@@ -260,6 +291,7 @@ export class BinanceHistoricalDataLoader {
       symbol: request.symbol,
       startTime: request.range.startTime,
       endTime: request.range.endTime,
+      policy,
     });
     const retrievedAt = this.now();
     return Object.freeze({
@@ -274,18 +306,120 @@ export class BinanceHistoricalDataLoader {
     });
   }
 
+  async loadMarkPriceKlines(request: HistoricalMarkPriceRequest): Promise<HistoricalMarkPriceDataset> {
+    assertMarkPriceRange(request);
+    const serverTime = request.serverTime ?? (await this.getAuthoritativeServerTime(request.symbol, "1h"));
+    const interval = INTERVAL_MS["1h"];
+    const expectedStartTime = Math.ceil(request.range.startTime / interval) * interval;
+    const expectedEndTime = Math.floor(request.range.endTime / interval) * interval;
+    const candles: HistoricalMarkPriceCandle[] = [];
+    let cursor = expectedStartTime;
+    let firstRequest = true;
+
+    while (cursor <= expectedEndTime) {
+      let payload: unknown;
+      try {
+        payload = (
+          await this.client.getMarkPriceKlinesRange(
+            request.symbol,
+            firstRequest ? request.range.startTime : cursor,
+            request.range.endTime,
+            this.markPriceLimit,
+          )
+        ).data;
+      } catch (error) {
+        wrapUpstreamError(error, request.symbol, "1h");
+      }
+
+      const page = parseBinanceMarkPriceKlines(payload, request.symbol);
+      validateMarkPriceCandleSeries(page, { symbol: request.symbol, serverTime });
+      const first = page[0];
+      const last = page[page.length - 1];
+      if (!first || !last) {
+        throw new HistoricalDataError({
+          code: "DATA_INCOMPLETE",
+          message: "Binance returned an empty historical mark-price Kline page.",
+          symbol: request.symbol,
+        });
+      }
+      if (first.openTime !== cursor) {
+        throw new HistoricalDataError({
+          code: "DATA_INCOMPLETE",
+          message: "Historical mark-price Kline pagination did not continue at the next expected candle.",
+          symbol: request.symbol,
+          diagnostics: { cursor, firstOpenTime: first.openTime },
+        });
+      }
+      if (last.openTime > expectedEndTime) {
+        throw new HistoricalDataError({
+          code: "DATA_INCOMPLETE",
+          message: "Historical mark-price Kline page exceeded the requested end boundary.",
+          symbol: request.symbol,
+        });
+      }
+
+      candles.push(...page);
+      const nextCursor = last.openTime + interval;
+      if (nextCursor <= cursor) {
+        throw new HistoricalDataError({
+          code: "DATA_INCOMPLETE",
+          message: "Historical mark-price Kline pagination made no forward progress.",
+          symbol: request.symbol,
+        });
+      }
+      cursor = nextCursor;
+      firstRequest = false;
+      if (page.length < this.markPriceLimit) break;
+    }
+
+    const normalized = validateMarkPriceCandleSeries(candles, {
+      symbol: request.symbol,
+      serverTime,
+      expectedStartTime,
+      expectedEndTime,
+    });
+    const retrievedAt = this.now();
+    const manifest = createMarkPriceManifest({
+      symbol: request.symbol,
+      range: request.range,
+      candles: normalized,
+      retrievedAt,
+    });
+    return Object.freeze({
+      symbol: request.symbol,
+      candles: normalized,
+      manifest,
+      manifests: Object.freeze([manifest]),
+    });
+  }
+
+  async loadMarkPrice(request: HistoricalMarkPriceRequest): Promise<HistoricalMarkPriceDataset> {
+    return this.loadMarkPriceKlines(request);
+  }
+
   async loadStudyData(input: Readonly<{
     candleRange: HistoricalRange | Readonly<Record<MarketTimeframe, HistoricalRange>>;
     fundingRange: HistoricalRange;
+    markPriceRange?: HistoricalRange;
+    policy?: BacktestPolicyVersion;
     settlementTail?: Readonly<{
       candleRange: HistoricalRange;
       fundingRange: HistoricalRange;
+      markPriceRange?: HistoricalRange;
     }>;
   }>): Promise<HistoricalStudyData> {
+    const policy = input.policy ?? "bt-policy-001";
+    if (!isBacktestPolicy(policy)) {
+      throw new HistoricalDataError({
+        code: "INVALID_RANGE",
+        message: "Historical study requires a supported backtest policy.",
+      });
+    }
     const firstSymbol = RESEARCH_SYMBOLS[0] ?? "BTCUSDT";
     const serverTime = await this.getAuthoritativeServerTime(firstSymbol);
     const datasets = {} as Record<ResearchSymbol, HistoricalSymbolDataset>;
     const funding = {} as Record<ResearchSymbol, HistoricalFundingDataset>;
+    const markPrice = {} as Record<ResearchSymbol, HistoricalMarkPriceDataset | undefined>;
     const manifests = [] as HistoricalStudyData["manifests"][number][];
     for (const symbol of RESEARCH_SYMBOLS) {
       const oneHourRange = "1h" in input.candleRange ? input.candleRange["1h"] : input.candleRange;
@@ -293,10 +427,15 @@ export class BinanceHistoricalDataLoader {
       const [baseCandles1h, candles4h, baseFundingDataset] = await Promise.all([
         this.loadCandles({ symbol, timeframe: "1h", range: oneHourRange, serverTime }),
         this.loadCandles({ symbol, timeframe: "4h", range: fourHourRange, serverTime }),
-        this.loadFunding({ symbol, range: input.fundingRange }),
+        this.loadFunding({ symbol, range: input.fundingRange, policy }),
       ]);
       let candles1h = baseCandles1h;
       let fundingDataset = baseFundingDataset;
+      let markPriceDataset: HistoricalMarkPriceDataset | undefined;
+      const baseNeedsFallback = baseFundingDataset.records.some(
+        (record) =>
+          !(typeof record.directMarkPrice === "number" && Number.isFinite(record.directMarkPrice) && record.directMarkPrice > 0),
+      );
       if (input.settlementTail) {
         const [tailCandles, tailFunding] = await Promise.all([
           this.loadCandles({
@@ -308,6 +447,7 @@ export class BinanceHistoricalDataLoader {
           this.loadFunding({
             symbol,
             range: { ...input.settlementTail.fundingRange, settlementOnly: true },
+            policy,
           }),
         ]);
         if (tailCandles.candles[0]?.openTime !== baseCandles1h.candles.at(-1)!.openTime + INTERVAL_MS["1h"]) {
@@ -330,19 +470,76 @@ export class BinanceHistoricalDataLoader {
         );
         const combinedFunding = validateFundingRecords(
           [...baseFundingDataset.records, ...tailFunding.records],
-          { symbol },
+          { symbol, policy },
         );
         candles1h = Object.freeze({ ...baseCandles1h, candles: combinedCandles });
         fundingDataset = Object.freeze({ ...baseFundingDataset, records: combinedFunding });
         manifests.push(tailCandles.manifest, tailFunding.manifest);
+
+        const tailNeedsFallback = tailFunding.records.some(
+          (record) =>
+            !(typeof record.directMarkPrice === "number" && Number.isFinite(record.directMarkPrice) && record.directMarkPrice > 0),
+        );
+        if (policy === "bt-policy-002" && (baseNeedsFallback || tailNeedsFallback)) {
+          const baseMarkRange = input.markPriceRange ?? {
+            startTime: input.fundingRange.startTime - INTERVAL_MS["1h"],
+            endTime: input.fundingRange.endTime,
+          };
+          const tailMarkRange = input.settlementTail.markPriceRange ?? {
+            startTime: input.settlementTail.fundingRange.startTime,
+            endTime: input.settlementTail.fundingRange.endTime,
+            settlementOnly: true,
+          };
+          const [baseMark, tailMark] = await Promise.all([
+            baseNeedsFallback
+              ? this.loadMarkPriceKlines({ symbol, range: baseMarkRange, serverTime })
+              : Promise.resolve(undefined),
+            tailNeedsFallback
+              ? this.loadMarkPriceKlines({
+                  symbol,
+                  range: { ...tailMarkRange, settlementOnly: true },
+                  serverTime,
+                })
+              : Promise.resolve(undefined),
+          ]);
+          if (baseMark || tailMark) {
+            const markCandles = [...(baseMark?.candles ?? []), ...(tailMark?.candles ?? [])];
+            if (markCandles.length === 0) {
+              throw new HistoricalDataError({
+                code: "DATA_INCOMPLETE",
+                message: "Required mark-price Kline fallback data is missing.",
+                symbol,
+              });
+            }
+            markPriceDataset = Object.freeze({
+              symbol,
+              candles: Object.freeze(markCandles),
+              manifest: baseMark?.manifest ?? tailMark!.manifest,
+              manifests: Object.freeze([
+                ...(baseMark?.manifests ?? []),
+                ...(tailMark?.manifests ?? []),
+              ]),
+            });
+            manifests.push(...markPriceDataset.manifests);
+          }
+        }
+      } else if (policy === "bt-policy-002" && baseNeedsFallback) {
+        const markRange = input.markPriceRange ?? {
+          startTime: input.fundingRange.startTime - INTERVAL_MS["1h"],
+          endTime: input.fundingRange.endTime,
+        };
+        markPriceDataset = await this.loadMarkPriceKlines({ symbol, range: markRange, serverTime });
+        manifests.push(...markPriceDataset.manifests);
       }
       datasets[symbol] = Object.freeze({ candles1h, candles4h });
       funding[symbol] = fundingDataset;
+      markPrice[symbol] = markPriceDataset;
       manifests.push(candles1h.manifest, candles4h.manifest, fundingDataset.manifest);
     }
     return Object.freeze({
       datasets: Object.freeze(datasets),
       funding: Object.freeze(funding),
+      markPrice: Object.freeze(markPrice),
       manifests: Object.freeze(manifests),
       serverTime,
     });
@@ -365,5 +562,13 @@ export async function loadHistoricalFunding(
   return new BinanceHistoricalDataLoader(options).loadFunding(request);
 }
 
+export async function loadHistoricalMarkPrice(
+  request: HistoricalMarkPriceRequest,
+  options: HistoricalLoaderOptions = {},
+): Promise<HistoricalMarkPriceDataset> {
+  return new BinanceHistoricalDataLoader(options).loadMarkPriceKlines(request);
+}
+
 export const loadHistoricalKlines = loadHistoricalCandles;
 export const loadFundingRateHistory = loadHistoricalFunding;
+export const loadMarkPriceKlines = loadHistoricalMarkPrice;

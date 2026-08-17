@@ -3,7 +3,7 @@ import { validateCandle } from "../market-data/validation.ts";
 import { INTERVAL_MS, isMarketTimeframe, type MarketTimeframe } from "../market-data/intervals.ts";
 import type { Candle } from "../market-data/types.ts";
 import { HistoricalDataError } from "./errors.ts";
-import type { HistoricalFundingRecord } from "./types.ts";
+import type { HistoricalFundingRecord, HistoricalMarkPriceCandle } from "./types.ts";
 
 function assertRange(startTime: number, endTime: number, label: string): void {
   if (!Number.isInteger(startTime) || startTime < 0 || !Number.isInteger(endTime) || endTime < startTime) {
@@ -174,22 +174,32 @@ function finiteNumber(value: unknown): value is number {
 
 export function validateFundingRecords(
   records: readonly HistoricalFundingRecord[],
-  options: Readonly<{ symbol: ResearchSymbol; startTime?: number; endTime?: number }>,
+  options: Readonly<{
+    symbol: ResearchSymbol;
+    startTime?: number;
+    endTime?: number;
+    policy?: "bt-policy-001" | "bt-policy-002";
+  }>,
 ): readonly HistoricalFundingRecord[] {
+  const policy = options.policy ?? "bt-policy-001";
   const seen = new Set<number>();
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
+    const directMarkPrice = record?.directMarkPrice;
+    const directMarkPriceValid = finiteNumber(directMarkPrice) && directMarkPrice > 0;
     if (
       record.symbol !== options.symbol ||
       !Number.isInteger(record.fundingTime) ||
       record.fundingTime < 0 ||
       !finiteNumber(record.fundingRate) ||
-      !finiteNumber(record.markPrice) ||
-      record.markPrice <= 0
+      (policy === "bt-policy-001" && !directMarkPriceValid)
     ) {
       throw new HistoricalDataError({
-        code: record.markPrice <= 0 || !finiteNumber(record.markPrice) ? "MARK_PRICE_UNAVAILABLE" : "INVALID_FUNDING",
-        message: "Funding records require a valid time, finite rate, and finite positive official markPrice.",
+        code: policy === "bt-policy-001" && !directMarkPriceValid ? "MARK_PRICE_UNAVAILABLE" : "INVALID_FUNDING",
+        message:
+          policy === "bt-policy-001"
+            ? "Legacy funding records require a finite positive official markPrice."
+            : "Funding records require a valid time and finite rate; direct markPrice may be resolved by policy.",
         symbol: options.symbol,
       });
     }
@@ -225,6 +235,94 @@ export function validateFundingRecords(
     }
   }
   return Object.freeze([...records]);
+}
+
+function finitePositive(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+export type HistoricalMarkPriceValidationOptions = Readonly<{
+  symbol: ResearchSymbol;
+  serverTime: number;
+  expectedStartTime?: number;
+  expectedEndTime?: number;
+}>;
+
+export function validateMarkPriceCandleSeries(
+  candles: readonly HistoricalMarkPriceCandle[],
+  options: HistoricalMarkPriceValidationOptions,
+): readonly HistoricalMarkPriceCandle[] {
+  if (
+    !Number.isInteger(options.serverTime) ||
+    options.serverTime < 0 ||
+    candles.length === 0
+  ) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Required mark-price Kline data is empty or has invalid server time.",
+      symbol: options.symbol,
+    });
+  }
+
+  const interval = INTERVAL_MS["1h"];
+  const firstExpected =
+    options.expectedStartTime === undefined
+      ? undefined
+      : Math.ceil(options.expectedStartTime / interval) * interval;
+  const lastExpected =
+    options.expectedEndTime === undefined
+      ? undefined
+      : Math.floor(options.expectedEndTime / interval) * interval;
+
+  for (let index = 0; index < candles.length; index += 1) {
+    const candle = candles[index];
+    const expectedOpen = index === 0 ? undefined : candles[index - 1]!.openTime + interval;
+    if (
+      candle.symbol !== options.symbol ||
+      !Number.isInteger(candle.openTime) ||
+      candle.openTime < 0 ||
+      candle.openTime % interval !== 0 ||
+      !Number.isInteger(candle.closeTime) ||
+      candle.closeTime !== candle.openTime + interval - 1 ||
+      (expectedOpen !== undefined && candle.openTime !== expectedOpen) ||
+      !finitePositive(candle.open) ||
+      !finitePositive(candle.high) ||
+      !finitePositive(candle.low) ||
+      !finitePositive(candle.close) ||
+      candle.high < candle.low ||
+      candle.high < Math.max(candle.open, candle.close) ||
+      candle.low > Math.min(candle.open, candle.close) ||
+      candle.closeTime >= options.serverTime
+    ) {
+      throw new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: "Mark-price Kline data is malformed, non-contiguous, or not fully closed.",
+        symbol: options.symbol,
+        diagnostics: { index },
+      });
+    }
+  }
+
+  const first = candles[0]!.openTime;
+  const last = candles[candles.length - 1]!.openTime;
+  if (firstExpected !== undefined && first !== firstExpected) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Mark-price Kline data does not begin at the requested boundary.",
+      symbol: options.symbol,
+      diagnostics: { expectedStartTime: firstExpected, actualStartTime: first },
+    });
+  }
+  if (lastExpected !== undefined && last !== lastExpected) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Mark-price Kline data does not end at the requested boundary.",
+      symbol: options.symbol,
+      diagnostics: { expectedEndTime: lastExpected, actualEndTime: last },
+    });
+  }
+
+  return Object.freeze([...candles]);
 }
 
 export const validateHistoricalCandles = validateHistoricalCandleSeries;

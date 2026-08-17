@@ -4,6 +4,7 @@ import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../src/lib/config/constan
 import {
   BACKTEST_PERIOD_RANGES,
   BACKTEST_POLICY,
+  parseBacktestPolicyArgument,
   evaluateBacktestAcceptance,
   evaluateOverallBacktestAcceptance,
   latestAsOfWindow,
@@ -16,6 +17,7 @@ import {
   calculateBacktestMetrics,
   getHeldCandles,
   runBacktest,
+  buildFundingAudit,
   serializeBacktestReport,
   settleBacktestSignal,
   snapshotFromCandidate,
@@ -25,9 +27,12 @@ import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/
 import { parseBinanceFundingRateHistory } from "../src/lib/historical-data/binance/parser.ts";
 import { HistoricalDataError } from "../src/lib/historical-data/errors.ts";
 import { validateFundingRecords, validateHistoricalCandleSeries } from "../src/lib/historical-data/validation.ts";
+import { validateMarkPriceCandleSeries } from "../src/lib/historical-data/validation.ts";
+import { parseBinanceMarkPriceKlines } from "../src/lib/historical-data/binance/mark-price.ts";
 import { INTERVAL_MS, type MarketTimeframe } from "../src/lib/market-data/intervals.ts";
 import type { Candle } from "../src/lib/market-data/types.ts";
-import type { HistoricalManifest } from "../src/lib/historical-data/types.ts";
+import type { HistoricalManifest, HistoricalMarkPriceCandle } from "../src/lib/historical-data/types.ts";
+import { resolveFundingCharges } from "../src/lib/backtest/funding.ts";
 
 const HOUR = INTERVAL_MS["1h"];
 
@@ -56,6 +61,23 @@ function makeCandle(
     tradeCount: overrides.tradeCount ?? 10,
     takerBuyBaseVolume: overrides.takerBuyBaseVolume ?? 5,
     takerBuyQuoteVolume: overrides.takerBuyQuoteVolume ?? 500,
+  });
+}
+
+function makeMarkPriceCandle(
+  openTime: number,
+  overrides: Partial<Omit<HistoricalMarkPriceCandle, "symbol" | "openTime" | "closeTime">> = {},
+): HistoricalMarkPriceCandle {
+  const open = overrides.open ?? 100;
+  const close = overrides.close ?? open;
+  return Object.freeze({
+    symbol: "BTCUSDT",
+    openTime,
+    closeTime: openTime + HOUR - 1,
+    open,
+    high: overrides.high ?? Math.max(open, close),
+    low: overrides.low ?? Math.min(open, close),
+    close,
   });
 }
 
@@ -188,6 +210,79 @@ function requiredTestManifests(period: "DEV" | "OOS" | "COMBINED"): readonly His
   ]);
 }
 
+describe("M3 funding policy selection and mark-price compatibility", () => {
+  it("fails closed for missing or unknown CLI policies and accepts both explicit policies", () => {
+    expect(() => parseBacktestPolicyArgument(["node", "backtest-run.ts"])).toThrow(/--policy is required/);
+    expect(() => parseBacktestPolicyArgument(["node", "backtest-run.ts", "--policy", "bt-policy-003"])).toThrow(
+      /--policy must be/,
+    );
+    expect(parseBacktestPolicyArgument(["--policy", "bt-policy-001"])).toBe("bt-policy-001");
+    expect(parseBacktestPolicyArgument(["--policy", "bt-policy-002"])).toBe("bt-policy-002");
+  });
+
+  it("selects the greatest pre-event mark-price candle without using an equal-time candle", () => {
+    const charges = resolveFundingCharges({
+      policy: "bt-policy-002",
+      funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR, fundingRate: 0.001, directMarkPrice: null }],
+      markPriceCandles: [makeMarkPriceCandle(0, { close: 101 }), makeMarkPriceCandle(HOUR, { close: 102 })],
+      entryTime: 0,
+      exitReason: "TIME_EXIT",
+      exitCandle: { openTime: 3 * HOUR, closeTime: 4 * HOUR - 1 },
+      exitTime: 4 * HOUR - 1,
+      direction: "LONG",
+    });
+    expect(charges.charges[0]).toMatchObject({
+      markPrice: 102,
+      markPriceSource: "MARK_PRICE_KLINE_PRE_EVENT_CLOSE",
+    });
+  });
+
+  it("fails closed when compatibility fallback has only future or equal-time data", () => {
+    const base = {
+      policy: "bt-policy-002" as const,
+      funding: [{ symbol: "BTCUSDT" as const, fundingTime: 2 * HOUR, fundingRate: 0.001, directMarkPrice: null }],
+      entryTime: 0,
+      exitReason: "TIME_EXIT" as const,
+      exitCandle: { openTime: 3 * HOUR, closeTime: 4 * HOUR - 1 },
+      exitTime: 4 * HOUR - 1,
+      direction: "LONG" as const,
+    };
+    expect(() => resolveFundingCharges({ ...base, markPriceCandles: [makeMarkPriceCandle(2 * HOUR)] })).toThrow(
+      /No valid pre-event/,
+    );
+    expect(() => resolveFundingCharges({ ...base, markPriceCandles: [] })).toThrow(/No valid pre-event/);
+  });
+
+  it("validates mark-price Klines without sorting, filling, or accepting malformed rows", () => {
+    const valid = [makeMarkPriceCandle(0), makeMarkPriceCandle(HOUR)];
+    expect(
+      validateMarkPriceCandleSeries(valid, {
+        symbol: "BTCUSDT",
+        serverTime: 3 * HOUR,
+        expectedStartTime: 0,
+        expectedEndTime: 2 * HOUR - 1,
+      }),
+    ).toEqual(valid);
+    expect(() => validateMarkPriceCandleSeries([valid[1]!, valid[0]!], { symbol: "BTCUSDT", serverTime: 3 * HOUR })).toThrow(
+      HistoricalDataError,
+    );
+    expect(() => validateMarkPriceCandleSeries([valid[0]!, makeMarkPriceCandle(2 * HOUR)], { symbol: "BTCUSDT", serverTime: 4 * HOUR })).toThrow(
+      HistoricalDataError,
+    );
+    expect(() => validateMarkPriceCandleSeries([makeMarkPriceCandle(0, { high: Number.NaN })], { symbol: "BTCUSDT", serverTime: 2 * HOUR })).toThrow(
+      HistoricalDataError,
+    );
+    expect(() => validateMarkPriceCandleSeries([makeMarkPriceCandle(0)], { symbol: "BTCUSDT", serverTime: HOUR - 1 })).toThrow(
+      HistoricalDataError,
+    );
+  });
+
+  it("parses the dedicated mark-price Kline representation", () => {
+    const row = [0, "100", "101", "99", "100.5", "0", HOUR - 1];
+    expect(parseBinanceMarkPriceKlines([row], "BTCUSDT")[0]).toEqual(makeMarkPriceCandle(0, { high: 101, low: 99, close: 100.5 }));
+  });
+});
+
 describe("M3 historical data validation and pagination", () => {
   it("rejects duplicate, gap, and malformed historical candles", () => {
     const first = makeCandle("BTCUSDT", "1h", 0);
@@ -208,16 +303,14 @@ describe("M3 historical data validation and pagination", () => {
     ).toThrowError(HistoricalDataError);
   });
 
-  it("requires the official funding markPrice and does not infer a value", () => {
+  it("preserves invalid direct markPrice for policy-specific resolution", () => {
     const payload = [{ symbol: "BTCUSDT", fundingTime: 1, fundingRate: "0.001", markPrice: "100" }];
     const records = parseBinanceFundingRateHistory(payload, "BTCUSDT");
-    expect(records[0]).toMatchObject({ fundingTime: 1, fundingRate: 0.001, markPrice: 100 });
-    expect(() => parseBinanceFundingRateHistory([{ ...payload[0], markPrice: undefined }], "BTCUSDT")).toThrowError(
-      HistoricalDataError,
-    );
-    expect(() => validateFundingRecords([{ ...records[0]!, markPrice: 0 }], { symbol: "BTCUSDT" })).toThrowError(
-      HistoricalDataError,
-    );
+    expect(records[0]).toMatchObject({ fundingTime: 1, fundingRate: 0.001, directMarkPrice: 100 });
+    const invalid = parseBinanceFundingRateHistory([{ ...payload[0], markPrice: undefined }], "BTCUSDT");
+    expect(invalid[0]?.directMarkPrice).toBeNull();
+    expect(() => validateFundingRecords(invalid, { symbol: "BTCUSDT" })).toThrowError(HistoricalDataError);
+    expect(() => validateFundingRecords(invalid, { symbol: "BTCUSDT", policy: "bt-policy-002" })).not.toThrow();
   });
 
   it("paginates Klines from the last accepted open time without repeating a page", async () => {
@@ -377,6 +470,52 @@ describe("M3 historical data validation and pagination", () => {
       }),
     ).rejects.toMatchObject({ code: "DATA_INCOMPLETE" });
   });
+
+  it("loads paginated mark-price Klines with the study server time and emits provenance manifests", async () => {
+    const calls: URL[] = [];
+    const raw = (openTime: number, close = 100) => [
+      openTime,
+      String(close),
+      String(close + 1),
+      String(close - 1),
+      String(close),
+      "0",
+      openTime + HOUR - 1,
+    ];
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 2,
+      now: () => 123,
+      clientOptions: {
+        fetchImpl: async (input) => {
+          const url = new URL(input.toString());
+          calls.push(url);
+          const start = Number(url.searchParams.get("startTime"));
+          const page = [start, start + HOUR].filter((value) => value <= 3 * HOUR).map((value) => raw(value, value / HOUR + 100));
+          return new Response(JSON.stringify(page), { status: 200 });
+        },
+      },
+    });
+    const dataset = await loader.loadMarkPriceKlines({
+      symbol: "BTCUSDT",
+      range: { startTime: 0, endTime: 4 * HOUR - 1 },
+      serverTime: 4 * HOUR,
+    });
+    expect(dataset.candles).toHaveLength(4);
+    expect(calls.map((call) => call.pathname)).toEqual([
+      "/fapi/v1/markPriceKlines",
+      "/fapi/v1/markPriceKlines",
+    ]);
+    expect(dataset.manifests[0]).toMatchObject({
+      kind: "mark-price",
+      source: "/fapi/v1/markPriceKlines",
+      timeframe: "1h",
+      requestedStartTime: 0,
+      requestedEndTime: 4 * HOUR - 1,
+      rowCount: 4,
+      retrievedAt: "1970-01-01T00:00:00.123Z",
+      settlementOnly: false,
+    });
+  });
 });
 
 function firstEvaluationDatasets(period: "DEV" | "OOS"): BacktestData["datasets"] {
@@ -435,6 +574,11 @@ describe("M3 historical load ranges and exact first evaluation", () => {
     expect(oosRanges.settlementTail?.fundingRange.endTime).toBe(
       BACKTEST_PERIOD_RANGES.OOS.endTime + BACKTEST_POLICY.heldCandleCount * HOUR,
     );
+    expect(devRanges.markPriceRange.startTime).toBe(devRanges.fundingRange.startTime - HOUR);
+    expect(devRanges.markPriceRange.endTime).toBe(devRanges.fundingRange.endTime);
+    expect(oosRanges.settlementTail?.markPriceRange.startTime).toBe(oosRanges.settlementTail?.fundingRange.startTime);
+    expect(oosRanges.settlementTail?.markPriceRange.endTime).toBe(oosRanges.settlementTail?.fundingRange.endTime);
+    expect(oosRanges.settlementTail?.markPriceRange.settlementOnly).toBe(true);
   });
 });
 
@@ -482,7 +626,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot,
       signalCandle: signal,
       heldCandles: held,
-      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0.001, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0.001, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -501,7 +645,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: held,
-      funding: [{ symbol: "BTCUSDT", fundingTime: held[0]!.openTime, fundingRate: 0.001, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: held[0]!.openTime, fundingRate: 0.001, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -520,8 +664,8 @@ describe("M3 bt-policy-001 settlement", () => {
       signalCandle: signal,
       heldCandles: tpHeld,
       funding: [
-        { symbol: "BTCUSDT", fundingTime: held[0]!.openTime, fundingRate: 0.001, markPrice: 100 },
-        { symbol: "BTCUSDT", fundingTime: held[1]!.openTime, fundingRate: 0.001, markPrice: 100 },
+        { symbol: "BTCUSDT", fundingTime: held[0]!.openTime, fundingRate: 0.001, directMarkPrice: 100 },
+        { symbol: "BTCUSDT", fundingTime: held[1]!.openTime, fundingRate: 0.001, directMarkPrice: 100 },
       ],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
@@ -534,7 +678,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: tpHeld,
-      funding: [{ symbol: "BTCUSDT", fundingTime: held[1]!.openTime + 1, fundingRate: 0.001, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: held[1]!.openTime + 1, fundingRate: 0.001, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -544,7 +688,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: held,
-      funding: [{ symbol: "BTCUSDT", fundingTime: held[23]!.closeTime, fundingRate: 0.001, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: held[23]!.closeTime, fundingRate: 0.001, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -559,7 +703,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: held,
-      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -575,7 +719,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: held,
-      funding: [{ symbol: "BTCUSDT", fundingTime: held[0]!.openTime + 1, fundingRate: 0, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: held[0]!.openTime + 1, fundingRate: 0, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -589,7 +733,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: held,
-      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0, directMarkPrice: 100 }],
       period: "DEV",
       periodEndTime: BACKTEST_PERIOD_RANGES.DEV.endTime,
     });
@@ -599,7 +743,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: 10 * HOUR - 1, takeProfitReference: 100.04 }),
       signalCandle: makeCandle("BTCUSDT", "1h", 10 * HOUR),
       heldCandles: makeHeldCandles(10 * HOUR),
-      funding: [{ symbol: "BTCUSDT", fundingTime: 12 * HOUR, fundingRate: 0, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: 12 * HOUR, fundingRate: 0, directMarkPrice: 100 }],
       period: "OOS",
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
@@ -614,7 +758,7 @@ describe("M3 bt-policy-001 settlement", () => {
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),
       signalCandle: signal,
       heldCandles: makeHeldCandles(signal.openTime),
-      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + HOUR, fundingRate: 0, markPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + HOUR, fundingRate: 0, directMarkPrice: 100 }],
       period: "DEV",
       periodEndTime: BACKTEST_PERIOD_RANGES.DEV.endTime,
     });
@@ -729,6 +873,73 @@ describe("M3 deterministic metrics and report gates", () => {
     const second = runBacktest({ period: "DEV", data: { datasets: data, funding, manifests: [] } });
     expect(serializeBacktestReport(first)).toBe(serializeBacktestReport(second));
     expect(serializeBacktestReport(first)).not.toContain("Date.now");
+  });
+
+  it("serializes policy-specific report schemas without leaking compatibility fields into legacy reports", () => {
+    const data = Object.fromEntries(
+      RESEARCH_SYMBOLS.map((symbol) => [symbol, { candles1h: [], candles4h: [] }]),
+    ) as unknown as BacktestData["datasets"];
+    const funding = Object.fromEntries(RESEARCH_SYMBOLS.map((symbol) => [symbol, []])) as unknown as BacktestData["funding"];
+    const legacy = runBacktest({ period: "DEV", policy: "bt-policy-001", data: { datasets: data, funding, manifests: [] } });
+    const compatibility = runBacktest({ period: "DEV", policy: "bt-policy-002", data: { datasets: data, funding, manifests: [] } });
+    expect(legacy.schemaVersion).toBe("m3-b-report-001");
+    expect(legacy).not.toHaveProperty("fundingEventsTotal");
+    expect(compatibility.schemaVersion).toBe("m3-b-report-002");
+    expect(compatibility).toMatchObject({
+      backtestPolicyVersion: "bt-policy-002",
+      fundingEventsTotal: 0,
+      fundingEventsDirectMarkPrice: 0,
+      fundingEventsFallbackMarkPrice: 0,
+      fundingFallbackRate: null,
+    });
+  });
+
+  it("keeps funding charge provenance and reconciles fallback audit counts", () => {
+    const direct = resolveFundingCharges({
+      policy: "bt-policy-001",
+      funding: [{ symbol: "BTCUSDT", fundingTime: HOUR, fundingRate: 0.001, directMarkPrice: 100 }],
+      entryTime: 0,
+      exitReason: "TIME_EXIT",
+      exitCandle: { openTime: 2 * HOUR, closeTime: 3 * HOUR - 1 },
+      exitTime: 3 * HOUR - 1,
+      direction: "LONG",
+    });
+    expect(direct.charges[0]).not.toHaveProperty("markPriceSource");
+    const fallback = resolveFundingCharges({
+      policy: "bt-policy-002",
+      funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR, fundingRate: 0.001, directMarkPrice: null }],
+      markPriceCandles: [makeMarkPriceCandle(0, { close: 101 }), makeMarkPriceCandle(HOUR, { close: 102 })],
+      entryTime: 0,
+      exitReason: "TIME_EXIT",
+      exitCandle: { openTime: 3 * HOUR, closeTime: 4 * HOUR - 1 },
+      exitTime: 4 * HOUR - 1,
+      direction: "LONG",
+    });
+    const result = makeExecutedResult({ fundingCharges: fallback.charges });
+    const audit = buildFundingAudit([result]);
+    expect(audit).toMatchObject({
+      fundingEventsTotal: 1,
+      fundingEventsDirectMarkPrice: 0,
+      fundingEventsFallbackMarkPrice: 1,
+      fundingFallbackRate: 1,
+      fundingFallbackBySymbol: { BTCUSDT: 1 },
+      fundingFallbackByUtcYear: { "1970": 1 },
+    });
+  });
+
+  it("inherits bt-policy-002 from the snapshot when settlement input omits policy", () => {
+    const signal = makeCandle("BTCUSDT", "1h", 10 * HOUR);
+    const result = settleBacktestSignal({
+      snapshot: makeSnapshot({ backtestPolicyVersion: "bt-policy-002", signalTime: signal.closeTime }),
+      signalCandle: signal,
+      heldCandles: makeHeldCandles(signal.openTime),
+      funding: [{ symbol: "BTCUSDT", fundingTime: signal.openTime + 2 * HOUR, fundingRate: 0.001, directMarkPrice: null }],
+      markPriceCandles: [makeMarkPriceCandle(0), makeMarkPriceCandle(HOUR)],
+      period: "OOS",
+      periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
+    });
+    expect(result.status).toBe("EXECUTED");
+    expect(result.fundingCharges[0]?.markPriceSource).toBe("MARK_PRICE_KLINE_PRE_EVENT_CLOSE");
   });
 
   it("copies the frozen candidate into an auditable versioned snapshot", () => {

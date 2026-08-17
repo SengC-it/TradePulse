@@ -1,6 +1,6 @@
 # TradePulse Architecture
 
-Status: M3-B historical loader and deterministic backtest runner (Draft PR)
+Status: M3-B.2 historical loader and deterministic backtest runner (Draft PR)
 Runtime baseline: Node.js 22+
 Deployment baseline: Next.js App Router on Vercel
 
@@ -128,9 +128,9 @@ notification, or outcome resolution.
    candles and funding records, requires the official funding `markPrice` for
    the current `bt-policy-001` implementation, and records canonical SHA-256
    manifests. No sort, gap fill, synthetic row, private API, or alternate
-   provider is allowed. M3-B.1 freezes a separate `bt-policy-002` historical
-   mark-price compatibility specification; it is not implemented in this
-   flow.
+   provider is allowed. `bt-policy-002` additionally loads official historical
+   mark-price Klines only when an invalid direct funding mark requires the
+   frozen fallback.
 3. The range builder separates the 55/205 indicator minimums from the 250
    strategy window and requests 250-candle 1H/4H historical lookback. The
    backtest clock enumerates fully closed 1H signal points inside DEV or OOS.
@@ -138,7 +138,8 @@ notification, or outcome resolution.
    lookup and an exact 250-candle slice as-of `evaluationTime = C_t.closeTime`.
 4. The adapter calls the existing `evaluateStrategy(...)` once per evaluation
    and retains every returned evaluation. Only formal candidates with
-   `totalScore >= 70` enter the frozen `bt-policy-001` settlement adapter.
+   `totalScore >= 70` enter the settlement adapter selected by the explicit
+   backtest policy; the strategy candidate and references are unchanged.
 5. Settlement uses exactly 24 held 1H candles total: the next-open entry is
    held #1 and the close of held #24 is TIME_EXIT. DEV crossing is
    `PERIOD_END_CENSORED`; OOS post-end rows are settlement-only and never
@@ -155,7 +156,7 @@ notification, or outcome resolution.
 ### M3-B.1 funding compatibility boundary
 
 `bt-policy-001` remains the immutable M3-B funding contract: a missing or
-invalid funding-history `markPrice` is `DATA_INCOMPLETE`. The specification-only
+invalid funding-history `markPrice` is `DATA_INCOMPLETE`. The implemented
 `bt-policy-002` contract adds one historical compatibility source, and only
 after the direct funding-history value fails validation: the official
 USDⓈ-M Futures `/fapi/v1/markPriceKlines` endpoint at `1h`, selecting the
@@ -208,8 +209,8 @@ command is:
 npm run backtest:run -- --period COMBINED --policy bt-policy-002
 ```
 
-This is a documentation-only contract; the current M3-B runtime remains on
-the immutable legacy policy until a separate implementation review.
+The implementation requires explicit policy selection for formal CLI runs;
+M3-C remains blocked and is not rerun in this milestone.
 
 ## Realtime scan lifecycle
 

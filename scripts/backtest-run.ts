@@ -4,7 +4,12 @@ import { fileURLToPath } from "node:url";
 
 import { RESEARCH_SYMBOLS } from "../src/lib/config/constants.ts";
 import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/loader.ts";
-import { isBacktestPeriod, type BacktestPeriod } from "../src/lib/backtest/constants.ts";
+import {
+  isBacktestPeriod,
+  parseBacktestPolicyArgument,
+  type BacktestPeriod,
+  type BacktestPolicyVersion,
+} from "../src/lib/backtest/constants.ts";
 import { buildHistoricalLoadRanges } from "../src/lib/backtest/ranges.ts";
 import { runBacktest } from "../src/lib/backtest/runner.ts";
 import { serializeBacktestReport } from "../src/lib/backtest/report.ts";
@@ -24,6 +29,10 @@ function periodFromArguments(): BacktestPeriod {
   return value;
 }
 
+function policyFromArguments(): BacktestPolicyVersion {
+  return parseBacktestPolicyArgument(process.argv);
+}
+
 export { buildHistoricalLoadRanges as loadRanges } from "../src/lib/backtest/ranges.ts";
 
 function toBacktestData(study: HistoricalStudyData): BacktestData {
@@ -39,14 +48,18 @@ function toBacktestData(study: HistoricalStudyData): BacktestData {
   const funding = Object.fromEntries(
     RESEARCH_SYMBOLS.map((symbol) => [symbol, study.funding[symbol].records]),
   ) as BacktestData["funding"];
-  return { datasets, funding, manifests: study.manifests, serverTime: study.serverTime };
+  const markPrice = Object.fromEntries(
+    RESEARCH_SYMBOLS.map((symbol) => [symbol, study.markPrice[symbol]?.candles]),
+  ) as BacktestData["markPrice"];
+  return { datasets, funding, markPrice, manifests: study.manifests, serverTime: study.serverTime };
 }
 
 async function main(): Promise<void> {
   const period = periodFromArguments();
+  const policy = policyFromArguments();
   const loader = new BinanceHistoricalDataLoader();
-  const study = await loader.loadStudyData(buildHistoricalLoadRanges(period));
-  const report = runBacktest({ period, data: toBacktestData(study) });
+  const study = await loader.loadStudyData({ ...buildHistoricalLoadRanges(period), policy });
+  const report = runBacktest({ period, policy, data: toBacktestData(study) });
   const outputDirectory = path.resolve(process.cwd(), ".tmp", "backtest");
   mkdirSync(outputDirectory, { recursive: true });
   const outputPath = path.join(outputDirectory, `${period.toLowerCase()}-report.json`);
