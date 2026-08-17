@@ -515,7 +515,7 @@ the run, and M4 remains pending explicit authorization.
 
 ## M3-F — Study Clock Provenance Hardening
 
-Status: UNDER REVIEW
+Status: CLOSED / MERGED
 
 ### Scope
 
@@ -548,6 +548,50 @@ build, and diff checks to pass. No formal historical run is part of M3-F.
 
 Historical performance reruns, strategy tuning, baseline-002, bt-policy-004,
 M4, trading, private Binance APIs, persistence, and production deployment.
+
+## M3-G — baseline-002 Research Protocol Specification Freeze
+
+Status: UNDER REVIEW
+
+### Scope
+
+M3-G is documentation-only. It freezes the research protocol for a possible
+future `baseline-002` without defining or implementing `baseline-002` itself.
+The protocol is recorded in `docs/BASELINE_002_RESEARCH.md` and covers the
+historical contamination boundary, the future forward holdout rule, the initial
+H1–H5 hypothesis registry, append-only experiment records, small hypothesis-
+driven grids, ablation-first comparisons, chronological validation folds,
+robustness and concentration gates, density and score diagnostics, and the
+complexity penalty.
+
+All data through `2026-08-15T23:59:59.999Z` is explicitly
+`RESEARCH-AVAILABLE / SEEN DATA`, not pristine OOS or a true holdout. The true
+forward holdout begins at the first fully closed 1H candle strictly after the
+final baseline-002 freeze commit/time; its exact timestamp is recorded only
+when that later freeze occurs.
+
+### Status and acceptance boundary
+
+- M3-E remains **CLOSED / INCOMPLETE** and its committed evidence is untouched.
+- M3-F is **CLOSED / MERGED**; `m3-b-report-004` and its clock provenance are
+  unchanged by M3-G.
+- `baseline-001` and `bt-policy-001`/`002`/`003` remain unchanged.
+- No historical performance run, parameter search, optimization, or
+  baseline-002 experiment is executed in M3-G.
+- `baseline-002` is **NOT FROZEN**; M3-G.1 tooling, M3-H experiments, M3-I
+  specification freeze, and M3-J implementation require separate approval.
+- M4, trading, private Binance APIs, persistence, and deployment remain out of
+  scope.
+
+### Planned M3-G.1 verification
+
+Future tooling tests must prove deterministic fold assignment, no random time
+shuffle or future leakage, baseline-001 control reproducibility, immutable
+experiment IDs and registry records, deterministic candidate ordering,
+signal-density/duplicate-window metrics, score buckets, cost metrics,
+symbol/direction/regime breakdowns, retained `studyServerTime`, unchanged
+execution economics, public-data-only access, and no baseline-002 production
+code.
 
 ## M4 — Realtime Scanner
 

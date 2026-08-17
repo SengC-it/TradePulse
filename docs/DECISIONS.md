@@ -167,6 +167,26 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   SL-first and 24-bar rules apply only to `bt-policy-001` and do not decide M6
   forward-tracking behavior.
 
+## ADR-019 — Controlled research protocol for baseline-002
+
+- **Decision:** M3-G freezes a documentation-only research protocol, not a
+  `baseline-002` strategy. Data through `2026-08-15T23:59:59.999Z` is
+  permanently classified as seen research data. A true forward holdout begins
+  only at the first fully closed 1H candle strictly after the final
+  baseline-002 freeze commit/time. Research is limited initially to H1 signal
+  redundancy, H2 cost-adjusted edge, H3 score calibration, H4 signal density,
+  and H5 regime quality.
+- **Reason:** The baseline-001 evidence is economically inadequate and has
+  already exposed the historical interval through 2026-08-15. A bounded,
+  auditable protocol is required to reduce data-mining and contamination risk
+  before any new strategy behavior is tested.
+- **Consequence:** Future experiments require immutable registry entries,
+  small predeclared scalar grids, ablation-first controls, chronological
+  calendar-based folds, frozen `bt-policy-003` economics, and multi-gate
+  robustness/concentration review. M3-G runs no experiments and does not freeze
+  baseline-002. M3-G.1 through M3-J and the forward holdout require separate
+  milestones; M4 remains separate.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-E — bt-policy-003 Baseline Historical Evidence Review**.
+Current milestone: **M3-G — baseline-002 Research Protocol Specification**.
 
 ## Boundary
 
@@ -17,7 +17,9 @@ framework-independent indicator and Strategy Engine layer. M3-B adds an
 auditable public historical loader and deterministic signal-level backtest
 runner that calls the same M2 Strategy Engine. It does not add persistence,
 scanning, notifications, deployment, optimization, or trading. M3-C remains
-immutable historical evidence; M3-E records the separate bt-policy-003 run.
+immutable historical evidence; M3-E records the separate bt-policy-003 run and
+remains INCOMPLETE. M3-F hardens study-clock provenance; M3-G freezes only the
+research protocol for a possible future baseline-002.
 
 ## Architecture
 
@@ -114,7 +116,9 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-B | Historical loader and deterministic backtest runner (implemented / merged) |
 | M3-C | Baseline historical run and evidence review (`bt-policy-002` Formal Run #1: INCOMPLETE; evidence Draft PR) |
 | M3-D.1 | Intrabar settlement resolution (`bt-policy-003` implementation closed / merged) |
-| M3-E | `bt-policy-003` baseline historical evidence (`INCOMPLETE`; evidence Draft PR) |
+| M3-E | `bt-policy-003` baseline historical evidence (`INCOMPLETE`; evidence merged) |
+| M3-F | Study clock provenance hardening (closed / merged) |
+| M3-G | baseline-002 research protocol specification (under review; baseline-002 not frozen) |
 | M4 | Realtime scanner, protected endpoint, persistence |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
