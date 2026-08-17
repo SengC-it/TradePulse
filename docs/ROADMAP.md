@@ -551,7 +551,7 @@ M4, trading, private Binance APIs, persistence, and production deployment.
 
 ## M3-G — baseline-002 Research Protocol Specification Freeze
 
-Status: UNDER REVIEW
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -601,7 +601,52 @@ new predeclared protocol. M3-I only applies the already-frozen gates and may
 return `NO BASELINE-002 CANDIDATE`; it cannot redefine thresholds or weaken a
 failed gate.
 
-### Planned M3-G.1 verification
+## M3-G.1 — Research Tooling / Diagnostics
+
+Status: UNDER REVIEW
+
+### Scope
+
+M3-G.1 implements only the pure downstream research-domain tooling under
+`src/lib/research/`. It consumes explicit normalized records or an adapter from
+existing backtest results; it does not load history, call Binance, access
+Supabase or the filesystem at runtime, use environment or wall-clock state, or
+perform trading/private API actions. Synthetic deterministic fixtures are the
+only research inputs used in this milestone.
+
+### Deliverables
+
+- immutable M3-G F1-F6 fold definitions and signal-time-only role selection;
+- strategy-version-independent normalized signal records with fail-closed
+  duplicate identity validation;
+- signal density, unique-hour, repeat-window, separate research-overlap, cost,
+  concentration, and deterministic symbol/direction/grade/regime/month/year
+  diagnostics;
+- caller-supplied score buckets and descriptive monotonicity diagnostics;
+- immutable H1-H5 experiment definitions/outcome attachment and deterministic
+  control-first audit ordering;
+- `m3-g-research-diagnostics-001` provenance/serialization and a
+  `bt-policy-003` report contract;
+- M3-G.2 gate schema validation types only, with no production/default numeric
+  gate values and no candidate selector or optimizer.
+
+### Acceptance boundary
+
+- M3-G remains **CLOSED / MERGED** and `docs/BASELINE_002_RESEARCH.md` is
+  untouched.
+- The dedicated M3-G.1 suite uses synthetic fixtures only; no historical
+  candidate result, fold performance comparison, or baseline-001 rerun exists.
+- `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
+  `m3-b-report-004`, and M3-E evidence are unchanged.
+- M3-G.2 is **NOT STARTED** and owns all real gate values; `baseline-002` is
+  **NOT FROZEN**. M3-H, M3-I, M3-J, and M4 remain **NOT STARTED**.
+
+### Verification
+
+The milestone requires typecheck, lint, deterministic tests, build, and diff
+checks. It must stop before M3-G.2 and before any historical experiment.
+
+### Planned M3-G.2 verification
 
 Future tooling tests must prove deterministic fold assignment, no random time
 shuffle or future leakage, baseline-001 control reproducibility, immutable
