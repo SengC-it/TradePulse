@@ -252,12 +252,24 @@ export type IntrabarSettlementAudit = Readonly<{
   remainingSettlementAmbiguousByUtcYear: Readonly<Record<string, number>>;
 }>;
 
-export type IntrabarBacktestReport = BacktestReportCore & BacktestFundingAudit & IntrabarSettlementAudit & Readonly<{
+/** Historical M3-E report shape. It is retained for immutable evidence only. */
+export type HistoricalIntrabarBacktestReport = BacktestReportCore & BacktestFundingAudit & IntrabarSettlementAudit & Readonly<{
   schemaVersion: "m3-b-report-003";
   backtestPolicyVersion: "bt-policy-003";
 }>;
 
-export type BacktestReport = LegacyBacktestReport | CompatibilityBacktestReport | IntrabarBacktestReport;
+/** Current bt-policy-003 report shape after M3-F provenance hardening. */
+export type IntrabarBacktestReport = BacktestReportCore & BacktestFundingAudit & IntrabarSettlementAudit & Readonly<{
+  schemaVersion: "m3-b-report-004";
+  backtestPolicyVersion: "bt-policy-003";
+  studyServerTime: number;
+}>;
+
+export type BacktestReport =
+  | LegacyBacktestReport
+  | CompatibilityBacktestReport
+  | HistoricalIntrabarBacktestReport
+  | IntrabarBacktestReport;
 
 export type BacktestRunInput = Readonly<{
   period: BacktestPeriod;

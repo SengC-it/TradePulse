@@ -66,10 +66,13 @@ export function toBacktestData(study: HistoricalStudyData): BacktestData {
   };
 }
 
-async function main(): Promise<void> {
-  const period = periodFromArguments();
-  const policy = policyFromArguments();
-  const loader = new BinanceHistoricalDataLoader();
+type BacktestStudyLoader = Pick<BinanceHistoricalDataLoader, "loadStudyData" | "loadIntrabarSettlementWindows">;
+
+export async function loadBacktestDataForRun(
+  loader: BacktestStudyLoader,
+  period: BacktestPeriod,
+  policy: BacktestPolicyVersion,
+): Promise<BacktestData> {
   const study = await loader.loadStudyData({ ...buildHistoricalLoadRanges(period), policy });
   let data = toBacktestData(study);
   if (policy === "bt-policy-003") {
@@ -82,6 +85,14 @@ async function main(): Promise<void> {
       manifests: Object.freeze([...data.manifests, ...windows.map((window) => window.manifest)]),
     };
   }
+  return data;
+}
+
+async function main(): Promise<void> {
+  const period = periodFromArguments();
+  const policy = policyFromArguments();
+  const loader = new BinanceHistoricalDataLoader();
+  const data = await loadBacktestDataForRun(loader, period, policy);
   const report = runBacktest({ period, policy, data });
   const outputDirectory = path.resolve(process.cwd(), ".tmp", "backtest");
   mkdirSync(outputDirectory, { recursive: true });

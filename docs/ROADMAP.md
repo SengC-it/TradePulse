@@ -492,7 +492,7 @@ notifications, deployment, persistence, and trading.
 
 ## M3-E — Formal baseline-001 historical evidence under bt-policy-003
 
-Status: INCOMPLETE / EVIDENCE DRAFT PR
+Status: CLOSED / INCOMPLETE / EVIDENCE MERGED
 
 ### Formal result
 
@@ -507,10 +507,47 @@ audit the shared 1H/4H, funding, mark-price, and 1m settlement clock.
 The exact report hash, metrics, intrabar/funding audits, and all manifest
 hashes are recorded in `docs/M3_BASELINE_001_POLICY003_RESULTS.md`. The raw
 report remains under the ignored `.tmp/backtest/` directory and is not
-committed. The evidence branch and Draft PR are documentation/evidence only.
+committed. The merged evidence is documentation-only and does not alter runtime
+behavior.
 
 M3-E stops here. `baseline-001` was not tuned, no policy was changed during
 the run, and M4 remains pending explicit authorization.
+
+## M3-F — Study Clock Provenance Hardening
+
+Status: UNDER REVIEW
+
+### Scope
+
+Harden report provenance for future `bt-policy-003` runs only. M3-F does not
+rerun baseline-001, regenerate the M3-E report, or change any settlement or
+economic rule.
+
+### Frozen compatibility boundary
+
+- M3-E remains **CLOSED / INCOMPLETE** and its committed evidence remains
+  immutable.
+- Historical `m3-b-report-003` is not silently extended. The current
+  `bt-policy-003` runner advances to `m3-b-report-004`.
+- `m3-b-report-004.studyServerTime` is required and equals the exact
+  `BacktestData.serverTime` originating from `HistoricalStudyData.serverTime`.
+- The same study clock continues through intrabar settlement loading; no second
+  Binance server-time request or alternate clock is permitted.
+- `bt-policy-003` economics, baseline-001, and all prior policy schemas remain
+  unchanged. baseline-002 research has not started, and M4 has not started.
+
+### Tests and acceptance
+
+Deterministic tests cover exact clock propagation, schema selection, fail-closed
+missing/invalid clocks, deterministic serialization, economic/audit invariance
+when only the clock changes, one-clock loader orchestration, and unchanged
+legacy schemas. M3-F acceptance requires typecheck, lint, the full test suite,
+build, and diff checks to pass. No formal historical run is part of M3-F.
+
+### Out of scope
+
+Historical performance reruns, strategy tuning, baseline-002, bt-policy-004,
+M4, trading, private Binance APIs, persistence, and production deployment.
 
 ## M4 — Realtime Scanner
 

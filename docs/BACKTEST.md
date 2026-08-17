@@ -49,12 +49,17 @@ The report schema is frozen per policy:
 | --- | --- | --- |
 | `bt-policy-001` | Immutable legacy funding behavior | `m3-b-report-001` |
 | `bt-policy-002` | Historical funding mark-price compatibility behavior | `m3-b-report-002` |
-| `bt-policy-003` | `bt-policy-002` plus frozen 1m intrabar settlement resolution | `m3-b-report-003` |
+| `bt-policy-003` | `bt-policy-002` plus frozen 1m intrabar settlement resolution | `m3-b-report-004` |
 
 `m3-b-report-002` includes the funding mark-price provenance and fallback audit
 fields defined below. Those fields must not be silently added to
 `m3-b-report-001`; a report must not claim one policy while serializing the
 other policy's schema.
+
+The historical M3-E `bt-policy-003` evidence remains immutable as
+`m3-b-report-003`. Current `bt-policy-003` reports produced after M3-F use the
+new `m3-b-report-004` schema and include the required `studyServerTime`
+provenance field.
 
 Formal policy selection is explicit:
 
@@ -579,6 +584,11 @@ schemaVersion         = m3-b-report-003
 
 `m3-b-report-003` is a new schema. It must not silently extend or mutate
 `m3-b-report-002`.
+
+The `m3-b-report-003` identity above is retained for the historical M3-D/M3-E
+output. The current post-M3-F `bt-policy-003` runner emits
+`m3-b-report-004`, which adds the exact authoritative study `serverTime` as
+`studyServerTime`; no economic or settlement behavior changes.
 
 ### Usage-driven 1m settlement data
 

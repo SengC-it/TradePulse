@@ -62,6 +62,21 @@ type SinglePeriodResult = Readonly<{
   status: BacktestRunStatus;
 }>;
 
+function requireStudyServerTime(data: BacktestData): number {
+  const studyServerTime = data.serverTime;
+  if (
+    typeof studyServerTime !== "number" ||
+    !Number.isSafeInteger(studyServerTime) ||
+    studyServerTime <= 0
+  ) {
+    throw new BacktestError(
+      "DATA_INCOMPLETE",
+      "bt-policy-003 requires a positive safe-integer BacktestData.serverTime for m3-b-report-004.",
+    );
+  }
+  return studyServerTime;
+}
+
 function statusFromResults(
   signalResults: readonly BacktestSignalResult[],
   diagnostics: readonly string[],
@@ -496,6 +511,7 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
   if (!isBacktestPolicy(policy)) {
     throw new BacktestError("INVALID_VERSION", `Unsupported backtest policy: ${String(policy)}.`);
   }
+  const studyServerTime = policy === "bt-policy-003" ? requireStudyServerTime(input.data) : undefined;
   const intrabarRequirements =
     policy === "bt-policy-003"
       ? input.data.intrabarSettlementRequirements ??
@@ -679,8 +695,9 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
   if (policy === "bt-policy-003") {
     return Object.freeze({
       ...reportCore,
-      schemaVersion: "m3-b-report-003" as const,
+      schemaVersion: "m3-b-report-004" as const,
       backtestPolicyVersion: "bt-policy-003" as const,
+      studyServerTime: studyServerTime!,
       ...buildFundingAudit(signalResults),
       ...intrabarAudit!,
     });
