@@ -38,12 +38,28 @@ function directionIndex(direction: string): number {
   return RESEARCH_DIRECTION_ORDER.indexOf(direction as (typeof RESEARCH_DIRECTION_ORDER)[number]);
 }
 
-function canonicalRecordCompare(left: NormalizedResearchSignal, right: NormalizedResearchSignal): number {
+function auditRecordCompare(left: NormalizedResearchSignal, right: NormalizedResearchSignal): number {
   const symbolDifference = symbolIndex(left.symbol) - symbolIndex(right.symbol);
   if (symbolDifference !== 0) return symbolDifference;
   const directionDifference = directionIndex(left.direction) - directionIndex(right.direction);
   if (directionDifference !== 0) return directionDifference;
   return left.signalTime - right.signalTime;
+}
+
+function economicRecordCompare(left: NormalizedResearchSignal, right: NormalizedResearchSignal): number {
+  const timeDifference = left.signalTime - right.signalTime;
+  if (timeDifference !== 0) return timeDifference;
+  const symbolDifference = symbolIndex(left.symbol) - symbolIndex(right.symbol);
+  if (symbolDifference !== 0) return symbolDifference;
+  return directionIndex(left.direction) - directionIndex(right.direction);
+}
+
+function normalizeBacktestMetric(value: number): number {
+  return Object.is(value, -0) ? 0 : value;
+}
+
+function normalizeBacktestRoundedMetric(value: number): number {
+  return normalizeBacktestMetric(Number(value.toFixed(12)));
 }
 
 function formalIdentity(record: NormalizedResearchSignal): string {
@@ -84,6 +100,9 @@ function validateResearchRecord(record: NormalizedResearchSignal): void {
   if (record.status === "EXECUTED" && [record.grossR, record.feeR, record.fundingR, record.netR].some((value) => value === null)) {
     fail("Executed research records require finite grossR, feeR, fundingR, and netR.");
   }
+  if (record.status === "EXECUTED" && (record.entryTime === null || record.exitTime === null)) {
+    fail("Executed research records require entryTime and exitTime.");
+  }
 }
 
 export function validateAndCanonicalizeResearchRecords(
@@ -96,11 +115,11 @@ export function validateAndCanonicalizeResearchRecords(
     if (identities.has(identity)) fail(`Duplicate formal research identity: ${identity}.`);
     identities.add(identity);
   }
-  return Object.freeze([...records].sort(canonicalRecordCompare));
+  return Object.freeze([...records].sort(auditRecordCompare));
 }
 
 function groupMetrics(records: readonly NormalizedResearchSignal[]): ResearchGroupMetrics {
-  const executed = records.filter((record) => record.status === "EXECUTED");
+  const executed = records.filter((record) => record.status === "EXECUTED").sort(economicRecordCompare);
   const netValues = executed.map((record) => record.netR!);
   const positive = netValues.filter((value) => value > 0);
   const negative = netValues.filter((value) => value < 0);
@@ -117,12 +136,12 @@ function groupMetrics(records: readonly NormalizedResearchSignal[]): ResearchGro
   return deepFreeze({
     formalSignals: records.length,
     executedTrades: executed.length,
-    grossR,
-    feeR,
-    fundingR,
-    netR,
+    grossR: normalizeBacktestMetric(grossR),
+    feeR: normalizeBacktestMetric(feeR),
+    fundingR: normalizeBacktestMetric(fundingR),
+    netR: normalizeBacktestMetric(netR),
     expectancyR,
-    profitFactor,
+    profitFactor: profitFactor === null ? null : normalizeBacktestRoundedMetric(profitFactor),
     profitFactorStatus,
     winRate,
   });
@@ -195,18 +214,24 @@ export function calculateResearchDiagnostics(input: Readonly<{
 }>): ResearchDiagnostics {
   const range = validateResearchRange(input.range);
   const records = validateAndCanonicalizeResearchRecords(input.records);
+  for (const record of records) {
+    if (record.signalTime < range.startTime || record.signalTime > range.endTime) {
+      fail(`Research signal ${formalIdentity(record)} is outside the requested inclusive range.`);
+    }
+  }
   const overall = groupMetrics(records);
   const days = utcCalendarDayCount(range);
+  const economicExecuted = records.filter((record) => record.status === "EXECUTED").sort(economicRecordCompare);
   const positiveBySymbol = new Map<string, number>();
-  for (const record of records) {
-    if (record.status === "EXECUTED" && record.netR! > 0) {
+  for (const record of economicExecuted) {
+    if (record.netR! > 0) {
       positiveBySymbol.set(record.symbol, (positiveBySymbol.get(record.symbol) ?? 0) + record.netR!);
     }
   }
-  const totalPositiveNetR = [...positiveBySymbol.values()].reduce((sum, value) => sum + value, 0);
+  const positiveValues = economicExecuted.filter((record) => record.netR! > 0).map((record) => record.netR!);
+  const totalPositiveNetR = normalizeBacktestMetric(positiveValues.reduce((sum, value) => sum + value, 0));
   const topSymbolPositive = Math.max(0, ...positiveBySymbol.values());
-  const positiveTrades = records.filter((record) => record.status === "EXECUTED" && record.netR! > 0).map((record) => record.netR!);
-  const largestSinglePositive = Math.max(0, ...positiveTrades);
+  const largestSinglePositive = Math.max(0, ...positiveValues);
   const signalsPerSymbol = Object.fromEntries(
     RESEARCH_SYMBOL_ORDER.map((symbol) => [symbol, records.filter((record) => record.symbol === symbol).length]),
   ) as Record<(typeof RESEARCH_SYMBOL_ORDER)[number], number>;
@@ -241,8 +266,8 @@ export function calculateResearchDiagnostics(input: Readonly<{
     winRate: overall.winRate,
     feeBurdenRatio: overall.executedTrades > 0 && overall.grossR !== 0 ? overall.feeR / Math.abs(overall.grossR) : null,
     totalPositiveNetR,
-    topSymbolShareOfPositiveNetR: totalPositiveNetR === 0 ? null : topSymbolPositive / totalPositiveNetR,
-    largestSingleTradeShareOfPositiveNetR: totalPositiveNetR === 0 ? null : largestSinglePositive / totalPositiveNetR,
+    topSymbolShareOfPositiveNetR: totalPositiveNetR === 0 ? null : normalizeBacktestRoundedMetric(topSymbolPositive / totalPositiveNetR),
+    largestSingleTradeShareOfPositiveNetR: totalPositiveNetR === 0 ? null : normalizeBacktestRoundedMetric(largestSinglePositive / totalPositiveNetR),
     bySymbol: fixedBreakdown(records, RESEARCH_SYMBOL_ORDER, (record) => record.symbol),
     byDirection: fixedBreakdown(records, RESEARCH_DIRECTION_ORDER, (record) => record.direction),
     byGrade: fixedBreakdown(records, RESEARCH_GRADE_ORDER, byGradeKey),

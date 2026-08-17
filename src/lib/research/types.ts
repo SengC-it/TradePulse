@@ -118,6 +118,11 @@ export type ScoreBucketReport = Readonly<{
 
 export type ScalarParameterValue = string | number | boolean;
 
+export type ExperimentParameter = Readonly<{
+  name: string;
+  unit: string;
+}>;
+
 export type ExperimentDefinitionInput = Readonly<{
   researchRoundId: string;
   experimentId: string;
@@ -125,7 +130,7 @@ export type ExperimentDefinitionInput = Readonly<{
   hypothesisId: ResearchHypothesisId;
   exactChange: string;
   rationale: string;
-  parametersTested: readonly string[];
+  parametersTested: readonly ExperimentParameter[];
   predeclaredParameterValues: Readonly<Record<string, readonly ScalarParameterValue[]>>;
 }>;
 

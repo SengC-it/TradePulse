@@ -15,12 +15,30 @@ const GATE_FIELDS = [
   "complexityTieThreshold",
 ] as const satisfies readonly (keyof Omit<SelectionGateSchema, "researchRoundId" | "sourceSha" | "simplerCandidateRule">)[];
 
-function validateNumericGate(gate: NumericSelectionGate, field: string): NumericSelectionGate {
+type GateField = (typeof GATE_FIELDS)[number];
+
+const GATE_SEMANTICS: Readonly<Record<GateField, Readonly<Pick<NumericSelectionGate, "direction" | "comparison">>>> = {
+  minimumAggregateImprovement: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  minimumImprovedValidationFolds: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  catastrophicFoldLimit: { direction: "MAXIMUM", comparison: "AT_MOST" },
+  minimumNetExpectancy: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  minimumProfitFactor: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  maximumSymbolConcentration: { direction: "MAXIMUM", comparison: "AT_MOST" },
+  maximumSingleTradeConcentration: { direction: "MAXIMUM", comparison: "AT_MOST" },
+  requiredRedundancyImprovement: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  minimumFormalSignals: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  minimumExecutedTrades: { direction: "MINIMUM", comparison: "AT_LEAST" },
+  // Maximum allowed complexity delta for the simpler-candidate tie; value supplied later.
+  complexityTieThreshold: { direction: "MAXIMUM", comparison: "AT_MOST" },
+};
+
+function validateNumericGate(gate: NumericSelectionGate, field: GateField): NumericSelectionGate {
   requireFiniteNumber(gate.value, `${field}.value`);
   if (gate.unit.trim().length === 0) throw new Error(`${field}.unit must be non-empty.`);
   if (gate.denominator.trim().length === 0) throw new Error(`${field}.denominator must be non-empty.`);
-  if (gate.direction !== "MINIMUM" && gate.direction !== "MAXIMUM") throw new Error(`${field}.direction is invalid.`);
-  if (!["AT_LEAST", "AT_MOST", "EQUAL"].includes(gate.comparison)) throw new Error(`${field}.comparison is invalid.`);
+  const semantics = GATE_SEMANTICS[field];
+  if (gate.direction !== semantics.direction) throw new Error(`${field}.direction must be ${semantics.direction}.`);
+  if (gate.comparison !== semantics.comparison) throw new Error(`${field}.comparison must be ${semantics.comparison}.`);
   return deepFreeze({ ...gate });
 }
 
@@ -32,6 +50,9 @@ export function validateSelectionGateSchema(input: SelectionGateSchema): Selecti
   if (input.simplerCandidateRule.tieBreakOrder.length === 0) throw new Error("simplerCandidateRule.tieBreakOrder must be non-empty.");
   if (input.simplerCandidateRule.tieBreakOrder.some((value) => value.trim().length === 0)) {
     throw new Error("simplerCandidateRule.tieBreakOrder contains an empty value.");
+  }
+  if (new Set(input.simplerCandidateRule.tieBreakOrder).size !== input.simplerCandidateRule.tieBreakOrder.length) {
+    throw new Error("simplerCandidateRule.tieBreakOrder contains duplicate values.");
   }
   return deepFreeze({
     ...input,

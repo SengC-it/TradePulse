@@ -3,7 +3,7 @@ import {
   RESEARCH_CONTROL_EXPERIMENT_ID,
   RESEARCH_DIAGNOSTICS_SCHEMA_VERSION,
 } from "./constants.ts";
-import { getResearchFold, validateResearchRange } from "./folds.ts";
+import { getResearchFoldRoleRange, validateResearchRange } from "./folds.ts";
 import type {
   ResearchCandidateIdentity,
   ResearchDiagnosticsReport,
@@ -18,9 +18,16 @@ export function createResearchDiagnosticsReport(input: Readonly<Omit<ResearchDia
   requireNonEmpty(input.researchRoundId, "researchRoundId");
   requireNonEmpty(input.experimentId, "experimentId");
   requireNonEmpty(input.variantId, "variantId");
-  getResearchFold(input.foldId);
-  validateResearchRange(input.range);
   if (input.foldRole !== "RESEARCH" && input.foldRole !== "VALIDATION") throw new Error("Invalid research fold role.");
+  const expectedRange = getResearchFoldRoleRange(input.foldId, input.foldRole);
+  const range = validateResearchRange(input.range);
+  if (range.startTime !== expectedRange.startTime || range.endTime !== expectedRange.endTime) {
+    throw new Error("Research diagnostics report range does not match the frozen fold-role range.");
+  }
+  const diagnosticsRange = validateResearchRange(input.diagnostics.range);
+  if (diagnosticsRange.startTime !== range.startTime || diagnosticsRange.endTime !== range.endTime) {
+    throw new Error("Research diagnostics range must match the report range.");
+  }
   if (input.dataClassification !== "RESEARCH_AVAILABLE_SEEN_DATA" && input.dataClassification !== "SYNTHETIC_FIXTURE") {
     throw new Error("Invalid research data classification.");
   }
@@ -32,7 +39,7 @@ export function createResearchDiagnosticsReport(input: Readonly<Omit<ResearchDia
   return deepFreeze({
     ...input,
     schemaVersion: RESEARCH_DIAGNOSTICS_SCHEMA_VERSION,
-    range: { startTime: input.range.startTime, endTime: input.range.endTime },
+    range,
   });
 }
 

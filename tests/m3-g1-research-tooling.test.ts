@@ -22,6 +22,7 @@ import {
   createExperimentDefinition,
   createResearchDiagnosticsReport,
   getResearchFold,
+  getResearchFoldRoleRange,
   isControlExperiment,
   orderResearchCandidates,
   selectRecordsForFoldRole,
@@ -96,13 +97,18 @@ function makeDefinition(overrides: Partial<ExperimentDefinition> = {}): Experime
     hypothesisId: "H1_SIGNAL_REDUNDANCY",
     exactChange: "No strategy change; diagnostic fixture only",
     rationale: "Synthetic deterministic test",
-    parametersTested: ["window"],
+    parametersTested: [{ name: "window", unit: "hours" }],
     predeclaredParameterValues: { window: [6, 12, 24] },
     ...overrides,
   });
 }
 
-function makeBacktestResult(overrides: Partial<BacktestSignalResult> = {}): BacktestSignalResult {
+type BacktestResultOverrides = Omit<Partial<BacktestSignalResult>, "snapshot"> & {
+  snapshot?: Partial<BacktestSignalSnapshot>;
+};
+
+function makeBacktestResult(overrides: BacktestResultOverrides = {}): BacktestSignalResult {
+  const { snapshot: snapshotOverrides, ...resultOverrides } = overrides;
   const snapshot: BacktestSignalSnapshot = {
     strategyVersion: "baseline-001",
     backtestPolicyVersion: "bt-policy-003",
@@ -125,14 +131,15 @@ function makeBacktestResult(overrides: Partial<BacktestSignalResult> = {}): Back
     },
     totalScore: 90,
     grade: "A",
+    ...snapshotOverrides,
   };
   return {
     snapshot,
     status: "EXECUTED",
-    entryTime: BASE_TIME + HOUR,
+    entryTime: snapshot.signalTime + HOUR,
     rawEntryPrice: 100,
     entryFill: 100,
-    exitTime: BASE_TIME + 2 * HOUR,
+    exitTime: snapshot.signalTime + 2 * HOUR,
     rawExitPrice: 110,
     exitFill: 110,
     heldCandleNumber: 2,
@@ -144,7 +151,7 @@ function makeBacktestResult(overrides: Partial<BacktestSignalResult> = {}): Back
     fundingR: 0.05,
     grossR: 1,
     netR: 0.85,
-    ...overrides,
+    ...resultOverrides,
   };
 }
 
@@ -173,27 +180,28 @@ function sourceText(): string {
 }
 
 function completeGate(): SelectionGateSchema {
-  const numeric = {
+  const minimum = {
     value: 1,
     unit: "R",
     direction: "MINIMUM" as const,
     denominator: "executed trades",
     comparison: "AT_LEAST" as const,
   };
+  const maximum = { ...minimum, direction: "MAXIMUM" as const, comparison: "AT_MOST" as const };
   return {
     researchRoundId: "round-001",
     sourceSha: "a7933d3014a7a6c3a2b2e8417e6ed7fc7c8f7585",
-    minimumAggregateImprovement: numeric,
-    minimumImprovedValidationFolds: numeric,
-    catastrophicFoldLimit: { ...numeric, direction: "MAXIMUM", comparison: "AT_MOST" },
-    minimumNetExpectancy: numeric,
-    minimumProfitFactor: numeric,
-    maximumSymbolConcentration: { ...numeric, direction: "MAXIMUM", comparison: "AT_MOST" },
-    maximumSingleTradeConcentration: { ...numeric, direction: "MAXIMUM", comparison: "AT_MOST" },
-    requiredRedundancyImprovement: numeric,
-    minimumFormalSignals: numeric,
-    minimumExecutedTrades: numeric,
-    complexityTieThreshold: numeric,
+    minimumAggregateImprovement: minimum,
+    minimumImprovedValidationFolds: minimum,
+    catastrophicFoldLimit: maximum,
+    minimumNetExpectancy: minimum,
+    minimumProfitFactor: minimum,
+    maximumSymbolConcentration: maximum,
+    maximumSingleTradeConcentration: maximum,
+    requiredRedundancyImprovement: minimum,
+    minimumFormalSignals: minimum,
+    minimumExecutedTrades: minimum,
+    complexityTieThreshold: maximum,
     simplerCandidateRule: { rule: "prefer simpler", tieBreakOrder: ["parameterCount", "experimentId"] },
   };
 }
@@ -322,7 +330,7 @@ describe("M3-G.1 signal density and redundancy diagnostics", () => {
   it("returns fixed five-symbol signal counts in fixed order", () => {
     const diagnostics = calculateResearchDiagnostics({
       records: RESEARCH_SYMBOLS.map((symbol, index) => makeSignal({ symbol, signalTime: BASE_TIME + index * HOUR }, index)),
-      range: metricRange(),
+      range: metricRange(RESEARCH_SYMBOLS.map((symbol, index) => makeSignal({ symbol, signalTime: BASE_TIME + index * HOUR }, index))),
     });
     expect(Object.keys(diagnostics.signalsPerSymbol)).toEqual([...RESEARCH_SYMBOLS]);
     expect(Object.values(diagnostics.signalsPerSymbol)).toEqual([1, 1, 1, 1, 1]);
@@ -335,7 +343,11 @@ describe("M3-G.1 signal density and redundancy diagnostics", () => {
         makeSignal({ signalTime: BASE_TIME, symbol: "ETHUSDT" }),
         makeSignal({ signalTime: BASE_TIME + HOUR, symbol: "BTCUSDT" }, 1),
       ],
-      range: metricRange(),
+      range: metricRange([
+        makeSignal({ signalTime: BASE_TIME, symbol: "BTCUSDT" }),
+        makeSignal({ signalTime: BASE_TIME, symbol: "ETHUSDT" }),
+        makeSignal({ signalTime: BASE_TIME + HOUR, symbol: "BTCUSDT" }, 1),
+      ]),
     });
     expect(diagnostics.uniqueSignalHours).toBe(2);
     expect(diagnostics.uniqueSignalHoursBySymbol).toMatchObject({ BTCUSDT: 2, ETHUSDT: 1 });
@@ -446,7 +458,7 @@ describe("M3-G.1 cost, concentration, and breakdown diagnostics", () => {
   it("computes normal profit factor", () => {
     const diagnostics = calculateResearchDiagnostics({
       records: [makeSignal({ netR: 2 }), makeSignal({ signalTime: BASE_TIME + HOUR, netR: -1 }, 1)],
-      range: metricRange(),
+      range: metricRange([makeSignal({ netR: 2 }), makeSignal({ signalTime: BASE_TIME + HOUR, netR: -1 }, 1)]),
     });
     expect(diagnostics.profitFactor).toBe(2);
     expect(diagnostics.profitFactorStatus).toBe("NORMAL");
@@ -477,12 +489,16 @@ describe("M3-G.1 cost, concentration, and breakdown diagnostics", () => {
         makeSignal({ symbol: "ETHUSDT", signalTime: BASE_TIME + HOUR, netR: 1 }, 1),
         makeSignal({ symbol: "SOLUSDT", signalTime: BASE_TIME + 2 * HOUR, netR: -10 }, 2),
       ],
-      range: metricRange(),
+      range: metricRange([
+        makeSignal({ symbol: "BTCUSDT", netR: 2 }),
+        makeSignal({ symbol: "ETHUSDT", signalTime: BASE_TIME + HOUR, netR: 1 }, 1),
+        makeSignal({ symbol: "SOLUSDT", signalTime: BASE_TIME + 2 * HOUR, netR: -10 }, 2),
+      ]),
     });
     expect(diagnostics).toMatchObject({
       totalPositiveNetR: 3,
-      topSymbolShareOfPositiveNetR: 2 / 3,
-      largestSingleTradeShareOfPositiveNetR: 2 / 3,
+      topSymbolShareOfPositiveNetR: 0.666666666667,
+      largestSingleTradeShareOfPositiveNetR: 0.666666666667,
     });
   });
 
@@ -603,8 +619,32 @@ describe("M3-G.1 immutable experiment registry and candidate ordering", () => {
     expect(() => makeDefinition({ predeclaredParameterValues: { window: [1, 1] } })).toThrow(/duplicate/);
   });
 
+  it("requires named parameters with units and unique names", () => {
+    expect(() => makeDefinition({ parametersTested: [{ name: "window", unit: "" }] })).toThrow(/unit/);
+    expect(() => makeDefinition({
+      parametersTested: [{ name: "window", unit: "hours" }, { name: "window", unit: "bars" }],
+      predeclaredParameterValues: { window: [1] },
+    })).toThrow(/duplicate/);
+  });
+
+  it("requires parameter value keys and candidate counts to match declarations", () => {
+    expect(() => makeDefinition({ predeclaredParameterValues: { other: [1] } })).toThrow(/not declared/);
+    expect(() => makeDefinition({ predeclaredParameterValues: {} })).toThrow(/exactly one entry/);
+    expect(() => makeDefinition({ predeclaredParameterValues: { window: [] } })).toThrow(/at least one/);
+    expect(makeDefinition({ predeclaredParameterValues: { window: [12] } }).predeclaredParameterValues).toEqual({ window: [12] });
+  });
+
+  it("allows an explicitly non-tunable definition only when both parameter collections are empty", () => {
+    const definition = makeDefinition({ parametersTested: [], predeclaredParameterValues: {} });
+    expect(definition.parametersTested).toEqual([]);
+    expect(definition.predeclaredParameterValues).toEqual({});
+  });
+
   it("does not expand a Cartesian parameter grid", () => {
-    const definition = makeDefinition({ predeclaredParameterValues: { a: [1, 2], b: ["x", "y"] } });
+    const definition = makeDefinition({
+      parametersTested: [{ name: "a", unit: "count" }, { name: "b", unit: "label" }],
+      predeclaredParameterValues: { a: [1, 2], b: ["x", "y"] },
+    });
     expect(definition.predeclaredParameterValues).toEqual({ a: [1, 2], b: ["x", "y"] });
     expect(Object.keys(definition.predeclaredParameterValues)).toHaveLength(2);
   });
@@ -652,14 +692,15 @@ describe("M3-G.1 immutable experiment registry and candidate ordering", () => {
 
 describe("M3-G.1 provenance, serialization, and gate schema", () => {
   it("requires a positive safe studyServerTime and frozen provenance values", () => {
-    const diagnostics = calculateResearchDiagnostics({ records: [], range: { startTime: BASE_TIME, endTime: BASE_TIME } });
+    const range = getResearchFoldRoleRange("F1", "RESEARCH");
+    const diagnostics = calculateResearchDiagnostics({ records: [], range });
     const input = {
       researchRoundId: "round-001",
       experimentId: RESEARCH_CONTROL_EXPERIMENT_ID,
       variantId: RESEARCH_CONTROL_VARIANT_ID,
       foldId: "F1" as const,
       foldRole: "RESEARCH" as const,
-      range: { startTime: BASE_TIME, endTime: BASE_TIME },
+      range,
       dataClassification: RESEARCH_DATA_CLASSIFICATIONS[1],
       backtestPolicyVersion: RESEARCH_BACKTEST_POLICY_VERSION,
       studyServerTime: BASE_TIME,
@@ -670,17 +711,43 @@ describe("M3-G.1 provenance, serialization, and gate schema", () => {
     expect(() => createResearchDiagnosticsReport({ ...input, studyServerTime: Number.MAX_SAFE_INTEGER + 1 })).toThrow();
   });
 
-  it("serializes reports byte-stably and canonicalizes irrelevant input order", () => {
-    const records = [makeSignal({ signalTime: BASE_TIME + HOUR }, 1), makeSignal()];
-    const diagnosticsA = calculateResearchDiagnostics({ records, range: metricRange(records) });
-    const diagnosticsB = calculateResearchDiagnostics({ records: [...records].reverse(), range: metricRange(records) });
-    const base = {
+  it("rejects a report range or diagnostics range that is not the frozen fold-role range", () => {
+    const range = getResearchFoldRoleRange("F1", "RESEARCH");
+    const diagnostics = calculateResearchDiagnostics({ records: [], range });
+    const input = {
       researchRoundId: "round-001",
       experimentId: RESEARCH_CONTROL_EXPERIMENT_ID,
       variantId: RESEARCH_CONTROL_VARIANT_ID,
       foldId: "F1" as const,
       foldRole: "RESEARCH" as const,
-      range: metricRange(records),
+      range,
+      dataClassification: "SYNTHETIC_FIXTURE" as const,
+      backtestPolicyVersion: RESEARCH_BACKTEST_POLICY_VERSION,
+      studyServerTime: BASE_TIME,
+      diagnostics,
+    };
+    expect(() => createResearchDiagnosticsReport({
+      ...input,
+      range: { ...range, startTime: range.startTime + 1 },
+    })).toThrow(/frozen fold-role range/);
+    expect(() => createResearchDiagnosticsReport({
+      ...input,
+      diagnostics: { ...diagnostics, range: { ...range, endTime: range.endTime - 1 } },
+    })).toThrow(/diagnostics range/);
+  });
+
+  it("serializes reports byte-stably and canonicalizes irrelevant input order", () => {
+    const records = [makeSignal({ signalTime: BASE_TIME + HOUR }, 1), makeSignal()];
+    const frozenRange = getResearchFoldRoleRange("F2", "RESEARCH");
+    const diagnosticsA = calculateResearchDiagnostics({ records, range: frozenRange });
+    const diagnosticsB = calculateResearchDiagnostics({ records: [...records].reverse(), range: frozenRange });
+    const base = {
+      researchRoundId: "round-001",
+      experimentId: RESEARCH_CONTROL_EXPERIMENT_ID,
+      variantId: RESEARCH_CONTROL_VARIANT_ID,
+      foldId: "F2" as const,
+      foldRole: "RESEARCH" as const,
+      range: frozenRange,
       dataClassification: "SYNTHETIC_FIXTURE" as const,
       backtestPolicyVersion: RESEARCH_BACKTEST_POLICY_VERSION,
       studyServerTime: BASE_TIME,
@@ -707,6 +774,43 @@ describe("M3-G.1 provenance, serialization, and gate schema", () => {
         direction: "INVALID",
       } as unknown as SelectionGateSchema["minimumFormalSignals"],
     })).toThrow(/direction/);
+  });
+
+  it("enforces the frozen direction and comparison semantics for every gate", () => {
+    const semantics = {
+      minimumAggregateImprovement: ["MINIMUM", "AT_LEAST"],
+      minimumImprovedValidationFolds: ["MINIMUM", "AT_LEAST"],
+      catastrophicFoldLimit: ["MAXIMUM", "AT_MOST"],
+      minimumNetExpectancy: ["MINIMUM", "AT_LEAST"],
+      minimumProfitFactor: ["MINIMUM", "AT_LEAST"],
+      maximumSymbolConcentration: ["MAXIMUM", "AT_MOST"],
+      maximumSingleTradeConcentration: ["MAXIMUM", "AT_MOST"],
+      requiredRedundancyImprovement: ["MINIMUM", "AT_LEAST"],
+      minimumFormalSignals: ["MINIMUM", "AT_LEAST"],
+      minimumExecutedTrades: ["MINIMUM", "AT_LEAST"],
+      complexityTieThreshold: ["MAXIMUM", "AT_MOST"],
+    } as const;
+    for (const [field, [direction, comparison]] of Object.entries(semantics)) {
+      const gate = completeGate();
+      const wrongDirection = direction === "MINIMUM" ? "MAXIMUM" : "MINIMUM";
+      expect(() => validateSelectionGateSchema({
+        ...gate,
+        [field]: { ...gate[field as keyof typeof semantics], direction: wrongDirection },
+      } as unknown as SelectionGateSchema)).toThrow(/direction/);
+      const wrongComparison = comparison === "AT_LEAST" ? "AT_MOST" : "AT_LEAST";
+      expect(() => validateSelectionGateSchema({
+        ...gate,
+        [field]: { ...gate[field as keyof typeof semantics], comparison: wrongComparison },
+      } as unknown as SelectionGateSchema)).toThrow(/comparison/);
+    }
+  });
+
+  it("rejects duplicate simpler-candidate tie-break fields", () => {
+    const gate = completeGate();
+    expect(() => validateSelectionGateSchema({
+      ...gate,
+      simplerCandidateRule: { ...gate.simplerCandidateRule, tieBreakOrder: ["parameterCount", "parameterCount"] },
+    })).toThrow(/duplicate/);
   });
 });
 
@@ -735,6 +839,97 @@ describe("M3-G.1 control reproducibility and source boundary", () => {
       topSymbolShareOfPositiveNetR: existing.topSymbolShareOfPositiveNetR,
       largestSingleTradeShareOfPositiveNetR: existing.largestSingleTradeShareOfPositiveNetR,
     });
+  });
+
+  it("matches backtest economics for interleaved multi-symbol LONG/SHORT trades and is input-order invariant", () => {
+    const results = [
+      makeBacktestResult({
+        snapshot: { signalTime: BASE_TIME + 2 * HOUR, symbol: "SOLUSDT", direction: "SHORT" },
+        grossR: 0.4,
+        feeR: 0.04,
+        fundingR: -0.02,
+        netR: 0.333333333333,
+      }),
+      makeBacktestResult({
+        snapshot: { signalTime: BASE_TIME + HOUR, symbol: "BTCUSDT", direction: "LONG" },
+        grossR: 0.8,
+        feeR: 0.08,
+        fundingR: 0.02,
+        netR: 0.7,
+      }),
+      makeBacktestResult({
+        snapshot: { signalTime: BASE_TIME, symbol: "ETHUSDT", direction: "LONG" },
+        grossR: 1.2,
+        feeR: 0.1,
+        fundingR: 0.0,
+        netR: 1.1,
+      }),
+      makeBacktestResult({
+        snapshot: { signalTime: BASE_TIME + HOUR, symbol: "XRPUSDT", direction: "SHORT" },
+        grossR: -0.2,
+        feeR: 0.03,
+        fundingR: -0.01,
+        netR: -0.2,
+      }),
+      makeBacktestResult({
+        snapshot: { signalTime: BASE_TIME, symbol: "BTCUSDT", direction: "SHORT" },
+        grossR: -0.4,
+        feeR: 0.05,
+        fundingR: -0.02,
+        netR: -0.4,
+      }),
+    ];
+    const existing = calculateBacktestMetrics({
+      evaluations: [makeEvaluation(results.length)],
+      signalResults: results,
+    });
+    const records = results.map(adaptBacktestSignalResult);
+    const research = calculateResearchDiagnostics({ records, range: metricRange(records) });
+    const common = (metrics: typeof existing) => ({
+      grossR: metrics.grossR,
+      netR: metrics.netR,
+      feeR: metrics.cumulativeFeeR,
+      fundingR: metrics.cumulativeFundingR,
+      profitFactor: metrics.profitFactor,
+      profitFactorStatus: metrics.profitFactorStatus,
+      expectancyR: metrics.expectancyR,
+      winRate: metrics.winRate,
+      totalPositiveNetR: metrics.totalPositiveNetR,
+      topSymbolShareOfPositiveNetR: metrics.topSymbolShareOfPositiveNetR,
+      largestSingleTradeShareOfPositiveNetR: metrics.largestSingleTradeShareOfPositiveNetR,
+    });
+    expect({
+      grossR: research.grossR,
+      netR: research.netR,
+      feeR: research.feeR,
+      fundingR: research.fundingR,
+      profitFactor: research.profitFactor,
+      profitFactorStatus: research.profitFactorStatus,
+      expectancyR: research.expectancyR,
+      winRate: research.winRate,
+      totalPositiveNetR: research.totalPositiveNetR,
+      topSymbolShareOfPositiveNetR: research.topSymbolShareOfPositiveNetR,
+      largestSingleTradeShareOfPositiveNetR: research.largestSingleTradeShareOfPositiveNetR,
+    }).toEqual(common(existing));
+    expect(existing.profitFactor).not.toBe(Math.floor(existing.profitFactor!));
+    expect(existing.topSymbolShareOfPositiveNetR).not.toBe(Math.floor(existing.topSymbolShareOfPositiveNetR!));
+    const permutedResearch = calculateResearchDiagnostics({
+      records: [...records].reverse(),
+      range: metricRange(records),
+    });
+    expect({
+      grossR: permutedResearch.grossR,
+      netR: permutedResearch.netR,
+      feeR: permutedResearch.feeR,
+      fundingR: permutedResearch.fundingR,
+      profitFactor: permutedResearch.profitFactor,
+      profitFactorStatus: permutedResearch.profitFactorStatus,
+      expectancyR: permutedResearch.expectancyR,
+      winRate: permutedResearch.winRate,
+      totalPositiveNetR: permutedResearch.totalPositiveNetR,
+      topSymbolShareOfPositiveNetR: permutedResearch.topSymbolShareOfPositiveNetR,
+      largestSingleTradeShareOfPositiveNetR: permutedResearch.largestSingleTradeShareOfPositiveNetR,
+    }).toEqual(common(existing));
   });
 
   it("does not mutate BacktestSignalResult inputs", () => {
@@ -773,6 +968,22 @@ describe("M3-G.1 control reproducibility and source boundary", () => {
 });
 
 describe("M3-G.1 boundary regression and unsupported research scope", () => {
+  it("requires every research record signalTime to be inside the requested inclusive range", () => {
+    const range = { startTime: BASE_TIME, endTime: BASE_TIME + HOUR };
+    expect(() => calculateResearchDiagnostics({
+      records: [makeSignal({ signalTime: BASE_TIME - 1 })],
+      range,
+    })).toThrow(/outside the requested inclusive range/);
+    expect(() => calculateResearchDiagnostics({
+      records: [makeSignal({ signalTime: BASE_TIME + 2 * HOUR })],
+      range,
+    })).toThrow(/outside the requested inclusive range/);
+    expect(calculateResearchDiagnostics({
+      records: [makeSignal({ signalTime: BASE_TIME }), makeSignal({ signalTime: BASE_TIME + HOUR }, 1)],
+      range,
+    }).formalSignals).toBe(2);
+  });
+
   it("keeps the approved five-symbol universe unchanged", () => {
     const symbols: ResearchSymbol[] = [...RESEARCH_SYMBOLS];
     expect(symbols).toEqual(["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"]);
@@ -783,7 +994,7 @@ describe("M3-G.1 boundary regression and unsupported research scope", () => {
     const late = makeSignal({ signalTime: BASE_TIME + 12 * HOUR, exitTime: BASE_TIME + 13 * HOUR }, 12);
     const earlyDiagnostics = calculateResearchDiagnostics({ records: [early, late], range: metricRange([early, late]) });
     const noExitDiagnostics = calculateResearchDiagnostics({
-      records: [makeSignal({ exitTime: null }), makeSignal({ signalTime: BASE_TIME + 12 * HOUR, exitTime: null }, 12)],
+      records: [nonExecuted(), nonExecuted({ signalTime: BASE_TIME + 12 * HOUR })],
       range: metricRange([early, late]),
     });
     expect(earlyDiagnostics.overlappingSignalCount).toBe(noExitDiagnostics.overlappingSignalCount);

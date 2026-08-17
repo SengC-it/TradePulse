@@ -53,6 +53,12 @@ export function getResearchFold(foldId: ResearchFoldId): ResearchFold {
   return fold;
 }
 
+export function getResearchFoldRoleRange(foldId: ResearchFoldId, role: ResearchFoldRole): ResearchRange {
+  if (!RESEARCH_FOLD_ROLES.includes(role)) throw new Error(`Unknown research fold role: ${String(role)}.`);
+  const fold = getResearchFold(foldId);
+  return fold[role === "RESEARCH" ? "research" : "validation"];
+}
+
 export function validateResearchRange(input: ResearchRange): ResearchRange {
   requireSafeTimestamp(input.startTime, "Research range startTime");
   requireSafeTimestamp(input.endTime, "Research range endTime");
@@ -79,8 +85,7 @@ export function isSignalTimeInFoldRange(
 ): boolean {
   requireSafeTimestamp(signalTime, "signalTime");
   if (!RESEARCH_FOLD_IDS.includes(foldId)) throw new Error(`Unknown research fold: ${String(foldId)}.`);
-  if (!RESEARCH_FOLD_ROLES.includes(role)) throw new Error(`Unknown research fold role: ${String(role)}.`);
-  const selectedRange = getResearchFold(foldId)[role === "RESEARCH" ? "research" : "validation"];
+  const selectedRange = getResearchFoldRoleRange(foldId, role);
   return signalTime >= selectedRange.startTime && signalTime <= selectedRange.endTime;
 }
 
