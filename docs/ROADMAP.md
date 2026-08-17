@@ -668,7 +668,11 @@ M3-G.2 freezes exactly one real machine-readable gate record for
 `docs/BASELINE_002_SELECTION_GATES_R1.md`. It includes the aggregate,
 validation-fold, catastrophic-fold, expectancy, PF, concentration,
 redundancy, sample, fee-burden, and complexity-tie rules, with exact units,
-denominators, direction, and comparison semantics.
+denominators, direction, and comparison semantics. The SHA-covered record also
+contains the all-applicable hard-gate conjunction, complete hard-gate identity
+list, PF status/Infinity semantics, explicit N/A handling, exact F1-F6
+validation construction, non-negative-integer complexity domain, and round
+invalidation contract.
 
 This milestone uses synthetic validation only. It does not run or inspect
 candidate performance, fetch historical data, rerun baseline-001, implement
@@ -676,10 +680,13 @@ baseline-002, or start M3-H. The canonical gate record SHA-256 is recorded in
 the selection-gate document. Gate application/evaluator work remains deferred
 to the later M3-I application boundary.
 
-The gate record is immutable once M3-H starts. A later change to any value,
-formula, applicability rule, sample floor, or tie rule invalidates round-001
-and requires a new research-round version. If no candidate later passes every
-applicable gate, the valid result is `NO BASELINE-002 CANDIDATE`.
+The gate record becomes immutable at the first M3-H performance result. A later
+change to any recorded gate value, formula, fold-improvement definition,
+catastrophic-fold definition, applicability rule, sample floor, selection tie
+rule, or aggregate-validation definition invalidates round-001 and requires a
+new research-round version. A failed candidate cannot weaken the gates. If no
+candidate later passes every applicable gate, the valid result is
+`NO BASELINE-002 CANDIDATE`.
 
 M3-G.1 and M3-G.2 remain specification/tooling gates only. The sequence is
 M3-G → M3-G.1 → M3-G.2 → M3-H → M3-I → M3-J → forward validation after the

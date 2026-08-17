@@ -8,14 +8,16 @@ This document freezes the real selection gates for exactly one research round:
 ```text
 researchRoundId: baseline-002-research-round-001
 tooling source SHA: 2f2c8f442b86bb730745908a6d6bf6a76ac43dd6
-selectionGateSha256: a27e830e14cdaa6a7cf86cc8bc59ea60f40d6a5ab8f560c5dc57ac250eaf0b21
+selectionGateSha256: 11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd
 ```
 
 The SHA-256 is over the UTF-8 bytes of the deterministic
 `BASELINE_002_RESEARCH_ROUND_001_MACHINE_RECORD` serialization produced by
 `stableStringify`, with no trailing newline. The machine-readable record is
 `src/lib/research/selection-gates-round-001.ts` and is validated by the
-existing `SelectionGateSchema` validator.
+existing `SelectionGateSchema` validator. The SHA-covered record includes the
+complete eligibility, applicability, aggregation, PF-status, complexity-domain,
+and round-immutability semantics below; they are not Markdown-only policy.
 
 No candidate performance was inspected, generated, loaded, compared, or
 inferred while freezing these gates. All validation in M3-G.2 uses synthetic
@@ -41,6 +43,45 @@ gate below passes and all data/provenance integrity requirements pass.
 | `minimumExecutedTrades` | 30 | `executed-trades` | `MINIMUM / AT_LEAST` | Each individual validation fold F1–F6 must have at least 30 executed trades. |
 | `complexityTieThreshold` | 0.01 | `R/executed-trade` | `MAXIMUM / AT_MOST` | Absolute difference in aggregate validation expectancyR between two eligible candidates. |
 
+## Machine-readable eligibility and PF semantics
+
+The eligibility policy is immutable and SHA-covered:
+
+```text
+mode: ALL_APPLICABLE_GATES_MUST_PASS
+notApplicableHandling: EXCLUDED_FROM_CONJUNCTION_NOT_COUNTED_AS_PASS
+performanceGateFailure: INELIGIBLE
+integrityFailure: INELIGIBLE_INCOMPLETE_EVIDENCE
+```
+
+The hard eligibility identities are exactly:
+
+```text
+minimumAggregateImprovement
+minimumImprovedValidationFolds
+catastrophicFoldLimit
+minimumNetExpectancy
+minimumProfitFactor
+maximumSymbolConcentration
+maximumSingleTradeConcentration
+maximumFeeBurdenRatio
+requiredRedundancyImprovement
+minimumFormalSignals
+minimumExecutedTrades
+```
+
+`complexityTieThreshold` is a selection/tie semantic and is intentionally not
+an eligibility performance gate.
+
+Aggregate PF status is also machine-readable:
+
+```text
+NORMAL: COMPARE_NUMERIC_PF_TO_MINIMUM_PROFIT_FACTOR
+NO_LOSSES: PF_GATE_PASSES_ONLY_IF_ALL_SAMPLE_GATES_PASS
+NO_TRADES: FAIL
+encodeInfinity: false
+```
+
 ## Fold, catastrophic, and applicability semantics
 
 - An improved validation fold is counted only when the candidate-minus-control
@@ -49,16 +90,35 @@ gate below passes and all data/provenance integrity requirements pass.
 - A validation fold is catastrophic when expectancyR is `<= -0.10`, when its
   status is `NORMAL` and PF is `< 0.80`, when its status is `NO_TRADES`, or
   when its per-fold executed-trade sample floor fails. `NO_LOSSES` is not
-  catastrophic solely because PF is null when all sample and integrity gates
-  pass.
+  catastrophic solely because PF is null (`noLossesIsCatastrophicSolelyBecausePfNull: false`)
+  when all sample and integrity gates pass.
 - The redundancy gate is mandatory for `H1_SIGNAL_REDUNDANCY` and
   `H4_SIGNAL_DENSITY`, and for a future combination containing either
-  mechanism. It is `NOT_APPLICABLE` for pure single-mechanism H2, H3, and H5
-  candidates. N/A is not converted to numeric zero or treated as a pass.
+  mechanism (`combinationContainingH1OrH4: REQUIRED`). It is
+  `NOT_APPLICABLE` for pure single-mechanism H2, H3, and H5 candidates.
+  `notApplicableRepresentation` is `NOT_APPLICABLE`, and
+  `notApplicableCountsAsPass` is `false`; N/A is not converted to numeric
+  zero or treated as a pass.
+
+## Aggregate validation construction
+
+Aggregate validation is the SHA-covered concatenation of exactly the six
+non-overlapping frozen validation segments:
+
+```text
+foldIds: F1, F2, F3, F4, F5, F6
+role: VALIDATION
+construction: CONCATENATE_NON_OVERLAPPING_FROZEN_VALIDATION_SEGMENTS
+timeBasis: signalTime
+```
+
+It is not an average of fold metrics, research plus validation, a random
+pooled period, or an alternate period.
 
 ## Complexity and deterministic tie rule
 
-The four non-negative integer complexity dimensions are ordered as:
+The four complexity dimensions have the frozen domain `NON_NEGATIVE_INTEGER`
+and are ordered as:
 
 1. `newRules`
 2. `newTunableThresholds`
@@ -98,11 +158,39 @@ untouched OOS.
 
 ## Immutable boundary
 
-The gates are frozen before any M3-H result. A later change to a gate value,
-formula, fold-improvement definition, catastrophic definition, applicability
-rule, sample floor, or tie rule invalidates round-001 and requires a new
-research round. If no candidate later passes every applicable gate, the valid
-M3-I outcome is:
+The round becomes immutable at:
+
+```text
+FIRST_M3_H_PERFORMANCE_RESULT_GENERATED
+```
+
+The SHA-covered invalidating changes are exactly:
+
+```text
+GATE_VALUE
+GATE_FORMULA
+FOLD_IMPROVEMENT_DEFINITION
+CATASTROPHIC_FOLD_DEFINITION
+APPLICABILITY_RULE
+SAMPLE_FLOOR
+SELECTION_TIE_RULE
+AGGREGATE_VALIDATION_DEFINITION
+```
+
+Any such change has the action:
+
+```text
+INVALIDATE_ROUND_AND_REQUIRE_NEW_RESEARCH_ROUND
+```
+
+Prior results from an invalidated round remain classified as `SEEN_DATA`.
+The round cannot weaken its gates after a failed candidate:
+
+```text
+failedRoundCandidatePolicy: DO_NOT_WEAKEN_GATES
+```
+
+If no candidate later passes every applicable gate, the valid M3-I outcome is:
 
 ```text
 NO BASELINE-002 CANDIDATE

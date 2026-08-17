@@ -447,19 +447,43 @@ fixtures only and must prove:
    for aggregate improvement, fold improvement, catastrophic folds, net
    expectancy, PF, symbol concentration, single-trade concentration, fee
    burden, redundancy improvement, minimum samples, and complexity/ties;
-2. the round ID and tooling source SHA are exact and the record is immutable;
-3. the fold improvement delta is +0.02 and insufficient-sample folds do not
+2. all applicable hard gates are conjunctive, the complete hard-gate identity
+   list is SHA-covered, and `complexityTieThreshold` is excluded from
+   eligibility;
+3. N/A is represented as `NOT_APPLICABLE`, is excluded from the conjunction,
+   and is not counted as pass; H1/H4 combinations require redundancy while
+   pure H2/H3/H5 remain N/A;
+4. aggregate PF status is machine-readable: NORMAL is numeric, NO_LOSSES
+   requires all sample gates, NO_TRADES fails, and Infinity is not encoded;
+5. the round ID and tooling source SHA are exact and the record is immutable;
+6. the fold improvement delta is +0.02 and insufficient-sample folds do not
    count as improved;
-4. catastrophic expectancy/PF/NO_TRADES/sample definitions and the zero-fold
-   limit are exact;
-5. H1/H4 redundancy is required while pure H2/H3/H5 is N/A, never numeric zero;
-6. aggregate formal and per-fold executed-trade floors are exact;
-7. null concentration or fee burden, NO_TRADES PF, and failed applicable gates
-   cannot pass; NO_LOSSES is not catastrophic solely because PF is null;
-8. the frozen complexity dimensions and deterministic tie order are exact;
-9. canonical serialization is byte-stable and its SHA-256 is reproducible;
-10. the record has no network, history loader, candidate result, optimizer,
-    baseline-002 strategy, or M3-H execution path.
+7. catastrophic expectancy/PF/NO_TRADES/sample definitions, the explicit
+   NO_LOSSES exception, and the zero-fold limit are exact;
+8. aggregate validation is exactly the non-overlapping F1-F6 VALIDATION
+   concatenation by signalTime, not an average, research-plus-validation, or
+   alternate period;
+9. all four complexity dimensions have the `NON_NEGATIVE_INTEGER` domain and
+   preserve their frozen order;
+10. aggregate formal and per-fold executed-trade floors are exact;
+11. null concentration or fee burden, NO_TRADES PF, and failed applicable gates
+   cannot pass;
+12. the round becomes immutable at the first M3-H performance result, every
+   listed semantic change invalidates the round, invalidation requires a new
+   research round, and prior results remain `SEEN_DATA`;
+13. a failed candidate cannot weaken the gates and the no-candidate outcome is
+   `NO BASELINE-002 CANDIDATE`;
+14. the frozen complexity dimensions and deterministic tie order are exact;
+15. canonical serialization is byte-stable and its recomputed SHA-256 matches
+   the canonical bytes exactly;
+16. the record has no network, history loader, candidate result, optimizer,
+   baseline-002 strategy, or M3-H execution path.
+
+The catastrophic definition includes:
+
+```text
+noLossesIsCatastrophicSolelyBecausePfNull: false
+```
 
 The pure gate application/evaluator is intentionally deferred to the later
 M3-I application boundary. Therefore this milestone does not mechanically

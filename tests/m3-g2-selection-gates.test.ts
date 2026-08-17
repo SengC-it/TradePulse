@@ -105,6 +105,7 @@ describe("M3-G.2 immutable round-001 gate record", () => {
       normalProfitFactorBelow: 0.8,
       noTradesIsCatastrophic: true,
       insufficientFoldSampleIsCatastrophic: true,
+      noLossesIsCatastrophicSolelyBecausePfNull: false,
     });
   });
 
@@ -121,9 +122,12 @@ describe("M3-G.2 immutable round-001 gate record", () => {
     expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability).toEqual({
       H1_SIGNAL_REDUNDANCY: "REQUIRED",
       H4_SIGNAL_DENSITY: "REQUIRED",
-      H2_COST_ADJUSTED_EDGE: "NOT_APPLICABLE_FOR_PURE_SINGLE_MECHANISM",
-      H3_SCORE_CALIBRATION: "NOT_APPLICABLE_FOR_PURE_SINGLE_MECHANISM",
-      H5_REGIME_QUALITY: "NOT_APPLICABLE_FOR_PURE_SINGLE_MECHANISM",
+      H2_COST_ADJUSTED_EDGE: "NOT_APPLICABLE",
+      H3_SCORE_CALIBRATION: "NOT_APPLICABLE",
+      H5_REGIME_QUALITY: "NOT_APPLICABLE",
+      combinationContainingH1OrH4: "REQUIRED",
+      notApplicableRepresentation: "NOT_APPLICABLE",
+      notApplicableCountsAsPass: false,
     });
     expect(BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATES.requiredRedundancyImprovement.value).toBe(0.3);
   });
@@ -175,5 +179,140 @@ describe("M3-G.2 immutable round-001 gate record", () => {
   it("keeps the gate record outside M3-H and M4 boundaries", () => {
     expect(source).not.toMatch(/M3-H result|runHistorical|executeBacktest|optimizer|gridSearch/);
     expect(BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATES.researchRoundId).toBe("baseline-002-research-round-001");
+  });
+});
+
+describe("M3-G.2 machine-readable semantic contract", () => {
+  it("SHA-covers the all-applicable hard-gate conjunction", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.eligibilityPolicy).toEqual({
+      mode: "ALL_APPLICABLE_GATES_MUST_PASS",
+      notApplicableHandling: "EXCLUDED_FROM_CONJUNCTION_NOT_COUNTED_AS_PASS",
+      performanceGateFailure: "INELIGIBLE",
+      integrityFailure: "INELIGIBLE_INCOMPLETE_EVIDENCE",
+    });
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.hardGateIdentities).toEqual([
+      "minimumAggregateImprovement",
+      "minimumImprovedValidationFolds",
+      "catastrophicFoldLimit",
+      "minimumNetExpectancy",
+      "minimumProfitFactor",
+      "maximumSymbolConcentration",
+      "maximumSingleTradeConcentration",
+      "maximumFeeBurdenRatio",
+      "requiredRedundancyImprovement",
+      "minimumFormalSignals",
+      "minimumExecutedTrades",
+    ]);
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.hardGateIdentities).not.toContain("complexityTieThreshold");
+    expect(BASELINE_002_RESEARCH_ROUND_001_CANONICAL_JSON).toContain("ALL_APPLICABLE_GATES_MUST_PASS");
+  });
+
+  it("does not represent N/A redundancy as a passing gate", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability.notApplicableRepresentation).toBe("NOT_APPLICABLE");
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability.notApplicableCountsAsPass).toBe(false);
+  });
+
+  it("requires redundancy for a combination containing H1 or H4", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability.combinationContainingH1OrH4).toBe("REQUIRED");
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability.H1_SIGNAL_REDUNDANCY).toBe("REQUIRED");
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability.H4_SIGNAL_DENSITY).toBe("REQUIRED");
+  });
+
+  it("keeps pure H2, H3, and H5 mechanisms not applicable", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.redundancyApplicability).toMatchObject({
+      H2_COST_ADJUSTED_EDGE: "NOT_APPLICABLE",
+      H3_SCORE_CALIBRATION: "NOT_APPLICABLE",
+      H5_REGIME_QUALITY: "NOT_APPLICABLE",
+    });
+  });
+
+  it("does not make NO_LOSSES catastrophic only because PF is null", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.catastrophicFold.noLossesIsCatastrophicSolelyBecausePfNull).toBe(false);
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.profitFactorStatusSemantics.NO_LOSSES).toBe(
+      "PF_GATE_PASSES_ONLY_IF_ALL_SAMPLE_GATES_PASS",
+    );
+  });
+
+  it("freezes NO_TRADES PF status as a failure", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.profitFactorStatusSemantics.NO_TRADES).toBe("FAIL");
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.profitFactorStatusSemantics.encodeInfinity).toBe(false);
+  });
+
+  it("freezes aggregate validation as F1-F6 validation concatenation", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.aggregateValidationDefinition).toEqual({
+      foldIds: ["F1", "F2", "F3", "F4", "F5", "F6"],
+      role: "VALIDATION",
+      construction: "CONCATENATE_NON_OVERLAPPING_FROZEN_VALIDATION_SEGMENTS",
+      timeBasis: "signalTime",
+      forbiddenInterpretations: [
+        "AVERAGE_OF_FOLD_METRICS",
+        "RESEARCH_PLUS_VALIDATION",
+        "RANDOM_POOLED_PERIOD",
+        "ALTERNATE_PERIOD",
+      ],
+    });
+  });
+
+  it("requires every complexity dimension to be a non-negative integer", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.complexityDimensionDomain).toEqual({
+      type: "NON_NEGATIVE_INTEGER",
+      dimensions: [
+        "newRules",
+        "newTunableThresholds",
+        "modifiedBaselineRules",
+        "mechanismFamiliesUsed",
+      ],
+    });
+  });
+
+  it("makes the round immutable at the first M3-H performance result", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.roundImmutability.becomesImmutableAt).toBe(
+      "FIRST_M3_H_PERFORMANCE_RESULT_GENERATED",
+    );
+  });
+
+  it("freezes every semantic change that invalidates round-001", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.roundImmutability.invalidatingChanges).toEqual([
+      "GATE_VALUE",
+      "GATE_FORMULA",
+      "FOLD_IMPROVEMENT_DEFINITION",
+      "CATASTROPHIC_FOLD_DEFINITION",
+      "APPLICABILITY_RULE",
+      "SAMPLE_FLOOR",
+      "SELECTION_TIE_RULE",
+      "AGGREGATE_VALIDATION_DEFINITION",
+    ]);
+  });
+
+  it("requires a new research round after invalidation", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.roundImmutability.actionOnChange).toBe(
+      "INVALIDATE_ROUND_AND_REQUIRE_NEW_RESEARCH_ROUND",
+    );
+  });
+
+  it("classifies prior invalidated-round results as SEEN_DATA", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.roundImmutability.priorResultsClassification).toBe("SEEN_DATA");
+  });
+
+  it("does not weaken gates after a failed candidate round", () => {
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.failedRoundCandidatePolicy).toBe("DO_NOT_WEAKEN_GATES");
+    expect(BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.noCandidateOutcome).toBe("NO BASELINE-002 CANDIDATE");
+  });
+
+  it("keeps canonical serialization byte-stable", () => {
+    expect(stableStringify(BASELINE_002_RESEARCH_ROUND_001_MACHINE_RECORD)).toBe(
+      BASELINE_002_RESEARCH_ROUND_001_CANONICAL_JSON,
+    );
+    expect(BASELINE_002_RESEARCH_ROUND_001_CANONICAL_JSON.endsWith("\n")).toBe(false);
+  });
+
+  it("matches the recomputed SHA-256 to the canonical bytes exactly", () => {
+    const hash = createHash("sha256")
+      .update(BASELINE_002_RESEARCH_ROUND_001_CANONICAL_JSON, "utf8")
+      .digest("hex");
+    expect(hash).toBe(BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATE_SHA256);
+    expect(BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATE_SHA256).not.toBe(
+      "a27e830e14cdaa6a7cf86cc8bc59ea60f40d6a5ab8f560c5dc57ac250eaf0b21",
+    );
   });
 });

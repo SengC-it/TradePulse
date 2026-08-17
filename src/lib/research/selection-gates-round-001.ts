@@ -106,6 +106,25 @@ export const BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATES: SelectionGateSchem
 
 export const BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS = deepFreeze({
   researchRoundId: BASELINE_002_RESEARCH_ROUND_001_RESEARCH_ROUND_ID,
+  eligibilityPolicy: {
+    mode: "ALL_APPLICABLE_GATES_MUST_PASS",
+    notApplicableHandling: "EXCLUDED_FROM_CONJUNCTION_NOT_COUNTED_AS_PASS",
+    performanceGateFailure: "INELIGIBLE",
+    integrityFailure: "INELIGIBLE_INCOMPLETE_EVIDENCE",
+  },
+  hardGateIdentities: [
+    "minimumAggregateImprovement",
+    "minimumImprovedValidationFolds",
+    "catastrophicFoldLimit",
+    "minimumNetExpectancy",
+    "minimumProfitFactor",
+    "maximumSymbolConcentration",
+    "maximumSingleTradeConcentration",
+    "maximumFeeBurdenRatio",
+    "requiredRedundancyImprovement",
+    "minimumFormalSignals",
+    "minimumExecutedTrades",
+  ],
   foldImprovementDeltaR: 0.02,
   validationFoldCount: 6,
   catastrophicFold: {
@@ -113,13 +132,35 @@ export const BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS = deepFreeze({
     normalProfitFactorBelow: 0.8,
     noTradesIsCatastrophic: true,
     insufficientFoldSampleIsCatastrophic: true,
+    noLossesIsCatastrophicSolelyBecausePfNull: false,
+  },
+  profitFactorStatusSemantics: {
+    NORMAL: "COMPARE_NUMERIC_PF_TO_MINIMUM_PROFIT_FACTOR",
+    NO_LOSSES: "PF_GATE_PASSES_ONLY_IF_ALL_SAMPLE_GATES_PASS",
+    NO_TRADES: "FAIL",
+    encodeInfinity: false,
   },
   redundancyApplicability: {
     H1_SIGNAL_REDUNDANCY: "REQUIRED",
     H4_SIGNAL_DENSITY: "REQUIRED",
-    H2_COST_ADJUSTED_EDGE: "NOT_APPLICABLE_FOR_PURE_SINGLE_MECHANISM",
-    H3_SCORE_CALIBRATION: "NOT_APPLICABLE_FOR_PURE_SINGLE_MECHANISM",
-    H5_REGIME_QUALITY: "NOT_APPLICABLE_FOR_PURE_SINGLE_MECHANISM",
+    H2_COST_ADJUSTED_EDGE: "NOT_APPLICABLE",
+    H3_SCORE_CALIBRATION: "NOT_APPLICABLE",
+    H5_REGIME_QUALITY: "NOT_APPLICABLE",
+    combinationContainingH1OrH4: "REQUIRED",
+    notApplicableRepresentation: "NOT_APPLICABLE",
+    notApplicableCountsAsPass: false,
+  },
+  aggregateValidationDefinition: {
+    foldIds: ["F1", "F2", "F3", "F4", "F5", "F6"],
+    role: "VALIDATION",
+    construction: "CONCATENATE_NON_OVERLAPPING_FROZEN_VALIDATION_SEGMENTS",
+    timeBasis: "signalTime",
+    forbiddenInterpretations: [
+      "AVERAGE_OF_FOLD_METRICS",
+      "RESEARCH_PLUS_VALIDATION",
+      "RANDOM_POOLED_PERIOD",
+      "ALTERNATE_PERIOD",
+    ],
   },
   complexityDimensions: [
     "newRules",
@@ -127,6 +168,15 @@ export const BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS = deepFreeze({
     "modifiedBaselineRules",
     "mechanismFamiliesUsed",
   ],
+  complexityDimensionDomain: {
+    type: "NON_NEGATIVE_INTEGER",
+    dimensions: [
+      "newRules",
+      "newTunableThresholds",
+      "modifiedBaselineRules",
+      "mechanismFamiliesUsed",
+    ],
+  },
   selectionAlgorithm: {
     orderedCriteria: [
       { criterion: "improvedValidationFolds", direction: "DESCENDING" },
@@ -151,6 +201,22 @@ export const BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS = deepFreeze({
   ],
   seenDataClassification: "HISTORICAL RESEARCH VALIDATION / SEEN DATA",
   noCandidateOutcome: "NO BASELINE-002 CANDIDATE",
+  failedRoundCandidatePolicy: "DO_NOT_WEAKEN_GATES",
+  roundImmutability: {
+    becomesImmutableAt: "FIRST_M3_H_PERFORMANCE_RESULT_GENERATED",
+    invalidatingChanges: [
+      "GATE_VALUE",
+      "GATE_FORMULA",
+      "FOLD_IMPROVEMENT_DEFINITION",
+      "CATASTROPHIC_FOLD_DEFINITION",
+      "APPLICABILITY_RULE",
+      "SAMPLE_FLOOR",
+      "SELECTION_TIE_RULE",
+      "AGGREGATE_VALIDATION_DEFINITION",
+    ],
+    actionOnChange: "INVALIDATE_ROUND_AND_REQUIRE_NEW_RESEARCH_ROUND",
+    priorResultsClassification: "SEEN_DATA",
+  },
 });
 
 export const BASELINE_002_RESEARCH_ROUND_001_MACHINE_RECORD = deepFreeze({
@@ -162,4 +228,4 @@ export const BASELINE_002_RESEARCH_ROUND_001_CANONICAL_JSON = stableStringify(
   BASELINE_002_RESEARCH_ROUND_001_MACHINE_RECORD,
 );
 
-export const BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATE_SHA256 = "a27e830e14cdaa6a7cf86cc8bc59ea60f40d6a5ab8f560c5dc57ac250eaf0b21" as const;
+export const BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATE_SHA256 = "11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd" as const;

@@ -224,6 +224,24 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   defers gate application to M3-I. It does not implement baseline-002 or run
   historical research.
 
+## ADR-022 — Complete the SHA-covered round-001 selection contract
+
+- **Decision:** The M3-G.2 round-001 machine record includes the all-applicable
+  hard-gate conjunction and identities, explicit PF status/Infinity semantics,
+  H1/H4 redundancy applicability and N/A handling, exact F1-F6 validation
+  concatenation, non-negative-integer complexity domains, and structured round
+  invalidation semantics. The canonical record hash is recomputed whenever
+  these frozen semantics change.
+- **Reason:** Critical selection semantics cannot be left only in Markdown;
+  otherwise the recorded `selectionGateSha256` would not attest to the complete
+  contract used by the later research milestone.
+- **Consequence:** `selectionGateSha256` is now
+  `11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd`.
+  `NOT_APPLICABLE` is not a pass, `NO_TRADES` PF fails, failed candidates do
+  not weaken gates, and invalidation requires a new research round with prior
+  results retained as `SEEN_DATA`. No evaluator or candidate performance is
+  introduced in this remediation.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
