@@ -457,7 +457,7 @@ tuning, M4, forward tracking, production deployment, and trading.
 
 ## M3-D.1 — Implement bt-policy-003 Intrabar Settlement Resolution
 
-Status: UNDER REVIEW / DRAFT PR
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -481,15 +481,36 @@ Deterministic tests cover exact 60-row integrity, duplicate/gap/future and
 malformed OHLC rejection, frozen 1H reason preservation, first matching minute
 resolution, funding boundary and conservative same-minute ordering, manifest
 coverage, schema isolation, usage-driven windows, and count reconciliation.
-Normal typecheck, lint, test, build, and diff checks must pass. No formal
-M3-C run is performed in M3-D.1; the Draft PR remains unmerged for review.
+Normal typecheck, lint, test, build, and diff checks must pass. The
+bt-policy-003 implementation was merged without running the formal M3-E
+evidence run in this implementation milestone.
 
 ### Out of scope
 
 Historical evidence generation, strategy tuning, M4, forward tracking,
 notifications, deployment, persistence, and trading.
 
-M3-E — Formal policy-003 evidence run: NOT STARTED.
+## M3-E — Formal baseline-001 historical evidence under bt-policy-003
+
+Status: INCOMPLETE / EVIDENCE DRAFT PR
+
+### Formal result
+
+The formal `bt-policy-003` COMBINED run was executed exactly once from main
+commit `e904d8e47b21f78233266da0f8281fe63d2606ca` using `baseline-001` and
+`m3-b-report-003`. The report performance result is **FAIL** because the
+frozen Combined and OOS net-R, expectancy-R, and profit-factor gates are not
+met. The final M3-E classification is **INCOMPLETE** because the final JSON
+does not record the authoritative study `serverTime`, which is required to
+audit the shared 1H/4H, funding, mark-price, and 1m settlement clock.
+
+The exact report hash, metrics, intrabar/funding audits, and all manifest
+hashes are recorded in `docs/M3_BASELINE_001_POLICY003_RESULTS.md`. The raw
+report remains under the ignored `.tmp/backtest/` directory and is not
+committed. The evidence branch and Draft PR are documentation/evidence only.
+
+M3-E stops here. `baseline-001` was not tuned, no policy was changed during
+the run, and M4 remains pending explicit authorization.
 
 ## M4 — Realtime Scanner
 
