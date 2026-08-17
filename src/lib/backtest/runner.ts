@@ -16,7 +16,11 @@ import {
   evaluateOverallBacktestAcceptance,
 } from "./acceptance.ts";
 import { calculateBacktestBreakdown, calculateBacktestMetrics } from "./metrics.ts";
-import { validateRequiredManifestCoverage } from "./manifests.ts";
+import {
+  validateRequiredManifestCoverage,
+  validateRequiredMarkPriceManifestCoverage,
+  type BacktestFallbackManifestRequirement,
+} from "./manifests.ts";
 import { emptyBacktestSignalResult, settleBacktestSignal, snapshotFromCandidate } from "./settlement.ts";
 import type {
   BacktestData,
@@ -251,6 +255,24 @@ export function buildFundingAudit(signalResults: readonly BacktestSignalResult[]
   });
 }
 
+function buildFallbackManifestRequirements(
+  signalResults: readonly BacktestSignalResult[],
+  period: BacktestPeriod,
+): readonly BacktestFallbackManifestRequirement[] {
+  const basePeriodEnd = period === "DEV" ? BACKTEST_PERIOD_RANGES.DEV.endTime : BACKTEST_PERIOD_RANGES.OOS.endTime;
+  const requirements = new Map<string, BacktestFallbackManifestRequirement>();
+  for (const result of signalResults) {
+    if (result.status !== "EXECUTED") continue;
+    for (const charge of result.fundingCharges) {
+      if (charge.markPriceSource !== "MARK_PRICE_KLINE_PRE_EVENT_CLOSE") continue;
+      const segment = charge.fundingTime > basePeriodEnd ? "settlement-tail" : "base";
+      const requirement = { symbol: result.snapshot.symbol, segment } as const;
+      requirements.set(`${segment}:${result.snapshot.symbol}`, requirement);
+    }
+  }
+  return Object.freeze([...requirements.values()]);
+}
+
 export function runBacktest(input: BacktestRunInput): BacktestReport {
   const policy = input.policy ?? BACKTEST_POLICY_VERSION;
   if (!isBacktestPolicy(policy)) {
@@ -271,12 +293,37 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
 
   const runFor = (period: Exclude<BacktestPeriod, "COMBINED">): SinglePeriodResult =>
     indexes ? runSinglePeriod(input.data, indexes, period, policy) : incompletePeriodResult(preparationDiagnostics);
-  const devRun = input.period === "OOS" ? null : runFor("DEV");
-  const oosRun = input.period === "DEV" ? null : runFor("OOS");
+  let devRun = input.period === "OOS" ? null : runFor("DEV");
+  let oosRun = input.period === "DEV" ? null : runFor("OOS");
+  const initialRuns = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
+  const initialSignalResults = initialRuns.flatMap((run) => run.signalResults);
+  const fallbackRequirements =
+    policy === "bt-policy-002" ? buildFallbackManifestRequirements(initialSignalResults, input.period) : [];
+  const fallbackManifestCoverage =
+    policy === "bt-policy-002"
+      ? validateRequiredMarkPriceManifestCoverage(input.data.manifests, input.period, fallbackRequirements)
+      : Object.freeze({ valid: true, diagnostics: Object.freeze([] as string[]) });
+
+  if (!fallbackManifestCoverage.valid && input.period !== "COMBINED") {
+    const targetRun = input.period === "DEV" ? devRun : oosRun;
+    const incompleteRun = targetRun
+      ? Object.freeze({
+          ...targetRun,
+          diagnostics: Object.freeze([...targetRun.diagnostics, ...fallbackManifestCoverage.diagnostics]),
+          status: "INCOMPLETE" as const,
+        })
+      : null;
+    if (input.period === "DEV") devRun = incompleteRun;
+    else oosRun = incompleteRun;
+  }
+
   const runs = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
   const evaluations = runs.flatMap((run) => run.evaluations);
   const signalResults = runs.flatMap((run) => run.signalResults);
-  const diagnostics = runs.flatMap((run) => run.diagnostics);
+  const diagnostics = [
+    ...runs.flatMap((run) => run.diagnostics),
+    ...(input.period === "COMBINED" ? fallbackManifestCoverage.diagnostics : []),
+  ];
   const devMetrics = devRun ? calculateBacktestMetrics({ evaluations: devRun.evaluations, signalResults: devRun.signalResults }) : null;
   const oosMetrics = oosRun ? calculateBacktestMetrics({ evaluations: oosRun.evaluations, signalResults: oosRun.signalResults }) : null;
   const combinedMetrics = input.period === "COMBINED" ? calculateBacktestMetrics({ evaluations, signalResults }) : null;
@@ -290,7 +337,10 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
     ? evaluateBacktestAcceptance({
         period: "COMBINED",
         metrics: combinedMetrics,
-        runStatus: runs.some((run) => run.status === "INCOMPLETE") ? "INCOMPLETE" : "PASS",
+        runStatus:
+          runs.some((run) => run.status === "INCOMPLETE") || !fallbackManifestCoverage.valid
+            ? "INCOMPLETE"
+            : "PASS",
       })
     : null;
   const acceptanceByPeriod = Object.freeze({ DEV: devAcceptance, OOS: oosAcceptance, COMBINED: combinedAcceptance });

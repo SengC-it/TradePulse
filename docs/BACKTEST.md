@@ -538,6 +538,13 @@ requested and actual ranges, row count, retrieval timestamp, SHA-256, and the
 records, mark-price klines, strategy data, and the policy version fixed, the
 core report must remain byte-equivalent and deterministic.
 
+Formal manifest validation is usage-driven: a base fallback charge requires the
+exact frozen base mark-price range, while a settlement-tail fallback charge
+requires `settlementOnly = true` and the exact frozen tail range. Missing,
+wrong-source, wrong-range, wrong-settlement classification, or invalid-checksum
+manifests make the formal result `INCOMPLETE`; an unused fallback path does not
+require a mark-price manifest.
+
 ## R normalization
 
 The signal's frozen `stopDistance` is canonical:

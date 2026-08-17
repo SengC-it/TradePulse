@@ -199,6 +199,13 @@ duplicates, valid timestamps, finite positive OHLC, and valid OHLC
 relationships. Sorting, gap filling, interpolation, and synthetic candles
 are prohibited; any required invalid or missing data is `DATA_INCOMPLETE`.
 
+Formal manifest coverage is usage-driven. A fallback charge must have a valid
+official 1H mark-price manifest for its symbol and the exact frozen base or
+settlement-tail range; a tail fallback must also use `settlementOnly = true`.
+Missing, wrong-source, wrong-range, wrong-settlement, or invalid-checksum
+coverage makes the formal result `INCOMPLETE`. Direct-only `bt-policy-002`
+segments do not require an unused fallback manifest.
+
 Policy selection and report schema are explicit. `bt-policy-001` serializes as
 `m3-b-report-001`; `bt-policy-002` serializes as `m3-b-report-002`, which
 contains the provenance/fallback audit fields. A formal run must supply

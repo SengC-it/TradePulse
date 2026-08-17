@@ -247,6 +247,14 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   `m3-b-report-001` and `bt-policy-002` only as `m3-b-report-002`, with the
   latter containing the funding provenance/fallback audit fields. They reject
   silently extending the legacy schema with incompatible fields.
+- Usage-driven manifest fixtures require a fallback-used base charge to have
+  a valid `kind = mark-price` manifest from `binance-usdm-public` at
+  `/fapi/v1/markPriceKlines`, `timeframe = 1h`, with the exact frozen base
+  range, matching symbol, and valid SHA-256. Settlement-tail fallback tests
+  additionally require the exact tail range and `settlementOnly = true`.
+  Missing, invalid-checksum, wrong-source, wrong-range, or wrong-settlement
+  manifests fail closed as `INCOMPLETE`; direct-only `bt-policy-002` and all
+  `bt-policy-001` runs do not require an unused mark-price manifest.
 - Policy-selection fixtures require an explicit `--policy`: missing policy and
   unknown policy fail closed, `bt-policy-001` selects immutable legacy
   behavior, and explicit `bt-policy-002` selects compatibility behavior. The

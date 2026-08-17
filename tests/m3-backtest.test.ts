@@ -31,7 +31,11 @@ import { validateMarkPriceCandleSeries } from "../src/lib/historical-data/valida
 import { parseBinanceMarkPriceKlines } from "../src/lib/historical-data/binance/mark-price.ts";
 import { INTERVAL_MS, type MarketTimeframe } from "../src/lib/market-data/intervals.ts";
 import type { Candle } from "../src/lib/market-data/types.ts";
-import type { HistoricalManifest, HistoricalMarkPriceCandle } from "../src/lib/historical-data/types.ts";
+import type {
+  HistoricalManifest,
+  HistoricalMarkPriceCandle,
+  HistoricalMarkPriceManifest,
+} from "../src/lib/historical-data/types.ts";
 import { resolveFundingCharges } from "../src/lib/backtest/funding.ts";
 
 const HOUR = INTERVAL_MS["1h"];
@@ -208,6 +212,39 @@ function requiredTestManifests(period: "DEV" | "OOS" | "COMBINED"): readonly His
           ),
         ]),
   ]);
+}
+
+function makeMarkPriceManifest(
+  symbol: ResearchSymbol,
+  period: "DEV" | "OOS" | "COMBINED",
+  settlementOnly: boolean,
+  overrides: Partial<{
+    provider: string;
+    source: string;
+    timeframe: string;
+    requestedStartTime: number;
+    requestedEndTime: number;
+    sha256: string;
+    settlementOnly: boolean;
+  }> = {},
+): HistoricalManifest {
+  const ranges = buildHistoricalLoadRanges(period);
+  const range = settlementOnly ? ranges.settlementTail!.markPriceRange : ranges.markPriceRange;
+  return {
+    kind: "mark-price",
+    provider: overrides.provider ?? "binance-usdm-public",
+    source: overrides.source ?? "/fapi/v1/markPriceKlines",
+    symbol,
+    timeframe: overrides.timeframe ?? "1h",
+    requestedStartTime: overrides.requestedStartTime ?? range.startTime,
+    requestedEndTime: overrides.requestedEndTime ?? range.endTime,
+    actualStartTime: range.startTime,
+    actualEndTime: range.endTime,
+    rowCount: 1,
+    retrievedAt: "2026-01-01T00:00:00.000Z",
+    sha256: overrides.sha256 ?? "a".repeat(64),
+    settlementOnly: overrides.settlementOnly ?? settlementOnly,
+  } as HistoricalMarkPriceManifest;
 }
 
 describe("M3 funding policy selection and mark-price compatibility", () => {
@@ -797,6 +834,12 @@ describe("M3 deterministic metrics and report gates", () => {
       metrics: calculateBacktestMetrics({ evaluations: [], signalResults: [] }),
     });
     expect(insufficient.status).toBe("INSUFFICIENT_SAMPLE");
+    const devIncomplete = evaluateBacktestAcceptance({
+      period: "DEV",
+      runStatus: "INCOMPLETE",
+      metrics: calculateBacktestMetrics({ evaluations: [], signalResults: [] }),
+    });
+    expect(devIncomplete.status).toBe("INCOMPLETE");
   });
 
   it("enforces exact PF boundaries and the concentration boundaries", () => {
@@ -862,6 +905,73 @@ describe("M3 deterministic metrics and report gates", () => {
     expect(validateRequiredManifestCoverage(manifests, "COMBINED")).toMatchObject({ valid: true, diagnostics: [] });
     expect(validateRequiredManifestCoverage(manifests.slice(0, -1), "COMBINED").valid).toBe(false);
     expect(manifests.every((manifest) => /^[a-f0-9]{64}$/.test(manifest.sha256))).toBe(true);
+  });
+
+  it("accepts a used base fallback only with the exact valid mark-price manifest", () => {
+    const requirement = [{ symbol: "BTCUSDT" as const, segment: "base" as const }];
+    const manifests = [...requiredTestManifests("DEV"), makeMarkPriceManifest("BTCUSDT", "DEV", false)];
+    expect(validateRequiredManifestCoverage(manifests, "DEV", requirement)).toMatchObject({
+      valid: true,
+      diagnostics: [],
+    });
+  });
+
+  it("rejects a used fallback when its mark-price manifest is missing, checksummed incorrectly, or from the wrong source", () => {
+    const requirement = [{ symbol: "BTCUSDT" as const, segment: "base" as const }];
+    const base = requiredTestManifests("DEV");
+    expect(validateRequiredManifestCoverage(base, "DEV", requirement).valid).toBe(false);
+    expect(
+      validateRequiredManifestCoverage(
+        [...base, makeMarkPriceManifest("BTCUSDT", "DEV", false, { sha256: "not-a-sha" })],
+        "DEV",
+        requirement,
+      ).valid,
+    ).toBe(false);
+    expect(
+      validateRequiredManifestCoverage(
+        [...base, makeMarkPriceManifest("BTCUSDT", "DEV", false, { provider: "other-provider" })],
+        "DEV",
+        requirement,
+      ).valid,
+    ).toBe(false);
+    expect(
+      validateRequiredManifestCoverage(
+        [...base, makeMarkPriceManifest("BTCUSDT", "DEV", false, { source: "/fapi/v1/klines" })],
+        "DEV",
+        requirement,
+      ).valid,
+    ).toBe(false);
+  });
+
+  it("rejects a used fallback with a wrong frozen mark-price range", () => {
+    const requirement = [{ symbol: "BTCUSDT" as const, segment: "base" as const }];
+    const ranges = buildHistoricalLoadRanges("DEV");
+    const manifests = [
+      ...requiredTestManifests("DEV"),
+      makeMarkPriceManifest("BTCUSDT", "DEV", false, {
+        requestedStartTime: ranges.markPriceRange.startTime + HOUR,
+      }),
+    ];
+    expect(validateRequiredManifestCoverage(manifests, "DEV", requirement).valid).toBe(false);
+  });
+
+  it("requires settlementOnly=true for a used settlement-tail fallback", () => {
+    const requirement = [{ symbol: "BTCUSDT" as const, segment: "settlement-tail" as const }];
+    const tailRange = buildHistoricalLoadRanges("COMBINED").settlementTail!.markPriceRange;
+    const manifests = [
+      ...requiredTestManifests("COMBINED"),
+      makeMarkPriceManifest("BTCUSDT", "COMBINED", false, {
+        requestedStartTime: tailRange.startTime,
+        requestedEndTime: tailRange.endTime,
+      }),
+    ];
+    expect(validateRequiredManifestCoverage(manifests, "COMBINED", requirement).valid).toBe(false);
+  });
+
+  it("does not require unused fallback manifests for direct-only bt-policy-002 or bt-policy-001", () => {
+    const manifests = requiredTestManifests("DEV");
+    expect(validateRequiredManifestCoverage(manifests, "DEV", []).valid).toBe(true);
+    expect(validateRequiredManifestCoverage(manifests, "DEV").valid).toBe(true);
   });
 
   it("serializes a deterministic report without a wall-clock field", () => {

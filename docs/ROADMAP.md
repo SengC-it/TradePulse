@@ -301,6 +301,13 @@ unchanged. No DEV/OOS/COMBINED performance metrics have been observed under
   no duplicates, valid timestamps, finite positive OHLC, and valid OHLC
   relationships. Sorting, gap filling, interpolation, and synthetic candles
   are forbidden; required invalid/missing data is `DATA_INCOMPLETE`.
+- Manifest coverage is usage-driven: a fallback charge requires a valid
+  official mark-price manifest for the matching symbol and exact frozen base or
+  settlement-tail range; tail fallback additionally requires
+  `settlementOnly = true`. Missing, wrong-source, wrong-range,
+  wrong-settlement, or invalid-checksum coverage makes the formal result
+  `INCOMPLETE`; direct-only compatibility segments do not require an unused
+  fallback manifest.
 - `bt-policy-001` serializes as `m3-b-report-001`; `bt-policy-002` serializes
   as `m3-b-report-002` with the new provenance/fallback audit fields. The
   legacy schema must not be silently extended.
