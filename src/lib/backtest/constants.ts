@@ -1,6 +1,8 @@
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 
 export const BACKTEST_POLICY_VERSION = "bt-policy-001" as const;
+export const BACKTEST_POLICY_VERSIONS = ["bt-policy-001", "bt-policy-002"] as const;
+export type BacktestPolicyVersion = (typeof BACKTEST_POLICY_VERSIONS)[number];
 export const BACKTEST_PERIODS = ["DEV", "OOS", "COMBINED"] as const;
 export type BacktestPeriod = (typeof BACKTEST_PERIODS)[number];
 
@@ -38,4 +40,20 @@ export const BACKTEST_BTC_REGIME_ORDER = ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC
 
 export function isBacktestPeriod(value: unknown): value is BacktestPeriod {
   return BACKTEST_PERIODS.includes(value as BacktestPeriod);
+}
+
+export function isBacktestPolicy(value: unknown): value is BacktestPolicyVersion {
+  return BACKTEST_POLICY_VERSIONS.includes(value as BacktestPolicyVersion);
+}
+
+export function parseBacktestPolicyArgument(argv: readonly string[]): BacktestPolicyVersion {
+  const index = argv.indexOf("--policy");
+  const value = index >= 0 ? argv[index + 1] : undefined;
+  if (value === undefined) {
+    throw new Error("--policy is required and must be bt-policy-001 or bt-policy-002.");
+  }
+  if (!isBacktestPolicy(value)) {
+    throw new Error("--policy must be bt-policy-001 or bt-policy-002.");
+  }
+  return value;
 }

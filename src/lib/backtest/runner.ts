@@ -7,6 +7,8 @@ import {
   BACKTEST_POLICY,
   BACKTEST_POLICY_VERSION,
   BACKTEST_SYMBOL_ORDER,
+  isBacktestPolicy,
+  type BacktestPolicyVersion,
   type BacktestPeriod,
 } from "./constants.ts";
 import {
@@ -14,7 +16,11 @@ import {
   evaluateOverallBacktestAcceptance,
 } from "./acceptance.ts";
 import { calculateBacktestBreakdown, calculateBacktestMetrics } from "./metrics.ts";
-import { validateRequiredManifestCoverage } from "./manifests.ts";
+import {
+  validateRequiredManifestCoverage,
+  validateRequiredMarkPriceManifestCoverage,
+  type BacktestFallbackManifestRequirement,
+} from "./manifests.ts";
 import { emptyBacktestSignalResult, settleBacktestSignal, snapshotFromCandidate } from "./settlement.ts";
 import type {
   BacktestData,
@@ -23,7 +29,9 @@ import type {
   BacktestRunInput,
   BacktestRunStatus,
   BacktestSignalResult,
+  BacktestFundingAudit,
 } from "./types.ts";
+import type { HistoricalMarkPriceCandle } from "../historical-data/types.ts";
 import {
   buildHistoricalIndexes,
   buildStrategyInputFromIndexes,
@@ -53,16 +61,25 @@ function statusFromResults(
   return "PASS";
 }
 
-function periodCensoredResult(candidate: StrategyCandidate, signalTime: number): BacktestSignalResult {
+function periodCensoredResult(
+  candidate: StrategyCandidate,
+  signalTime: number,
+  policy: BacktestPolicyVersion,
+): BacktestSignalResult {
   return emptyBacktestSignalResult(
-    snapshotFromCandidate(candidate, signalTime),
+    snapshotFromCandidate(candidate, signalTime, policy),
     "PERIOD_END_CENSORED",
     "Held candle #24 closes after the frozen DEV end.",
   );
 }
 
-function incompleteResult(candidate: StrategyCandidate, signalTime: number, diagnostic: string): BacktestSignalResult {
-  return emptyBacktestSignalResult(snapshotFromCandidate(candidate, signalTime), "DATA_INCOMPLETE", diagnostic);
+function incompleteResult(
+  candidate: StrategyCandidate,
+  signalTime: number,
+  diagnostic: string,
+  policy: BacktestPolicyVersion,
+): BacktestSignalResult {
+  return emptyBacktestSignalResult(snapshotFromCandidate(candidate, signalTime, policy), "DATA_INCOMPLETE", diagnostic);
 }
 
 function candidateResults(
@@ -71,18 +88,19 @@ function candidateResults(
   candidate: StrategyCandidate,
   signalTime: number,
   period: Exclude<BacktestPeriod, "COMBINED">,
+  policy: BacktestPolicyVersion,
 ): BacktestSignalResult {
-  const snapshot = snapshotFromCandidate(candidate, signalTime);
+  const snapshot = snapshotFromCandidate(candidate, signalTime, policy);
   const indexedDataset = indexes.bySymbol[candidate.symbol];
   const signalIndex = findCandleIndexAtCloseTime(indexedDataset.candles1h, signalTime);
   const signalCandle = signalIndex < 0 ? undefined : indexedDataset.candles1h.candles[signalIndex];
-  if (!signalCandle) return incompleteResult(candidate, signalTime, "Signal candle is unavailable.");
+  if (!signalCandle) return incompleteResult(candidate, signalTime, "Signal candle is unavailable.", policy);
 
   const expectedHeld24Close =
     signalCandle.openTime + (BACKTEST_POLICY.heldCandleCount + 1) * INTERVAL_MS["1h"] - 1;
   const periodEnd = BACKTEST_PERIOD_RANGES[period].endTime;
   if (period === "DEV" && expectedHeld24Close > periodEnd) {
-    return periodCensoredResult(candidate, signalTime);
+    return periodCensoredResult(candidate, signalTime, policy);
   }
 
   let heldCandles;
@@ -93,13 +111,19 @@ function candidateResults(
       candidate,
       signalTime,
       error instanceof Error ? error.message : "Required held candles are unavailable.",
+      policy,
     );
   }
+  const markPriceCandles: readonly HistoricalMarkPriceCandle[] | undefined = data.markPrice?.[candidate.symbol];
+  const markPriceSegments = data.markPriceSegments?.[candidate.symbol];
   return settleBacktestSignal({
     snapshot,
     signalCandle,
     heldCandles,
     funding: data.funding[candidate.symbol] ?? [],
+    markPriceCandles,
+    markPriceSegments,
+    policy,
     period,
     periodEndTime: periodEnd,
   });
@@ -109,6 +133,7 @@ function runSinglePeriod(
   data: BacktestData,
   indexes: HistoricalIndexes,
   period: Exclude<BacktestPeriod, "COMBINED">,
+  policy: BacktestPolicyVersion,
 ): SinglePeriodResult {
   const evaluations: BacktestEvaluation[] = [];
   const signalResults: BacktestSignalResult[] = [];
@@ -150,7 +175,7 @@ function runSinglePeriod(
       }),
     );
     for (const candidate of formalCandidates) {
-      signalResults.push(candidateResults(data, indexes, candidate, evaluationTime, period));
+      signalResults.push(candidateResults(data, indexes, candidate, evaluationTime, period, policy));
     }
   }
 
@@ -188,13 +213,84 @@ function statusFromAcceptance(acceptance: ReturnType<typeof evaluateBacktestAcce
 
 function sortManifests(data: BacktestData): BacktestData["manifests"] {
   return Object.freeze([...(data.manifests ?? [])].sort((left, right) => {
-    const leftKey = `${left.kind}:${left.symbol}:${"timeframe" in left ? left.timeframe : "funding"}`;
-    const rightKey = `${right.kind}:${right.symbol}:${"timeframe" in right ? right.timeframe : "funding"}`;
+    const leftKey = `${left.kind}:${left.symbol}:${"timeframe" in left ? left.timeframe : "funding"}:${left.settlementOnly}:${left.requestedStartTime}`;
+    const rightKey = `${right.kind}:${right.symbol}:${"timeframe" in right ? right.timeframe : "funding"}:${right.settlementOnly}:${right.requestedStartTime}`;
     return leftKey.localeCompare(rightKey);
   }));
 }
 
+export function buildFundingAudit(signalResults: readonly BacktestSignalResult[]): BacktestFundingAudit {
+  const bySymbol = Object.fromEntries(BACKTEST_SYMBOL_ORDER.map((symbol) => [symbol, 0])) as Record<
+    (typeof BACKTEST_SYMBOL_ORDER)[number],
+    number
+  >;
+  const byUtcYear = new Map<string, number>();
+  let fundingEventsTotal = 0;
+  let fundingEventsDirectMarkPrice = 0;
+  let fundingEventsFallbackMarkPrice = 0;
+
+  for (const result of signalResults) {
+    if (result.status !== "EXECUTED") continue;
+    for (const charge of result.fundingCharges) {
+      fundingEventsTotal += 1;
+      if (charge.markPriceSource !== "MARK_PRICE_KLINE_PRE_EVENT_CLOSE") {
+        fundingEventsDirectMarkPrice += 1;
+        continue;
+      }
+      fundingEventsFallbackMarkPrice += 1;
+      bySymbol[result.snapshot.symbol] = (bySymbol[result.snapshot.symbol] ?? 0) + 1;
+      const year = String(new Date(charge.fundingTime).getUTCFullYear());
+      byUtcYear.set(year, (byUtcYear.get(year) ?? 0) + 1);
+    }
+  }
+
+  const sortedYears = [...byUtcYear.keys()].sort((left, right) => Number(left) - Number(right));
+  const orderedByUtcYear = Object.fromEntries(sortedYears.map((year) => [year, byUtcYear.get(year)!]));
+  return Object.freeze({
+    fundingEventsTotal,
+    fundingEventsDirectMarkPrice,
+    fundingEventsFallbackMarkPrice,
+    fundingFallbackRate:
+      fundingEventsTotal === 0 ? null : fundingEventsFallbackMarkPrice / fundingEventsTotal,
+    fundingFallbackBySymbol: Object.freeze(bySymbol),
+    fundingFallbackByUtcYear: Object.freeze(orderedByUtcYear),
+  });
+}
+
+function buildFallbackManifestRequirements(
+  signalResults: readonly BacktestSignalResult[],
+): Readonly<{
+  requirements: readonly BacktestFallbackManifestRequirement[];
+  diagnostics: readonly string[];
+}> {
+  const requirements = new Map<string, BacktestFallbackManifestRequirement>();
+  const diagnostics: string[] = [];
+  for (const result of signalResults) {
+    if (result.status !== "EXECUTED") continue;
+    for (const charge of result.fundingCharges) {
+      if (charge.markPriceSource !== "MARK_PRICE_KLINE_PRE_EVENT_CLOSE") continue;
+      const segment = charge.markPriceManifestSegment;
+      if (!segment) {
+        diagnostics.push(
+          `Fallback mark-price provenance is missing for ${result.snapshot.symbol} at ${charge.fundingTime}.`,
+        );
+        continue;
+      }
+      const requirement = { symbol: result.snapshot.symbol, segment } as const;
+      requirements.set(`${segment}:${result.snapshot.symbol}`, requirement);
+    }
+  }
+  return Object.freeze({
+    requirements: Object.freeze([...requirements.values()]),
+    diagnostics: Object.freeze(diagnostics),
+  });
+}
+
 export function runBacktest(input: BacktestRunInput): BacktestReport {
+  const policy = input.policy ?? BACKTEST_POLICY_VERSION;
+  if (!isBacktestPolicy(policy)) {
+    throw new BacktestError("INVALID_VERSION", `Unsupported backtest policy: ${String(policy)}.`);
+  }
   const manifestCoverage = validateRequiredManifestCoverage(input.data.manifests, input.period);
   let indexes: HistoricalIndexes | undefined;
   let preparationDiagnostics: readonly string[] = manifestCoverage.diagnostics;
@@ -209,13 +305,46 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
   }
 
   const runFor = (period: Exclude<BacktestPeriod, "COMBINED">): SinglePeriodResult =>
-    indexes ? runSinglePeriod(input.data, indexes, period) : incompletePeriodResult(preparationDiagnostics);
-  const devRun = input.period === "OOS" ? null : runFor("DEV");
-  const oosRun = input.period === "DEV" ? null : runFor("OOS");
+    indexes ? runSinglePeriod(input.data, indexes, period, policy) : incompletePeriodResult(preparationDiagnostics);
+  let devRun = input.period === "OOS" ? null : runFor("DEV");
+  let oosRun = input.period === "DEV" ? null : runFor("OOS");
+  const initialRuns = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
+  const initialSignalResults = initialRuns.flatMap((run) => run.signalResults);
+  const fallbackRequirements =
+    policy === "bt-policy-002" ? buildFallbackManifestRequirements(initialSignalResults) : { requirements: [], diagnostics: [] };
+  const fallbackManifestCoverage = (() => {
+    if (policy !== "bt-policy-002") {
+      return Object.freeze({ valid: true, diagnostics: Object.freeze([] as string[]) });
+    }
+    const manifestCoverage = validateRequiredMarkPriceManifestCoverage(
+      input.data.manifests,
+      input.period,
+      fallbackRequirements.requirements,
+    );
+    const diagnostics = Object.freeze([...fallbackRequirements.diagnostics, ...manifestCoverage.diagnostics]);
+    return Object.freeze({ valid: diagnostics.length === 0, diagnostics });
+  })();
+
+  if (!fallbackManifestCoverage.valid && input.period !== "COMBINED") {
+    const targetRun = input.period === "DEV" ? devRun : oosRun;
+    const incompleteRun = targetRun
+      ? Object.freeze({
+          ...targetRun,
+          diagnostics: Object.freeze([...targetRun.diagnostics, ...fallbackManifestCoverage.diagnostics]),
+          status: "INCOMPLETE" as const,
+        })
+      : null;
+    if (input.period === "DEV") devRun = incompleteRun;
+    else oosRun = incompleteRun;
+  }
+
   const runs = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
   const evaluations = runs.flatMap((run) => run.evaluations);
   const signalResults = runs.flatMap((run) => run.signalResults);
-  const diagnostics = runs.flatMap((run) => run.diagnostics);
+  const diagnostics = [
+    ...runs.flatMap((run) => run.diagnostics),
+    ...(input.period === "COMBINED" ? fallbackManifestCoverage.diagnostics : []),
+  ];
   const devMetrics = devRun ? calculateBacktestMetrics({ evaluations: devRun.evaluations, signalResults: devRun.signalResults }) : null;
   const oosMetrics = oosRun ? calculateBacktestMetrics({ evaluations: oosRun.evaluations, signalResults: oosRun.signalResults }) : null;
   const combinedMetrics = input.period === "COMBINED" ? calculateBacktestMetrics({ evaluations, signalResults }) : null;
@@ -229,7 +358,10 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
     ? evaluateBacktestAcceptance({
         period: "COMBINED",
         metrics: combinedMetrics,
-        runStatus: runs.some((run) => run.status === "INCOMPLETE") ? "INCOMPLETE" : "PASS",
+        runStatus:
+          runs.some((run) => run.status === "INCOMPLETE") || !fallbackManifestCoverage.valid
+            ? "INCOMPLETE"
+            : "PASS",
       })
     : null;
   const acceptanceByPeriod = Object.freeze({ DEV: devAcceptance, OOS: oosAcceptance, COMBINED: combinedAcceptance });
@@ -244,10 +376,8 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
   }
   const breakdowns = calculateBacktestBreakdown(signalResults);
 
-  return Object.freeze({
-    schemaVersion: "m3-b-report-001",
+  const reportCore = {
     strategyVersion: "baseline-001",
-    backtestPolicyVersion: BACKTEST_POLICY_VERSION,
     period: input.period,
     periods: Object.freeze(BACKTEST_PERIOD_RANGES),
     symbols: Object.freeze([...BACKTEST_SYMBOL_ORDER]),
@@ -278,6 +408,21 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
     signalResults: Object.freeze(signalResults),
     diagnostics: Object.freeze(diagnostics),
     disclaimer: BACKTEST_POLICY.signalLevelDisclaimer,
+  } as const;
+
+  if (policy === "bt-policy-002") {
+    return Object.freeze({
+      ...reportCore,
+      schemaVersion: "m3-b-report-002" as const,
+      backtestPolicyVersion: "bt-policy-002" as const,
+      ...buildFundingAudit(signalResults),
+    });
+  }
+
+  return Object.freeze({
+    ...reportCore,
+    schemaVersion: "m3-b-report-001" as const,
+    backtestPolicyVersion: "bt-policy-001" as const,
   });
 }
 

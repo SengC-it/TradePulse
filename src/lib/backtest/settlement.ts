@@ -9,6 +9,7 @@ import type {
   SettlementInput,
 } from "./types.ts";
 import type { StrategyCandidate } from "../strategy/types.ts";
+import type { BacktestPolicyVersion } from "./constants.ts";
 
 function finitePositive(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -67,6 +68,7 @@ function asAmbiguous(
 export function snapshotFromCandidate(
   candidate: StrategyCandidate,
   signalTime: number,
+  backtestPolicyVersion: BacktestPolicyVersion = "bt-policy-001",
 ): BacktestSignalSnapshot {
   return Object.freeze({
     strategyVersion: candidate.strategyVersion,
@@ -82,7 +84,7 @@ export function snapshotFromCandidate(
     breakdown: candidate.breakdown,
     totalScore: candidate.totalScore,
     grade: candidate.grade,
-    backtestPolicyVersion: "bt-policy-001",
+    backtestPolicyVersion,
     signalTime,
   });
 }
@@ -176,7 +178,10 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
   }
 
   try {
-    validateFundingRecords(input.funding, { symbol: snapshot.symbol });
+    validateFundingRecords(input.funding, {
+      symbol: snapshot.symbol,
+      policy: input.policy ?? snapshot.backtestPolicyVersion,
+    });
   } catch (error) {
     return Object.freeze({
       ...emptyBacktestSignalResult(snapshot, "DATA_INCOMPLETE", error instanceof Error ? error.message : "Funding data is invalid."),
@@ -203,7 +208,11 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
     exitCandle: resolvedExitCandle,
     exitTime,
     direction: snapshot.direction,
-    });
+    policy: input.policy ?? snapshot.backtestPolicyVersion,
+    markPriceCandles: input.markPriceCandles,
+    markPriceSegments: input.markPriceSegments,
+    markPriceBaseEndTime: input.periodEndTime,
+  });
   } catch (error) {
     return Object.freeze({
       ...emptyBacktestSignalResult(snapshot, "DATA_INCOMPLETE", error instanceof Error ? error.message : "Funding calculation failed."),

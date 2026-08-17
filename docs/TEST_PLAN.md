@@ -143,9 +143,10 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 - The report records `strategyVersion = baseline-001` and
   `backtestPolicyVersion = bt-policy-001` separately; changing historical
   execution assumptions cannot change the Strategy Engine version.
-- M3-B.1 freezes `backtestPolicyVersion = bt-policy-002` as a separate,
-  specification-only compatibility policy. `bt-policy-001` remains immutable,
-  and no DEV/OOS/COMBINED performance result exists for `bt-policy-002`.
+- M3-B.1 freezes `backtestPolicyVersion = bt-policy-002` as a separate
+  compatibility policy. M3-B.2 implements it without changing immutable
+  `bt-policy-001`, and no DEV/OOS/COMBINED performance result exists for
+  `bt-policy-002`.
 - DEV uses exactly `2023-01-01T00:00:00.000Z` through
   `2025-12-31T23:59:59.999Z`; OOS uses the locked range
   `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
@@ -208,8 +209,8 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 - Funding fixtures require finite funding rate, valid funding time, and finite
   positive official mark price; missing or invalid mark price is
   `DATA_INCOMPLETE` with no candle-price fallback.
-- M3-B.1 compatibility fixtures must additionally prove the following before
-  any `bt-policy-002` implementation is accepted:
+- M3-B.2 compatibility fixtures prove the following before
+  `bt-policy-002` implementation is accepted:
   - a valid funding-history `markPrice` is used with provenance
     `FUNDING_RATE_HISTORY`;
   - an empty, missing, `null`, non-finite, or non-positive funding-history
@@ -246,6 +247,14 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   `m3-b-report-001` and `bt-policy-002` only as `m3-b-report-002`, with the
   latter containing the funding provenance/fallback audit fields. They reject
   silently extending the legacy schema with incompatible fields.
+- Usage-driven manifest fixtures require a fallback-used base charge to have
+  a valid `kind = mark-price` manifest from `binance-usdm-public` at
+  `/fapi/v1/markPriceKlines`, `timeframe = 1h`, with the exact frozen base
+  range, matching symbol, and valid SHA-256. Settlement-tail fallback tests
+  additionally require the exact tail range and `settlementOnly = true`.
+  Missing, invalid-checksum, wrong-source, wrong-range, or wrong-settlement
+  manifests fail closed as `INCOMPLETE`; direct-only `bt-policy-002` and all
+  `bt-policy-001` runs do not require an unused mark-price manifest.
 - Policy-selection fixtures require an explicit `--policy`: missing policy and
   unknown policy fail closed, `bt-policy-001` selects immutable legacy
   behavior, and explicit `bt-policy-002` selects compatibility behavior. The
@@ -299,11 +308,25 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   every approved symbol, plus settlement-only 1H and funding manifests for
   OOS/COMBINED. Provider mismatch, missing coverage, invalid checksum, or
   missing tail boundary produces `INCOMPLETE` and never formal PASS.
+- Funding compatibility fixtures cover the base-to-tail support boundary:
+  direct-only base funding followed by a first tail fallback uses the final
+  fully closed base mark-price candle; missing support data or its base
+  manifest is `DATA_INCOMPLETE`/`INCOMPLETE`, while a later fallback uses a
+  valid closed tail candle. Unused mark-price manifests remain optional, but a
+  provided malformed checksum, provider, or source is rejected.
 - Repeated-run fixtures produce byte-equivalent reports from the same
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
 
 ### M3-B implemented test coverage
+
+M3-B.2 additionally tests explicit policy selection, preservation of invalid
+direct funding mark prices, direct-only legacy behavior, official mark-price
+Kline fallback and pre-event binary lookup, strict mark-price OHLC/continuity/
+server-time validation, exact base and settlement-tail ranges, provenance,
+fallback counts and UTC-year/symbol reconciliation, policy-specific report
+schemas, mark-price manifests, and exclusion of fallback candles from
+`StrategyInput`.
 
 The M3-B implementation adds deterministic tests in
 `tests/m3-backtest.test.ts` for the following executable contracts:

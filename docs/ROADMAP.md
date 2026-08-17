@@ -261,7 +261,7 @@ live scan, notifications, M6 forward tracking, and trading.
 
 ## M3-B.1 — Historical Funding Compatibility Specification
 
-Status: SPECIFICATION ONLY / DRAFT PR
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -301,6 +301,13 @@ unchanged. No DEV/OOS/COMBINED performance metrics have been observed under
   no duplicates, valid timestamps, finite positive OHLC, and valid OHLC
   relationships. Sorting, gap filling, interpolation, and synthetic candles
   are forbidden; required invalid/missing data is `DATA_INCOMPLETE`.
+- Manifest coverage is usage-driven: a fallback charge requires a valid
+  official mark-price manifest for the matching symbol and exact frozen base or
+  settlement-tail range; tail fallback additionally requires
+  `settlementOnly = true`. Missing, wrong-source, wrong-range,
+  wrong-settlement, or invalid-checksum coverage makes the formal result
+  `INCOMPLETE`; direct-only compatibility segments do not require an unused
+  fallback manifest.
 - `bt-policy-001` serializes as `m3-b-report-001`; `bt-policy-002` serializes
   as `m3-b-report-002` with the new provenance/fallback audit fields. The
   legacy schema must not be silently extended.
@@ -311,17 +318,34 @@ unchanged. No DEV/OOS/COMBINED performance metrics have been observed under
 
 ### Deliverables
 
-Documentation and deterministic test design only. A future implementation
-requires a separate review before any historical run. This milestone does not
-add loader code, strategy code, report code, database changes, or M3-C
-performance evidence.
+The specification is merged and is implemented by the separate M3-B.2
+milestone below. No M3-C performance evidence is included here.
 
 ### Acceptance gate
 
-The specification is accepted only when the four documents above describe the
-same direct/fallback order, strict pre-event lookback, fail-closed behavior,
-provenance, manifests, and determinism requirements. `bt-policy-001` must
-remain unchanged and M3-C must not be rerun during this specification gate.
+The specification is accepted because the four documents describe the same
+direct/fallback order, strict pre-event lookback, fail-closed behavior,
+provenance, manifests, and determinism. `bt-policy-001` remains unchanged and
+M3-C was not rerun during this specification gate.
+
+## M3-B.2 — Historical Funding Compatibility Implementation
+
+Status: IMPLEMENTED / DRAFT PR / UNDER REVIEW
+
+### Scope
+
+Implement `bt-policy-002` against the merged M3-B.1 contract. The implementation
+adds explicit CLI policy selection, direct-mark preservation, official
+`/fapi/v1/markPriceKlines` fallback loading and validation, exact frozen ranges,
+charge provenance, fallback audit fields, and mark-price manifests. The
+immutable `bt-policy-001` path and `baseline-001` Strategy Engine are unchanged.
+
+### Acceptance gate
+
+CI must pass typecheck, lint, all deterministic tests, build, and diff checks.
+The formal M3-C command is explicitly not run in this milestone. M3-C remains
+blocked pending implementation review and a separately authorized historical
+run.
 
 ## M3-C — Baseline Historical Run + Evidence Review
 

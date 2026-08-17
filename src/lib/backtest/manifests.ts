@@ -1,5 +1,6 @@
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 import { BACKTEST_PERIOD_RANGES, BACKTEST_POLICY, type BacktestPeriod } from "./constants.ts";
+import { buildHistoricalLoadRanges } from "./ranges.ts";
 import { HISTORICAL_PROVIDER, type HistoricalManifest } from "../historical-data/types.ts";
 
 export type ManifestCoverage = Readonly<{
@@ -7,8 +8,38 @@ export type ManifestCoverage = Readonly<{
   diagnostics: readonly string[];
 }>;
 
+export type BacktestFallbackManifestRequirement = Readonly<{
+  symbol: ResearchSymbol;
+  segment: "base" | "settlement-tail";
+}>;
+
 function hasValidChecksum(manifest: HistoricalManifest): boolean {
   return /^[a-f0-9]{64}$/i.test(manifest.sha256);
+}
+
+function isResearchSymbol(value: unknown): value is ResearchSymbol {
+  return typeof value === "string" && RESEARCH_SYMBOLS.includes(value as ResearchSymbol);
+}
+
+function validateProvidedMarkPriceManifest(
+  manifest: Extract<HistoricalManifest, { kind: "mark-price" }>,
+  diagnostics: string[],
+): void {
+  if (manifest.provider !== HISTORICAL_PROVIDER) {
+    diagnostics.push(`Mark-price manifest provider is not ${HISTORICAL_PROVIDER}.`);
+  }
+  if (manifest.source !== "/fapi/v1/markPriceKlines") {
+    diagnostics.push("Mark-price manifest source is not /fapi/v1/markPriceKlines.");
+  }
+  if (manifest.timeframe !== "1h") {
+    diagnostics.push("Mark-price manifest timeframe is not 1h.");
+  }
+  if (!isResearchSymbol(manifest.symbol)) {
+    diagnostics.push("Mark-price manifest symbol is not in the approved research universe.");
+  }
+  if (!hasValidChecksum(manifest)) {
+    diagnostics.push(`Mark-price manifest checksum is invalid for ${String(manifest.symbol)}.`);
+  }
 }
 
 function findManifest(
@@ -54,13 +85,77 @@ function requireManifest(
   return manifest;
 }
 
+function validateRequiredMarkPriceManifest(
+  manifests: readonly HistoricalManifest[],
+  period: BacktestPeriod,
+  requirement: BacktestFallbackManifestRequirement,
+  diagnostics: string[],
+): void {
+  const ranges = buildHistoricalLoadRanges(period);
+  const expectedRange =
+    requirement.segment === "base" ? ranges.markPriceRange : ranges.settlementTail?.markPriceRange;
+  if (!expectedRange) {
+    diagnostics.push(
+      `A settlement-tail mark-price manifest is not valid for the ${period} period (${requirement.symbol}).`,
+    );
+    return;
+  }
+
+  const expectedSettlementOnly = expectedRange.settlementOnly ?? false;
+  const manifest = manifests.find(
+    (candidate): candidate is Extract<HistoricalManifest, { kind: "mark-price" }> =>
+      candidate.kind === "mark-price" &&
+      candidate.provider === HISTORICAL_PROVIDER &&
+      candidate.source === "/fapi/v1/markPriceKlines" &&
+      candidate.timeframe === "1h" &&
+      candidate.symbol === requirement.symbol &&
+      candidate.requestedStartTime === expectedRange.startTime &&
+      candidate.requestedEndTime === expectedRange.endTime &&
+      candidate.settlementOnly === expectedSettlementOnly,
+  );
+
+  if (!manifest) {
+    diagnostics.push(
+      `Required ${requirement.segment} mark-price manifest is missing or does not match the official source, symbol, or frozen range for ${requirement.symbol}.`,
+    );
+    return;
+  }
+  if (!hasValidChecksum(manifest)) {
+    diagnostics.push(`Required ${requirement.segment} mark-price manifest checksum is invalid for ${requirement.symbol}.`);
+  }
+}
+
+export function validateRequiredMarkPriceManifestCoverage(
+  manifests: readonly HistoricalManifest[] | undefined,
+  period: BacktestPeriod,
+  requirements: readonly BacktestFallbackManifestRequirement[],
+): ManifestCoverage {
+  const diagnostics: string[] = [];
+  const provided = manifests ?? [];
+  const uniqueRequirements = new Map<string, BacktestFallbackManifestRequirement>();
+  for (const requirement of requirements) {
+    uniqueRequirements.set(`${requirement.segment}:${requirement.symbol}`, requirement);
+  }
+  for (const requirement of uniqueRequirements.values()) {
+    validateRequiredMarkPriceManifest(provided, period, requirement, diagnostics);
+  }
+  return Object.freeze({ valid: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
+}
+
 export function validateRequiredManifestCoverage(
   manifests: readonly HistoricalManifest[] | undefined,
   period: BacktestPeriod,
+  fallbackRequirements: readonly BacktestFallbackManifestRequirement[] = [],
 ): ManifestCoverage {
   const diagnostics: string[] = [];
   const provided = manifests ?? [];
   for (const manifest of provided) {
+    if (manifest.kind === "mark-price") {
+      // Unused mark-price paths stay optional, but a provided manifest is still
+      // provenance and must not be allowed to carry malformed metadata.
+      validateProvidedMarkPriceManifest(manifest, diagnostics);
+      continue;
+    }
     if (manifest.provider !== HISTORICAL_PROVIDER) {
       diagnostics.push(`Manifest provider is not ${HISTORICAL_PROVIDER}.`);
     }
@@ -126,6 +221,9 @@ export function validateRequiredManifestCoverage(
       }
     }
   }
+
+  const markPriceCoverage = validateRequiredMarkPriceManifestCoverage(provided, period, fallbackRequirements);
+  diagnostics.push(...markPriceCoverage.diagnostics);
 
   return Object.freeze({ valid: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
 }

@@ -6,7 +6,18 @@ export function evaluateBacktestAcceptance(input: Readonly<{
   metrics: BacktestMetrics;
   runStatus?: BacktestRunStatus;
 }>): BacktestAcceptance {
+  const incomplete =
+    input.runStatus === "INCOMPLETE" ||
+    input.metrics.dataIncomplete > 0 ||
+    input.metrics.settlementAmbiguous > 0;
   if (input.period === "DEV") {
+    if (incomplete) {
+      return Object.freeze({
+        status: "INCOMPLETE",
+        reasons: Object.freeze(["Required historical data or settlement ordering is incomplete."]),
+        checks: Object.freeze({}),
+      });
+    }
     return Object.freeze({
       status: "DESCRIPTIVE",
       reasons: Object.freeze(["DEV is descriptive only; no acceptance gate is applied."]),
@@ -32,7 +43,7 @@ export function evaluateBacktestAcceptance(input: Readonly<{
         : input.metrics.largestSingleTradeShareOfPositiveNetR <= 0.2,
   };
   const reasons: string[] = [];
-  if (input.runStatus === "INCOMPLETE" || input.metrics.dataIncomplete > 0 || input.metrics.settlementAmbiguous > 0) {
+  if (incomplete) {
     return Object.freeze({
       status: "INCOMPLETE",
       reasons: Object.freeze(["Required historical data or settlement ordering is incomplete."]),

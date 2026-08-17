@@ -1,6 +1,6 @@
 # TradePulse Backtest Specification
 
-Status: M3-B implementation / Draft PR; M3-C historical study has not been run.
+Status: M3-B.2 implementation / Draft PR; M3-C historical study has not been run.
 
 This document freezes the historical research protocol for baseline-001. It
 defines a separate execution and settlement policy so that a change in
@@ -12,8 +12,10 @@ Every backtest report must contain both version identifiers:
 
 - `strategyVersion = baseline-001` — decides whether a candidate/formal signal
   exists and supplies its immutable research references.
-- `backtestPolicyVersion = bt-policy-001` — defines hypothetical entry,
-  slippage, fees, funding, settlement, time exit, and metric treatment.
+- `backtestPolicyVersion = bt-policy-001` or `bt-policy-002` — selects the
+  frozen hypothetical entry, slippage, fees, funding, settlement, time exit,
+  and metric treatment. The policies share economics but differ in historical
+  funding mark-price resolution.
 
 Changing `bt-policy-001` does not change `baseline-001`. Any strategy-rule
 change requires a reviewed Strategy Change and a new strategy version. The
@@ -27,13 +29,12 @@ fees, funding, or profit.
 field is missing or invalid. It is not retroactively changed by this
 compatibility specification.
 
-`backtestPolicyVersion = bt-policy-002` is frozen as a separate, future
+`backtestPolicyVersion = bt-policy-002` is implemented as a separate
 historical-data compatibility policy. It exists only to resolve older official
 Binance funding-history records whose `markPrice` is empty or otherwise
 invalid. It does not change `baseline-001`, funding economics, event timing,
-settlement, fees, slippage, or any strategy threshold. This M3-B.1 change is
-specification-only; no `bt-policy-002` implementation or DEV/OOS/COMBINED
-performance result exists yet.
+settlement, fees, slippage, or any strategy threshold. The implementation is
+included in this PR, but no DEV/OOS/COMBINED performance result exists yet.
 
 Any report produced after an approved implementation must identify exactly one
 policy version and must not compare results from `bt-policy-001` and
@@ -192,8 +193,8 @@ REST documentation](https://developers.binance.com/en/docs/catalog/core-trading-
   `fundingTime`, and finite positive official `markPrice` are all required. A
   missing or invalid `markPrice` is `DATA_INCOMPLETE`; no candle-price
   fallback is permitted. The only later compatibility behavior is the
-  specification-only `bt-policy-002` rule below; it is not implemented by
-  M3-B.
+  `bt-policy-002` rule below; policy selection determines whether the legacy
+  direct-only behavior or the compatibility fallback is used.
 - Kline pagination advances only to the next expected open time. Funding
   pagination advances strictly after the last accepted `fundingTime`. A
   repeated page, gap, duplicate, malformed row, or non-progressing cursor
@@ -507,8 +508,10 @@ SHORT fundingPnL = +fundingRate * markPrice
 fundingR = fundingPnL / stopDistance
 ```
 
-Every funding charge must retain `fundingTime`, `fundingRate`, `markPrice`, and
-`markPriceSource`. The report must additionally expose
+For `bt-policy-002`, every funding charge must retain `fundingTime`,
+`fundingRate`, `markPrice`, and `markPriceSource`. The `bt-policy-001` legacy
+report retains its existing charge shape without that new provenance field. The
+`bt-policy-002` report must additionally expose
 `fundingEventsTotal`, `fundingEventsDirectMarkPrice`,
 `fundingEventsFallbackMarkPrice`, and `fundingFallbackRate`, with fallback
 counts broken down by symbol and UTC year.
@@ -534,6 +537,19 @@ requested and actual ranges, row count, retrieval timestamp, SHA-256, and the
 `settlementOnly` classification where applicable. With normalized funding
 records, mark-price klines, strategy data, and the policy version fixed, the
 core report must remain byte-equivalent and deterministic.
+
+Formal manifest validation is usage-driven: a base fallback charge requires the
+exact frozen base mark-price range, while a settlement-tail fallback charge
+requires `settlementOnly = true` and the exact frozen tail range. Missing,
+wrong-source, wrong-range, wrong-settlement classification, or invalid-checksum
+manifests make the formal result `INCOMPLETE`; an unused fallback path does not
+require a mark-price manifest. The loader retains explicit base versus
+settlement-tail provenance for every loaded mark-price candle. If a first
+settlement-tail fallback resolves to the final valid candle in the base range,
+the charge records the base provenance and requires the base manifest; it never
+claims that candle under a settlement-only manifest. Any provided mark-price
+manifest is still checked for provider, endpoint, timeframe, symbol, and
+SHA-256 integrity even when the fallback path is unused.
 
 ## R normalization
 

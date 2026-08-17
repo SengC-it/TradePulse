@@ -1,7 +1,12 @@
 import type { ResearchSymbol } from "../config/constants.ts";
 import type { MarketTimeframe } from "../market-data/intervals.ts";
 import type { Candle } from "../market-data/types.ts";
-import type { HistoricalFundingRecord, HistoricalManifest } from "../historical-data/types.ts";
+import type {
+  HistoricalFundingRecord,
+  HistoricalManifest,
+  HistoricalMarkPriceCandle,
+  HistoricalMarkPriceSegment,
+} from "../historical-data/types.ts";
 import type {
   BTCRegime,
   SignalGrade,
@@ -10,7 +15,7 @@ import type {
   StrategyEvaluation,
   SymbolRegime,
 } from "../strategy/types.ts";
-import type { BacktestPeriod } from "./constants.ts";
+import type { BacktestPeriod, BacktestPolicyVersion } from "./constants.ts";
 
 export type BacktestDataset = Readonly<{
   candles1h: readonly Candle[];
@@ -20,13 +25,15 @@ export type BacktestDataset = Readonly<{
 export type BacktestData = Readonly<{
   datasets: Readonly<Record<ResearchSymbol, BacktestDataset>>;
   funding: Readonly<Record<ResearchSymbol, readonly HistoricalFundingRecord[]>>;
+  markPrice?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceCandle[] | undefined>>;
+  markPriceSegments?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>>;
   manifests: readonly HistoricalManifest[];
   serverTime?: number;
 }>;
 
 export type BacktestSignalSnapshot = Readonly<{
   strategyVersion: "baseline-001";
-  backtestPolicyVersion: "bt-policy-001";
+  backtestPolicyVersion: BacktestPolicyVersion;
   signalTime: number;
   symbol: ResearchSymbol;
   direction: StrategyDirection;
@@ -59,6 +66,10 @@ export type BacktestFundingCharge = Readonly<{
   fundingTime: number;
   fundingRate: number;
   markPrice: number;
+  /** Present for bt-policy-002; omitted to preserve the legacy report schema. */
+  markPriceSource?: "FUNDING_RATE_HISTORY" | "MARK_PRICE_KLINE_PRE_EVENT_CLOSE";
+  /** Actual mark-price dataset used by a bt-policy-002 fallback charge. */
+  markPriceManifestSegment?: "base" | "settlement-tail";
   fundingPnL: number;
 }>;
 
@@ -148,10 +159,8 @@ export type BacktestAcceptance = Readonly<{
   checks: Readonly<Record<string, boolean | null>>;
 }>;
 
-export type BacktestReport = Readonly<{
-  schemaVersion: "m3-b-report-001";
+type BacktestReportCore = Readonly<{
   strategyVersion: "baseline-001";
-  backtestPolicyVersion: "bt-policy-001";
   period: BacktestPeriod;
   periods: Readonly<Record<"DEV" | "OOS", Readonly<{ startTime: number; endTime: number }>>>;
   symbols: readonly ResearchSymbol[];
@@ -174,9 +183,32 @@ export type BacktestReport = Readonly<{
   disclaimer: string;
 }>;
 
+export type BacktestFundingAudit = Readonly<{
+  fundingEventsTotal: number;
+  fundingEventsDirectMarkPrice: number;
+  fundingEventsFallbackMarkPrice: number;
+  fundingFallbackRate: number | null;
+  fundingFallbackBySymbol: Readonly<Record<ResearchSymbol, number>>;
+  fundingFallbackByUtcYear: Readonly<Record<string, number>>;
+}>;
+
+export type LegacyBacktestReport = BacktestReportCore & Readonly<{
+  schemaVersion: "m3-b-report-001";
+  backtestPolicyVersion: "bt-policy-001";
+}>;
+
+export type CompatibilityBacktestReport = BacktestReportCore & BacktestFundingAudit & Readonly<{
+  schemaVersion: "m3-b-report-002";
+  backtestPolicyVersion: "bt-policy-002";
+}>;
+
+export type BacktestReport = LegacyBacktestReport | CompatibilityBacktestReport;
+
 export type BacktestRunInput = Readonly<{
   period: BacktestPeriod;
   data: BacktestData;
+  /** Library callers retain legacy compatibility; the formal CLI requires it. */
+  policy?: BacktestPolicyVersion;
 }>;
 
 export type SettlementInput = Readonly<{
@@ -184,6 +216,9 @@ export type SettlementInput = Readonly<{
   signalCandle: Candle;
   heldCandles: readonly Candle[];
   funding: readonly HistoricalFundingRecord[];
+  markPriceCandles?: readonly HistoricalMarkPriceCandle[];
+  markPriceSegments?: readonly HistoricalMarkPriceSegment[];
+  policy?: BacktestPolicyVersion;
   period: Exclude<BacktestPeriod, "COMBINED">;
   periodEndTime: number;
 }>;

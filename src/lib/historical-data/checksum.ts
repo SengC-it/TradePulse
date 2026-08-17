@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Candle } from "../market-data/types.ts";
-import type { HistoricalFundingRecord } from "./types.ts";
+import type { HistoricalFundingRecord, HistoricalMarkPriceCandle } from "./types.ts";
 
 function canonicalNumber(value: number): string {
   if (!Number.isFinite(value)) {
@@ -33,7 +33,19 @@ export function canonicalFundingRow(record: HistoricalFundingRecord): string {
     record.symbol,
     canonicalNumber(record.fundingTime),
     canonicalNumber(record.fundingRate),
-    canonicalNumber(record.markPrice),
+    record.directMarkPrice === null ? "null" : canonicalNumber(record.directMarkPrice),
+  ].join(",");
+}
+
+export function canonicalMarkPriceRow(candle: HistoricalMarkPriceCandle): string {
+  return [
+    candle.symbol,
+    canonicalNumber(candle.openTime),
+    canonicalNumber(candle.closeTime),
+    canonicalNumber(candle.open),
+    canonicalNumber(candle.high),
+    canonicalNumber(candle.low),
+    canonicalNumber(candle.close),
   ].join(",");
 }
 
@@ -47,4 +59,8 @@ export function checksumCandles(candles: readonly Candle[]): string {
 
 export function checksumFunding(records: readonly HistoricalFundingRecord[]): string {
   return sha256Rows(records.map(canonicalFundingRow));
+}
+
+export function checksumMarkPrice(candles: readonly HistoricalMarkPriceCandle[]): string {
+  return sha256Rows(candles.map(canonicalMarkPriceRow));
 }
