@@ -1,7 +1,3 @@
-(node:14888) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/Codex/TradePulse/.m2-strategy-engine-work/src/lib/backtest/ranges.ts is not specified and it doesn't parse as CommonJS.
-Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
-To eliminate this warning, add "type": "module" to E:\Codex\TradePulse\.m2-strategy-engine-work\package.json.
-(Use `node --trace-warnings ...` to show where the warning was created)
 # M3-C bt-policy-002 Formal Historical Run #1
 
 > **M3-C INCOMPLETE**
