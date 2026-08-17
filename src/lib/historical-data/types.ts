@@ -89,10 +89,53 @@ export type HistoricalMarkPriceSegment = Readonly<{
   manifest: HistoricalMarkPriceManifest;
 }>;
 
+/** A dedicated 1m settlement window. It is never passed to StrategyInput. */
+export type IntrabarSettlementCandle = Readonly<{
+  symbol: ResearchSymbol;
+  timeframe: "1m";
+  openTime: number;
+  closeTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  quoteVolume: number;
+  tradeCount: number;
+  takerBuyBaseVolume: number;
+  takerBuyQuoteVolume: number;
+}>;
+
+export type HistoricalIntrabarSettlementManifest = Readonly<{
+  kind: "intrabar-settlement";
+  provider: typeof HISTORICAL_PROVIDER;
+  source: "/fapi/v1/klines";
+  symbol: ResearchSymbol;
+  timeframe: "1m";
+  requestedStartTime: number;
+  requestedEndTime: number;
+  actualStartTime: number | null;
+  actualEndTime: number | null;
+  rowCount: 60;
+  retrievedAt: string;
+  sha256: string;
+  settlementOnly: boolean;
+  exitCandleOpenTime: number;
+}>;
+
+export type HistoricalIntrabarSettlementWindow = Readonly<{
+  symbol: ResearchSymbol;
+  exitCandleOpenTime: number;
+  settlementOnly: boolean;
+  candles: readonly IntrabarSettlementCandle[];
+  manifest: HistoricalIntrabarSettlementManifest;
+}>;
+
 export type HistoricalManifest =
   | HistoricalCandleManifest
   | HistoricalFundingManifest
-  | HistoricalMarkPriceManifest;
+  | HistoricalMarkPriceManifest
+  | HistoricalIntrabarSettlementManifest;
 
 export type HistoricalCandleDataset = Readonly<{
   symbol: ResearchSymbol;
@@ -117,6 +160,7 @@ export type HistoricalStudyData = Readonly<{
   funding: Readonly<Record<ResearchSymbol, HistoricalFundingDataset>>;
   markPrice: Readonly<Record<ResearchSymbol, HistoricalMarkPriceDataset | undefined>>;
   markPriceSegments: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>>;
+  intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
   manifests: readonly HistoricalManifest[];
   serverTime: number;
 }>;

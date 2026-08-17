@@ -402,7 +402,7 @@ decisions, production deployment, and trading.
 
 ## M3-D — Intrabar Settlement Resolution Specification Freeze
 
-Status: SPECIFICATION ONLY / DRAFT PR
+Status: CLOSED / MERGED TO main
 
 ### Authority and purpose
 
@@ -448,12 +448,48 @@ same-minute funding audit inclusion/exclusion, 60-row integrity, server-time
 closure, manifest provenance, report schema selection, unchanged legacy
 policies, count reconciliation, and zero-ambiguity acceptance. CI must pass
 typecheck, lint, tests, build, and diff checks. No formal bt-policy-003
-historical run is performed in M3-D.
+historical run is performed in the M3-D specification or M3-D.1 review.
 
 ### Out of scope
 
 Implementation, M3-C rerun, performance-based settlement selection, strategy
 tuning, M4, forward tracking, production deployment, and trading.
+
+## M3-D.1 — Implement bt-policy-003 Intrabar Settlement Resolution
+
+Status: UNDER REVIEW / DRAFT PR
+
+### Scope
+
+Implement only the already frozen M3-D `bt-policy-003` settlement-resolution
+contract. `baseline-001`, `bt-policy-001`, `bt-policy-002`, strategy
+thresholds, funding economics, and the immutable M3-C evidence remain
+unchanged.
+
+### Deliverables
+
+The implementation adds a dedicated, usage-driven 1m settlement-window loader
+using Binance USDⓈ-M Futures public `/fapi/v1/klines`, the single-study-server-
+time closure and exact 1m/1H reconciliation guards, Phase A requirement
+discovery, Phase B pure settlement resolution, separate funding-order audits,
+intrabar manifests, and isolated `m3-b-report-003` fields. 1m rows never enter
+`StrategyInput`; no private API, trading, persistence, or M4 work is included.
+
+### Tests and acceptance
+
+Deterministic tests cover exact 60-row integrity, duplicate/gap/future and
+malformed OHLC rejection, frozen 1H reason preservation, first matching minute
+resolution, funding boundary and conservative same-minute ordering, manifest
+coverage, schema isolation, usage-driven windows, and count reconciliation.
+Normal typecheck, lint, test, build, and diff checks must pass. No formal
+M3-C run is performed in M3-D.1; the Draft PR remains unmerged for review.
+
+### Out of scope
+
+Historical evidence generation, strategy tuning, M4, forward tracking,
+notifications, deployment, persistence, and trading.
+
+M3-E — Formal policy-003 evidence run: NOT STARTED.
 
 ## M4 — Realtime Scanner
 

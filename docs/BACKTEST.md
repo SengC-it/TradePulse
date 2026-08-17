@@ -1,6 +1,6 @@
 # TradePulse Backtest Specification
 
-Status: M3-D intrabar settlement-resolution specification / Draft PR; the
+Status: M3-D.1 intrabar settlement-resolution implementation / Draft PR; the
 bt-policy-002 M3-C evidence remains immutable and classified INCOMPLETE.
 
 This document freezes the historical research protocol for baseline-001. It
@@ -563,9 +563,9 @@ SHA-256 integrity even when the fallback path is unused.
 
 ## M3-D intrabar settlement resolution (`bt-policy-003`)
 
-This section freezes a new settlement methodology only. It does not implement
-the loader or runner, rerun M3-C, tune `baseline-001`, or change any funding
-economics. `bt-policy-003` inherits every `bt-policy-002` rule except the
+This implementation realizes the already frozen settlement methodology. It
+does not rerun M3-C, tune `baseline-001`, or change any funding economics.
+`bt-policy-003` inherits every `bt-policy-002` rule except the
 explicit TP/SL intrabar ordering rules in this section. `bt-policy-001` and
 `bt-policy-002` remain immutable.
 

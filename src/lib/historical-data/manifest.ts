@@ -1,6 +1,11 @@
 import type { MarketTimeframe } from "../market-data/intervals.ts";
 import type { Candle } from "../market-data/types.ts";
-import { checksumCandles, checksumFunding, checksumMarkPrice } from "./checksum.ts";
+import {
+  checksumCandles,
+  checksumFunding,
+  checksumIntrabarSettlement,
+  checksumMarkPrice,
+} from "./checksum.ts";
 import type {
   HistoricalCandleManifest,
   HistoricalFundingManifest,
@@ -8,6 +13,8 @@ import type {
   HistoricalMarkPriceCandle,
   HistoricalMarkPriceManifest,
   HistoricalRange,
+  HistoricalIntrabarSettlementManifest,
+  IntrabarSettlementCandle,
   HISTORICAL_PROVIDER,
 } from "./types.ts";
 import type { ResearchSymbol } from "../config/constants.ts";
@@ -87,5 +94,33 @@ export function createMarkPriceManifest(input: {
     retrievedAt: isoTimestamp(input.retrievedAt),
     sha256: checksumMarkPrice(input.candles),
     settlementOnly: input.range.settlementOnly ?? false,
+  });
+}
+
+export function createIntrabarSettlementManifest(input: {
+  symbol: ResearchSymbol;
+  exitCandleOpenTime: number;
+  range: HistoricalRange;
+  candles: readonly IntrabarSettlementCandle[];
+  retrievedAt: string | number;
+}): HistoricalIntrabarSettlementManifest {
+  if (input.candles.length !== 60) {
+    throw new Error("Intrabar settlement manifests require exactly 60 candles.");
+  }
+  return Object.freeze({
+    kind: "intrabar-settlement",
+    provider: "binance-usdm-public" as typeof HISTORICAL_PROVIDER,
+    source: "/fapi/v1/klines",
+    symbol: input.symbol,
+    timeframe: "1m" as const,
+    requestedStartTime: input.range.startTime,
+    requestedEndTime: input.range.endTime,
+    actualStartTime: input.candles[0]?.openTime ?? null,
+    actualEndTime: input.candles[input.candles.length - 1]?.closeTime ?? null,
+    rowCount: 60,
+    retrievedAt: isoTimestamp(input.retrievedAt),
+    sha256: checksumIntrabarSettlement(input.candles),
+    settlementOnly: input.range.settlementOnly ?? false,
+    exitCandleOpenTime: input.exitCandleOpenTime,
   });
 }

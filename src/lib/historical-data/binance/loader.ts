@@ -4,9 +4,15 @@ import { parseBinanceKlines } from "../../market-data/binance/parser.ts";
 import { INTERVAL_MS, type MarketTimeframe } from "../../market-data/intervals.ts";
 import type { Candle } from "../../market-data/types.ts";
 import { HistoricalDataError } from "../errors.ts";
-import { createCandleManifest, createFundingManifest, createMarkPriceManifest } from "../manifest.ts";
+import {
+  createCandleManifest,
+  createFundingManifest,
+  createIntrabarSettlementManifest,
+  createMarkPriceManifest,
+} from "../manifest.ts";
 import { parseBinanceFundingRateHistory } from "./parser.ts";
 import { parseBinanceMarkPriceKlines } from "./mark-price.ts";
+import { parseBinanceIntrabarKlines } from "./intrabar.ts";
 import { isBacktestPolicy, type BacktestPolicyVersion } from "../../backtest/constants.ts";
 import type {
   HistoricalCandleDataset,
@@ -15,11 +21,18 @@ import type {
   HistoricalMarkPriceCandle,
   HistoricalMarkPriceDataset,
   HistoricalMarkPriceSegment,
+  HistoricalIntrabarSettlementWindow,
+  IntrabarSettlementCandle,
   HistoricalRange,
   HistoricalStudyData,
   HistoricalSymbolDataset,
 } from "../types.ts";
-import { validateFundingRecords, validateHistoricalCandleSeries, validateMarkPriceCandleSeries } from "../validation.ts";
+import {
+  validateFundingRecords,
+  validateHistoricalCandleSeries,
+  validateIntrabarSettlementWindow,
+  validateMarkPriceCandleSeries,
+} from "../validation.ts";
 
 export type HistoricalLoaderOptions = Readonly<{
   client?: BinancePublicClient;
@@ -49,6 +62,19 @@ export type HistoricalMarkPriceRequest = Readonly<{
   range: HistoricalRange;
   /** Captured once by loadStudyData; standalone loads may omit it. */
   serverTime?: number;
+}>;
+
+export type HistoricalIntrabarSettlementRequest = Readonly<{
+  symbol: ResearchSymbol;
+  exitCandleOpenTime: number;
+  settlementOnly: boolean;
+  serverTime?: number;
+}>;
+
+export type HistoricalIntrabarSettlementRequirement = Readonly<{
+  symbol: ResearchSymbol;
+  exitCandleOpenTime: number;
+  settlementOnly: boolean;
 }>;
 
 function rangeError(message: string, symbol?: ResearchSymbol, timeframe?: MarketTimeframe): never {
@@ -398,6 +424,83 @@ export class BinanceHistoricalDataLoader {
     return this.loadMarkPriceKlines(request);
   }
 
+  async loadIntrabarSettlementWindow(
+    request: HistoricalIntrabarSettlementRequest,
+  ): Promise<HistoricalIntrabarSettlementWindow> {
+    const exitCandleCloseTime = request.exitCandleOpenTime + INTERVAL_MS["1h"] - 1;
+    const serverTime =
+      request.serverTime ?? (await this.getAuthoritativeServerTime(request.symbol, "1h"));
+    let payload: unknown;
+    try {
+      payload = (
+        await this.client.getIntrabarKlinesRange(
+          request.symbol,
+          request.exitCandleOpenTime,
+          exitCandleCloseTime,
+          60,
+        )
+      ).data;
+    } catch (error) {
+      wrapUpstreamError(error, request.symbol, "1h");
+    }
+    const parsed = parseBinanceIntrabarKlines(payload, request.symbol);
+    const candles: readonly IntrabarSettlementCandle[] = validateIntrabarSettlementWindow(parsed, {
+      symbol: request.symbol,
+      exitCandleOpenTime: request.exitCandleOpenTime,
+      exitCandleCloseTime,
+      serverTime,
+    });
+    const range: HistoricalRange = {
+      startTime: request.exitCandleOpenTime,
+      endTime: exitCandleCloseTime,
+      settlementOnly: request.settlementOnly,
+    };
+    const manifest = createIntrabarSettlementManifest({
+      symbol: request.symbol,
+      exitCandleOpenTime: request.exitCandleOpenTime,
+      range,
+      candles,
+      retrievedAt: this.now(),
+    });
+    return Object.freeze({
+      symbol: request.symbol,
+      exitCandleOpenTime: request.exitCandleOpenTime,
+      settlementOnly: request.settlementOnly,
+      candles,
+      manifest,
+    });
+  }
+
+  async loadIntrabarSettlementWindows(
+    requirements: readonly HistoricalIntrabarSettlementRequirement[],
+    serverTime: number,
+  ): Promise<readonly HistoricalIntrabarSettlementWindow[]> {
+    const symbolOrder = new Map(RESEARCH_SYMBOLS.map((symbol, index) => [symbol, index]));
+    const unique = new Map<string, HistoricalIntrabarSettlementRequirement>();
+    for (const requirement of requirements) {
+      unique.set(
+        `${requirement.symbol}:${requirement.exitCandleOpenTime}:${requirement.settlementOnly}`,
+        requirement,
+      );
+    }
+    const ordered = [...unique.values()].sort(
+      (left, right) =>
+        (symbolOrder.get(left.symbol) ?? Number.MAX_SAFE_INTEGER) -
+          (symbolOrder.get(right.symbol) ?? Number.MAX_SAFE_INTEGER) ||
+        left.exitCandleOpenTime - right.exitCandleOpenTime,
+    );
+    const windows: HistoricalIntrabarSettlementWindow[] = [];
+    for (const requirement of ordered) {
+      windows.push(
+        await this.loadIntrabarSettlementWindow({
+          ...requirement,
+          serverTime,
+        }),
+      );
+    }
+    return Object.freeze(windows);
+  }
+
   async loadStudyData(input: Readonly<{
     candleRange: HistoricalRange | Readonly<Record<MarketTimeframe, HistoricalRange>>;
     fundingRange: HistoricalRange;
@@ -483,7 +586,7 @@ export class BinanceHistoricalDataLoader {
           (record) =>
             !(typeof record.directMarkPrice === "number" && Number.isFinite(record.directMarkPrice) && record.directMarkPrice > 0),
         );
-        if (policy === "bt-policy-002" && (baseNeedsFallback || tailNeedsFallback)) {
+        if ((policy === "bt-policy-002" || policy === "bt-policy-003") && (baseNeedsFallback || tailNeedsFallback)) {
           const baseMarkRange = input.markPriceRange ?? {
             startTime: input.fundingRange.startTime - INTERVAL_MS["1h"],
             endTime: input.fundingRange.endTime,
@@ -542,7 +645,7 @@ export class BinanceHistoricalDataLoader {
             manifests.push(...markPriceDataset.manifests);
           }
         }
-      } else if (policy === "bt-policy-002" && baseNeedsFallback) {
+      } else if ((policy === "bt-policy-002" || policy === "bt-policy-003") && baseNeedsFallback) {
         const markRange = input.markPriceRange ?? {
           startTime: input.fundingRange.startTime - INTERVAL_MS["1h"],
           endTime: input.fundingRange.endTime,
@@ -591,6 +694,21 @@ export async function loadHistoricalMarkPrice(
   options: HistoricalLoaderOptions = {},
 ): Promise<HistoricalMarkPriceDataset> {
   return new BinanceHistoricalDataLoader(options).loadMarkPriceKlines(request);
+}
+
+export async function loadHistoricalIntrabarSettlement(
+  request: HistoricalIntrabarSettlementRequest,
+  options: HistoricalLoaderOptions = {},
+): Promise<HistoricalIntrabarSettlementWindow> {
+  return new BinanceHistoricalDataLoader(options).loadIntrabarSettlementWindow(request);
+}
+
+export async function loadHistoricalIntrabarSettlementWindows(
+  requirements: readonly HistoricalIntrabarSettlementRequirement[],
+  serverTime: number,
+  options: HistoricalLoaderOptions = {},
+): Promise<readonly HistoricalIntrabarSettlementWindow[]> {
+  return new BinanceHistoricalDataLoader(options).loadIntrabarSettlementWindows(requirements, serverTime);
 }
 
 export const loadHistoricalKlines = loadHistoricalCandles;

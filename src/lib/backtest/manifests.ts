@@ -1,7 +1,12 @@
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 import { BACKTEST_PERIOD_RANGES, BACKTEST_POLICY, type BacktestPeriod } from "./constants.ts";
 import { buildHistoricalLoadRanges } from "./ranges.ts";
-import { HISTORICAL_PROVIDER, type HistoricalManifest } from "../historical-data/types.ts";
+import {
+  HISTORICAL_PROVIDER,
+  type HistoricalManifest,
+  type HistoricalIntrabarSettlementManifest,
+} from "../historical-data/types.ts";
+import type { IntrabarSettlementRequirement } from "./types.ts";
 
 export type ManifestCoverage = Readonly<{
   valid: boolean;
@@ -12,6 +17,8 @@ export type BacktestFallbackManifestRequirement = Readonly<{
   symbol: ResearchSymbol;
   segment: "base" | "settlement-tail";
 }>;
+
+export type BacktestIntrabarManifestRequirement = IntrabarSettlementRequirement;
 
 function hasValidChecksum(manifest: HistoricalManifest): boolean {
   return /^[a-f0-9]{64}$/i.test(manifest.sha256);
@@ -40,6 +47,28 @@ function validateProvidedMarkPriceManifest(
   if (!hasValidChecksum(manifest)) {
     diagnostics.push(`Mark-price manifest checksum is invalid for ${String(manifest.symbol)}.`);
   }
+}
+
+function validateProvidedIntrabarManifest(
+  manifest: HistoricalIntrabarSettlementManifest,
+  diagnostics: string[],
+): void {
+  if (manifest.provider !== HISTORICAL_PROVIDER) diagnostics.push("Intrabar manifest provider is invalid.");
+  if (manifest.source !== "/fapi/v1/klines") diagnostics.push("Intrabar manifest source is invalid.");
+  if (manifest.timeframe !== "1m") diagnostics.push("Intrabar manifest timeframe is not 1m.");
+  if (!isResearchSymbol(manifest.symbol)) diagnostics.push("Intrabar manifest symbol is invalid.");
+  if (manifest.rowCount !== 60) diagnostics.push(`Intrabar manifest row count is not 60 for ${manifest.symbol}.`);
+  if (!Number.isInteger(manifest.exitCandleOpenTime)) diagnostics.push("Intrabar manifest exit candle time is invalid.");
+  if (manifest.requestedStartTime !== manifest.exitCandleOpenTime) {
+    diagnostics.push(`Intrabar manifest start does not match its exit candle for ${manifest.symbol}.`);
+  }
+  if (manifest.requestedEndTime !== manifest.exitCandleOpenTime + 60 * 60 * 1000 - 1) {
+    diagnostics.push(`Intrabar manifest end does not cover exactly one 1H candle for ${manifest.symbol}.`);
+  }
+  if (manifest.actualStartTime !== manifest.requestedStartTime || manifest.actualEndTime !== manifest.requestedEndTime) {
+    diagnostics.push(`Intrabar manifest actual boundaries do not match the requested window for ${manifest.symbol}.`);
+  }
+  if (!hasValidChecksum(manifest)) diagnostics.push(`Intrabar manifest checksum is invalid for ${manifest.symbol}.`);
 }
 
 function findManifest(
@@ -142,10 +171,43 @@ export function validateRequiredMarkPriceManifestCoverage(
   return Object.freeze({ valid: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
 }
 
+export function validateIntrabarSettlementManifestCoverage(
+  manifests: readonly HistoricalManifest[] | undefined,
+  requirements: readonly BacktestIntrabarManifestRequirement[],
+): ManifestCoverage {
+  const diagnostics: string[] = [];
+  const provided = manifests ?? [];
+  const unique = new Map<string, BacktestIntrabarManifestRequirement>();
+  for (const requirement of requirements) {
+    unique.set(`${requirement.symbol}:${requirement.exitCandleOpenTime}:${requirement.settlementOnly}`, requirement);
+  }
+  for (const requirement of unique.values()) {
+    const manifest = provided.find(
+      (candidate): candidate is Extract<HistoricalManifest, { kind: "intrabar-settlement" }> =>
+        candidate.kind === "intrabar-settlement" &&
+        candidate.provider === HISTORICAL_PROVIDER &&
+        candidate.source === "/fapi/v1/klines" &&
+        candidate.timeframe === "1m" &&
+        candidate.symbol === requirement.symbol &&
+        candidate.exitCandleOpenTime === requirement.exitCandleOpenTime &&
+        candidate.requestedStartTime === requirement.exitCandleOpenTime &&
+        candidate.requestedEndTime === requirement.exitCandleCloseTime &&
+        candidate.settlementOnly === requirement.settlementOnly,
+    );
+    if (!manifest) {
+      diagnostics.push(`Required intrabar settlement manifest is missing or does not match the frozen window for ${requirement.symbol} at ${requirement.exitCandleOpenTime}.`);
+      continue;
+    }
+    validateProvidedIntrabarManifest(manifest, diagnostics);
+  }
+  return Object.freeze({ valid: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
+}
+
 export function validateRequiredManifestCoverage(
   manifests: readonly HistoricalManifest[] | undefined,
   period: BacktestPeriod,
   fallbackRequirements: readonly BacktestFallbackManifestRequirement[] = [],
+  intrabarRequirements: readonly BacktestIntrabarManifestRequirement[] = [],
 ): ManifestCoverage {
   const diagnostics: string[] = [];
   const provided = manifests ?? [];
@@ -154,6 +216,10 @@ export function validateRequiredManifestCoverage(
       // Unused mark-price paths stay optional, but a provided manifest is still
       // provenance and must not be allowed to carry malformed metadata.
       validateProvidedMarkPriceManifest(manifest, diagnostics);
+      continue;
+    }
+    if (manifest.kind === "intrabar-settlement") {
+      validateProvidedIntrabarManifest(manifest, diagnostics);
       continue;
     }
     if (manifest.provider !== HISTORICAL_PROVIDER) {
@@ -224,6 +290,8 @@ export function validateRequiredManifestCoverage(
 
   const markPriceCoverage = validateRequiredMarkPriceManifestCoverage(provided, period, fallbackRequirements);
   diagnostics.push(...markPriceCoverage.diagnostics);
+  const intrabarCoverage = validateIntrabarSettlementManifestCoverage(provided, intrabarRequirements);
+  diagnostics.push(...intrabarCoverage.diagnostics);
 
   return Object.freeze({ valid: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
 }
