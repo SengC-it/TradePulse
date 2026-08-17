@@ -17,6 +17,13 @@ import {
 import { validateM3HControlReport } from "../src/lib/research/m3-h-evidence.ts";
 import { loadBacktestDataForRun } from "./backtest-run.ts";
 import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/loader.ts";
+import type { BinancePublicClientOptions } from "../src/lib/market-data/binance/client.ts";
+
+/** M3-H-only wait profile; global realtime market-data defaults remain unchanged. */
+export const M3_H_CONTROL_CLIENT_OPTIONS: BinancePublicClientOptions = Object.freeze({
+  timeoutMs: 15_000,
+  maxAttempts: 3,
+});
 
 type CaptureArguments = Readonly<{
   round: string;
@@ -78,13 +85,17 @@ export async function captureM3HControlReport(input: Readonly<{
   return { report: validated, controlReportSha256, studyServerTime: validated.studyServerTime };
 }
 
+export function createM3HControlLoader(): BinanceHistoricalDataLoader {
+  return new BinanceHistoricalDataLoader({ clientOptions: M3_H_CONTROL_CLIENT_OPTIONS });
+}
+
 async function main(): Promise<void> {
   const args = parseM3HCaptureArguments(process.argv);
   const sourceSha = requireCleanM3HWorktree();
   validateM3HCaptureArguments(args, sourceSha);
   const result = await captureM3HControlReport({
     args,
-    loader: new BinanceHistoricalDataLoader(),
+    loader: createM3HControlLoader(),
     sourceSha,
   });
   console.log(`M3-H source SHA: ${sourceSha}`);
