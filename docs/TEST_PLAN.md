@@ -434,6 +434,34 @@ future M3-H experiment, the M3-G.1 tooling must have deterministic tests for:
 These tests must not authorize parameter optimization or alter the immutable
 M3-E evidence, baseline-001, or any frozen backtest policy.
 
+### M3-G.2 candidate-selection gate-freeze tests
+
+M3-G.2 is a pre-performance specification gate. Its tests may use synthetic
+fixtures only and must prove:
+
+1. the gate record requires exact numeric values, units, denominators, and
+   comparison rules for aggregate improvement, fold improvement, catastrophic
+   folds, net expectancy, profit factor, symbol concentration, single-trade
+   concentration, claimed redundancy improvement, minimum sample, and the
+   complexity/tie rule;
+2. an M3-G.2 gate record cannot be marked frozen without all required fields;
+3. M3-G.2 cannot consume or generate historical candidate-performance results;
+4. M3-G.2 is required and merged before an M3-H performance run can start;
+5. no candidate result, netR/PF/expectancy, or fold comparison is visible at
+   the M3-G.2 freeze point;
+6. gate records and research-round IDs are immutable once M3-H begins;
+7. changing a gate after an M3-H result invalidates the current round and
+   requires a new research-round version and predeclared protocol;
+8. M3-I applies the stored gates without redefining or weakening them;
+9. a mechanically evaluated candidate set with no eligible candidate produces
+   `NO BASELINE-002 CANDIDATE` without relaxing any gate;
+10. the simpler-candidate/tie rule is deterministic and cannot be chosen after
+    candidate results are observed.
+
+The test plan must continue to reject any implementation that executes a
+historical research run, changes frozen execution economics, modifies
+baseline-001, or introduces baseline-002 production code during M3-G.2.
+
 ### M3-B implemented test coverage
 
 M3-B.2 additionally tests explicit policy selection, preservation of invalid

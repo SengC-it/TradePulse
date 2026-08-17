@@ -20,6 +20,8 @@ M3-G does not:
   of `baseline-002`;
 - implement a research runner, optimizer, strategy code, or production code;
 - execute a historical performance run or select a candidate;
+- freeze the numeric candidate-selection gates; that is the separate M3-G.2
+  milestone and must occur before M3-H;
 - modify `baseline-001`, `bt-policy-001`, `bt-policy-002`, or `bt-policy-003`;
 - change fees, slippage, funding, settlement, or any other execution economics;
 - authorize M4, trading, private Binance APIs, persistence, or deployment.
@@ -236,7 +238,7 @@ The future preselection report must include aggregate and per-fold results,
 plus breakdowns by symbol, direction, score/grade bucket, BTC regime, symbol
 regime, and UTC month/year.
 
-The candidate review must address all of these gates:
+The candidate review must address all of these gate categories:
 
 1. aggregate historical research improvement versus the unchanged control;
 2. improvement in a majority of chronological validation folds;
@@ -247,10 +249,39 @@ The candidate review must address all of these gates:
 7. no evidence that the result is caused by one month, direction, or regime;
 8. no unresolved data-integrity, provenance, or reproducibility failure.
 
-Exact numeric pass thresholds for the final baseline-002 selection must be
-written before final candidate selection in M3-I. They may not be retrofitted
-after comparing results. A candidate that fails a gate is rejected or deferred,
-not relabeled as a pass.
+### Mandatory M3-G.2 numeric gate freeze
+
+Before the first M3-H performance experiment is executed, a separate M3-G.2
+change must be completed and merged. Its append-only gate record must declare
+the exact numeric values, units, direction, denominator, and comparison rule
+for at least:
+
+- minimum aggregate improvement versus the unchanged CONTROL;
+- minimum number and/or proportion of validation folds that must improve;
+- the numeric catastrophic-fold definition;
+- minimum acceptable net expectancy;
+- minimum acceptable profit factor;
+- maximum symbol concentration;
+- maximum single-trade concentration;
+- the required redundancy improvement when a redundancy mechanism is claimed;
+- minimum formal-signal and executed-trade sample sizes;
+- the tie and simpler-candidate rule, including any complexity comparison
+  threshold.
+
+This M3-G PR freezes the required fields and ordering but intentionally does
+not choose the numeric values. M3-G.2 must choose them before M3-H, while no
+variant performance result, candidate net R/PF/expectancy, or fold comparison
+has been observed or generated. Synthetic fixtures may test the gate schema;
+historical candidate-performance runs may not occur in M3-G.2.
+
+After M3-H begins, this gate record is immutable. Changing a selection gate
+after observing any M3-H performance result invalidates the current research
+round. A changed gate requires a new explicit research-round version, treats
+all prior candidate results as seen data, and requires a new predeclared
+protocol before further testing. It must not silently continue the same round.
+
+A candidate that fails a frozen gate is rejected or deferred, not relabeled as
+a pass.
 
 ## 12. Frozen cost accounting
 
@@ -333,6 +364,8 @@ M3-G   research protocol specification freeze (this document)
   ->
 M3-G.1 research tooling and diagnostic implementation
   ->
+M3-G.2 baseline-002 candidate selection gate freeze
+  ->
 M3-H   execute only predeclared historical research experiments
   ->
 M3-I   freeze one baseline-002 specification
@@ -342,10 +375,33 @@ M3-J   implement baseline-002
 forward validation using data strictly after baseline-002 freeze
 ```
 
-M3-G does not freeze `baseline-002`, and no M3-G.1 tooling or M3-H experiment
-is included in this change. M4 remains separate and unauthorized.
+M3-G.2 must be completed and merged before M3-H begins. At the M3-G.2 freeze
+point, no variant performance result may have been observed, no candidate
+netR/PF/expectancy or fold comparison may have been generated, and no gate may
+be chosen from candidate results. M3-G.1 and M3-G.2 may use synthetic fixtures
+only for tooling and schema tests.
 
-## 17. Terminology and limits of inference
+M3-G does not freeze `baseline-002`, and no M3-G.1 tooling, M3-G.2 gate
+selection, or M3-H experiment is included in this change. M3-G.1 through M3-J
+and the forward holdout require separate approval. M4 remains separate and
+unauthorized.
+
+## 17. M3-I mechanical application and no-candidate outcome
+
+M3-I must only:
+
+- read the immutable M3-H evidence;
+- apply the already-frozen M3-G.2 gates mechanically;
+- determine which candidate(s), if any, are eligible;
+- apply the frozen complexity and tie rule; and
+- freeze one `baseline-002` specification or conclude `NO BASELINE-002
+  CANDIDATE`.
+
+M3-I must not invent, weaken, strengthen, or otherwise alter a numeric gate.
+If no candidate passes, `NO BASELINE-002 CANDIDATE` is a valid research
+outcome. The gates must not be weakened to force a baseline-002 selection.
+
+## 18. Terminology and limits of inference
 
 No report using data through `2026-08-15` may claim `OOS PASS`. Use
 `historical research validation`, `walk-forward research validation`, or

@@ -187,6 +187,25 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002. M3-G.1 through M3-J and the forward holdout require separate
   milestones; M4 remains separate.
 
+## ADR-020 — Freeze candidate-selection gates before research results
+
+- **Decision:** All numeric baseline-002 candidate-selection gates must be
+  declared in a separate M3-G.2 artifact and merged before the first M3-H
+  performance experiment. M3-G.2 must record exact values, units,
+  denominators, and comparison rules for improvement, fold coverage,
+  catastrophic folds, expectancy, profit factor, concentration, claimed
+  redundancy improvement, minimum sample, and complexity/tie handling.
+  M3-I only applies this immutable record mechanically and may conclude
+  `NO BASELINE-002 CANDIDATE`.
+- **Reason:** Defining thresholds after observing candidate net R, PF,
+  expectancy, or fold comparisons creates post-hoc selection freedom and
+  invalidates the research round.
+- **Consequence:** M3-G.2 must merge before M3-H, with no historical candidate
+  performance result visible at its freeze point. Synthetic fixtures may test
+  the gate schema. Once M3-H begins, changing a gate invalidates the round and
+  requires a new research-round version and predeclared protocol. M3-I cannot
+  weaken a failed gate, and no-candidate is a valid outcome.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

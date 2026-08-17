@@ -578,10 +578,28 @@ when that later freeze occurs.
 - `baseline-001` and `bt-policy-001`/`002`/`003` remain unchanged.
 - No historical performance run, parameter search, optimization, or
   baseline-002 experiment is executed in M3-G.
-- `baseline-002` is **NOT FROZEN**; M3-G.1 tooling, M3-H experiments, M3-I
-  specification freeze, and M3-J implementation require separate approval.
+- `baseline-002` is **NOT FROZEN**; M3-G.1 tooling, M3-G.2 gate freeze, M3-H
+  experiments, M3-I specification freeze, and M3-J implementation require
+  separate approval.
 - M4, trading, private Binance APIs, persistence, and deployment remain out of
   scope.
+
+### Required M3-G.2 gate-freeze milestone
+
+M3-G.2 must be completed and merged before any M3-H performance experiment.
+Before that merge, no variant performance result, candidate netR/PF/expectancy,
+or fold comparison may have been observed or generated. M3-G.2 must freeze the
+exact numeric values and comparison rules for aggregate improvement, fold
+improvement, catastrophic folds, minimum expectancy and profit factor, symbol
+and single-trade concentration, claimed redundancy improvement, minimum
+sample, and the simpler-candidate/tie rule. Synthetic fixtures are allowed;
+historical candidate-performance runs are not.
+
+After M3-H begins, the gates are immutable. A gate change invalidates the
+current research round and requires an explicit new research-round version and
+new predeclared protocol. M3-I only applies the already-frozen gates and may
+return `NO BASELINE-002 CANDIDATE`; it cannot redefine thresholds or weaken a
+failed gate.
 
 ### Planned M3-G.1 verification
 
@@ -592,6 +610,10 @@ signal-density/duplicate-window metrics, score buckets, cost metrics,
 symbol/direction/regime breakdowns, retained `studyServerTime`, unchanged
 execution economics, public-data-only access, and no baseline-002 production
 code.
+
+M3-G.1 and M3-G.2 remain specification/tooling gates only. The sequence is
+M3-G → M3-G.1 → M3-G.2 → M3-H → M3-I → M3-J → forward validation after the
+baseline-002 freeze. No M3-H result exists or is authorized in M3-G.
 
 ## M4 — Realtime Scanner
 
