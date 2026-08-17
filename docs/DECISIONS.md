@@ -206,6 +206,24 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   requires a new research-round version and predeclared protocol. M3-I cannot
   weaken a failed gate, and no-candidate is a valid outcome.
 
+## ADR-021 — Freeze baseline-002 research round-001 selection gates
+
+- **Decision:** M3-G.2 freezes exactly one real gate record for
+  `baseline-002-research-round-001`, sourced from
+  `2f2c8f442b86bb730745908a6d6bf6a76ac43dd6`. The record freezes aggregate
+  improvement, validation-fold improvement, catastrophic folds, aggregate
+  expectancy and PF, symbol and single-trade concentration, fee burden,
+  redundancy applicability, sample floors, and complexity/tie semantics.
+- **Reason:** Numeric selection thresholds and applicability rules must exist
+  before any M3-H candidate performance is observed, otherwise the research
+  round permits post-hoc selection.
+- **Consequence:** The canonical machine record is hashed and documented in
+  `docs/BASELINE_002_SELECTION_GATES_R1.md`. All gates are conjunctive;
+  integrity failures are incomplete evidence, and a later gate change after
+  M3-H invalidates round-001. This milestone uses synthetic fixtures only and
+  defers gate application to M3-I. It does not implement baseline-002 or run
+  historical research.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

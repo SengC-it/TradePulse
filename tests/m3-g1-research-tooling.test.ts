@@ -198,6 +198,7 @@ function completeGate(): SelectionGateSchema {
     minimumProfitFactor: minimum,
     maximumSymbolConcentration: maximum,
     maximumSingleTradeConcentration: maximum,
+    maximumFeeBurdenRatio: maximum,
     requiredRedundancyImprovement: minimum,
     minimumFormalSignals: minimum,
     minimumExecutedTrades: minimum,
@@ -785,6 +786,7 @@ describe("M3-G.1 provenance, serialization, and gate schema", () => {
       minimumProfitFactor: ["MINIMUM", "AT_LEAST"],
       maximumSymbolConcentration: ["MAXIMUM", "AT_MOST"],
       maximumSingleTradeConcentration: ["MAXIMUM", "AT_MOST"],
+      maximumFeeBurdenRatio: ["MAXIMUM", "AT_MOST"],
       requiredRedundancyImprovement: ["MINIMUM", "AT_LEAST"],
       minimumFormalSignals: ["MINIMUM", "AT_LEAST"],
       minimumExecutedTrades: ["MINIMUM", "AT_LEAST"],
@@ -942,7 +944,7 @@ describe("M3-G.1 control reproducibility and source boundary", () => {
   it("does not produce baseline-002 strategy versions", () => {
     const adapted = adaptBacktestSignalResult(makeBacktestResult());
     expect(JSON.stringify(adapted)).not.toContain("baseline-002");
-    expect(sourceText()).not.toContain("baseline-002");
+    expect(sourceText()).not.toMatch(/strategyVersion\s*[:=]\s*["']baseline-002["']/);
   });
 
   it("contains no candidate selector or optimizer API", () => {

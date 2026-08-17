@@ -171,6 +171,7 @@ export type SelectionGateSchema = Readonly<{
   minimumProfitFactor: NumericSelectionGate;
   maximumSymbolConcentration: NumericSelectionGate;
   maximumSingleTradeConcentration: NumericSelectionGate;
+  maximumFeeBurdenRatio: NumericSelectionGate;
   requiredRedundancyImprovement: NumericSelectionGate;
   minimumFormalSignals: NumericSelectionGate;
   minimumExecutedTrades: NumericSelectionGate;
