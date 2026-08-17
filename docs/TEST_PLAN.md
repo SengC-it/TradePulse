@@ -1,7 +1,7 @@
 # TradePulse Test Plan
 
-Status: M3-B historical loader and deterministic backtest runner implemented;
-M3-C study not run (M0-M2-B coverage retained)
+Status: M3-D intrabar settlement-resolution specification / Draft PR;
+bt-policy-002 M3-C evidence remains immutable and M3-D is not implemented.
 
 ## Test layers
 
@@ -147,6 +147,10 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   compatibility policy. M3-B.2 implements it without changing immutable
   `bt-policy-001`, and no DEV/OOS/COMBINED performance result exists for
   `bt-policy-002`.
+- M3-D freezes `backtestPolicyVersion = bt-policy-003` with schema
+  `m3-b-report-003` as a separate intrabar settlement policy. It inherits
+  `bt-policy-002` except for the explicitly documented 1m resolution rules;
+  no M3-D implementation or formal rerun is included here.
 - DEV uses exactly `2023-01-01T00:00:00.000Z` through
   `2025-12-31T23:59:59.999Z`; OOS uses the locked range
   `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
@@ -260,9 +264,10 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   behavior, and explicit `bt-policy-002` selects compatibility behavior. The
   formal M3-C replacement command must include
   `--period COMBINED --policy bt-policy-002`.
-- Funding fixtures exclude `fundingTime == entryTime`, include funding at the
-  TP/SL exit candle open when the entry is earlier, and mark funding strictly
-  inside the TP/SL exit candle as `SETTLEMENT_AMBIGUOUS`.
+- Under `bt-policy-002`, funding fixtures exclude `fundingTime == entryTime`,
+  include funding at the TP/SL exit candle open when the entry is earlier, and
+  mark funding strictly inside the TP/SL exit candle as
+  `SETTLEMENT_AMBIGUOUS`. This legacy behavior remains unchanged.
 - TIME_EXIT funding fixtures include events satisfying
   `entryTime < fundingTime <= exitTime`; positive and negative funding both
   use the frozen LONG/SHORT sign convention.
@@ -318,6 +323,55 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
 
+### M3-D intrabar settlement-resolution specification tests
+
+The following deterministic tests are frozen for the future `bt-policy-003`
+implementation. They are specification tests in this milestone and do not
+authorize a backtest rerun:
+
+1. Funding before `exitMinute.openTime` is included.
+2. Funding after `exitMinute.closeTime` is excluded.
+3. Funding exactly at `exitMinute.openTime` is included when
+   `entryTime < fundingTime`.
+4. Negative funding inside the exit minute is included with provenance
+   `CONSERVATIVE_SAME_MINUTE`.
+5. Positive funding inside the exit minute is excluded with provenance
+   `CONSERVATIVE_SAME_MINUTE`.
+6. Zero funding inside the exit minute has deterministic zero impact and the
+   same provenance.
+7. The first 1m TP touch resolves the exit minute.
+8. The first 1m SL touch resolves the exit minute.
+9. TP and SL touched in the same 1m candle resolve SL-first.
+10. A later TP cannot override an earlier SL.
+11. A later SL cannot override an earlier TP.
+12. Fewer than 60 required minute candles produce `DATA_INCOMPLETE`.
+13. A 1m continuity gap produces `DATA_INCOMPLETE`.
+14. A duplicate 1m candle produces `DATA_INCOMPLETE`.
+15. Malformed, non-finite, non-positive, or invalid-relationship OHLC produces
+    `DATA_INCOMPLETE`.
+16. A minute with `closeTime >= serverTime` is rejected.
+17. A 1H bracket hit without a reproducing 1m hit produces
+    `DATA_INCOMPLETE`.
+18. A settlement-tail intrabar manifest requires `settlementOnly = true`.
+19. A missing required intrabar manifest produces `INCOMPLETE`.
+20. The `bt-policy-002` mark-price fallback rules remain unchanged.
+21. Funding economics and LONG/SHORT funding signs remain unchanged.
+22. `baseline-001` `StrategyInput` remains unchanged and never receives 1m
+    candles.
+23. `bt-policy-001` behavior remains unchanged.
+24. `bt-policy-002` behavior remains unchanged, including its ambiguous result
+    classification.
+25. `bt-policy-003` serializes only as `m3-b-report-003` and never mutates
+    `m3-b-report-002`.
+26. A complete `bt-policy-003` study has zero
+    `remainingSettlementAmbiguousCount`; any remaining ambiguity keeps the
+    formal result `INCOMPLETE`.
+
+Additional M3-D fixtures require usage-driven loading only for ambiguous
+`symbol + exitCandle.openTime` hours, exactly 60 1m rows per window, official
+`/fapi/v1/klines` provenance, and reconciled intrabar counts by symbol and UTC
+year for `m3-b-report-003`.
+
 ### M3-B implemented test coverage
 
 M3-B.2 additionally tests explicit policy selection, preservation of invalid
@@ -359,6 +413,16 @@ loader, deterministic backtest adapter, metrics, acceptance evaluator, report
 serializer, CLI, and mocked tests described above. It does not add a new
 strategy, alter baseline-001, add persistence, API routes, Cron,
 notifications, deployment, optimization, or M3-C historical evidence.
+
+## M3-D execution boundary
+
+M3-D is documentation-only. It freezes `bt-policy-003`, the new
+`m3-b-report-003` schema, usage-driven 1m settlement windows, fail-closed 1m
+integrity, deterministic exit-minute selection, conservative same-minute
+funding ordering, provenance, manifests, and audit metrics. It does not add an
+intrabar loader, modify runtime code, rerun M3-C, overwrite the immutable
+`bt-policy-002` evidence, tune `baseline-001`, change funding economics, start
+M4, or add trading/private API capability.
 
 ## M2-B execution boundary
 
