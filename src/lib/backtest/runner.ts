@@ -115,12 +115,14 @@ function candidateResults(
     );
   }
   const markPriceCandles: readonly HistoricalMarkPriceCandle[] | undefined = data.markPrice?.[candidate.symbol];
+  const markPriceSegments = data.markPriceSegments?.[candidate.symbol];
   return settleBacktestSignal({
     snapshot,
     signalCandle,
     heldCandles,
     funding: data.funding[candidate.symbol] ?? [],
     markPriceCandles,
+    markPriceSegments,
     policy,
     period,
     periodEndTime: periodEnd,
@@ -257,20 +259,31 @@ export function buildFundingAudit(signalResults: readonly BacktestSignalResult[]
 
 function buildFallbackManifestRequirements(
   signalResults: readonly BacktestSignalResult[],
-  period: BacktestPeriod,
-): readonly BacktestFallbackManifestRequirement[] {
-  const basePeriodEnd = period === "DEV" ? BACKTEST_PERIOD_RANGES.DEV.endTime : BACKTEST_PERIOD_RANGES.OOS.endTime;
+): Readonly<{
+  requirements: readonly BacktestFallbackManifestRequirement[];
+  diagnostics: readonly string[];
+}> {
   const requirements = new Map<string, BacktestFallbackManifestRequirement>();
+  const diagnostics: string[] = [];
   for (const result of signalResults) {
     if (result.status !== "EXECUTED") continue;
     for (const charge of result.fundingCharges) {
       if (charge.markPriceSource !== "MARK_PRICE_KLINE_PRE_EVENT_CLOSE") continue;
-      const segment = charge.fundingTime > basePeriodEnd ? "settlement-tail" : "base";
+      const segment = charge.markPriceManifestSegment;
+      if (!segment) {
+        diagnostics.push(
+          `Fallback mark-price provenance is missing for ${result.snapshot.symbol} at ${charge.fundingTime}.`,
+        );
+        continue;
+      }
       const requirement = { symbol: result.snapshot.symbol, segment } as const;
       requirements.set(`${segment}:${result.snapshot.symbol}`, requirement);
     }
   }
-  return Object.freeze([...requirements.values()]);
+  return Object.freeze({
+    requirements: Object.freeze([...requirements.values()]),
+    diagnostics: Object.freeze(diagnostics),
+  });
 }
 
 export function runBacktest(input: BacktestRunInput): BacktestReport {
@@ -298,11 +311,19 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
   const initialRuns = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
   const initialSignalResults = initialRuns.flatMap((run) => run.signalResults);
   const fallbackRequirements =
-    policy === "bt-policy-002" ? buildFallbackManifestRequirements(initialSignalResults, input.period) : [];
-  const fallbackManifestCoverage =
-    policy === "bt-policy-002"
-      ? validateRequiredMarkPriceManifestCoverage(input.data.manifests, input.period, fallbackRequirements)
-      : Object.freeze({ valid: true, diagnostics: Object.freeze([] as string[]) });
+    policy === "bt-policy-002" ? buildFallbackManifestRequirements(initialSignalResults) : { requirements: [], diagnostics: [] };
+  const fallbackManifestCoverage = (() => {
+    if (policy !== "bt-policy-002") {
+      return Object.freeze({ valid: true, diagnostics: Object.freeze([] as string[]) });
+    }
+    const manifestCoverage = validateRequiredMarkPriceManifestCoverage(
+      input.data.manifests,
+      input.period,
+      fallbackRequirements.requirements,
+    );
+    const diagnostics = Object.freeze([...fallbackRequirements.diagnostics, ...manifestCoverage.diagnostics]);
+    return Object.freeze({ valid: diagnostics.length === 0, diagnostics });
+  })();
 
   if (!fallbackManifestCoverage.valid && input.period !== "COMBINED") {
     const targetRun = input.period === "DEV" ? devRun : oosRun;

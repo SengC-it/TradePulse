@@ -5,6 +5,7 @@ import type {
   HistoricalFundingRecord,
   HistoricalManifest,
   HistoricalMarkPriceCandle,
+  HistoricalMarkPriceSegment,
 } from "../historical-data/types.ts";
 import type {
   BTCRegime,
@@ -25,6 +26,7 @@ export type BacktestData = Readonly<{
   datasets: Readonly<Record<ResearchSymbol, BacktestDataset>>;
   funding: Readonly<Record<ResearchSymbol, readonly HistoricalFundingRecord[]>>;
   markPrice?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceCandle[] | undefined>>;
+  markPriceSegments?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>>;
   manifests: readonly HistoricalManifest[];
   serverTime?: number;
 }>;
@@ -66,6 +68,8 @@ export type BacktestFundingCharge = Readonly<{
   markPrice: number;
   /** Present for bt-policy-002; omitted to preserve the legacy report schema. */
   markPriceSource?: "FUNDING_RATE_HISTORY" | "MARK_PRICE_KLINE_PRE_EVENT_CLOSE";
+  /** Actual mark-price dataset used by a bt-policy-002 fallback charge. */
+  markPriceManifestSegment?: "base" | "settlement-tail";
   fundingPnL: number;
 }>;
 
@@ -213,6 +217,7 @@ export type SettlementInput = Readonly<{
   heldCandles: readonly Candle[];
   funding: readonly HistoricalFundingRecord[];
   markPriceCandles?: readonly HistoricalMarkPriceCandle[];
+  markPriceSegments?: readonly HistoricalMarkPriceSegment[];
   policy?: BacktestPolicyVersion;
   period: Exclude<BacktestPeriod, "COMBINED">;
   periodEndTime: number;

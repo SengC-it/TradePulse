@@ -14,6 +14,7 @@ import type {
   HistoricalFundingRecord,
   HistoricalMarkPriceCandle,
   HistoricalMarkPriceDataset,
+  HistoricalMarkPriceSegment,
   HistoricalRange,
   HistoricalStudyData,
   HistoricalSymbolDataset,
@@ -420,6 +421,7 @@ export class BinanceHistoricalDataLoader {
     const datasets = {} as Record<ResearchSymbol, HistoricalSymbolDataset>;
     const funding = {} as Record<ResearchSymbol, HistoricalFundingDataset>;
     const markPrice = {} as Record<ResearchSymbol, HistoricalMarkPriceDataset | undefined>;
+    const markPriceSegments = {} as Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>;
     const manifests = [] as HistoricalStudyData["manifests"][number][];
     for (const symbol of RESEARCH_SYMBOLS) {
       const oneHourRange = "1h" in input.candleRange ? input.candleRange["1h"] : input.candleRange;
@@ -432,6 +434,7 @@ export class BinanceHistoricalDataLoader {
       let candles1h = baseCandles1h;
       let fundingDataset = baseFundingDataset;
       let markPriceDataset: HistoricalMarkPriceDataset | undefined;
+      let markPriceSegmentsForSymbol: readonly HistoricalMarkPriceSegment[] | undefined;
       const baseNeedsFallback = baseFundingDataset.records.some(
         (record) =>
           !(typeof record.directMarkPrice === "number" && Number.isFinite(record.directMarkPrice) && record.directMarkPrice > 0),
@@ -491,7 +494,7 @@ export class BinanceHistoricalDataLoader {
             settlementOnly: true,
           };
           const [baseMark, tailMark] = await Promise.all([
-            baseNeedsFallback
+            baseNeedsFallback || tailNeedsFallback
               ? this.loadMarkPriceKlines({ symbol, range: baseMarkRange, serverTime })
               : Promise.resolve(undefined),
             tailNeedsFallback
@@ -520,6 +523,22 @@ export class BinanceHistoricalDataLoader {
                 ...(tailMark?.manifests ?? []),
               ]),
             });
+            const segments: HistoricalMarkPriceSegment[] = [];
+            if (baseMark) {
+              segments.push(
+                Object.freeze({ segment: "base", candles: baseMark.candles, manifest: baseMark.manifest }),
+              );
+            }
+            if (tailMark) {
+              segments.push(
+                Object.freeze({
+                  segment: "settlement-tail",
+                  candles: tailMark.candles,
+                  manifest: tailMark.manifest,
+                }),
+              );
+            }
+            markPriceSegmentsForSymbol = Object.freeze(segments);
             manifests.push(...markPriceDataset.manifests);
           }
         }
@@ -529,17 +548,22 @@ export class BinanceHistoricalDataLoader {
           endTime: input.fundingRange.endTime,
         };
         markPriceDataset = await this.loadMarkPriceKlines({ symbol, range: markRange, serverTime });
+        markPriceSegmentsForSymbol = Object.freeze([
+          Object.freeze({ segment: "base", candles: markPriceDataset.candles, manifest: markPriceDataset.manifest }),
+        ]);
         manifests.push(...markPriceDataset.manifests);
       }
       datasets[symbol] = Object.freeze({ candles1h, candles4h });
       funding[symbol] = fundingDataset;
       markPrice[symbol] = markPriceDataset;
+      markPriceSegments[symbol] = markPriceSegmentsForSymbol;
       manifests.push(candles1h.manifest, candles4h.manifest, fundingDataset.manifest);
     }
     return Object.freeze({
       datasets: Object.freeze(datasets),
       funding: Object.freeze(funding),
       markPrice: Object.freeze(markPrice),
+      markPriceSegments: Object.freeze(markPriceSegments),
       manifests: Object.freeze(manifests),
       serverTime,
     });

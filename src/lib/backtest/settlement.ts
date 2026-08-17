@@ -210,6 +210,8 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
     direction: snapshot.direction,
     policy: input.policy ?? snapshot.backtestPolicyVersion,
     markPriceCandles: input.markPriceCandles,
+    markPriceSegments: input.markPriceSegments,
+    markPriceBaseEndTime: input.periodEndTime,
   });
   } catch (error) {
     return Object.freeze({

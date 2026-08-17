@@ -308,6 +308,12 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   every approved symbol, plus settlement-only 1H and funding manifests for
   OOS/COMBINED. Provider mismatch, missing coverage, invalid checksum, or
   missing tail boundary produces `INCOMPLETE` and never formal PASS.
+- Funding compatibility fixtures cover the base-to-tail support boundary:
+  direct-only base funding followed by a first tail fallback uses the final
+  fully closed base mark-price candle; missing support data or its base
+  manifest is `DATA_INCOMPLETE`/`INCOMPLETE`, while a later fallback uses a
+  valid closed tail candle. Unused mark-price manifests remain optional, but a
+  provided malformed checksum, provider, or source is rejected.
 - Repeated-run fixtures produce byte-equivalent reports from the same
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.

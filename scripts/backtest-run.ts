@@ -51,7 +51,10 @@ function toBacktestData(study: HistoricalStudyData): BacktestData {
   const markPrice = Object.fromEntries(
     RESEARCH_SYMBOLS.map((symbol) => [symbol, study.markPrice[symbol]?.candles]),
   ) as BacktestData["markPrice"];
-  return { datasets, funding, markPrice, manifests: study.manifests, serverTime: study.serverTime };
+  const markPriceSegments = Object.fromEntries(
+    RESEARCH_SYMBOLS.map((symbol) => [symbol, study.markPriceSegments[symbol]]),
+  ) as BacktestData["markPriceSegments"];
+  return { datasets, funding, markPrice, markPriceSegments, manifests: study.manifests, serverTime: study.serverTime };
 }
 
 async function main(): Promise<void> {

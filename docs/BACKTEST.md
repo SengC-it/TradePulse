@@ -543,7 +543,13 @@ exact frozen base mark-price range, while a settlement-tail fallback charge
 requires `settlementOnly = true` and the exact frozen tail range. Missing,
 wrong-source, wrong-range, wrong-settlement classification, or invalid-checksum
 manifests make the formal result `INCOMPLETE`; an unused fallback path does not
-require a mark-price manifest.
+require a mark-price manifest. The loader retains explicit base versus
+settlement-tail provenance for every loaded mark-price candle. If a first
+settlement-tail fallback resolves to the final valid candle in the base range,
+the charge records the base provenance and requires the base manifest; it never
+claims that candle under a settlement-only manifest. Any provided mark-price
+manifest is still checked for provider, endpoint, timeframe, symbol, and
+SHA-256 integrity even when the fallback path is unused.
 
 ## R normalization
 

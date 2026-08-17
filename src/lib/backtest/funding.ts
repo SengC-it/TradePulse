@@ -1,5 +1,5 @@
 import type { HistoricalFundingRecord } from "../historical-data/types.ts";
-import type { HistoricalMarkPriceCandle } from "../historical-data/types.ts";
+import type { HistoricalMarkPriceCandle, HistoricalMarkPriceSegment } from "../historical-data/types.ts";
 import type { BacktestPolicyVersion } from "./constants.ts";
 import type { BacktestFundingCharge, BacktestSignalSnapshot } from "./types.ts";
 
@@ -18,7 +18,7 @@ function directMarkPrice(event: HistoricalFundingRecord): number | null {
 function findPreEventMarkPrice(
   candles: readonly HistoricalMarkPriceCandle[],
   fundingTime: number,
-): number | null {
+): HistoricalMarkPriceCandle | null {
   let low = 0;
   let high = candles.length;
   while (low < high) {
@@ -31,8 +31,35 @@ function findPreEventMarkPrice(
     candidate.closeTime < fundingTime &&
     Number.isFinite(candidate.close) &&
     candidate.close > 0
-    ? candidate.close
+    ? candidate
     : null;
+}
+
+function sameMarkPriceCandle(left: HistoricalMarkPriceCandle, right: HistoricalMarkPriceCandle): boolean {
+  return (
+    left === right ||
+    (left.symbol === right.symbol &&
+      left.openTime === right.openTime &&
+      left.closeTime === right.closeTime &&
+      left.open === right.open &&
+      left.high === right.high &&
+      left.low === right.low &&
+      left.close === right.close)
+  );
+}
+
+function findMarkPriceManifestSegment(
+  candle: HistoricalMarkPriceCandle,
+  segments: readonly HistoricalMarkPriceSegment[] | undefined,
+  baseEndTime: number | undefined,
+): "base" | "settlement-tail" | undefined {
+  if (segments) {
+    return segments.find((segment) => segment.candles.some((candidate) => sameMarkPriceCandle(candidate, candle)))?.segment;
+  }
+  if (baseEndTime !== undefined) {
+    return candle.closeTime <= baseEndTime ? "base" : "settlement-tail";
+  }
+  return undefined;
 }
 
 export function resolveFundingCharges(input: Readonly<{
@@ -44,6 +71,8 @@ export function resolveFundingCharges(input: Readonly<{
   direction: BacktestSignalSnapshot["direction"];
   policy?: BacktestPolicyVersion;
   markPriceCandles?: readonly HistoricalMarkPriceCandle[];
+  markPriceSegments?: readonly HistoricalMarkPriceSegment[];
+  markPriceBaseEndTime?: number;
 }>): FundingResolution {
   const policy = input.policy ?? "bt-policy-001";
   const charges: BacktestFundingCharge[] = [];
@@ -60,11 +89,11 @@ export function resolveFundingCharges(input: Readonly<{
     }
 
     const direct = directMarkPrice(event);
-    const markPrice =
-      direct ??
-      (policy === "bt-policy-002"
+    const fallbackCandle =
+      direct === null && policy === "bt-policy-002"
         ? findPreEventMarkPrice(input.markPriceCandles ?? [], event.fundingTime)
-        : null);
+        : null;
+    const markPrice = direct ?? fallbackCandle?.close ?? null;
     if (markPrice === null) {
       throw new Error(
         policy === "bt-policy-002"
@@ -73,6 +102,10 @@ export function resolveFundingCharges(input: Readonly<{
       );
     }
     const markPriceSource = direct !== null ? "FUNDING_RATE_HISTORY" : "MARK_PRICE_KLINE_PRE_EVENT_CLOSE";
+    const markPriceManifestSegment =
+      fallbackCandle
+        ? findMarkPriceManifestSegment(fallbackCandle, input.markPriceSegments, input.markPriceBaseEndTime)
+        : undefined;
     const fundingPnL =
       input.direction === "LONG"
         ? -event.fundingRate * markPrice
@@ -86,6 +119,7 @@ export function resolveFundingCharges(input: Readonly<{
         fundingRate: event.fundingRate,
         markPrice,
         ...(policy === "bt-policy-002" ? { markPriceSource } : {}),
+        ...(policy === "bt-policy-002" && markPriceManifestSegment ? { markPriceManifestSegment } : {}),
         fundingPnL: Object.is(fundingPnL, -0) ? 0 : fundingPnL,
       }),
     );

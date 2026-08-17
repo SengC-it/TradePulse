@@ -204,7 +204,12 @@ official 1H mark-price manifest for its symbol and the exact frozen base or
 settlement-tail range; a tail fallback must also use `settlementOnly = true`.
 Missing, wrong-source, wrong-range, wrong-settlement, or invalid-checksum
 coverage makes the formal result `INCOMPLETE`. Direct-only `bt-policy-002`
-segments do not require an unused fallback manifest.
+segments do not require an unused fallback manifest. Loaded mark-price candles
+retain explicit base versus settlement-tail provenance. A tail fallback that
+uses the final base support candle therefore requires the base manifest, while
+a fallback using a closed tail candle requires the settlement-only manifest.
+Provided mark-price manifests are always checked for provider, source,
+timeframe, symbol, and SHA-256 integrity, even when not required by a charge.
 
 Policy selection and report schema are explicit. `bt-policy-001` serializes as
 `m3-b-report-001`; `bt-policy-002` serializes as `m3-b-report-002`, which

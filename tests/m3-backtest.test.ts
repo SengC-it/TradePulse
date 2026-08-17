@@ -222,6 +222,7 @@ function makeMarkPriceManifest(
     provider: string;
     source: string;
     timeframe: string;
+    symbol: string;
     requestedStartTime: number;
     requestedEndTime: number;
     sha256: string;
@@ -234,7 +235,7 @@ function makeMarkPriceManifest(
     kind: "mark-price",
     provider: overrides.provider ?? "binance-usdm-public",
     source: overrides.source ?? "/fapi/v1/markPriceKlines",
-    symbol,
+    symbol: overrides.symbol ?? symbol,
     timeframe: overrides.timeframe ?? "1h",
     requestedStartTime: overrides.requestedStartTime ?? range.startTime,
     requestedEndTime: overrides.requestedEndTime ?? range.endTime,
@@ -271,6 +272,92 @@ describe("M3 funding policy selection and mark-price compatibility", () => {
     expect(charges.charges[0]).toMatchObject({
       markPrice: 102,
       markPriceSource: "MARK_PRICE_KLINE_PRE_EVENT_CLOSE",
+    });
+  });
+
+  it("uses the final base mark-price candle for a first settlement-tail fallback", () => {
+    const oosEnd = BACKTEST_PERIOD_RANGES.OOS.endTime;
+    const resolution = resolveFundingCharges({
+      policy: "bt-policy-002",
+      funding: [
+        { symbol: "BTCUSDT", fundingTime: oosEnd - HOUR, fundingRate: 0.001, directMarkPrice: 100 },
+        { symbol: "BTCUSDT", fundingTime: oosEnd + 1, fundingRate: 0.001, directMarkPrice: null },
+      ],
+      markPriceCandles: [makeMarkPriceCandle(oosEnd - HOUR + 1, { close: 123 })],
+      entryTime: 0,
+      exitReason: "TIME_EXIT",
+      exitCandle: { openTime: oosEnd, closeTime: oosEnd + 2 * HOUR },
+      exitTime: oosEnd + 2 * HOUR,
+      direction: "LONG",
+      markPriceBaseEndTime: oosEnd,
+    });
+    expect(resolution.charges[1]).toMatchObject({
+      markPrice: 123,
+      markPriceSource: "MARK_PRICE_KLINE_PRE_EVENT_CLOSE",
+      markPriceManifestSegment: "base",
+    });
+  });
+
+  it("returns DATA_INCOMPLETE when the first settlement-tail fallback has no base support candle", () => {
+    const oosEnd = BACKTEST_PERIOD_RANGES.OOS.endTime;
+    const signalOpen = oosEnd - 24 * HOUR + 2;
+    const signal = makeCandle("BTCUSDT", "1h", signalOpen);
+    const result = settleBacktestSignal({
+      snapshot: makeSnapshot({ signalTime: signal.closeTime, backtestPolicyVersion: "bt-policy-002" }),
+      signalCandle: signal,
+      heldCandles: makeHeldCandles(signal.openTime),
+      funding: [{ symbol: "BTCUSDT", fundingTime: oosEnd + 1, fundingRate: 0.001, directMarkPrice: null }],
+      markPriceCandles: [],
+      policy: "bt-policy-002",
+      period: "OOS",
+      periodEndTime: oosEnd,
+    });
+    expect(result.status).toBe("DATA_INCOMPLETE");
+  });
+
+  it("records base provenance and requires its manifest when tail fallback uses base support", () => {
+    const oosEnd = BACKTEST_PERIOD_RANGES.OOS.endTime;
+    const resolution = resolveFundingCharges({
+      policy: "bt-policy-002",
+      funding: [{ symbol: "BTCUSDT", fundingTime: oosEnd + 1, fundingRate: 0.001, directMarkPrice: null }],
+      markPriceCandles: [makeMarkPriceCandle(oosEnd - HOUR + 1)],
+      entryTime: 0,
+      exitReason: "TIME_EXIT",
+      exitCandle: { openTime: oosEnd, closeTime: oosEnd + HOUR },
+      exitTime: oosEnd + HOUR,
+      direction: "LONG",
+      markPriceBaseEndTime: oosEnd,
+    });
+    const segment = resolution.charges[0]?.markPriceManifestSegment;
+    expect(segment).toBe("base");
+    const requirement = [{ symbol: "BTCUSDT" as const, segment: segment! }];
+    const manifests = requiredTestManifests("COMBINED");
+    expect(validateRequiredManifestCoverage(manifests, "COMBINED", requirement).valid).toBe(false);
+    expect(
+      validateRequiredManifestCoverage(
+        [...manifests, makeMarkPriceManifest("BTCUSDT", "COMBINED", false, { sha256: "invalid" })],
+        "COMBINED",
+        requirement,
+      ).valid,
+    ).toBe(false);
+  });
+
+  it("uses a valid closed tail candle for a later settlement-tail fallback", () => {
+    const oosEnd = BACKTEST_PERIOD_RANGES.OOS.endTime;
+    const resolution = resolveFundingCharges({
+      policy: "bt-policy-002",
+      funding: [{ symbol: "BTCUSDT", fundingTime: oosEnd + HOUR + 1, fundingRate: 0.001, directMarkPrice: null }],
+      markPriceCandles: [makeMarkPriceCandle(oosEnd + 1, { close: 124 })],
+      entryTime: 0,
+      exitReason: "TIME_EXIT",
+      exitCandle: { openTime: oosEnd + HOUR, closeTime: oosEnd + 2 * HOUR },
+      exitTime: oosEnd + 2 * HOUR,
+      direction: "LONG",
+      markPriceBaseEndTime: oosEnd,
+    });
+    expect(resolution.charges[0]).toMatchObject({
+      markPrice: 124,
+      markPriceManifestSegment: "settlement-tail",
     });
   });
 
@@ -463,6 +550,75 @@ describe("M3 historical data validation and pagination", () => {
     });
     expect(serverTimeCalls).toBe(1);
     expect(study.serverTime).toBe(1_000_000_000);
+  });
+
+  it("loads base mark-price support when only the settlement tail needs fallback", async () => {
+    const rawCandle = (openTime: number, interval: number) => [
+      openTime,
+      "100",
+      "101",
+      "99",
+      "100",
+      "10",
+      openTime + interval - 1,
+      "1000",
+      "10",
+      "5",
+      "500",
+      "0",
+    ];
+    const rawMarkPrice = (openTime: number) => [openTime, "100", "101", "99", "100", "0", openTime + HOUR - 1];
+    const baseFundingStart = 2 * HOUR;
+    const tailFundingStart = 3 * HOUR;
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = new URL(input.toString());
+      if (url.pathname === "/fapi/v1/time") {
+        return new Response(JSON.stringify({ serverTime: 10 * HOUR }), { status: 200 });
+      }
+      const startTime = Number(url.searchParams.get("startTime"));
+      if (url.pathname === "/fapi/v1/klines") {
+        const interval = url.searchParams.get("interval") === "4h" ? 4 * HOUR : HOUR;
+        return new Response(JSON.stringify([rawCandle(startTime, interval)]), { status: 200 });
+      }
+      if (url.pathname === "/fapi/v1/fundingRate") {
+        const symbol = url.searchParams.get("symbol");
+        return new Response(
+          JSON.stringify([
+            startTime === baseFundingStart
+              ? { symbol, fundingTime: baseFundingStart, fundingRate: "0.001", markPrice: "100" }
+              : { symbol, fundingTime: tailFundingStart, fundingRate: "0.001", markPrice: "0" },
+          ]),
+          { status: 200 },
+        );
+      }
+      if (url.pathname === "/fapi/v1/markPriceKlines") {
+        return new Response(
+          JSON.stringify(
+            startTime === HOUR ? [rawMarkPrice(HOUR), rawMarkPrice(2 * HOUR)] : [rawMarkPrice(tailFundingStart)],
+          ),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected path ${url.pathname}`);
+    };
+    const loader = new BinanceHistoricalDataLoader({ clientOptions: { fetchImpl } });
+    const study = await loader.loadStudyData({
+      candleRange: {
+        "1h": { startTime: 0, endTime: 0 },
+        "4h": { startTime: 0, endTime: 0 },
+      },
+      fundingRange: { startTime: baseFundingStart, endTime: 3 * HOUR - 1 },
+      markPriceRange: { startTime: HOUR, endTime: 3 * HOUR - 1 },
+      policy: "bt-policy-002",
+      settlementTail: {
+        candleRange: { startTime: HOUR, endTime: HOUR, settlementOnly: true },
+        fundingRange: { startTime: tailFundingStart, endTime: tailFundingStart, settlementOnly: true },
+        markPriceRange: { startTime: tailFundingStart, endTime: tailFundingStart, settlementOnly: true },
+      },
+    });
+    expect(study.markPrice.BTCUSDT?.candles.map((candle) => candle.openTime)).toEqual([HOUR, 2 * HOUR, tailFundingStart]);
+    expect(study.markPriceSegments.BTCUSDT?.map((segment) => segment.segment)).toEqual(["base", "settlement-tail"]);
+    expect(study.markPriceSegments.BTCUSDT?.[0]?.candles.at(-1)?.closeTime).toBe(3 * HOUR - 1);
   });
 
   it("accepts only candles fully closed before the authoritative Binance server time", () => {
@@ -972,6 +1128,21 @@ describe("M3 deterministic metrics and report gates", () => {
     const manifests = requiredTestManifests("DEV");
     expect(validateRequiredManifestCoverage(manifests, "DEV", []).valid).toBe(true);
     expect(validateRequiredManifestCoverage(manifests, "DEV").valid).toBe(true);
+    for (const overrides of [
+      { sha256: "invalid" },
+      { provider: "other-provider" },
+      { source: "/fapi/v1/klines" },
+      { timeframe: "4h" },
+      { symbol: "DOGEUSDT" },
+    ]) {
+      expect(
+        validateRequiredManifestCoverage(
+          [...manifests, makeMarkPriceManifest("BTCUSDT", "DEV", false, overrides)],
+          "DEV",
+          [],
+        ).valid,
+      ).toBe(false);
+    }
   });
 
   it("serializes a deterministic report without a wall-clock field", () => {

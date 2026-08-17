@@ -17,6 +17,31 @@ function hasValidChecksum(manifest: HistoricalManifest): boolean {
   return /^[a-f0-9]{64}$/i.test(manifest.sha256);
 }
 
+function isResearchSymbol(value: unknown): value is ResearchSymbol {
+  return typeof value === "string" && RESEARCH_SYMBOLS.includes(value as ResearchSymbol);
+}
+
+function validateProvidedMarkPriceManifest(
+  manifest: Extract<HistoricalManifest, { kind: "mark-price" }>,
+  diagnostics: string[],
+): void {
+  if (manifest.provider !== HISTORICAL_PROVIDER) {
+    diagnostics.push(`Mark-price manifest provider is not ${HISTORICAL_PROVIDER}.`);
+  }
+  if (manifest.source !== "/fapi/v1/markPriceKlines") {
+    diagnostics.push("Mark-price manifest source is not /fapi/v1/markPriceKlines.");
+  }
+  if (manifest.timeframe !== "1h") {
+    diagnostics.push("Mark-price manifest timeframe is not 1h.");
+  }
+  if (!isResearchSymbol(manifest.symbol)) {
+    diagnostics.push("Mark-price manifest symbol is not in the approved research universe.");
+  }
+  if (!hasValidChecksum(manifest)) {
+    diagnostics.push(`Mark-price manifest checksum is invalid for ${String(manifest.symbol)}.`);
+  }
+}
+
 function findManifest(
   manifests: readonly HistoricalManifest[],
   symbol: ResearchSymbol,
@@ -125,9 +150,12 @@ export function validateRequiredManifestCoverage(
   const diagnostics: string[] = [];
   const provided = manifests ?? [];
   for (const manifest of provided) {
-    // Mark-price manifests are validated only when a compatibility fallback
-    // charge actually requires them. Unused fallback paths stay optional.
-    if (manifest.kind === "mark-price") continue;
+    if (manifest.kind === "mark-price") {
+      // Unused mark-price paths stay optional, but a provided manifest is still
+      // provenance and must not be allowed to carry malformed metadata.
+      validateProvidedMarkPriceManifest(manifest, diagnostics);
+      continue;
+    }
     if (manifest.provider !== HISTORICAL_PROVIDER) {
       diagnostics.push(`Manifest provider is not ${HISTORICAL_PROVIDER}.`);
     }

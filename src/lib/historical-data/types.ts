@@ -83,6 +83,12 @@ export type HistoricalMarkPriceDataset = Readonly<{
   manifests: readonly HistoricalMarkPriceManifest[];
 }>;
 
+export type HistoricalMarkPriceSegment = Readonly<{
+  segment: "base" | "settlement-tail";
+  candles: readonly HistoricalMarkPriceCandle[];
+  manifest: HistoricalMarkPriceManifest;
+}>;
+
 export type HistoricalManifest =
   | HistoricalCandleManifest
   | HistoricalFundingManifest
@@ -110,6 +116,7 @@ export type HistoricalStudyData = Readonly<{
   datasets: Readonly<Record<ResearchSymbol, HistoricalSymbolDataset>>;
   funding: Readonly<Record<ResearchSymbol, HistoricalFundingDataset>>;
   markPrice: Readonly<Record<ResearchSymbol, HistoricalMarkPriceDataset | undefined>>;
+  markPriceSegments: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>>;
   manifests: readonly HistoricalManifest[];
   serverTime: number;
 }>;
