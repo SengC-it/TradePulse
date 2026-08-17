@@ -209,7 +209,7 @@ production deployment, and all trading capability.
 
 ## M3-B — Historical Loader + Deterministic Backtest Runner
 
-Status: IMPLEMENTED / DRAFT PR
+Status: IMPLEMENTED / MERGED TO main
 
 ### Scope
 
@@ -330,7 +330,7 @@ M3-C was not rerun during this specification gate.
 
 ## M3-B.2 — Historical Funding Compatibility Implementation
 
-Status: IMPLEMENTED / DRAFT PR / UNDER REVIEW
+Status: CLOSED / MERGED TO main
 
 ### Scope
 
@@ -349,7 +349,19 @@ run.
 
 ## M3-C — Baseline Historical Run + Evidence Review
 
-Status: PLANNED / NOT STARTED
+Status: INCOMPLETE / EVIDENCE DRAFT PR
+
+### Formal result
+
+`M3-C bt-policy-002 Formal Run #1` was executed exactly once from main commit
+`b28c9b191ad2acd74f8e74e87f51dc1a3eb9e443` using `baseline-001` and
+`m3-b-report-002`. The frozen classification is **M3-C INCOMPLETE** because
+the report contains 249 `SETTLEMENT_AMBIGUOUS` results (DEV 184, OOS 65),
+which takes precedence over the later acceptance gates. The complete
+documentation-only evidence is in `docs/M3_BASELINE_001_RESULTS.md`.
+
+M3-C stops here. No strategy tuning, policy change, M4 work, or trading is
+authorized by this result.
 
 ### Scope
 

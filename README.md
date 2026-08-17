@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-B — Historical Loader + Deterministic Backtest Runner**.
+Current milestone: **M3-C — Baseline Historical Run & Evidence Review**.
 
 ## Boundary
 
@@ -111,8 +111,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M1 | Binance public market data and candle validation (closed) |
 | M2-B | Indicators, regimes, pure strategy engine, scoring, ranking (closed) |
 | M3-A | Backtest specification freeze (closed / merged) |
-| M3-B | Historical loader and deterministic backtest runner (implemented / Draft PR) |
-| M3-C | Baseline historical run and evidence review (planned) |
+| M3-B | Historical loader and deterministic backtest runner (implemented / merged) |
+| M3-C | Baseline historical run and evidence review (`bt-policy-002` Formal Run #1: INCOMPLETE; evidence Draft PR) |
 | M4 | Realtime scanner, protected endpoint, persistence |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
