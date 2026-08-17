@@ -259,6 +259,52 @@ survivorship bias.
 Automated optimization, parameter tuning without approval, M3-C acceptance,
 live scan, notifications, M6 forward tracking, and trading.
 
+## M3-B.1 — Historical Funding Compatibility Specification
+
+Status: SPECIFICATION ONLY / DRAFT PR
+
+### Scope
+
+Freeze a separate historical-data compatibility policy for older official
+Binance USDⓈ-M Futures funding-history records whose `markPrice` is empty or
+otherwise invalid. This is a data-source compatibility decision, not strategy
+tuning. `baseline-001` and the immutable `bt-policy-001` contract remain
+unchanged. No DEV/OOS/COMBINED performance metrics have been observed under
+`bt-policy-002`.
+
+### Frozen rules
+
+- `backtestPolicyVersion = bt-policy-002` is distinct from `bt-policy-001`.
+- `fundingRate` and `fundingTime` remain sourced only from
+  `/fapi/v1/fundingRate`.
+- A finite positive funding-history `markPrice` is used directly with
+  provenance `FUNDING_RATE_HISTORY`.
+- Only an invalid direct mark price may use the official
+  `/fapi/v1/markPriceKlines` 1H endpoint. Select the greatest fully closed
+  candle with `closeTime < fundingTime`, use its close, and record
+  `MARK_PRICE_KLINE_PRE_EVENT_CLOSE`.
+- No valid pre-event fallback means `DATA_INCOMPLETE`; no funding event is
+  silently dropped. Ordinary klines, spot/index/premium-index prices,
+  interpolation, future/current prices, entry price, zero, and alternate
+  providers are forbidden.
+- Existing funding economics and event timing are unchanged. Charge-level
+  provenance, aggregate fallback diagnostics, symbol/UTC-year breakdowns, and
+  mark-price manifest hashes are mandatory.
+
+### Deliverables
+
+Documentation and deterministic test design only. A future implementation
+requires a separate review before any historical run. This milestone does not
+add loader code, strategy code, report code, database changes, or M3-C
+performance evidence.
+
+### Acceptance gate
+
+The specification is accepted only when the four documents above describe the
+same direct/fallback order, strict pre-event lookback, fail-closed behavior,
+provenance, manifests, and determinism requirements. `bt-policy-001` must
+remain unchanged and M3-C must not be rerun during this specification gate.
+
 ## M3-C — Baseline Historical Run + Evidence Review
 
 Status: PLANNED / NOT STARTED

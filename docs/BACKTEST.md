@@ -20,6 +20,25 @@ change requires a reviewed Strategy Change and a new strategy version. The
 backtest policy is a research assumption, not a claim about guaranteed fills,
 fees, funding, or profit.
 
+### Historical funding compatibility policy (M3-B.1)
+
+`bt-policy-001` remains immutable. It requires the official positive finite
+`markPrice` carried by each funding-history record and fails closed when that
+field is missing or invalid. It is not retroactively changed by this
+compatibility specification.
+
+`backtestPolicyVersion = bt-policy-002` is frozen as a separate, future
+historical-data compatibility policy. It exists only to resolve older official
+Binance funding-history records whose `markPrice` is empty or otherwise
+invalid. It does not change `baseline-001`, funding economics, event timing,
+settlement, fees, slippage, or any strategy threshold. This M3-B.1 change is
+specification-only; no `bt-policy-002` implementation or DEV/OOS/COMBINED
+performance result exists yet.
+
+Any report produced after an approved implementation must identify exactly one
+policy version and must not compare results from `bt-policy-001` and
+`bt-policy-002` as if they were the same historical protocol.
+
 ## Frozen evaluation periods
 
 All timestamps are UTC and inclusive:
@@ -119,10 +138,13 @@ REST documentation](https://developers.binance.com/en/docs/catalog/core-trading-
   twelve-field response is parsed into the normalized `Candle` model; rows
   are never sorted, filled, or synthesized.
 - Funding uses `GET https://fapi.binance.com/fapi/v1/fundingRate` with
-  `symbol`, inclusive `startTime`/`endTime`, and `limit` up to 1000. The
-  documented response includes `fundingRate`, `fundingTime`, and the official
-  `markPrice`. A missing or invalid `markPrice` is `DATA_INCOMPLETE`; no
-  candle-price fallback is permitted.
+  `symbol`, inclusive `startTime`/`endTime`, and `limit` up to 1000. Under the
+  current M3-B / `bt-policy-001` contract, the documented `fundingRate`,
+  `fundingTime`, and finite positive official `markPrice` are all required. A
+  missing or invalid `markPrice` is `DATA_INCOMPLETE`; no candle-price
+  fallback is permitted. The only later compatibility behavior is the
+  specification-only `bt-policy-002` rule below; it is not implemented by
+  M3-B.
 - Kline pagination advances only to the next expected open time. Funding
   pagination advances strictly after the last accepted `fundingTime`. A
   repeated page, gap, duplicate, malformed row, or non-progressing cursor
@@ -377,6 +399,77 @@ SHORT funding PnL = +fundingRate * markPrice
 
 Positive funding therefore costs LONG and benefits SHORT; negative funding has
 the opposite effect.
+
+## M3-B.1 historical funding mark-price compatibility (`bt-policy-002`)
+
+This section freezes the compatibility contract before implementation. It does
+not alter the immutable `bt-policy-001` behavior above and does not authorize
+rerunning M3-C until an implementation is separately reviewed.
+
+Funding rate and funding-event timestamp remain sourced only from:
+
+```text
+GET https://fapi.binance.com/fapi/v1/fundingRate
+```
+
+For each funding event, resolve the mark price in this exact order:
+
+1. If the funding-history `markPrice` exists, is finite, and is greater than
+   zero, use it and record:
+
+   ```text
+   markPriceSource = FUNDING_RATE_HISTORY
+   ```
+
+2. If that field is missing, an empty string, `null`, non-finite, or less than
+   or equal to zero, query only the official USDⓈ-M Futures endpoint:
+
+   ```text
+   GET https://fapi.binance.com/fapi/v1/markPriceKlines
+   interval = 1h
+   ```
+
+   Select exactly the mark-price candle with the greatest `closeTime` that
+   satisfies:
+
+   ```text
+   markPriceCandle.closeTime < fundingTime
+   ```
+
+   Use that candle's `close` and record:
+
+   ```text
+   markPriceSource = MARK_PRICE_KLINE_PRE_EVENT_CLOSE
+   ```
+
+If no valid pre-event mark-price candle exists, the funding event and affected
+historical result are `DATA_INCOMPLETE`. The event must not be silently
+dropped. A candle closing exactly at `fundingTime` is not eligible, and no
+future candle may be used.
+
+The fallback must not use ordinary trading klines, spot price, index price,
+premium-index price, interpolation, a nearest future candle, current mark
+price, entry price, zero, or a third-party provider. Existing funding event
+inclusion/exclusion timing and economics remain unchanged:
+
+```text
+LONG  fundingPnL = -fundingRate * markPrice
+SHORT fundingPnL = +fundingRate * markPrice
+fundingR = fundingPnL / stopDistance
+```
+
+Every funding charge must retain `fundingTime`, `fundingRate`, `markPrice`, and
+`markPriceSource`. The report must additionally expose
+`fundingEventsTotal`, `fundingEventsDirectMarkPrice`,
+`fundingEventsFallbackMarkPrice`, and `fundingFallbackRate`, with fallback
+counts broken down by symbol and UTC year.
+
+Whenever fallback data is used, the manifests must include the official
+`/fapi/v1/markPriceKlines` provider/endpoint, symbol, `timeframe = 1h`,
+requested and actual ranges, row count, retrieval timestamp, SHA-256, and the
+`settlementOnly` classification where applicable. With normalized funding
+records, mark-price klines, strategy data, and the policy version fixed, the
+core report must remain byte-equivalent and deterministic.
 
 ## R normalization
 

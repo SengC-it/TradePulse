@@ -125,9 +125,12 @@ notification, or outcome resolution.
    It captures authoritative Binance server time once per study load and
    rejects every candle whose close is not strictly before that time.
 2. The loader paginates explicit ranges, validates chronological/aligned
-   candles and funding records, requires the official funding `markPrice`, and
-   records canonical SHA-256 manifests. No sort, gap fill, synthetic row,
-   private API, or alternate provider is allowed.
+   candles and funding records, requires the official funding `markPrice` for
+   the current `bt-policy-001` implementation, and records canonical SHA-256
+   manifests. No sort, gap fill, synthetic row, private API, or alternate
+   provider is allowed. M3-B.1 freezes a separate `bt-policy-002` historical
+   mark-price compatibility specification; it is not implemented in this
+   flow.
 3. The range builder separates the 55/205 indicator minimums from the 250
    strategy window and requests 250-candle 1H/4H historical lookback. The
    backtest clock enumerates fully closed 1H signal points inside DEV or OOS.
@@ -148,6 +151,25 @@ notification, or outcome resolution.
    DEV/OOS/COMBINED metrics, and an overall acceptance decision. It writes
    only ignored local output through the CLI; it does not persist to Supabase
    or send notifications.
+
+### M3-B.1 funding compatibility boundary
+
+`bt-policy-001` remains the immutable M3-B funding contract: a missing or
+invalid funding-history `markPrice` is `DATA_INCOMPLETE`. The specification-only
+`bt-policy-002` contract adds one historical compatibility source, and only
+after the direct funding-history value fails validation: the official
+USDⓈ-M Futures `/fapi/v1/markPriceKlines` endpoint at `1h`, selecting the
+greatest fully closed candle with `closeTime < fundingTime`. Its close is the
+fallback mark price and its provenance is
+`MARK_PRICE_KLINE_PRE_EVENT_CLOSE`; a direct value is recorded as
+`FUNDING_RATE_HISTORY`.
+
+The fallback cannot use ordinary trading candles, spot/index/premium-index
+prices, interpolation, future candles, current mark price, entry price, zero,
+or third-party data. No funding event may be dropped; missing fallback data
+remains `DATA_INCOMPLETE`. Every charge, fallback count, UTC-year/symbol
+breakdown, and fallback manifest hash must be auditable. This boundary changes
+no strategy rule or funding economics and has no observed performance result.
 
 ## Realtime scan lifecycle
 
