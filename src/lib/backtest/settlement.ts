@@ -1,8 +1,11 @@
 import { INTERVAL_MS } from "../market-data/intervals.ts";
 import type { Candle } from "../market-data/types.ts";
 import { validateFundingRecords } from "../historical-data/validation.ts";
+import { validateIntrabarSettlementWindow } from "../historical-data/validation.ts";
+import type { IntrabarSettlementCandle } from "../historical-data/types.ts";
 import { BACKTEST_POLICY } from "./constants.ts";
-import { resolveFundingCharges } from "./funding.ts";
+import { requiresIntrabarFundingResolution, resolveFundingCharges } from "./funding.ts";
+import { isIntrabarSettlementOnly } from "./ranges.ts";
 import type {
   BacktestSignalResult,
   BacktestSignalSnapshot,
@@ -21,6 +24,78 @@ function finite(value: number): boolean {
 
 function normalizeZero(value: number): number {
   return Object.is(value, -0) ? 0 : value;
+}
+
+function resolveIntrabarExitMinute(
+  candles: readonly IntrabarSettlementCandle[],
+  direction: BacktestSignalSnapshot["direction"],
+  exitReason: "TP" | "SL",
+  stopReference: number,
+  takeProfitReference: number,
+): IntrabarSettlementCandle | null {
+  for (const candle of candles) {
+    const touched =
+      exitReason === "SL"
+        ? direction === "LONG"
+          ? candle.low <= stopReference
+          : candle.high >= stopReference
+        : direction === "LONG"
+          ? candle.high >= takeProfitReference
+          : candle.low <= takeProfitReference;
+    if (touched) return candle;
+  }
+  return null;
+}
+
+function reconcileIntrabarWindow(window: readonly IntrabarSettlementCandle[], exitCandle: Candle): boolean {
+  if (window.length !== 60) return false;
+  const maxHigh = Math.max(...window.map((candle) => candle.high));
+  const minLow = Math.min(...window.map((candle) => candle.low));
+  return (
+    window[0]?.openTime === exitCandle.openTime &&
+    window.at(-1)?.closeTime === exitCandle.closeTime &&
+    window[0]?.open === exitCandle.open &&
+    window.at(-1)?.close === exitCandle.close &&
+    maxHigh === exitCandle.high &&
+    minLow === exitCandle.low
+  );
+}
+
+export type FrozenBacktestExit = Readonly<{
+  exitCandle: Candle;
+  exitReason: "TP" | "SL" | "TIME_EXIT";
+  heldCandleNumber: number;
+}>;
+
+export function determineFrozenBacktestExit(
+  snapshot: BacktestSignalSnapshot,
+  heldCandles: readonly Candle[],
+): FrozenBacktestExit {
+  let exitCandle: Candle | null = null;
+  let exitReason: "TP" | "SL" | "TIME_EXIT" = "TIME_EXIT";
+  let heldCandleNumber = BACKTEST_POLICY.heldCandleCount;
+  for (let index = 0; index < heldCandles.length; index += 1) {
+    const candle = heldCandles[index]!;
+    const stopTouched =
+      snapshot.direction === "LONG"
+        ? candle.low <= snapshot.stopReference
+        : candle.high >= snapshot.stopReference;
+    const takeProfitTouched =
+      snapshot.direction === "LONG"
+        ? candle.high >= snapshot.takeProfitReference
+        : candle.low <= snapshot.takeProfitReference;
+    if (stopTouched || takeProfitTouched) {
+      exitCandle = candle;
+      exitReason = stopTouched ? "SL" : "TP";
+      heldCandleNumber = index + 1;
+      break;
+    }
+  }
+  return Object.freeze({
+    exitCandle: exitCandle ?? heldCandles[BACKTEST_POLICY.heldCandleCount - 1]!,
+    exitReason,
+    heldCandleNumber,
+  });
 }
 
 export function emptyBacktestSignalResult(
@@ -55,6 +130,8 @@ function asAmbiguous(
   entryTime: number,
   rawEntryPrice: number,
   entryFill: number,
+  policy: BacktestPolicyVersion,
+  exitCandleOpenTime: number,
   diagnostic: string,
 ): BacktestSignalResult {
   return Object.freeze({
@@ -62,6 +139,7 @@ function asAmbiguous(
     entryTime,
     rawEntryPrice,
     entryFill,
+    ...(policy === "bt-policy-003" ? { settlementAmbiguousExitCandleOpenTime: exitCandleOpenTime } : {}),
   });
 }
 
@@ -91,6 +169,7 @@ export function snapshotFromCandidate(
 
 export function settleBacktestSignal(input: SettlementInput): BacktestSignalResult {
   const { snapshot, heldCandles, signalCandle } = input;
+  const policy = input.policy ?? snapshot.backtestPolicyVersion;
   if (heldCandles.length !== BACKTEST_POLICY.heldCandleCount) {
     return emptyBacktestSignalResult(snapshot, "DATA_INCOMPLETE", "Exactly 24 held candles are required.");
   }
@@ -134,26 +213,8 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
     });
   }
 
-  let exitCandle: Candle | null = null;
-  let exitReason: "TP" | "SL" | "TIME_EXIT" = "TIME_EXIT";
-  let heldCandleNumber = BACKTEST_POLICY.heldCandleCount;
-  for (let index = 0; index < heldCandles.length; index += 1) {
-    const candle = heldCandles[index]!;
-    const stopTouched =
-      snapshot.direction === "LONG"
-        ? candle.low <= snapshot.stopReference
-        : candle.high >= snapshot.stopReference;
-    const takeProfitTouched =
-      snapshot.direction === "LONG"
-        ? candle.high >= snapshot.takeProfitReference
-        : candle.low <= snapshot.takeProfitReference;
-    if (stopTouched || takeProfitTouched) {
-      exitCandle = candle;
-      exitReason = stopTouched ? "SL" : "TP";
-      heldCandleNumber = index + 1;
-      break;
-    }
-  }
+  const frozenExit = determineFrozenBacktestExit(snapshot, heldCandles);
+  const { exitCandle, exitReason, heldCandleNumber } = frozenExit;
 
   const resolvedExitCandle = exitCandle ?? held24;
   const rawExitPrice =
@@ -167,7 +228,92 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
       ? rawExitPrice * (1 - BACKTEST_POLICY.slippageRate)
       : rawExitPrice * (1 + BACKTEST_POLICY.slippageRate);
   const entryTime = firstHeld.openTime;
-  const exitTime = resolvedExitCandle.closeTime;
+  let exitTime = resolvedExitCandle.closeTime;
+  let exitMinute: Readonly<{ openTime: number; closeTime: number }> | undefined;
+  let intrabarCandles: readonly IntrabarSettlementCandle[] | undefined;
+  const requiresIntrabar =
+    policy === "bt-policy-003" &&
+    requiresIntrabarFundingResolution({
+      funding: input.funding,
+      entryTime,
+      exitReason,
+      exitCandle: resolvedExitCandle,
+    });
+  if (requiresIntrabar && exitReason !== "TIME_EXIT") {
+    const expectedSettlementOnly = isIntrabarSettlementOnly(input.period, resolvedExitCandle);
+    const window =
+      input.intrabarSettlementWindow ??
+      input.intrabarSettlementWindows?.find(
+        (candidate) =>
+          candidate.symbol === snapshot.symbol && candidate.exitCandleOpenTime === resolvedExitCandle.openTime,
+      );
+    if (
+      !window ||
+      input.serverTime === undefined ||
+      window.symbol !== snapshot.symbol ||
+      window.exitCandleOpenTime !== resolvedExitCandle.openTime ||
+      window.settlementOnly !== expectedSettlementOnly
+    ) {
+      return Object.freeze({
+        ...emptyBacktestSignalResult(snapshot, "DATA_INCOMPLETE", "Required intrabar settlement window is missing."),
+        entryTime,
+        rawEntryPrice,
+        entryFill,
+      });
+    }
+    try {
+      intrabarCandles = validateIntrabarSettlementWindow(window.candles, {
+        symbol: snapshot.symbol,
+        exitCandleOpenTime: resolvedExitCandle.openTime,
+        exitCandleCloseTime: resolvedExitCandle.closeTime,
+        serverTime: input.serverTime,
+      });
+    } catch (error) {
+      return Object.freeze({
+        ...emptyBacktestSignalResult(
+          snapshot,
+          "DATA_INCOMPLETE",
+          error instanceof Error ? error.message : "Intrabar settlement data is invalid.",
+        ),
+        entryTime,
+        rawEntryPrice,
+        entryFill,
+      });
+    }
+    if (!reconcileIntrabarWindow(intrabarCandles, resolvedExitCandle)) {
+      return Object.freeze({
+        ...emptyBacktestSignalResult(
+          snapshot,
+          "DATA_INCOMPLETE",
+          "Intrabar settlement does not exactly reconcile to the frozen 1H exit candle.",
+        ),
+        entryTime,
+        rawEntryPrice,
+        entryFill,
+      });
+    }
+    const resolvedMinute = resolveIntrabarExitMinute(
+      intrabarCandles,
+      snapshot.direction,
+      exitReason,
+      snapshot.stopReference,
+      snapshot.takeProfitReference,
+    );
+    if (!resolvedMinute) {
+      return Object.freeze({
+        ...emptyBacktestSignalResult(
+          snapshot,
+          "DATA_INCOMPLETE",
+          "No 1m candle reproduces the frozen 1H TP/SL exit reason.",
+        ),
+        entryTime,
+        rawEntryPrice,
+        entryFill,
+      });
+    }
+    exitMinute = { openTime: resolvedMinute.openTime, closeTime: resolvedMinute.closeTime };
+    exitTime = resolvedMinute.closeTime;
+  }
   if (!finitePositive(rawExitPrice) || !finitePositive(exitFill)) {
     return Object.freeze({
       ...emptyBacktestSignalResult(snapshot, "DATA_INCOMPLETE", "The deterministic exit price is invalid."),
@@ -180,7 +326,7 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
   try {
     validateFundingRecords(input.funding, {
       symbol: snapshot.symbol,
-      policy: input.policy ?? snapshot.backtestPolicyVersion,
+      policy,
     });
   } catch (error) {
     return Object.freeze({
@@ -208,10 +354,11 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
     exitCandle: resolvedExitCandle,
     exitTime,
     direction: snapshot.direction,
-    policy: input.policy ?? snapshot.backtestPolicyVersion,
+    policy,
     markPriceCandles: input.markPriceCandles,
     markPriceSegments: input.markPriceSegments,
     markPriceBaseEndTime: input.periodEndTime,
+    ...(exitMinute ? { exitMinute } : {}),
   });
   } catch (error) {
     return Object.freeze({
@@ -227,6 +374,8 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
       entryTime,
       rawEntryPrice,
       entryFill,
+      policy,
+      resolvedExitCandle.openTime,
       "Funding timestamp falls within the TP/SL exit candle before intrabar order is known.",
     );
   }
@@ -261,6 +410,7 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
     heldCandleNumber,
     exitReason,
     fundingCharges,
+    ...(policy === "bt-policy-003" ? { fundingOrderAudits: fundingResolution.audits ?? Object.freeze([]) } : {}),
     fundingPnL: normalizeZero(fundingPnL),
     priceR: normalizeZero(priceR),
     feeR: normalizeZero(feeR),

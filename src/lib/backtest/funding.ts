@@ -1,14 +1,35 @@
 import type { HistoricalFundingRecord } from "../historical-data/types.ts";
 import type { HistoricalMarkPriceCandle, HistoricalMarkPriceSegment } from "../historical-data/types.ts";
 import type { BacktestPolicyVersion } from "./constants.ts";
-import type { BacktestFundingCharge, BacktestSignalSnapshot } from "./types.ts";
+import type {
+  BacktestFundingCharge,
+  BacktestFundingOrderAudit,
+  BacktestSignalSnapshot,
+} from "./types.ts";
 
 export type FundingExitReason = "TP" | "SL" | "TIME_EXIT";
 
 export type FundingResolution = Readonly<{
   charges: readonly BacktestFundingCharge[];
   ambiguous: boolean;
+  audits?: readonly BacktestFundingOrderAudit[];
 }>;
+
+/** The shared Phase A/Phase B predicate for usage-driven 1m loading. */
+export function requiresIntrabarFundingResolution(input: Readonly<{
+  funding: readonly HistoricalFundingRecord[];
+  entryTime: number;
+  exitReason: FundingExitReason;
+  exitCandle: Readonly<{ openTime: number; closeTime: number }>;
+}>): boolean {
+  if (input.exitReason === "TIME_EXIT") return false;
+  return input.funding.some(
+    (event) =>
+      event.fundingTime > input.entryTime &&
+      event.fundingTime > input.exitCandle.openTime &&
+      event.fundingTime <= input.exitCandle.closeTime,
+  );
+}
 
 function directMarkPrice(event: HistoricalFundingRecord): number | null {
   const value = event.directMarkPrice;
@@ -73,16 +94,32 @@ export function resolveFundingCharges(input: Readonly<{
   markPriceCandles?: readonly HistoricalMarkPriceCandle[];
   markPriceSegments?: readonly HistoricalMarkPriceSegment[];
   markPriceBaseEndTime?: number;
+  exitMinute?: Readonly<{ openTime: number; closeTime: number }>;
 }>): FundingResolution {
   const policy = input.policy ?? "bt-policy-001";
   const charges: BacktestFundingCharge[] = [];
+  const audits: BacktestFundingOrderAudit[] = [];
+  const intrabar = policy === "bt-policy-003";
   for (const event of input.funding) {
     if (event.fundingTime <= input.entryTime) continue;
 
+    let include = true;
+    let resolution: BacktestFundingOrderAudit["resolution"] = "ONE_HOUR_UNAMBIGUOUS";
     if (input.exitReason !== "TIME_EXIT") {
       if (event.fundingTime > input.exitCandle.closeTime) continue;
       if (event.fundingTime > input.exitCandle.openTime) {
-        return { charges: Object.freeze([]), ambiguous: true };
+        if (!intrabar) return { charges: Object.freeze([]), ambiguous: true };
+        if (!input.exitMinute) {
+          throw new Error("bt-policy-003 requires a resolved 1m exit minute for TP/SL.");
+        }
+        resolution = "ONE_MINUTE_RESOLVED";
+        if (event.fundingTime <= input.exitMinute.openTime) {
+          include = true;
+        } else if (event.fundingTime > input.exitMinute.closeTime) {
+          include = false;
+        } else {
+          resolution = "CONSERVATIVE_SAME_MINUTE";
+        }
       }
     } else if (event.fundingTime > input.exitTime) {
       continue;
@@ -90,13 +127,13 @@ export function resolveFundingCharges(input: Readonly<{
 
     const direct = directMarkPrice(event);
     const fallbackCandle =
-      direct === null && policy === "bt-policy-002"
+      direct === null && (policy === "bt-policy-002" || policy === "bt-policy-003")
         ? findPreEventMarkPrice(input.markPriceCandles ?? [], event.fundingTime)
         : null;
     const markPrice = direct ?? fallbackCandle?.close ?? null;
     if (markPrice === null) {
       throw new Error(
-        policy === "bt-policy-002"
+        policy === "bt-policy-002" || policy === "bt-policy-003"
           ? `No valid pre-event mark-price Kline exists for funding time ${event.fundingTime}.`
           : `Funding history markPrice is invalid for funding time ${event.fundingTime}.`,
       );
@@ -113,16 +150,51 @@ export function resolveFundingCharges(input: Readonly<{
     if (!Number.isFinite(fundingPnL)) {
       throw new Error("Funding calculation produced a non-finite value.");
     }
+    if (resolution === "CONSERVATIVE_SAME_MINUTE") {
+      // A negative funding amount is a charge and is conservatively applied;
+      // a positive amount is never converted into an artificial credit.
+      include = fundingPnL <= 0;
+    }
+    if (intrabar) {
+      audits.push(
+        Object.freeze({
+          symbol: event.symbol,
+          fundingTime: event.fundingTime,
+          fundingRate: event.fundingRate,
+          theoreticalFundingPnL: Object.is(fundingPnL, -0) ? 0 : fundingPnL,
+          included: include,
+          resolution,
+          exitCandleOpenTime: input.exitCandle.openTime,
+          exitCandleCloseTime: input.exitCandle.closeTime,
+          ...(input.exitMinute && resolution !== "ONE_HOUR_UNAMBIGUOUS"
+            ? {
+                exitMinuteOpenTime: input.exitMinute.openTime,
+                exitMinuteCloseTime: input.exitMinute.closeTime,
+              }
+            : {}),
+          markPrice,
+          markPriceSource,
+          ...(markPriceManifestSegment ? { markPriceManifestSegment } : {}),
+        }),
+      );
+    }
+    if (!include) continue;
     charges.push(
       Object.freeze({
         fundingTime: event.fundingTime,
         fundingRate: event.fundingRate,
         markPrice,
-        ...(policy === "bt-policy-002" ? { markPriceSource } : {}),
-        ...(policy === "bt-policy-002" && markPriceManifestSegment ? { markPriceManifestSegment } : {}),
+        ...((policy === "bt-policy-002" || policy === "bt-policy-003") ? { markPriceSource } : {}),
+        ...((policy === "bt-policy-002" || policy === "bt-policy-003") && markPriceManifestSegment
+          ? { markPriceManifestSegment }
+          : {}),
         fundingPnL: Object.is(fundingPnL, -0) ? 0 : fundingPnL,
       }),
     );
   }
-  return { charges: Object.freeze(charges), ambiguous: false };
+  return {
+    charges: Object.freeze(charges),
+    ambiguous: false,
+    ...(intrabar ? { audits: Object.freeze(audits) } : {}),
+  };
 }

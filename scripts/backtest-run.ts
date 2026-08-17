@@ -12,6 +12,7 @@ import {
 } from "../src/lib/backtest/constants.ts";
 import { buildHistoricalLoadRanges } from "../src/lib/backtest/ranges.ts";
 import { runBacktest } from "../src/lib/backtest/runner.ts";
+import { discoverIntrabarSettlementRequirements } from "../src/lib/backtest/runner.ts";
 import { serializeBacktestReport } from "../src/lib/backtest/report.ts";
 import type { BacktestData } from "../src/lib/backtest/types.ts";
 import type { HistoricalStudyData } from "../src/lib/historical-data/types.ts";
@@ -35,7 +36,7 @@ function policyFromArguments(): BacktestPolicyVersion {
 
 export { buildHistoricalLoadRanges as loadRanges } from "../src/lib/backtest/ranges.ts";
 
-function toBacktestData(study: HistoricalStudyData): BacktestData {
+export function toBacktestData(study: HistoricalStudyData): BacktestData {
   const datasets = Object.fromEntries(
     RESEARCH_SYMBOLS.map((symbol) => [
       symbol,
@@ -54,7 +55,15 @@ function toBacktestData(study: HistoricalStudyData): BacktestData {
   const markPriceSegments = Object.fromEntries(
     RESEARCH_SYMBOLS.map((symbol) => [symbol, study.markPriceSegments[symbol]]),
   ) as BacktestData["markPriceSegments"];
-  return { datasets, funding, markPrice, markPriceSegments, manifests: study.manifests, serverTime: study.serverTime };
+  return {
+    datasets,
+    funding,
+    markPrice,
+    markPriceSegments,
+    ...(study.intrabarSettlementWindows ? { intrabarSettlementWindows: study.intrabarSettlementWindows } : {}),
+    manifests: study.manifests,
+    serverTime: study.serverTime,
+  };
 }
 
 async function main(): Promise<void> {
@@ -62,7 +71,18 @@ async function main(): Promise<void> {
   const policy = policyFromArguments();
   const loader = new BinanceHistoricalDataLoader();
   const study = await loader.loadStudyData({ ...buildHistoricalLoadRanges(period), policy });
-  const report = runBacktest({ period, policy, data: toBacktestData(study) });
+  let data = toBacktestData(study);
+  if (policy === "bt-policy-003") {
+    const requirements = discoverIntrabarSettlementRequirements({ period, data });
+    const windows = await loader.loadIntrabarSettlementWindows(requirements, study.serverTime);
+    data = {
+      ...data,
+      intrabarSettlementRequirements: requirements,
+      intrabarSettlementWindows: windows,
+      manifests: Object.freeze([...data.manifests, ...windows.map((window) => window.manifest)]),
+    };
+  }
+  const report = runBacktest({ period, policy, data });
   const outputDirectory = path.resolve(process.cwd(), ".tmp", "backtest");
   mkdirSync(outputDirectory, { recursive: true });
   const outputPath = path.join(outputDirectory, `${period.toLowerCase()}-report.json`);

@@ -249,13 +249,14 @@ function makeMarkPriceManifest(
 }
 
 describe("M3 funding policy selection and mark-price compatibility", () => {
-  it("fails closed for missing or unknown CLI policies and accepts both explicit policies", () => {
+  it("fails closed for missing or unknown CLI policies and accepts all explicit policies", () => {
     expect(() => parseBacktestPolicyArgument(["node", "backtest-run.ts"])).toThrow(/--policy is required/);
-    expect(() => parseBacktestPolicyArgument(["node", "backtest-run.ts", "--policy", "bt-policy-003"])).toThrow(
+    expect(() => parseBacktestPolicyArgument(["node", "backtest-run.ts", "--policy", "bt-policy-999"])).toThrow(
       /--policy must be/,
     );
     expect(parseBacktestPolicyArgument(["--policy", "bt-policy-001"])).toBe("bt-policy-001");
     expect(parseBacktestPolicyArgument(["--policy", "bt-policy-002"])).toBe("bt-policy-002");
+    expect(parseBacktestPolicyArgument(["--policy", "bt-policy-003"])).toBe("bt-policy-003");
   });
 
   it("selects the greatest pre-event mark-price candle without using an equal-time candle", () => {
@@ -876,6 +877,7 @@ describe("M3 bt-policy-001 settlement", () => {
       periodEndTime: BACKTEST_PERIOD_RANGES.OOS.endTime,
     });
     expect(ambiguous.status).toBe("SETTLEMENT_AMBIGUOUS");
+    expect(ambiguous).not.toHaveProperty("settlementAmbiguousExitCandleOpenTime");
 
     const timeExit = settleBacktestSignal({
       snapshot: makeSnapshot({ signalTime: signal.closeTime }),

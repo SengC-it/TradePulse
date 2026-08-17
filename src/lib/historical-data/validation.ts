@@ -3,7 +3,11 @@ import { validateCandle } from "../market-data/validation.ts";
 import { INTERVAL_MS, isMarketTimeframe, type MarketTimeframe } from "../market-data/intervals.ts";
 import type { Candle } from "../market-data/types.ts";
 import { HistoricalDataError } from "./errors.ts";
-import type { HistoricalFundingRecord, HistoricalMarkPriceCandle } from "./types.ts";
+import type {
+  HistoricalFundingRecord,
+  HistoricalMarkPriceCandle,
+  IntrabarSettlementCandle,
+} from "./types.ts";
 
 function assertRange(startTime: number, endTime: number, label: string): void {
   if (!Number.isInteger(startTime) || startTime < 0 || !Number.isInteger(endTime) || endTime < startTime) {
@@ -178,7 +182,7 @@ export function validateFundingRecords(
     symbol: ResearchSymbol;
     startTime?: number;
     endTime?: number;
-    policy?: "bt-policy-001" | "bt-policy-002";
+    policy?: "bt-policy-001" | "bt-policy-002" | "bt-policy-003";
   }>,
 ): readonly HistoricalFundingRecord[] {
   const policy = options.policy ?? "bt-policy-001";
@@ -322,6 +326,90 @@ export function validateMarkPriceCandleSeries(
     });
   }
 
+  return Object.freeze([...candles]);
+}
+
+export function validateIntrabarSettlementWindow(
+  candles: readonly IntrabarSettlementCandle[],
+  options: Readonly<{
+    symbol: ResearchSymbol;
+    exitCandleOpenTime: number;
+    exitCandleCloseTime: number;
+    serverTime: number;
+  }>,
+): readonly IntrabarSettlementCandle[] {
+  const interval = 60_000;
+  if (
+    candles.length !== 60 ||
+    !Number.isInteger(options.exitCandleOpenTime) ||
+    options.exitCandleOpenTime < 0 ||
+    options.exitCandleOpenTime % INTERVAL_MS["1h"] !== 0 ||
+    !Number.isInteger(options.exitCandleCloseTime) ||
+    options.exitCandleCloseTime !== options.exitCandleOpenTime + INTERVAL_MS["1h"] - 1 ||
+    !Number.isInteger(options.serverTime) ||
+    options.serverTime < 0
+  ) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Intrabar settlement requires exactly 60 valid 1m candles and one valid study server time.",
+      symbol: options.symbol,
+    });
+  }
+
+  for (let index = 0; index < candles.length; index += 1) {
+    const candle = candles[index];
+    const expectedOpen = options.exitCandleOpenTime + index * interval;
+    const expectedClose = expectedOpen + interval - 1;
+    const values = [
+      candle.open,
+      candle.high,
+      candle.low,
+      candle.close,
+      candle.volume,
+      candle.quoteVolume,
+      candle.tradeCount,
+      candle.takerBuyBaseVolume,
+      candle.takerBuyQuoteVolume,
+    ];
+    if (
+      candle.symbol !== options.symbol ||
+      candle.timeframe !== "1m" ||
+      candle.openTime !== expectedOpen ||
+      candle.closeTime !== expectedClose ||
+      candle.closeTime >= options.serverTime ||
+      values.some((value) => !Number.isFinite(value)) ||
+      candle.open <= 0 ||
+      candle.high <= 0 ||
+      candle.low <= 0 ||
+      candle.close <= 0 ||
+      candle.volume < 0 ||
+      candle.quoteVolume < 0 ||
+      candle.tradeCount < 0 ||
+      !Number.isInteger(candle.tradeCount) ||
+      candle.takerBuyBaseVolume < 0 ||
+      candle.takerBuyQuoteVolume < 0 ||
+      candle.high < Math.max(candle.open, candle.close) ||
+      candle.low > Math.min(candle.open, candle.close) ||
+      candle.high < candle.low
+    ) {
+      throw new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: "Intrabar settlement Kline data is malformed, non-contiguous, or not fully closed.",
+        symbol: options.symbol,
+        diagnostics: { index, expectedOpen, expectedClose },
+      });
+    }
+  }
+
+  const first = candles[0]!;
+  const last = candles[candles.length - 1]!;
+  if (first.openTime !== options.exitCandleOpenTime || last.closeTime !== options.exitCandleCloseTime) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Intrabar settlement window does not exactly cover the frozen 1H exit candle.",
+      symbol: options.symbol,
+    });
+  }
   return Object.freeze([...candles]);
 }
 

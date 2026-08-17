@@ -6,6 +6,7 @@ import type {
   HistoricalManifest,
   HistoricalMarkPriceCandle,
   HistoricalMarkPriceSegment,
+  HistoricalIntrabarSettlementWindow,
 } from "../historical-data/types.ts";
 import type {
   BTCRegime,
@@ -27,6 +28,8 @@ export type BacktestData = Readonly<{
   funding: Readonly<Record<ResearchSymbol, readonly HistoricalFundingRecord[]>>;
   markPrice?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceCandle[] | undefined>>;
   markPriceSegments?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>>;
+  intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
+  intrabarSettlementRequirements?: readonly IntrabarSettlementRequirement[];
   manifests: readonly HistoricalManifest[];
   serverTime?: number;
 }>;
@@ -73,6 +76,34 @@ export type BacktestFundingCharge = Readonly<{
   fundingPnL: number;
 }>;
 
+export type IntrabarSettlementRequirement = Readonly<{
+  symbol: ResearchSymbol;
+  exitCandleOpenTime: number;
+  exitCandleCloseTime: number;
+  settlementOnly: boolean;
+}>;
+
+export type BacktestFundingOrderResolution =
+  | "ONE_HOUR_UNAMBIGUOUS"
+  | "ONE_MINUTE_RESOLVED"
+  | "CONSERVATIVE_SAME_MINUTE";
+
+export type BacktestFundingOrderAudit = Readonly<{
+  symbol: ResearchSymbol;
+  fundingTime: number;
+  fundingRate: number;
+  theoreticalFundingPnL: number;
+  included: boolean;
+  resolution: BacktestFundingOrderResolution;
+  exitCandleOpenTime: number;
+  exitCandleCloseTime: number;
+  exitMinuteOpenTime?: number;
+  exitMinuteCloseTime?: number;
+  markPrice: number;
+  markPriceSource: "FUNDING_RATE_HISTORY" | "MARK_PRICE_KLINE_PRE_EVENT_CLOSE";
+  markPriceManifestSegment?: "base" | "settlement-tail";
+}>;
+
 export type BacktestSignalResult = Readonly<{
   snapshot: BacktestSignalSnapshot;
   status: BacktestSignalStatus;
@@ -85,6 +116,10 @@ export type BacktestSignalResult = Readonly<{
   heldCandleNumber: number | null;
   exitReason: "TP" | "SL" | "TIME_EXIT" | null;
   fundingCharges: readonly BacktestFundingCharge[];
+  /** Present only for bt-policy-003; legacy schemas remain unchanged. */
+  fundingOrderAudits?: readonly BacktestFundingOrderAudit[];
+  /** Present only for a bt-policy-003 unresolved ambiguity; legacy schemas remain unchanged. */
+  settlementAmbiguousExitCandleOpenTime?: number;
   fundingPnL: number;
   priceR: number | null;
   feeR: number | null;
@@ -202,7 +237,27 @@ export type CompatibilityBacktestReport = BacktestReportCore & BacktestFundingAu
   backtestPolicyVersion: "bt-policy-002";
 }>;
 
-export type BacktestReport = LegacyBacktestReport | CompatibilityBacktestReport;
+export type IntrabarSettlementAudit = Readonly<{
+  intrabarSettlementWindowsLoaded: number;
+  intrabarResolvedFundingOrderCount: number;
+  conservativeSameMinuteCount: number;
+  remainingSettlementAmbiguousCount: number;
+  intrabarSettlementWindowsLoadedBySymbol: Readonly<Record<ResearchSymbol, number>>;
+  intrabarSettlementWindowsLoadedByUtcYear: Readonly<Record<string, number>>;
+  intrabarResolvedFundingOrderBySymbol: Readonly<Record<ResearchSymbol, number>>;
+  intrabarResolvedFundingOrderByUtcYear: Readonly<Record<string, number>>;
+  conservativeSameMinuteBySymbol: Readonly<Record<ResearchSymbol, number>>;
+  conservativeSameMinuteByUtcYear: Readonly<Record<string, number>>;
+  remainingSettlementAmbiguousBySymbol: Readonly<Record<ResearchSymbol, number>>;
+  remainingSettlementAmbiguousByUtcYear: Readonly<Record<string, number>>;
+}>;
+
+export type IntrabarBacktestReport = BacktestReportCore & BacktestFundingAudit & IntrabarSettlementAudit & Readonly<{
+  schemaVersion: "m3-b-report-003";
+  backtestPolicyVersion: "bt-policy-003";
+}>;
+
+export type BacktestReport = LegacyBacktestReport | CompatibilityBacktestReport | IntrabarBacktestReport;
 
 export type BacktestRunInput = Readonly<{
   period: BacktestPeriod;
@@ -218,6 +273,10 @@ export type SettlementInput = Readonly<{
   funding: readonly HistoricalFundingRecord[];
   markPriceCandles?: readonly HistoricalMarkPriceCandle[];
   markPriceSegments?: readonly HistoricalMarkPriceSegment[];
+  intrabarSettlementWindow?: HistoricalIntrabarSettlementWindow;
+  intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
+  /** The single authoritative Binance server time captured for the study. */
+  serverTime?: number;
   policy?: BacktestPolicyVersion;
   period: Exclude<BacktestPeriod, "COMBINED">;
   periodEndTime: number;

@@ -1,6 +1,6 @@
 # TradePulse Architecture
 
-Status: M3-D intrabar settlement-resolution specification (Draft PR)
+Status: M3-D.1 intrabar settlement-resolution implementation (Draft PR)
 Runtime baseline: Node.js 22+
 Deployment baseline: Next.js App Router on Vercel
 
@@ -228,8 +228,8 @@ npm run backtest:run -- --period COMBINED --policy bt-policy-003
 ```
 
 The implementation requires explicit policy selection for formal CLI runs.
-This M3-D milestone remains specification-only: it does not rerun M3-C or
-overwrite the `bt-policy-002` evidence.
+The implementation is usage-driven and does not rerun M3-C or overwrite the
+`bt-policy-002` evidence.
 
 ### M3-D intrabar settlement-resolution boundary
 

@@ -1,7 +1,7 @@
 # TradePulse Test Plan
 
-Status: M3-D intrabar settlement-resolution specification / Draft PR;
-bt-policy-002 M3-C evidence remains immutable and M3-D is not implemented.
+Status: M3-D.1 intrabar settlement-resolution implementation / Draft PR;
+bt-policy-002 M3-C evidence remains immutable and M3-D.1 is under review.
 
 ## Test layers
 
@@ -150,7 +150,7 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
 - M3-D freezes `backtestPolicyVersion = bt-policy-003` with schema
   `m3-b-report-003` as a separate intrabar settlement policy. It inherits
   `bt-policy-002` except for the explicitly documented 1m resolution rules;
-  no M3-D implementation or formal rerun is included here.
+  no formal M3-C rerun is included here.
 - DEV uses exactly `2023-01-01T00:00:00.000Z` through
   `2025-12-31T23:59:59.999Z`; OOS uses the locked range
   `2026-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`.
@@ -323,11 +323,10 @@ The RLS assertions must inspect both table privileges and visible rows. Tests mu
   historical inputs, manifest, versions, and policy assumptions; fixtures
   prove DEV/OOS separation, no OOS tuning, and zero private Binance API usage.
 
-### M3-D intrabar settlement-resolution specification tests
+### M3-D.1 intrabar settlement-resolution implementation tests
 
-The following deterministic tests are frozen for the future `bt-policy-003`
-implementation. They are specification tests in this milestone and do not
-authorize a backtest rerun:
+The following deterministic tests implement the frozen `bt-policy-003`
+contract. They do not authorize a formal historical backtest rerun:
 
 1. Funding before `exitMinute.openTime` is included.
 2. Funding after `exitMinute.closeTime` is excluded.
@@ -428,15 +427,14 @@ serializer, CLI, and mocked tests described above. It does not add a new
 strategy, alter baseline-001, add persistence, API routes, Cron,
 notifications, deployment, optimization, or M3-C historical evidence.
 
-## M3-D execution boundary
+## M3-D.1 execution boundary
 
-M3-D is documentation-only. It freezes `bt-policy-003`, the new
-`m3-b-report-003` schema, usage-driven 1m settlement windows, fail-closed 1m
+M3-D is closed as the documentation freeze. M3-D.1 implements only that frozen
+`bt-policy-003` contract: usage-driven 1m settlement windows, fail-closed 1m
 integrity, deterministic exit-minute selection, conservative same-minute
-funding ordering, provenance, manifests, and audit metrics. It does not add an
-intrabar loader, modify runtime code, rerun M3-C, overwrite the immutable
-`bt-policy-002` evidence, tune `baseline-001`, change funding economics, start
-M4, or add trading/private API capability.
+funding ordering, provenance, manifests, and audit metrics. It does not rerun
+M3-C, overwrite the immutable `bt-policy-002` evidence, tune `baseline-001`,
+change funding economics, start M4, or add trading/private API capability.
 
 ## M2-B execution boundary
 

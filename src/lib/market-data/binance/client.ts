@@ -258,6 +258,53 @@ export class BinancePublicClient {
     });
   }
 
+  async getIntrabarKlinesRange(
+    symbol: ResearchSymbol,
+    startTime: number,
+    endTime: number,
+    limit = 60,
+  ): Promise<BinanceResponse<unknown>> {
+    if (!isResearchSymbol(symbol)) {
+      throw new MarketDataError({
+        code: "INVALID_SYMBOL",
+        message: "Requested symbol is outside the approved research universe.",
+        retryable: false,
+      });
+    }
+    if (
+      !Number.isInteger(startTime) ||
+      startTime < 0 ||
+      !Number.isInteger(endTime) ||
+      endTime < startTime ||
+      startTime % 60_000 !== 0 ||
+      endTime !== startTime + 60 * 60_000 - 1
+    ) {
+      throw new MarketDataError({
+        code: "INVALID_TIMESTAMP",
+        message: "Intrabar settlement range must be exactly one aligned UTC 1H candle.",
+        symbol,
+        timeframe: "1h",
+        retryable: false,
+      });
+    }
+    if (!Number.isInteger(limit) || limit < 60 || limit > BINANCE_HISTORICAL_KLINE_MAX_LIMIT) {
+      throw new MarketDataError({
+        code: "INVALID_RESPONSE",
+        message: "Intrabar settlement Kline limit must cover exactly 60 1m candles.",
+        symbol,
+        timeframe: "1h",
+        retryable: false,
+      });
+    }
+    return this.getJson<unknown>("/fapi/v1/klines", {
+      symbol,
+      interval: "1m",
+      startTime: String(startTime),
+      endTime: String(endTime),
+      limit: String(limit),
+    });
+  }
+
   async getFundingRateHistory(
     symbol: ResearchSymbol,
     startTime: number,
