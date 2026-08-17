@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-G.2 — baseline-002 Candidate Selection Gate Freeze (under review)**.
+Current milestone: **M3-H — baseline-002 research round-001 Stage A pre-run freeze (under review)**.
 
 ## Boundary
 
@@ -20,8 +20,9 @@ scanning, notifications, deployment, optimization, or trading. M3-C remains
 immutable historical evidence; M3-E records the separate bt-policy-003 run and
 remains INCOMPLETE. M3-F hardens study-clock provenance; M3-G freezes only the
 research protocol, while M3-G.1 adds downstream deterministic diagnostics and
-M3-G.2 freezes the round-001 candidate-selection gates. Neither G.1 nor G.2
-runs a historical experiment or freezes baseline-002.
+M3-G.2 freezes the round-001 candidate-selection gates. M3-H Stage A freezes
+the single-mechanism plan before any historical result; baseline-002 remains
+unfrozen until a later approved milestone.
 
 ## Architecture
 
@@ -122,8 +123,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-F | Study clock provenance hardening (closed / merged) |
 | M3-G | baseline-002 research protocol specification (closed / merged) |
 | M3-G.1 | Research tooling and diagnostics (closed / merged; synthetic fixtures only) |
-| M3-G.2 | Candidate-selection gate freeze (under review; round-001 gates only; no candidate result) |
-| M3-H | Research experiments (not started) |
+| M3-G.2 | Candidate-selection gate freeze (closed / merged; round-001 gates only) |
+| M3-H | Round-001 single-mechanism research (Stage A under review; no results generated) |
 | M4 | Realtime scanner, protected endpoint, persistence |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |

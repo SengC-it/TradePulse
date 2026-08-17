@@ -1,8 +1,7 @@
 # TradePulse Test Plan
 
-Status: M3-G and M3-G.1 CLOSED / MERGED; M3-G.2 candidate-selection gate
-freeze under review; M3-E evidence remains immutable and no baseline-002
-research experiment has run.
+Status: M3-G, M3-G.1, and M3-G.2 CLOSED / MERGED; M3-H Stage A pre-run freeze
+under review; no M3-H historical result has been generated.
 
 ## Test layers
 
@@ -493,6 +492,35 @@ only freezes the record and validates its deterministic contract.
 The test plan must continue to reject any implementation that executes a
 historical research run, changes frozen execution economics, modifies
 baseline-001, or introduces baseline-002 production code during M3-G.2.
+
+### M3-H Stage-A pre-run tests
+
+M3-H Stage A uses synthetic fixtures only and must prove:
+
+1. the plan contains exactly one `CONTROL_BASELINE_001` plus the 13 authorized
+   R1-H1, R2-H4, R3-H2, and R4-H3 identities, with no combinations or H5
+   candidate;
+2. the plan records the exact selection-gate SHA, score buckets, parameters,
+   selector boundaries, complexity tuples, and deterministic candidate order;
+3. the plan canonical bytes and SHA-256 are reproducible before any historical
+   result exists;
+4. cooldown state spans fold boundaries and suppresses `0 < delta <= hours`;
+5. top-N ranking uses score, frozen symbol order, and LONG-before-SHORT;
+6. the cost proxy uses only finite positive decision-time fields and fails
+   invalid input closed, while score threshold equality passes;
+7. selectors receive no future outcome fields, and changing synthetic future
+   outcomes cannot change selected identities;
+8. one frozen CONTROL result set can derive all candidates without Strategy
+   Engine, backtest, settlement, or Binance reruns;
+9. evidence includes deterministic schema, aggregate F1-F6 concatenation,
+   per-fold diagnostics, identity hashes, control hash, and descriptive-only
+   `DEFER_TO_M3_I_FROZEN_GATE_APPLICATION` decisions;
+10. the capture command requires the exact round and selection-gate SHA, rejects
+    a dirty worktree or mismatched source/gate, and verifies m3-b-report-004 /
+    bt-policy-003 before writing the single raw CONTROL report.
+
+No M3-H performance command may run until Stage-A source is committed, pushed,
+reviewed, and its CI has passed.
 
 ### M3-B implemented test coverage
 

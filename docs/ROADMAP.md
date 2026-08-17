@@ -578,9 +578,10 @@ when that later freeze occurs.
 - `baseline-001` and `bt-policy-001`/`002`/`003` remain unchanged.
 - No historical performance run, parameter search, optimization, or
   baseline-002 experiment is executed in M3-G.
-- `baseline-002` is **NOT FROZEN**; M3-G.1 is closed and the M3-G.2 gate-freeze
-  Draft is under review. M3-H experiments, M3-I specification freeze, and
-  M3-J implementation still require separate approval.
+- `baseline-002` is **NOT FROZEN**; M3-G.1 and M3-G.2 are closed/merged. M3-H
+  Stage A is under review with no historical result generated. M3-I
+  specification freeze and M3-J implementation still require separate
+  approval.
 - M4, trading, private Binance APIs, persistence, and deployment remain out of
   scope.
 
@@ -638,9 +639,10 @@ only research inputs used in this milestone.
   candidate result, fold performance comparison, or baseline-001 rerun exists.
 - `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
   `m3-b-report-004`, and M3-E evidence are unchanged.
-- M3-G.2 owns the real round-001 gate values and is under review in a separate
-  Draft PR; `baseline-002` remains **NOT FROZEN**. M3-H, M3-I, M3-J, and M4
-  remain **NOT STARTED**.
+- M3-G.2 owns the real round-001 gate values and is **CLOSED / MERGED**;
+  `baseline-002` remains **NOT FROZEN**. M3-H Stage A is under review in a
+  separate Draft PR, with no historical result yet generated. M3-I, M3-J, and
+  M4 remain **NOT STARTED**.
 
 ### Verification
 
@@ -659,7 +661,7 @@ code.
 
 ## M3-G.2 — baseline-002 Candidate Selection Gate Freeze
 
-Status: UNDER REVIEW
+Status: CLOSED / MERGED TO main
 
 M3-G.2 freezes exactly one real machine-readable gate record for
 `baseline-002-research-round-001`, sourced from
@@ -688,9 +690,35 @@ new research-round version. A failed candidate cannot weaken the gates. If no
 candidate later passes every applicable gate, the valid result is
 `NO BASELINE-002 CANDIDATE`.
 
-M3-G.1 and M3-G.2 remain specification/tooling gates only. The sequence is
+M3-G.1 and M3-G.2 remain closed specification/tooling gates. The sequence is
 M3-G → M3-G.1 → M3-G.2 → M3-H → M3-I → M3-J → forward validation after the
 baseline-002 freeze. No M3-H result exists or is authorized in M3-G.2.
+
+## M3-H — baseline-002 Research Round-001 Single-Mechanism Experiments
+
+Status: STAGE A / PRE-RUN UNDER REVIEW; NO RESULTS GENERATED
+
+M3-H Stage A freezes the machine-readable experiment plan before any
+historical performance output:
+
+- authoritative main source: `99e8f86207c0bd22facf66d557e2e6f792ba0b6e`;
+- research round: `baseline-002-research-round-001`;
+- selection gate SHA-256:
+  `11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd`;
+- plan: `src/lib/research/m3-h-round-001-plan.ts`;
+- plan SHA-256:
+  `2780b2e2d334b5a0f60e046e19073e09d28492fdf04c45a9e9917e686c1fe73a`;
+- result identities: one `CONTROL_BASELINE_001` plus exactly 13 single-mechanism
+  variants; no combinations and no H5 candidate;
+- all selectors receive decision-time snapshots only and derive candidate
+  economics from one later authoritative bt-policy-003 CONTROL report.
+
+Stage A includes the immutable registry, outcome-blind selectors, deterministic
+offline derivation, compact evidence schema, and renderer. It does not run a
+historical command, fetch Binance data, generate candidate performance, apply
+M3-G.2 gates, freeze `baseline-002`, start M3-I, or add trading capability.
+After Stage-A CI passes, exactly one CONTROL capture may be performed, followed
+by offline derivation of all 13 candidates from that raw report.
 
 ## M4 — Realtime Scanner
 
