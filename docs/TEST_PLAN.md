@@ -374,8 +374,9 @@ contract. They do not authorize a formal historical backtest rerun:
 29. `bt-policy-001` behavior remains unchanged.
 30. `bt-policy-002` behavior remains unchanged, including its ambiguous result
     classification.
-31. `bt-policy-003` serializes only as `m3-b-report-003` and never mutates
-    `m3-b-report-002`.
+31. Historical M3-E output remains immutable as `m3-b-report-003`; the current
+    `bt-policy-003` runner serializes as `m3-b-report-004` and never mutates
+    `m3-b-report-002` or the historical report.
 32. A complete `bt-policy-003` study has zero
     `remainingSettlementAmbiguousCount`; any remaining ambiguity keeps the
     formal result `INCOMPLETE`.
@@ -383,7 +384,26 @@ contract. They do not authorize a formal historical backtest rerun:
 Additional M3-D fixtures require usage-driven loading only for ambiguous
 `symbol + exitCandle.openTime` hours, exactly 60 1m rows per window, official
 `/fapi/v1/klines` provenance, and reconciled intrabar counts by symbol and UTC
-year for `m3-b-report-003`.
+year for the historical `m3-b-report-003` output.
+
+### M3-F study clock provenance hardening tests
+
+The M3-F implementation adds deterministic tests proving that:
+
+1. Current `bt-policy-003` reports serialize as `m3-b-report-004` with the
+   exact `BacktestData.serverTime` in `studyServerTime`.
+2. Missing, non-positive, non-safe-integer, NaN, or infinite study clocks fail
+   closed.
+3. Identical normalized inputs and identical study clocks serialize byte-for-
+   byte identically.
+4. Changing only the study clock changes only report provenance bytes; metrics,
+   signal results, acceptance, breakdowns, funding audit, and intrabar audit
+   remain unchanged.
+5. `toBacktestData(study).serverTime` equals `study.serverTime`, and the exact
+   same value is passed to intrabar settlement loading without another Binance
+   `/fapi/v1/time` request.
+6. `bt-policy-001`, `bt-policy-002`, and the committed M3-E
+   `m3-b-report-003` evidence remain unchanged.
 
 ### M3-B implemented test coverage
 

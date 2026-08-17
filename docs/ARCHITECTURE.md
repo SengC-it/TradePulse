@@ -214,7 +214,9 @@ timeframe, symbol, and SHA-256 integrity, even when not required by a charge.
 Policy selection and report schema are explicit. `bt-policy-001` serializes as
 `m3-b-report-001`; `bt-policy-002` serializes as `m3-b-report-002`, which
 contains the provenance/fallback audit fields; and `bt-policy-003` serializes as
-the new `m3-b-report-003`. A formal run must supply `--policy`; missing or
+the current `m3-b-report-004`, with the exact study clock in
+`studyServerTime`. The historical M3-E output remains frozen as
+`m3-b-report-003`. A formal run must supply `--policy`; missing or
 unknown policy fails closed. The prior M3-C replacement command was:
 
 ```text

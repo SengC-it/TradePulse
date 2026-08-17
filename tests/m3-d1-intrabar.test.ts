@@ -153,7 +153,7 @@ function emptyData(): BacktestData {
     RESEARCH_SYMBOLS.map((symbol) => [symbol, { candles1h: [], candles4h: [] }]),
   ) as unknown as BacktestData["datasets"];
   const funding = Object.fromEntries(RESEARCH_SYMBOLS.map((symbol) => [symbol, []])) as unknown as BacktestData["funding"];
-  return { datasets, funding, manifests: [] };
+  return { datasets, funding, manifests: [], serverTime: 1 };
 }
 
 describe("M3-D.1 intrabar data integrity", () => {
@@ -513,7 +513,8 @@ describe("M3-D.1 policy-003 schema and audit", () => {
     const intrabar = runBacktest({ period: "DEV", policy: "bt-policy-003", data: emptyData() });
     expect(legacy.schemaVersion).toBe("m3-b-report-001");
     expect(compatibility.schemaVersion).toBe("m3-b-report-002");
-    expect(intrabar.schemaVersion).toBe("m3-b-report-003");
+    expect(intrabar.schemaVersion).toBe("m3-b-report-004");
+    expect(intrabar).toMatchObject({ studyServerTime: 1 });
     expect(legacy).not.toHaveProperty("intrabarSettlementWindowsLoaded");
     expect(compatibility).not.toHaveProperty("intrabarSettlementWindowsLoaded");
     expect(intrabar).toHaveProperty("remainingSettlementAmbiguousCount", 0);
