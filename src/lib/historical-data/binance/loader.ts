@@ -14,6 +14,7 @@ import { parseBinanceFundingRateHistory } from "./parser.ts";
 import { parseBinanceMarkPriceKlines } from "./mark-price.ts";
 import { parseBinanceIntrabarKlines } from "./intrabar.ts";
 import { isBacktestPolicy, type BacktestPolicyVersion } from "../../backtest/constants.ts";
+import { deduplicateIntrabarSettlementIdentities } from "../intrabar.ts";
 import type {
   HistoricalCandleDataset,
   HistoricalFundingDataset,
@@ -476,14 +477,14 @@ export class BinanceHistoricalDataLoader {
     serverTime: number,
   ): Promise<readonly HistoricalIntrabarSettlementWindow[]> {
     const symbolOrder = new Map(RESEARCH_SYMBOLS.map((symbol, index) => [symbol, index]));
-    const unique = new Map<string, HistoricalIntrabarSettlementRequirement>();
-    for (const requirement of requirements) {
-      unique.set(
-        `${requirement.symbol}:${requirement.exitCandleOpenTime}:${requirement.settlementOnly}`,
-        requirement,
-      );
+    const identity = deduplicateIntrabarSettlementIdentities(requirements);
+    if (identity.conflictingKeys.length > 0) {
+      throw new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: `Conflicting settlementOnly classification for intrabar requirement ${identity.conflictingKeys[0]}.`,
+      });
     }
-    const ordered = [...unique.values()].sort(
+    const ordered = [...identity.unique].sort(
       (left, right) =>
         (symbolOrder.get(left.symbol) ?? Number.MAX_SAFE_INTEGER) -
           (symbolOrder.get(right.symbol) ?? Number.MAX_SAFE_INTEGER) ||

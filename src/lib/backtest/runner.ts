@@ -27,6 +27,13 @@ import {
   settleBacktestSignal,
   snapshotFromCandidate,
 } from "./settlement.ts";
+import type { FrozenBacktestExit } from "./settlement.ts";
+import { requiresIntrabarFundingResolution } from "./funding.ts";
+import { isIntrabarSettlementOnly } from "./ranges.ts";
+import {
+  deduplicateIntrabarSettlementIdentities,
+  intrabarSettlementIdentityKey,
+} from "../historical-data/intrabar.ts";
 import type {
   BacktestData,
   BacktestEvaluation,
@@ -38,7 +45,7 @@ import type {
   IntrabarSettlementAudit,
   IntrabarSettlementRequirement,
 } from "./types.ts";
-import type { HistoricalMarkPriceCandle } from "../historical-data/types.ts";
+import type { HistoricalFundingRecord, HistoricalMarkPriceCandle } from "../historical-data/types.ts";
 import {
   buildHistoricalIndexes,
   buildStrategyInputFromIndexes,
@@ -287,7 +294,7 @@ export function buildIntrabarSettlementAudit(
   const loadedByYear = new Map<string, number>();
   const loadedKeys = new Set<string>();
   for (const window of windows) {
-    const key = `${window.symbol}:${window.exitCandleOpenTime}`;
+    const key = intrabarSettlementIdentityKey(window);
     if (loadedKeys.has(key)) continue;
     loadedKeys.add(key);
     loadedBySymbol[window.symbol] += 1;
@@ -340,6 +347,31 @@ export function buildIntrabarSettlementAudit(
   });
 }
 
+export function discoverIntrabarSettlementRequirement(input: Readonly<{
+  period: Exclude<BacktestPeriod, "COMBINED">;
+  symbol: (typeof BACKTEST_SYMBOL_ORDER)[number];
+  entryTime: number;
+  funding: readonly HistoricalFundingRecord[];
+  frozenExit: FrozenBacktestExit;
+}>): IntrabarSettlementRequirement | null {
+  if (
+    !requiresIntrabarFundingResolution({
+      funding: input.funding,
+      entryTime: input.entryTime,
+      exitReason: input.frozenExit.exitReason,
+      exitCandle: input.frozenExit.exitCandle,
+    })
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    symbol: input.symbol,
+    exitCandleOpenTime: input.frozenExit.exitCandle.openTime,
+    exitCandleCloseTime: input.frozenExit.exitCandle.closeTime,
+    settlementOnly: isIntrabarSettlementOnly(input.period, input.frozenExit.exitCandle),
+  });
+}
+
 /**
  * Phase A: discover only the 1m windows needed to resolve otherwise executable
  * bt-policy-002 TP/SL funding ambiguities. This function performs no metrics
@@ -372,17 +404,23 @@ export function discoverIntrabarSettlementRequirements(input: Readonly<{
         continue;
       }
       const frozenExit = determineFrozenBacktestExit(result.snapshot, heldCandles);
-      if (frozenExit.exitReason === "TIME_EXIT") continue;
-      const requirement = Object.freeze({
+      const requirement = discoverIntrabarSettlementRequirement({
+        period,
         symbol: result.snapshot.symbol,
-        exitCandleOpenTime: frozenExit.exitCandle.openTime,
-        exitCandleCloseTime: frozenExit.exitCandle.closeTime,
-        settlementOnly: period === "OOS",
+        entryTime: result.entryTime ?? Number.NaN,
+        funding: input.data.funding[result.snapshot.symbol] ?? [],
+        frozenExit,
       });
-      requirements.set(
-        `${requirement.symbol}:${requirement.exitCandleOpenTime}:${requirement.settlementOnly}`,
-        requirement,
-      );
+      if (!requirement) continue;
+      const key = intrabarSettlementIdentityKey(requirement);
+      const existing = requirements.get(key);
+      if (existing && existing.settlementOnly !== requirement.settlementOnly) {
+        throw new BacktestError(
+          "DATA_INCOMPLETE",
+          `Conflicting settlementOnly classification for intrabar requirement ${key}.`,
+        );
+      }
+      requirements.set(key, requirement);
     }
   }
   const symbolOrder = new Map(BACKTEST_SYMBOL_ORDER.map((symbol, index) => [symbol, index]));
@@ -451,10 +489,28 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
           settlementOnly: window.settlementOnly,
         }))
       : [];
+  const requirementIdentity =
+    policy === "bt-policy-003"
+      ? deduplicateIntrabarSettlementIdentities(intrabarRequirements)
+      : { unique: Object.freeze([]), duplicateKeys: Object.freeze([]), conflictingKeys: Object.freeze([]) };
+  const windowIdentity =
+    policy === "bt-policy-003"
+      ? deduplicateIntrabarSettlementIdentities(input.data.intrabarSettlementWindows ?? [])
+      : { unique: Object.freeze([]), duplicateKeys: Object.freeze([]), conflictingKeys: Object.freeze([]) };
+  const normalizedIntrabarRequirements = requirementIdentity.unique;
   const intrabarWindowDiagnostics: string[] = [];
+  for (const key of requirementIdentity.conflictingKeys) {
+    intrabarWindowDiagnostics.push(`Conflicting settlementOnly classification for intrabar requirement ${key}.`);
+  }
+  for (const key of windowIdentity.conflictingKeys) {
+    intrabarWindowDiagnostics.push(`Conflicting settlementOnly classification for intrabar window ${key}.`);
+  }
+  for (const key of windowIdentity.duplicateKeys) {
+    intrabarWindowDiagnostics.push(`Duplicate intrabar settlement window for ${key}.`);
+  }
   if (policy === "bt-policy-003") {
     const windows = input.data.intrabarSettlementWindows ?? [];
-    for (const requirement of intrabarRequirements) {
+    for (const requirement of normalizedIntrabarRequirements) {
       const present = windows.some(
         (window) =>
           window.symbol === requirement.symbol &&
@@ -472,7 +528,7 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
     input.data.manifests,
     input.period,
     [],
-    intrabarRequirements,
+    normalizedIntrabarRequirements,
   );
   const manifestCoverage = Object.freeze({
     valid: manifestCoverageBase.valid && intrabarWindowDiagnostics.length === 0,

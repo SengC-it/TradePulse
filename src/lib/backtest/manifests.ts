@@ -7,6 +7,7 @@ import {
   type HistoricalIntrabarSettlementManifest,
 } from "../historical-data/types.ts";
 import type { IntrabarSettlementRequirement } from "./types.ts";
+import { intrabarSettlementIdentityKey } from "../historical-data/intrabar.ts";
 
 export type ManifestCoverage = Readonly<{
   valid: boolean;
@@ -179,7 +180,13 @@ export function validateIntrabarSettlementManifestCoverage(
   const provided = manifests ?? [];
   const unique = new Map<string, BacktestIntrabarManifestRequirement>();
   for (const requirement of requirements) {
-    unique.set(`${requirement.symbol}:${requirement.exitCandleOpenTime}:${requirement.settlementOnly}`, requirement);
+    const key = intrabarSettlementIdentityKey(requirement);
+    const existing = unique.get(key);
+    if (existing && existing.settlementOnly !== requirement.settlementOnly) {
+      diagnostics.push(`Conflicting settlementOnly classification for intrabar requirement ${key}.`);
+      continue;
+    }
+    unique.set(key, requirement);
   }
   for (const requirement of unique.values()) {
     const manifest = provided.find(

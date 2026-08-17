@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../src/lib/config/constants.ts";
 import {
   BACKTEST_POLICY,
+  BACKTEST_PERIOD_RANGES,
   buildIntrabarSettlementAudit,
   runBacktest,
   serializeBacktestReport,
   settleBacktestSignal,
   validateIntrabarSettlementManifestCoverage,
   resolveFundingCharges,
+  requiresIntrabarFundingResolution,
+  discoverIntrabarSettlementRequirement,
+  isIntrabarSettlementOnly,
+  determineFrozenBacktestExit,
 } from "../src/lib/backtest/index.ts";
 import type {
   BacktestData,
@@ -29,6 +34,7 @@ import {
 } from "../src/lib/historical-data/validation.ts";
 import type {
   HistoricalIntrabarSettlementManifest,
+  HistoricalIntrabarSettlementWindow,
   IntrabarSettlementCandle,
 } from "../src/lib/historical-data/types.ts";
 
@@ -223,6 +229,12 @@ describe("M3-D.1 intrabar data integrity", () => {
     expect(
       validateIntrabarSettlementManifestCoverage([{ ...manifest, settlementOnly: true }], requirement).valid,
     ).toBe(false);
+    expect(
+      validateIntrabarSettlementManifestCoverage([manifest], [
+        ...requirement,
+        { ...requirement[0]!, settlementOnly: true },
+      ]).valid,
+    ).toBe(false);
   });
 
   it("requests the exact 1m settlement range with the study server time", async () => {
@@ -252,6 +264,16 @@ describe("M3-D.1 intrabar data integrity", () => {
       rowCount: 60,
       settlementOnly: true,
     });
+
+    await expect(
+      loader.loadIntrabarSettlementWindows(
+        [
+          { symbol: "BTCUSDT", exitCandleOpenTime: 2 * HOUR, settlementOnly: false },
+          { symbol: "BTCUSDT", exitCandleOpenTime: 2 * HOUR, settlementOnly: true },
+        ],
+        3 * HOUR,
+      ),
+    ).rejects.toThrow(/Conflicting settlementOnly/);
   });
 });
 
@@ -307,7 +329,7 @@ describe("M3-D.1 funding order and frozen reason", () => {
       snapshot: makeSnapshot(),
       signalCandle: signal,
       heldCandles: makeHeldCandles(),
-      funding: [{ symbol: "BTCUSDT", fundingTime: HOUR + 1, fundingRate: 0, directMarkPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR + 1, fundingRate: 0, directMarkPrice: 100 }],
       intrabarSettlementWindow: {
         symbol: "BTCUSDT",
         exitCandleOpenTime: 2 * HOUR,
@@ -330,7 +352,7 @@ describe("M3-D.1 funding order and frozen reason", () => {
       snapshot: makeSnapshot(),
       signalCandle: makeCandle("BTCUSDT", "1h", 0),
       heldCandles: makeHeldCandles(),
-      funding: [{ symbol: "BTCUSDT", fundingTime: HOUR + 1, fundingRate: 0, directMarkPrice: 100 }],
+      funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR + 1, fundingRate: 0, directMarkPrice: 100 }],
       intrabarSettlementWindow: {
         symbol: "BTCUSDT",
         exitCandleOpenTime: 2 * HOUR,
@@ -360,6 +382,126 @@ describe("M3-D.1 funding order and frozen reason", () => {
     });
     expect(result).toMatchObject({ status: "EXECUTED", exitReason: "TIME_EXIT" });
     expect(result.fundingOrderAudits?.[0]?.resolution).toBe("ONE_HOUR_UNAMBIGUOUS");
+  });
+});
+
+describe("M3-D.1 conditional intrabar requirements", () => {
+  function settle(
+    heldCandles: readonly Candle[],
+    fundingTime: number,
+    intrabarSettlementWindow?: HistoricalIntrabarSettlementWindow,
+  ) {
+    return settleBacktestSignal({
+      snapshot: makeSnapshot(),
+      signalCandle: makeCandle("BTCUSDT", "1h", 0),
+      heldCandles,
+      funding: [{ symbol: "BTCUSDT", fundingTime, fundingRate: 0, directMarkPrice: 100 }],
+      ...(intrabarSettlementWindow ? { intrabarSettlementWindow } : {}),
+      serverTime: 3 * HOUR,
+      policy: "bt-policy-003",
+      period: "DEV",
+      periodEndTime: Number.MAX_SAFE_INTEGER,
+    });
+  }
+
+  it("executes an unambiguous TP without requiring a 1m window", () => {
+    const held = Object.freeze(
+      makeHeldCandles().map((candle, index) =>
+        index === 1 ? makeCandle("BTCUSDT", "1h", candle.openTime, { high: 110, low: 100 }) : candle,
+      ),
+    );
+    const result = settle(held, 2 * HOUR - 1);
+    expect(result).toMatchObject({
+      status: "EXECUTED",
+      exitReason: "TP",
+      exitTime: 3 * HOUR - 1,
+    });
+    expect(result.fundingOrderAudits?.[0]?.resolution).toBe("ONE_HOUR_UNAMBIGUOUS");
+  });
+
+  it("executes an unambiguous SL without requiring a 1m window", () => {
+    const held = Object.freeze(
+      makeHeldCandles().map((candle, index) =>
+        index === 1 ? makeCandle("BTCUSDT", "1h", candle.openTime, { high: 100, low: 95 }) : candle,
+      ),
+    );
+    const result = settle(held, 2 * HOUR - 1);
+    expect(result).toMatchObject({
+      status: "EXECUTED",
+      exitReason: "SL",
+      exitTime: 3 * HOUR - 1,
+    });
+  });
+
+  it("fails closed when a TP/SL funding event is inside the exit hour and 1m data is absent", () => {
+    const held = Object.freeze(
+      makeHeldCandles().map((candle, index) =>
+        index === 1 ? makeCandle("BTCUSDT", "1h", candle.openTime, { high: 110, low: 100 }) : candle,
+      ),
+    );
+    expect(settle(held, 2 * HOUR + 1).status).toBe("DATA_INCOMPLETE");
+  });
+
+  it("resolves an ambiguous TP using the exact supplied 1m window", () => {
+    const held = Object.freeze(
+      makeHeldCandles().map((candle, index) =>
+        index === 1 ? makeCandle("BTCUSDT", "1h", candle.openTime, { high: 110, low: 100 }) : candle,
+      ),
+    );
+    const window = makeIntrabarWindow({ tpMinute: 10 });
+    const result = settle(held, 2 * HOUR + 1, {
+      symbol: "BTCUSDT",
+      exitCandleOpenTime: 2 * HOUR,
+      settlementOnly: false,
+      candles: window,
+      manifest: asManifest(window),
+    });
+    expect(result).toMatchObject({ status: "EXECUTED", exitReason: "TP", exitTime: 2 * HOUR + 11 * MINUTE - 1 });
+  });
+
+  it("uses the same predicate for Phase A and final settlement", () => {
+    const held = Object.freeze(
+      makeHeldCandles().map((candle, index) =>
+        index === 1 ? makeCandle("BTCUSDT", "1h", candle.openTime, { high: 110, low: 100 }) : candle,
+      ),
+    );
+    const frozenExit = determineFrozenBacktestExit(makeSnapshot(), held);
+    expect(
+      discoverIntrabarSettlementRequirement({
+        period: "DEV",
+        symbol: "BTCUSDT",
+        entryTime: HOUR,
+        funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR - 1, fundingRate: 0, directMarkPrice: 100 }],
+        frozenExit,
+      }),
+    ).toBeNull();
+    const requirement = discoverIntrabarSettlementRequirement({
+      period: "DEV",
+      symbol: "BTCUSDT",
+      entryTime: HOUR,
+      funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR + 1, fundingRate: 0, directMarkPrice: 100 }],
+      frozenExit,
+    });
+    expect(requirement).toMatchObject({
+      symbol: "BTCUSDT",
+      exitCandleOpenTime: 2 * HOUR,
+      settlementOnly: false,
+    });
+    expect(
+      requiresIntrabarFundingResolution({
+        funding: [{ symbol: "BTCUSDT", fundingTime: 2 * HOUR + 1, fundingRate: 0, directMarkPrice: 100 }],
+        entryTime: HOUR,
+        exitReason: frozenExit.exitReason,
+        exitCandle: frozenExit.exitCandle,
+      }),
+    ).toBe(true);
+  });
+
+  it("classifies OOS intrabar exits from the actual exit candle", () => {
+    const oosEnd = BACKTEST_PERIOD_RANGES.OOS.endTime;
+    expect(isIntrabarSettlementOnly("OOS", { openTime: oosEnd - HOUR + 1, closeTime: oosEnd })).toBe(false);
+    expect(isIntrabarSettlementOnly("OOS", { openTime: oosEnd + 1, closeTime: oosEnd + HOUR })).toBe(true);
+    expect(isIntrabarSettlementOnly("DEV", { openTime: oosEnd + 1, closeTime: oosEnd + HOUR })).toBe(false);
   });
 });
 

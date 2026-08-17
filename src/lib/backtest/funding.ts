@@ -15,6 +15,22 @@ export type FundingResolution = Readonly<{
   audits?: readonly BacktestFundingOrderAudit[];
 }>;
 
+/** The shared Phase A/Phase B predicate for usage-driven 1m loading. */
+export function requiresIntrabarFundingResolution(input: Readonly<{
+  funding: readonly HistoricalFundingRecord[];
+  entryTime: number;
+  exitReason: FundingExitReason;
+  exitCandle: Readonly<{ openTime: number; closeTime: number }>;
+}>): boolean {
+  if (input.exitReason === "TIME_EXIT") return false;
+  return input.funding.some(
+    (event) =>
+      event.fundingTime > input.entryTime &&
+      event.fundingTime > input.exitCandle.openTime &&
+      event.fundingTime <= input.exitCandle.closeTime,
+  );
+}
+
 function directMarkPrice(event: HistoricalFundingRecord): number | null {
   const value = event.directMarkPrice;
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;

@@ -13,6 +13,22 @@ export type HistoricalLoadRanges = Readonly<{
   }>;
 }>;
 
+export function isOosSettlementTailCandle(
+  candle: Readonly<{ openTime: number; closeTime: number }>,
+): boolean {
+  return (
+    candle.openTime > BACKTEST_PERIOD_RANGES.OOS.endTime &&
+    candle.closeTime > BACKTEST_PERIOD_RANGES.OOS.endTime
+  );
+}
+
+export function isIntrabarSettlementOnly(
+  period: BacktestPeriod,
+  exitCandle: Readonly<{ openTime: number; closeTime: number }>,
+): boolean {
+  return period === "OOS" && isOosSettlementTailCandle(exitCandle);
+}
+
 function floorToInterval(value: number, interval: number): number {
   return Math.floor(value / interval) * interval;
 }

@@ -4,7 +4,8 @@ import { validateFundingRecords } from "../historical-data/validation.ts";
 import { validateIntrabarSettlementWindow } from "../historical-data/validation.ts";
 import type { IntrabarSettlementCandle } from "../historical-data/types.ts";
 import { BACKTEST_POLICY } from "./constants.ts";
-import { resolveFundingCharges } from "./funding.ts";
+import { requiresIntrabarFundingResolution, resolveFundingCharges } from "./funding.ts";
+import { isIntrabarSettlementOnly } from "./ranges.ts";
 import type {
   BacktestSignalResult,
   BacktestSignalSnapshot,
@@ -227,7 +228,16 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
   let exitTime = resolvedExitCandle.closeTime;
   let exitMinute: Readonly<{ openTime: number; closeTime: number }> | undefined;
   let intrabarCandles: readonly IntrabarSettlementCandle[] | undefined;
-  if (policy === "bt-policy-003" && exitReason !== "TIME_EXIT") {
+  const requiresIntrabar =
+    policy === "bt-policy-003" &&
+    requiresIntrabarFundingResolution({
+      funding: input.funding,
+      entryTime,
+      exitReason,
+      exitCandle: resolvedExitCandle,
+    });
+  if (requiresIntrabar && exitReason !== "TIME_EXIT") {
+    const expectedSettlementOnly = isIntrabarSettlementOnly(input.period, resolvedExitCandle);
     const window =
       input.intrabarSettlementWindow ??
       input.intrabarSettlementWindows?.find(
@@ -238,7 +248,8 @@ export function settleBacktestSignal(input: SettlementInput): BacktestSignalResu
       !window ||
       input.serverTime === undefined ||
       window.symbol !== snapshot.symbol ||
-      window.exitCandleOpenTime !== resolvedExitCandle.openTime
+      window.exitCandleOpenTime !== resolvedExitCandle.openTime ||
+      window.settlementOnly !== expectedSettlementOnly
     ) {
       return Object.freeze({
         ...emptyBacktestSignalResult(snapshot, "DATA_INCOMPLETE", "Required intrabar settlement window is missing."),
