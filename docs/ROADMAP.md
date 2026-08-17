@@ -349,7 +349,7 @@ run.
 
 ## M3-C — Baseline Historical Run + Evidence Review
 
-Status: INCOMPLETE / EVIDENCE DRAFT PR
+Status: INCOMPLETE / EVIDENCE MERGED
 
 ### Formal result
 
@@ -399,6 +399,61 @@ and non-portfolio interpretation.
 
 Parameter tuning, robustness optimization, realtime scanning, M4, M6 policy
 decisions, production deployment, and trading.
+
+## M3-D — Intrabar Settlement Resolution Specification Freeze
+
+Status: SPECIFICATION ONLY / DRAFT PR
+
+### Authority and purpose
+
+This milestone starts from main commit
+`5f8824443ef824fc061719f99b8738a06f9104e0` and addresses only the 249
+`SETTLEMENT_AMBIGUOUS` outcomes documented by the immutable bt-policy-002
+Formal Run #1. The prior M3-C result remains **M3-C INCOMPLETE** and is never
+overwritten.
+
+### Frozen policy
+
+`bt-policy-003` inherits all `bt-policy-002` rules while adding deterministic
+1m settlement resolution. It uses only official Binance USDⓈ-M Futures 1m
+Klines for the exact ambiguous exit hours, never feeds 1m data to
+`StrategyInput`, and validates exactly 60 closed continuous minutes with the
+same study server time. `bt-policy-002` first freezes
+`frozenExitReason = TP | SL` on the 1H candle, including its existing SL-first
+result when both brackets are touched; 1m data only locates the first minute
+reproducing that reason. The opposite bracket cannot change it, and failure to
+reproduce it is `DATA_INCOMPLETE`. Each 1m window must also reconcile exactly
+with its 1H open/high/low/close. Funding before/after the exit minute is
+included/excluded by timestamp, while same-minute funding uses the frozen
+conservative negative-cost rule with `CONSERVATIVE_SAME_MINUTE` provenance and
+a separate audit record even when a positive credit is excluded.
+
+The new report schema is `m3-b-report-003`. Required intrabar manifests,
+symbol/UTC-year audit counts, and the existing precedence
+`INCOMPLETE > INSUFFICIENT_SAMPLE > FAIL > PASS` are frozen. A complete study
+requires zero remaining `SETTLEMENT_AMBIGUOUS`; missing or invalid required
+minute data or manifests is `INCOMPLETE`.
+
+### Scope and deliverables
+
+Documentation only: `docs/BACKTEST.md`, `docs/ARCHITECTURE.md`,
+`docs/TEST_PLAN.md`, and this roadmap entry. No loader, runner, strategy,
+database, API, Cron, trading, or production change is included.
+
+### Tests and acceptance
+
+The deterministic specification tests cover frozen 1H exit reasons, 1m-only
+time resolution, opposite-bracket rejection, 1m/1H aggregate reconciliation,
+same-minute funding audit inclusion/exclusion, 60-row integrity, server-time
+closure, manifest provenance, report schema selection, unchanged legacy
+policies, count reconciliation, and zero-ambiguity acceptance. CI must pass
+typecheck, lint, tests, build, and diff checks. No formal bt-policy-003
+historical run is performed in M3-D.
+
+### Out of scope
+
+Implementation, M3-C rerun, performance-based settlement selection, strategy
+tuning, M4, forward tracking, production deployment, and trading.
 
 ## M4 — Realtime Scanner
 

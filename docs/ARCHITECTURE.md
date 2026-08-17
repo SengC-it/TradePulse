@@ -1,6 +1,6 @@
 # TradePulse Architecture
 
-Status: M3-B.2 historical loader and deterministic backtest runner (Draft PR)
+Status: M3-D intrabar settlement-resolution specification (Draft PR)
 Runtime baseline: Node.js 22+
 Deployment baseline: Next.js App Router on Vercel
 
@@ -213,16 +213,103 @@ timeframe, symbol, and SHA-256 integrity, even when not required by a charge.
 
 Policy selection and report schema are explicit. `bt-policy-001` serializes as
 `m3-b-report-001`; `bt-policy-002` serializes as `m3-b-report-002`, which
-contains the provenance/fallback audit fields. A formal run must supply
-`--policy`; missing or unknown policy fails closed. The formal M3-C replacement
-command is:
+contains the provenance/fallback audit fields; and `bt-policy-003` serializes as
+the new `m3-b-report-003`. A formal run must supply `--policy`; missing or
+unknown policy fails closed. The prior M3-C replacement command was:
 
 ```text
 npm run backtest:run -- --period COMBINED --policy bt-policy-002
 ```
 
-The implementation requires explicit policy selection for formal CLI runs;
-M3-C remains blocked and is not rerun in this milestone.
+The new policy's formal command is:
+
+```text
+npm run backtest:run -- --period COMBINED --policy bt-policy-003
+```
+
+The implementation requires explicit policy selection for formal CLI runs.
+This M3-D milestone remains specification-only: it does not rerun M3-C or
+overwrite the `bt-policy-002` evidence.
+
+### M3-D intrabar settlement-resolution boundary
+
+`bt-policy-003` inherits all `bt-policy-002` behavior except the frozen
+intrabar settlement resolution below. `baseline-001`, `bt-policy-001`,
+`bt-policy-002`, all strategy thresholds, entry/stop/TP references, 5bps
+slippage and fees, funding economics, 24 held candles, TIME_EXIT, and all
+acceptance thresholds remain unchanged.
+
+Only official Binance USDⓈ-M Futures `/fapi/v1/klines` at `interval = 1m` may
+be used. These Klines are settlement-only and never enter `StrategyInput`.
+The loader is usage-driven: it loads only a 1H exit hour that would be
+`SETTLEMENT_AMBIGUOUS` under `bt-policy-002`, deduplicated by
+`symbol + exitCandle.openTime`, requesting exactly the 60 minutes from the
+exit candle open through close. It must not load the full period at 1m.
+
+The 1m loader uses the same study `serverTime` and requires
+`closeTime < serverTime`, exactly 60 continuous rows, strict chronological
+order, unique open times, valid timestamps, finite positive OHLC, and valid
+OHLC relationships. Sorting, gap filling, interpolation, synthetic candles,
+and assumed paths are forbidden; required invalid or missing data is
+`DATA_INCOMPLETE`.
+
+The `bt-policy-002` 1H settlement remains authoritative. Before using 1m data,
+freeze `frozenExitReason = TP | SL`; if the 1H candle touched both brackets,
+the existing 1H conservative rule freezes `SL`. The 1m rows resolve time only:
+for frozen SL, LONG matches `low <= stop` and SHORT matches `high >= stop`; for
+frozen TP, LONG matches `high >= TP` and SHORT matches `low <= TP`. Walk the
+rows chronologically and select the first minute reproducing the frozen reason.
+The opposite bracket cannot change or substitute for that reason. A minute
+touching both brackets satisfies the already-frozen reason; it does not create a
+new 1m SL-first rule. If the frozen reason is not reproduced, the result is
+`DATA_INCOMPLETE`.
+
+Before resolution, the 60 1m rows must reconcile exactly with their official 1H
+exit candle: first open equals 1H open, last close equals 1H close, maximum
+high equals 1H high, and minimum low equals 1H low. No epsilon, sorting, fill,
+interpolation, or inferred path is permitted; any mismatch is
+`DATA_INCOMPLETE`.
+
+Funding ordering remains `entryTime < fundingTime`. For TP/SL exits, funding
+before `exitMinute.openTime` is included, funding after `exitMinute.closeTime`
+is excluded, and funding exactly at the minute open is included. When
+`exitMinute.openTime < fundingTime <= exitMinute.closeTime`, use the unchanged
+funding PnL signs and the conservative rule: include a negative funding PnL,
+exclude a positive funding PnL, and record zero deterministically when zero.
+The provenance is `CONSERVATIVE_SAME_MINUTE`; this is not selected from
+performance. TIME_EXIT retains `entryTime < fundingTime <= exitTime` and needs
+no 1m data.
+
+Funding ordering is audited separately from applied funding charges. Every
+considered event records `fundingTime`, `theoreticalFundingPnL`, `included`,
+its resolution (`ONE_HOUR_UNAMBIGUOUS`, `ONE_MINUTE_RESOLVED`, or
+`CONSERVATIVE_SAME_MINUTE`), and applicable exit-minute open/close times. A
+positive same-minute funding credit is still audited with `included = false`
+even though it need not appear as an applied `fundingCharge`.
+
+Allowed settlement provenance includes `ONE_HOUR_UNAMBIGUOUS`,
+`ONE_MINUTE_RESOLVED`, and `CONSERVATIVE_SAME_MINUTE`. Every former ambiguity
+must resolve deterministically or become `DATA_INCOMPLETE`; a complete study
+requires zero remaining `SETTLEMENT_AMBIGUOUS`, otherwise the result is
+`INCOMPLETE`.
+
+Each required minute window has a `kind = intrabar-settlement` manifest from
+`binance-usdm-public` `/fapi/v1/klines`, `timeframe = 1m`, matching symbol,
+requested and actual boundaries, `rowCount = 60`, retrieval time, SHA-256, and
+correct `settlementOnly` classification. Missing or invalid required manifests
+are `INCOMPLETE`; unused manifests are optional. `m3-b-report-003` exposes
+reconciled `intrabarSettlementWindowsLoaded`,
+`intrabarResolvedFundingOrderCount`, `conservativeSameMinuteCount`, and
+`remainingSettlementAmbiguousCount`, broken down by symbol and UTC year.
+The first count is unique loaded `symbol + exitCandle.openTime` windows; the
+second counts audit records resolved with 1m chronology; the third counts all
+`CONSERVATIVE_SAME_MINUTE` audit records, included or excluded; and the fourth
+counts unresolved `SETTLEMENT_AMBIGUOUS` results. These counts must reconcile
+with the funding-order audit records.
+
+The existing precedence remains `INCOMPLETE > INSUFFICIENT_SAMPLE > FAIL >
+PASS`, and the prior `bt-policy-002` Formal Run #1 remains a separate immutable
+evidence record.
 
 ## Realtime scan lifecycle
 
