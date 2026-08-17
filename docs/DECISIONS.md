@@ -167,6 +167,45 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   SL-first and 24-bar rules apply only to `bt-policy-001` and do not decide M6
   forward-tracking behavior.
 
+## ADR-019 — Controlled research protocol for baseline-002
+
+- **Decision:** M3-G freezes a documentation-only research protocol, not a
+  `baseline-002` strategy. Data through `2026-08-15T23:59:59.999Z` is
+  permanently classified as seen research data. A true forward holdout begins
+  only at the first fully closed 1H candle strictly after the final
+  baseline-002 freeze commit/time. Research is limited initially to H1 signal
+  redundancy, H2 cost-adjusted edge, H3 score calibration, H4 signal density,
+  and H5 regime quality.
+- **Reason:** The baseline-001 evidence is economically inadequate and has
+  already exposed the historical interval through 2026-08-15. A bounded,
+  auditable protocol is required to reduce data-mining and contamination risk
+  before any new strategy behavior is tested.
+- **Consequence:** Future experiments require immutable registry entries,
+  small predeclared scalar grids, ablation-first controls, chronological
+  calendar-based folds, frozen `bt-policy-003` economics, and multi-gate
+  robustness/concentration review. M3-G runs no experiments and does not freeze
+  baseline-002. M3-G.1 through M3-J and the forward holdout require separate
+  milestones; M4 remains separate.
+
+## ADR-020 — Freeze candidate-selection gates before research results
+
+- **Decision:** All numeric baseline-002 candidate-selection gates must be
+  declared in a separate M3-G.2 artifact and merged before the first M3-H
+  performance experiment. M3-G.2 must record exact values, units,
+  denominators, and comparison rules for improvement, fold coverage,
+  catastrophic folds, expectancy, profit factor, concentration, claimed
+  redundancy improvement, minimum sample, and complexity/tie handling.
+  M3-I only applies this immutable record mechanically and may conclude
+  `NO BASELINE-002 CANDIDATE`.
+- **Reason:** Defining thresholds after observing candidate net R, PF,
+  expectancy, or fold comparisons creates post-hoc selection freedom and
+  invalidates the research round.
+- **Consequence:** M3-G.2 must merge before M3-H, with no historical candidate
+  performance result visible at its freeze point. Synthetic fixtures may test
+  the gate schema. Once M3-H begins, changing a gate invalidates the round and
+  requires a new research-round version and predeclared protocol. M3-I cannot
+  weaken a failed gate, and no-candidate is a valid outcome.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

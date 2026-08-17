@@ -1,7 +1,7 @@
 # TradePulse Test Plan
 
-Status: M3-D.1 intrabar settlement-resolution implementation / Draft PR;
-bt-policy-002 M3-C evidence remains immutable and M3-D.1 is under review.
+Status: M3-G baseline-002 research protocol specification / Draft PR;
+M3-E evidence remains immutable and no baseline-002 research experiment has run.
 
 ## Test layers
 
@@ -404,6 +404,63 @@ The M3-F implementation adds deterministic tests proving that:
    `/fapi/v1/time` request.
 6. `bt-policy-001`, `bt-policy-002`, and the committed M3-E
    `m3-b-report-003` evidence remain unchanged.
+
+### M3-G baseline-002 research protocol and M3-G.1 tooling tests
+
+M3-G is documentation-only and executes no historical research. Before any
+future M3-H experiment, the M3-G.1 tooling must have deterministic tests for:
+
+1. exact calendar-based fold assignment using the frozen UTC boundaries, with
+   no random time shuffle;
+2. no future leakage into StrategyInput or fold results;
+3. byte-stable baseline-001 control reproducibility;
+4. append-only experiment registry records and immutable experiment IDs;
+5. deterministic candidate ordering and predeclared parameter values;
+6. signal-density, duplicate-window, overlap, and unique-signal-hour metrics;
+7. deterministic score-bucket counts, outcomes, and monotonicity diagnostics;
+8. gross, fee, funding, net, expectancy, and profit-factor cost metrics;
+9. symbol, direction, BTC regime, symbol regime, score bucket, and UTC
+   month/year breakdowns;
+10. unchanged 5 bps entry/exit slippage, fees, and `bt-policy-003` funding and
+    settlement economics;
+11. retention of the authoritative `studyServerTime` in research provenance;
+12. public market-data-only access, with no private or trading API;
+13. absence of baseline-002 production code while the protocol is being tested;
+14. seen-data terminology for all data through 2026-08-15 and rejection of an
+    `OOS PASS` label for that interval;
+15. the forward holdout boundary being recorded only after the final
+    baseline-002 freeze commit/time.
+
+These tests must not authorize parameter optimization or alter the immutable
+M3-E evidence, baseline-001, or any frozen backtest policy.
+
+### M3-G.2 candidate-selection gate-freeze tests
+
+M3-G.2 is a pre-performance specification gate. Its tests may use synthetic
+fixtures only and must prove:
+
+1. the gate record requires exact numeric values, units, denominators, and
+   comparison rules for aggregate improvement, fold improvement, catastrophic
+   folds, net expectancy, profit factor, symbol concentration, single-trade
+   concentration, claimed redundancy improvement, minimum sample, and the
+   complexity/tie rule;
+2. an M3-G.2 gate record cannot be marked frozen without all required fields;
+3. M3-G.2 cannot consume or generate historical candidate-performance results;
+4. M3-G.2 is required and merged before an M3-H performance run can start;
+5. no candidate result, netR/PF/expectancy, or fold comparison is visible at
+   the M3-G.2 freeze point;
+6. gate records and research-round IDs are immutable once M3-H begins;
+7. changing a gate after an M3-H result invalidates the current round and
+   requires a new research-round version and predeclared protocol;
+8. M3-I applies the stored gates without redefining or weakening them;
+9. a mechanically evaluated candidate set with no eligible candidate produces
+   `NO BASELINE-002 CANDIDATE` without relaxing any gate;
+10. the simpler-candidate/tie rule is deterministic and cannot be chosen after
+    candidate results are observed.
+
+The test plan must continue to reject any implementation that executes a
+historical research run, changes frozen execution economics, modifies
+baseline-001, or introduces baseline-002 production code during M3-G.2.
 
 ### M3-B implemented test coverage
 
