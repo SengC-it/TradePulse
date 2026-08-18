@@ -1,0 +1,107 @@
+import { createHash } from "node:crypto";
+
+import {
+  BASELINE_002_RESEARCH_ROUND_003_MACHINE_RECORD,
+  BASELINE_002_RESEARCH_ROUND_003_SELECTION_GATE_SHA256,
+  M3_R3_ROUND_003_CANDIDATE_IDS,
+  M3_R3_ROUND_003_INHERITED_PLAN_SHA256,
+  M3_R3_ROUND_003_INHERITED_SELECTION_GATE_SHA256,
+  M3_R3_ROUND_003_INVALIDATION_MERGE_SHA,
+  M3_R3_ROUND_003_NO_CANDIDATE_OUTCOME,
+  M3_R3_ROUND_003_PERFORMANCE_LOCK,
+  M3_R3_ROUND_003_RESEARCH_ROUND_ID,
+  M3_R3_ROUND_003_SOURCE_SHA,
+} from "./selection-gates-round-003.ts";
+import {
+  M3_R2_ROUND_002_CANDIDATE_DEFINITIONS,
+  M3_R2_ROUND_002_COMPLEXITY_TUPLES,
+  M3_R2_ROUND_002_SELECTOR_SPECS,
+} from "./m3-r2-round-002-plan.ts";
+import { RESEARCH_FOLDS } from "./folds.ts";
+import { deepFreeze, stableStringify } from "./utils.ts";
+
+export const M3_R3_ROUND_003_PLAN_SCHEMA_VERSION = "m3-r3-round-003-plan-001" as const;
+export const M3_R3_ROUND_003_DATA_CLASSIFICATION = "RESEARCH_AVAILABLE_SEEN_DATA" as const;
+export const M3_R3_ROUND_003_SELECTOR_SPECS_SHA256 = createHash("sha256")
+  .update(stableStringify(M3_R2_ROUND_002_SELECTOR_SPECS), "utf8")
+  .digest("hex");
+
+export const M3_R3_ROUND_003_PLAN = deepFreeze({
+  schemaVersion: M3_R3_ROUND_003_PLAN_SCHEMA_VERSION,
+  researchRoundId: M3_R3_ROUND_003_RESEARCH_ROUND_ID,
+  sourceSha: M3_R3_ROUND_003_SOURCE_SHA,
+  invalidationMergeSha: M3_R3_ROUND_003_INVALIDATION_MERGE_SHA,
+  dataClassification: M3_R3_ROUND_003_DATA_CLASSIFICATION,
+  researchUniverse: {
+    startTime: Date.parse("2023-01-01T00:00:00.000Z"),
+    endTime: Date.parse("2026-08-15T23:59:59.999Z"),
+    rule: "RESEARCH_AVAILABLE_SEEN_DATA",
+  },
+  inheritedRound002PlanSha256: M3_R3_ROUND_003_INHERITED_PLAN_SHA256,
+  inheritedRound002SelectionGateSha256: M3_R3_ROUND_003_INHERITED_SELECTION_GATE_SHA256,
+  inheritedSelectorSpecsSha256: M3_R3_ROUND_003_SELECTOR_SPECS_SHA256,
+  selectionGateSha256: BASELINE_002_RESEARCH_ROUND_003_SELECTION_GATE_SHA256,
+  performanceStatus: "NOT_GENERATED",
+  performanceLock: M3_R3_ROUND_003_PERFORMANCE_LOCK,
+  performanceAuthorization: "M3-R3-B",
+  candidateCount: M3_R3_ROUND_003_CANDIDATE_IDS.length,
+  candidateIds: M3_R3_ROUND_003_CANDIDATE_IDS,
+  candidateDefinitions: M3_R2_ROUND_002_CANDIDATE_DEFINITIONS,
+  complexityTuples: M3_R2_ROUND_002_COMPLEXITY_TUPLES,
+  selectorSpecs: M3_R2_ROUND_002_SELECTOR_SPECS,
+  folds: RESEARCH_FOLDS,
+  gateSemantics: BASELINE_002_RESEARCH_ROUND_003_MACHINE_RECORD.selectionGates,
+  repairs: {
+    aggregateValidation: {
+      validationRange: "F1.validation.startTime through F6.validation.endTime",
+      filter: "record.signalTime >= validationRange.startTime && record.signalTime <= validationRange.endTime",
+      diagnosticsInput: "filtered validationRecords only",
+    },
+    identityHash: {
+      sortOrder: ["signalTime ascending", "frozen symbol order", "LONG before SHORT"],
+      identity: "symbol|direction|signalTime",
+      formal: "all formal records",
+      executed: "status === EXECUTED only",
+    },
+    artifactReuse: {
+      controlReportSha256: "5ecfae3258d2ace774965eba12df25b888b04593b32e1b92a2593c41fdad8b33",
+      decisionSnapshotArtifactSha256: "65a011d813c55f936f89069706730f5de33dfda9f2eba94f0dfb2b914818eec9",
+      studyServerTime: 1787031883099,
+      snapshotCount: 7500,
+      statusOnExactMatch: "VERIFIED_REUSABLE_INPUT",
+      mismatchAction: "FAIL_CLOSED",
+    },
+  },
+  noCandidateOutcome: M3_R3_ROUND_003_NO_CANDIDATE_OUTCOME,
+});
+
+export const M3_R3_ROUND_003_PLAN_CANONICAL_JSON = stableStringify(M3_R3_ROUND_003_PLAN);
+
+export const M3_R3_ROUND_003_PLAN_SHA256 =
+  "6501a1d8264728cc955a905e03f8a99c157629113a9efbb5fcb544a81d7ed2ab" as const;
+
+export function validateM3R3Round003Plan(
+  plan: typeof M3_R3_ROUND_003_PLAN = M3_R3_ROUND_003_PLAN,
+): typeof M3_R3_ROUND_003_PLAN {
+  if (plan.schemaVersion !== M3_R3_ROUND_003_PLAN_SCHEMA_VERSION) throw new Error("M3-R3-A plan schema mismatch.");
+  if (plan.researchRoundId !== M3_R3_ROUND_003_RESEARCH_ROUND_ID) throw new Error("M3-R3-A plan research round mismatch.");
+  if (plan.sourceSha !== M3_R3_ROUND_003_SOURCE_SHA || plan.invalidationMergeSha !== M3_R3_ROUND_003_INVALIDATION_MERGE_SHA) {
+    throw new Error("M3-R3-A plan provenance mismatch.");
+  }
+  if (plan.performanceStatus !== "NOT_GENERATED" || plan.performanceAuthorization !== "M3-R3-B") {
+    throw new Error("M3-R3-A plan must remain pre-performance.");
+  }
+  if (plan.candidateCount !== 9 || stableStringify(plan.candidateIds) !== stableStringify(M3_R3_ROUND_003_CANDIDATE_IDS)) {
+    throw new Error("M3-R3-A candidate registry changed.");
+  }
+  if (stableStringify(plan.selectorSpecs) !== stableStringify(M3_R2_ROUND_002_SELECTOR_SPECS)) {
+    throw new Error("M3-R3-A selector specifications changed.");
+  }
+  if (plan.selectionGateSha256 !== BASELINE_002_RESEARCH_ROUND_003_SELECTION_GATE_SHA256) {
+    throw new Error("M3-R3-A plan must reference the finalized Round-003 gate SHA.");
+  }
+  if (createHash("sha256").update(stableStringify(plan), "utf8").digest("hex") !== M3_R3_ROUND_003_PLAN_SHA256) {
+    throw new Error("M3-R3-A plan canonical SHA mismatch.");
+  }
+  return plan;
+}
