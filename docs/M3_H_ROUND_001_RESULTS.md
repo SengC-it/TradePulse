@@ -35,4 +35,12 @@ Highest aggregate expectancy (descriptive): R3-H2-COST-010
 Highest PF (descriptive): R1-H1-CD-12H
 Lowest redundancy rate (descriptive): R2-H4-TOPN-3
 
+CORRECTION:
+The lowest `overlappingSignalRate` is `R1-H1-CD-24H = 0`.
+
+The generated "Lowest redundancy rate" line above is based on the minimum
+`redundancyRelativeReductionVsControl` and is therefore mislabeled. This is a
+descriptive-rendering issue only and does not alter candidate identities,
+economics, diagnostics, `evidenceStatus`, or future M3-I gate application.
+
 No candidate is labeled PASS, ELIGIBLE, WINNER, BEST, or baseline-002.
