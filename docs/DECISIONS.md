@@ -259,6 +259,29 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   descriptive and defers all gate application to M3-I; `baseline-002` is not
   frozen.
 
+## ADR-024 — Freeze baseline-002 research round-002 protocol
+
+- **Decision:** After M3-I closed with the exact result
+  `NO BASELINE-002 CANDIDATE`, start a separate pre-performance research stream
+  identified as `baseline-002-research-round-002`. Its research universe is
+  exactly 2023-01-01T00:00:00.000Z through 2026-08-15T23:59:59.999Z and remains
+  `RESEARCH_AVAILABLE_SEEN_DATA`. The protocol predeclares H6 strict BTC
+  alignment, H7 strong symbol regime, H8 recent pullback, H9 volume
+  confirmation, H10 breakout buffer, and exactly nine candidates plus the
+  baseline-001 CONTROL.
+- **Reason:** Round-001 produced no eligible candidate. A new mechanism family
+  must therefore be predeclared as a new research round rather than changing
+  the closed Round-001 registry, gates, evidence, or result.
+- **Consequence:** Round-002 candidates are strict eligibility subsets of
+  baseline-001 and selectors may use only contemporaneous decision-time
+  features. Round-001 numeric gate values and semantics cannot be weakened; a
+  separate equivalent machine gate record must be merged before any Round-002
+  performance output. The sequence is M3-R2-A protocol freeze, M3-R2-B machine
+  gate and synthetic tooling, M3-R2-C one CONTROL capture/offline derivation,
+  then M3-R2-D mechanical gate application. M3-R2-A is documentation-only;
+  `baseline-002` remains not frozen, M3-J remains blocked/not started, and M4
+  remains not started.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

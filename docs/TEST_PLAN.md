@@ -1,7 +1,8 @@
 # TradePulse Test Plan
 
-Status: M3-G, M3-G.1, M3-G.2, and M3-H CLOSED / MERGED; M3-I under review;
-`baseline-002` remains NOT FROZEN.
+Status: M3-G, M3-G.1, M3-G.2, M3-H, and M3-I CLOSED / MERGED;
+M3-R2-A under review; `baseline-002` remains NOT FROZEN; M3-J is blocked/not
+started and M4 is not started.
 
 ## Test layers
 
@@ -562,6 +563,45 @@ The CLI `npm run research:m3i:select` reads only
 `docs/evidence/M3_H_ROUND_001_SUMMARY.json` and the frozen repository
 definitions. It performs no network request, historical load, backtest, or
 Strategy Engine call.
+
+### M3-R2-A Round-002 protocol-freeze checks
+
+M3-R2-A is documentation-only and generates no historical performance. Its
+consistency review must confirm:
+
+1. `researchRoundId` is exactly `baseline-002-research-round-002`;
+2. the research universe is exactly 2023-01-01 through
+   2026-08-15T23:59:59.999Z and is classified as
+   `RESEARCH_AVAILABLE_SEEN_DATA`;
+3. Round-001 evidence, gates, experiment plan, candidate results, and the
+   `NO BASELINE-002 CANDIDATE` decision remain immutable;
+4. the unchanged five-symbol, 1H/4H, indicator, baseline-001, bt-policy-003,
+   funding, fee, slippage, 24-held-candle, settlement, R-normalization, and
+   F1-F6 contracts are recorded;
+5. H6, H7, H8, H9, and H10 use exactly the frozen formulas, including H7's
+   ATR-normalized thresholds, H8's t-1/t-2 window, H9's t-20/t-1 volume mean,
+   and H10's single 0.10 ATR buffer;
+6. the registry contains exactly one baseline-001 CONTROL and exactly the nine
+   declared Round-002 candidates, with no result-dependent additions;
+7. every candidate is a strict baseline-001 eligibility subset and selector
+   inputs contain contemporaneous decision-time features only, never outcome
+   or future fields;
+8. Round-002 gate values and semantics are required to be canonically
+   equivalent to Round-001, with a separate machine gate record merged before
+   any performance output;
+9. exact chronological F1-F6 folds and the no-run boundary are retained;
+10. the frozen sequence is M3-R2-A -> M3-R2-B -> M3-R2-C -> M3-R2-D, and
+    zero eligible candidates would produce exactly
+    `NO BASELINE-002 CANDIDATE — ROUND-002`;
+11. the invalidation rule requires `ROUND_002_INVALIDATION_REQUIRED` after a
+    result-affecting defect is found post-performance, rather than patching
+    and rerunning the same research round; and
+12. no Round-002 source code, selector, runner, CLI, evidence JSON, Binance
+    request, historical load, backtest, optimizer, or M3-J/M4 work is present.
+
+The protocol document is `docs/BASELINE_002_RESEARCH_R2.md`. M3-R2-A stops
+after documentation verification and CI with M3-I closed/merged,
+`baseline-002` not frozen, M3-J blocked/not started, and M4 not started.
 
 ### M3-B implemented test coverage
 

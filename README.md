@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-I — baseline-002 round-001 mechanical gate application under review**.
+Current milestone: **M3-R2-A — baseline-002 research round-002 protocol under review**.
 
 ## Boundary
 
@@ -23,8 +23,10 @@ research protocol, while M3-G.1 adds downstream deterministic diagnostics and
 M3-G.2 freezes the round-001 candidate-selection gates. M3-H Stage A froze
 the single-mechanism plan before performance, and Stage B generated one
 descriptive CONTROL plus 13 offline candidate evidence records. M3-H is closed
-and M3-I mechanically applied the frozen gates offline; the result is
-`NO BASELINE-002 CANDIDATE`, so baseline-002 remains unfrozen.
+and M3-I mechanically applied the frozen gates offline; M3-I is now closed and
+the result is `NO BASELINE-002 CANDIDATE`. baseline-002 remains unfrozen.
+M3-R2-A starts a separate documentation-only Round-002 protocol freeze; it
+does not generate performance results or start M3-J.
 
 ## Architecture
 
@@ -128,8 +130,9 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-G.1 | Research tooling and diagnostics (closed / merged; synthetic fixtures only) |
 | M3-G.2 | Candidate-selection gate freeze (closed / merged; round-001 gates only) |
 | M3-H | Round-001 single-mechanism research (closed / merged; evidence preserved) |
-| M3-I | Round-001 mechanical candidate gate application (under review; no baseline-002 candidate) |
-| M4 | Realtime scanner, protected endpoint, persistence |
+| M3-I | Round-001 mechanical candidate gate application (closed / merged; no baseline-002 candidate) |
+| M3-R2-A | Round-002 research protocol freeze (under review; documentation only) |
+| M4 | Realtime scanner, protected endpoint, persistence (not started) |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
 | M7 | Private dashboard and analytics |
