@@ -5,8 +5,9 @@ M3-R3-B, M3-R3-C, and M3-R3-C.1/C.2 CLOSED / MERGED;
 M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
 with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
 M3-R2-D is CANCELLED FOR ROUND-002; Round-003 final selection is
-`NO BASELINE-002 CANDIDATE — ROUND-003`; M3-R4-A is UNDER REVIEW for
-diagnosis and structural hypothesis freeze; M3-R4-B is NOT AUTHORIZED;
+`NO BASELINE-002 CANDIDATE — ROUND-003`; M3-R4-A is CLOSED / MERGED after
+diagnosis and structural hypothesis freeze; M3-R4-B is UNDER REVIEW for the
+exact machine-readable protocol and remains pre-performance;
 `baseline-002` remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED, and M4 is
 not started.
 
@@ -805,6 +806,36 @@ must verify:
 
 This review is a documentation acceptance check; it does not execute a
 historical study or create a performance result.
+
+### M3-R4-B Round-004 remediation coverage
+
+The M3-R4-B synthetic suite contains 163 dedicated tests and must remain
+pre-performance. It must prove:
+
+1. the SHA-covered hard-gate registry has exactly 11 identities in frozen
+   order, with exactly 10 applicable identities and
+   `requiredRedundancyImprovement` present but `NOT_APPLICABLE` for all four
+   candidates; N/A is excluded from the conjunction and is not PASS;
+2. the exact 23 invalidation categories are serialized, and every post-lock
+   change has action `ROUND_004_INVALIDATION_REQUIRED` meaning STOP, no patch
+   or rerun of the same round, and a required new research-round decision;
+3. H11 chooses the first age 1→4 origin that passes the complete origin,
+   invalidation, retest, and risk pipeline; stop touches, failed retests,
+   non-formal/future-data origins, missing intermediate candles, gaps,
+   duplicate timestamps, sequences not ending at current, age 5, and four
+   failed origins are fail-closed;
+4. H12 accepts only `current.closeTime == signalTime` and the exact previous
+   candle at `t-1`; t-2, same-time, or future current inputs fail closed;
+5. H13 schedules a trend trigger on held `n` at held `n+1` OPEN, records the
+   next-open raw price and held number, never schedules after held 48, keeps
+   the original baseline stop distance as the R denominator, and leaves the
+   global bt-policy-003 24-candle constant unchanged;
+6. H14 computes only from an exact decision-time t-24 candle and rejects
+   t-23, t-25, future, missing, malformed, or non-finite close data while
+   retaining the simple return formula;
+7. the canonical Gate and Plan records recompute their final SHA-256 values,
+   and the suite contains no network, historical loader, performance,
+   candidate-selection, baseline-002 freeze, or M4 execution path.
 
 ### M3-B implemented test coverage
 

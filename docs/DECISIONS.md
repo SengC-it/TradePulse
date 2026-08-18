@@ -411,6 +411,35 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   `baseline-002` remains not frozen, M3-J remains blocked/not started, and M4
   remains not started.
 
+## ADR-029 — Freeze the Round-004 machine protocol before performance
+
+- **Decision:** M3-R4-B freezes `baseline-002-research-round-004` from
+  authoritative main `1bab6066cd4e9933c3d50ab29a38e9ad0792e5c8`. Its machine
+  Gate is `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`
+  and its Plan is
+  `f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981`.
+- **Scope:** The registry is exactly one frozen baseline-001 CONTROL and the
+  four standalone H11-H14 candidates. H11/H12/H14 are decision-time-only
+  pure selectors; H13 is a variant-local 48-held-candle exit overlay. The
+  existing `bt-policy-003` economics, baseline-001, folds, symbols, and
+  next-open semantics are preserved.
+- **Gate:** Round-003 numeric values and semantics are inherited unchanged.
+  The machine registry retains 11 hard-gate identities, with 10 applicable;
+  redundancy is explicitly `NOT_APPLICABLE` for every Round-004 candidate and
+  is excluded from the conjunction rather than counted as a pass. The tie
+  rule, no-candidate outcome, performance lock, and exact structural
+  invalidation categories/action are machine-recorded and SHA-validated.
+- **Reason:** R4-A identified four structural hypotheses but intentionally did
+  not define executable formulas. Exact machine-readable definitions,
+  decision-time boundaries, audit fields, provenance, and synthetic tests must
+  be frozen before any performance observation.
+- **Consequence:** M3-R4-B generates no historical result and authorizes no
+  performance. Binance, HTTP market data, historical loading, CONTROL,
+  settlement, evidence derivation, candidate selection, baseline-002 freeze,
+  M3-J, and M4 remain out of scope. A result-affecting definition change after
+  the first performance result requires `ROUND_004_INVALIDATION_REQUIRED` and
+  a new research-round decision.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
