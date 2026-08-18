@@ -854,7 +854,7 @@ not started. The complete closure record is
 
 ## M3-R3-A — baseline-002 Research Round-003 Offline Recovery Protocol
 
-Status: UNDER REVIEW / PRE-PERFORMANCE; Round-002 remains INVALIDATED
+Status: CLOSED / MERGED; Round-002 remains INVALIDATED
 
 M3-R3-A creates the separate `baseline-002-research-round-003` protocol after
 the Round-002 evidence-pipeline invalidation. It is based on authoritative
@@ -877,16 +877,17 @@ diagnostics parity before reporting all three reuse statuses as passing. The
 expected artifact hashes, study clock `1787031883099`, snapshot count `7500`,
 and source provenance are recorded in `docs/BASELINE_002_RESEARCH_R3.md`.
 
-M3-R3-A permits only machine-record validation and synthetic tests. It does
+M3-R3-A permitted only machine-record validation and synthetic tests. It did
 not call Binance, load historical data, run CONTROL/backtest/settlement,
 derive candidate diagnostics, apply gates, or modify strategy/candidate
 definitions, thresholds, complexity, baseline-001, or `bt-policy-003`.
-`baseline-002` remains **NOT FROZEN**. M3-R3-B is **CLOSED / MERGED**.
-M3-R3-C is **HOLD / IMPLEMENTATION REVIEW REQUIRED**; M3-R3-C.1 is authorized
-only for source recovery and source-freeze CI. No recovery selection result
-has been generated. M3-J is blocked, and M4 is not started. See
-`docs/BASELINE_002_RESEARCH_R3.md` and
-`docs/BASELINE_002_SELECTION_GATES_R3.md`.
+`baseline-002` remains **NOT FROZEN**. M3-R3-B, M3-R3-C, and M3-R3-C.1/C.2
+are **CLOSED / MERGED**. The final Round-003 selection result is
+`NO BASELINE-002 CANDIDATE — ROUND-003`; all 9 candidates were ineligible.
+M3-J is blocked, and M4 is not started. See
+`docs/BASELINE_002_RESEARCH_R3.md`,
+`docs/BASELINE_002_SELECTION_GATES_R3.md`, and
+`docs/M3_R3_C_SELECTION.md`.
 
 ## M3-R3-B — Round-003 Candidate Derivation
 
@@ -899,23 +900,49 @@ application remains deferred to M3-R3-C; the committed evidence is immutable.
 
 ## M3-R3-C — Round-003 Frozen Selection Gate Application
 
-Status: HOLD — IMPLEMENTATION REVIEW REQUIRED
+Status: CLOSED / MERGED; NO BASELINE-002 CANDIDATE
 
-This stage applies the frozen gates mechanically to the committed Round-003
-evidence only. It does not run performance, recalculate economics, change
-gates, freeze `baseline-002`, start M3-J, or start M4. The first implementation
-attempt is held after an integrity-validation defect; its result was not
-committed and the branch is retained for audit.
+This stage applied the frozen gates mechanically to the committed Round-003
+evidence only. It did not run performance, recalculate economics, change
+gates, freeze `baseline-002`, start M3-J, or start M4. The recovery result is
+complete and final: all 9 candidates are ineligible and no baseline-002
+candidate was selected.
 
-## M3-R3-C.1 — Round-003 Selection Implementation Recovery
+## M3-R3-C.1/C.2 — Round-003 Selection Implementation Recovery
 
-Status: AUTHORIZED — SOURCE FREEZE ONLY
+Status: CLOSED / MERGED
 
-This recovery corrects only the CONTROL count scope and identity-hash
-validation defects. It preserves the frozen gate machine record, plan,
-candidate definitions, thresholds, performance evidence, and tie-breaking
-semantics. The authoritative recovery selection command remains deferred
-until a separate review authorizes it.
+This recovery corrected only the CONTROL count scope and identity-hash
+validation defects, then performed the one separately authorized offline
+selection. It preserves the frozen gate machine record, plan, candidate
+definitions, thresholds, performance evidence, and tie-breaking semantics.
+The final result is `NO BASELINE-002 CANDIDATE — ROUND-003`; baseline-002
+remains **NOT FROZEN**.
+
+## M3-R4-A — baseline-002 Research Round-004 Diagnosis and Structural Hypotheses
+
+Status: UNDER REVIEW / DIAGNOSIS AND HYPOTHESIS FREEZE
+
+M3-R4-A starts from authoritative main
+`0f994ddde6d3303eb34560cdc1c8babbae5115a5` and uses only the committed
+Round-001, Round-002 invalidation, and Round-003 evidence listed in
+`docs/BASELINE_002_DIAGNOSIS_R4.md`. Round-001 and Round-003 show that the
+tested baseline-001 entry family has not met the frozen economic and
+robustness gates; Round-002 performance remains invalidated and excluded.
+
+R4-A retires the already-tested H1-H10 filter/density/cost/score/regime/
+pullback/volume/breakout-buffer families and freezes exactly four qualitative
+standalone structural hypotheses: H11 breakout retest entry, H12 pullback
+reclaim entry, H13 adaptive trend exit, and H14 cross-asset relative-strength
+context. Each will have one future variant only. No combinations, threshold
+grid, parameter sweep, optimizer, or outcome-dependent choice is permitted.
+
+R4-A is documentation-only. It does not implement H11-H14, create a machine
+Gate or Plan record, access new data, run Binance, run a backtest, produce
+candidate performance, freeze baseline-002, start M3-J, or start M4. M3-R4-B
+must first specify exact formulas, execution semantics, data requirements,
+complexity, non-weakened gates, canonical SHAs, and synthetic tests. Only
+after M3-R4-B is reviewed and merged may Round-004 performance be authorized.
 
 ## M4 — Realtime Scanner
 

@@ -379,6 +379,38 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   `baseline-002` remains not frozen, M3-R3-C is not started, M3-J remains
   blocked, and M4 remains not started.
 
+## ADR-028 — Freeze Round-004 diagnosis and structural hypotheses
+
+- **Decision:** Start `baseline-002-research-round-004` from authoritative
+  main `0f994ddde6d3303eb34560cdc1c8babbae5115a5` as a documentation-only
+  diagnosis and qualitative hypothesis-freeze milestone. The authoritative
+  inputs and raw SHA-256 values are recorded in
+  `docs/BASELINE_002_DIAGNOSIS_R4.md`.
+- **Evidence basis:** Round-001 selection is complete with 13 ineligible
+  candidates. Round-003 selection is complete with 9 ineligible candidates;
+  its final decision is `NO BASELINE-002 CANDIDATE — ROUND-003`. Round-002
+  candidate performance remains excluded because its evidence pipeline was
+  invalidated after performance generation.
+- **Decision:** Freeze exactly four standalone structural hypotheses for
+  future review: `H11_BREAKOUT_RETEST_ENTRY` in
+  `ENTRY_TIMING_REDESIGN`, `H12_PULLBACK_RECLAIM_ENTRY` in
+  `ENTRY_PATTERN_REDESIGN`, `H13_ADAPTIVE_TREND_EXIT` in
+  `EXIT_ARCHITECTURE_REDESIGN`, and `H14_RELATIVE_STRENGTH_CONTEXT` in
+  `CROSS_ASSET_CONTEXT`. Each has exactly one future variant.
+- **Constraint:** Round-004 must not recreate H1-H10 or C1-C4 as filters,
+  run combinations, use a threshold grid, sweep parameters, optimize, or
+  choose values after observing outcomes. Gates must be no weaker than
+  Round-003 and no new machine Gate SHA or Plan SHA is created by R4-A.
+- **Reason:** The committed evidence supports insufficient economic edge and
+  cross-fold instability in the tested baseline-001 entry family. The
+  evidence does not justify another filter-only search or favorable changes
+  to fees, slippage, funding, or gate thresholds.
+- **Consequence:** Exact formulas, execution semantics, complexity tuples,
+  data requirements, canonical Gate/Plan records, and synthetic tests are
+  deferred to M3-R4-B. No Round-004 performance is authorized by R4-A.
+  `baseline-002` remains not frozen, M3-J remains blocked/not started, and M4
+  remains not started.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
