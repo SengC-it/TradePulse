@@ -1,8 +1,9 @@
 # TradePulse Test Plan
 
 Status: M3-G, M3-G.1, M3-G.2, M3-H, and M3-I CLOSED / MERGED;
-M3-R2-A under review; `baseline-002` remains NOT FROZEN; M3-J is blocked/not
-started and M4 is not started.
+M3-R2-A is CLOSED / MERGED; M3-R2-B is UNDER REVIEW and remains
+PRE-PERFORMANCE; `baseline-002` remains NOT FROZEN; M3-R2-C/D and M3-J are
+not started and M4 is not started.
 
 ## Test layers
 
@@ -621,6 +622,40 @@ The same checks must explicitly prove that:
 The protocol document is `docs/BASELINE_002_RESEARCH_R2.md`. M3-R2-A stops
 after documentation verification and CI with M3-I closed/merged,
 `baseline-002` not frozen, M3-J blocked/not started, and M4 not started.
+
+### M3-R2-B Round-002 machine gate and pure selector tests
+
+M3-R2-B is pre-performance and uses synthetic fixtures only. The dedicated
+file `tests/m3-r2-b-round002.test.ts` contains exactly **97 tests** covering:
+
+- Round-001 gate/plan inheritance, Round-002 identity, exact numeric gates,
+  the 13 invalidating categories, canonical gate SHA, and the
+  `NOT_APPLICABLE`/never-`PASS` redundancy contract;
+- the exact control plus nine-candidate registry, ordering, mechanism IDs,
+  single-value parameters, combination inheritance, complexity tuples, plan
+  SHA, and `NOT_GENERATED` status;
+- decision snapshots from exactly 250 closed 1H and 250 closed 4H candles,
+  finite/positive OHLC and continuity, future-data rejection, final-candle
+  identity, ATR/indicator/pullback/breakout fail-closed behavior, and the
+  current quote volume versus previous-20 `Candle.quoteVolume` mean contract;
+- H6-H10 inclusive thresholds, long/short mirrors, exact AND combinations
+  C1-C4, strict-subset reference preservation, duplicate identity rejection,
+  deterministic time/symbol/direction ordering, and no input mutation; and
+- discriminating H7 LONG and SHORT fixtures proving that close distance uses
+  EMA200 rather than EMA50, independent equality/just-below boundary tests for
+  close distance, EMA spread, and EMA200 slope, and selector behavior sourced
+  from the canonical H6-H10 machine specifications; and
+- static safety checks proving no Binance request, historical loader,
+  backtest/settlement runner, optimizer, evidence generation, `Date.now`,
+  randomness, or baseline-002 Strategy Engine implementation is introduced.
+
+The source modules are limited to the Round-002 research namespace and are
+exported through `src/lib/research/index.ts`. The suite does not run CONTROL,
+the historical loader, the backtest CLI, or any market-data endpoint.
+
+The H7 correction was identified and completed before any Round-002
+performance output. It corrects the implementation to the frozen formula and
+is not strategy tuning; `ROUND_002_INVALIDATION_REQUIRED` does not apply.
 
 ### M3-B implemented test coverage
 
