@@ -578,9 +578,10 @@ when that later freeze occurs.
 - `baseline-001` and `bt-policy-001`/`002`/`003` remain unchanged.
 - No historical performance run, parameter search, optimization, or
   baseline-002 experiment is executed in M3-G.
-- `baseline-002` is **NOT FROZEN**; M3-G.1, M3-G.2, and M3-H are closed/merged.
-  M3-I mechanical application is under review and returned
-  `NO BASELINE-002 CANDIDATE`. M3-J implementation remains not started.
+- `baseline-002` is **NOT FROZEN**; M3-G.1, M3-G.2, M3-H, and M3-I are
+  closed/merged. M3-I returned `NO BASELINE-002 CANDIDATE`; M3-R2-A is now
+  under review as a separate Round-002 protocol freeze. M3-J remains blocked
+  and not started.
 - M4, trading, private Binance APIs, persistence, and deployment remain out of
   scope.
 
@@ -639,8 +640,9 @@ only research inputs used in this milestone.
 - `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
   `m3-b-report-004`, and M3-E evidence are unchanged.
 - M3-G.2 owns the real round-001 gate values and is **CLOSED / MERGED**;
-  `baseline-002` remains **NOT FROZEN**. M3-H is closed/merged and M3-I is under
-  review; M3-J and M4 remain **NOT STARTED**.
+  `baseline-002` remains **NOT FROZEN**. M3-H and M3-I are closed/merged;
+  M3-R2-A is under review, while M3-J is blocked/not started and M4 remains
+  not started.
 
 ### Verification
 
@@ -725,7 +727,7 @@ immutable input to M3-I.
 
 ## M3-I — Mechanical Round-001 Candidate Gate Application
 
-Status: UNDER REVIEW; `baseline-002` NOT FROZEN
+Status: CLOSED / MERGED; `baseline-002` NOT FROZEN
 
 M3-I reads only the committed M3-H evidence and the frozen machine definitions.
 It does not call Binance, load historical data, rerun CONTROL/backtest/Strategy
@@ -755,10 +757,57 @@ are `INELIGIBLE`, no candidate is eligible, and the exact final decision is:
 NO BASELINE-002 CANDIDATE
 ```
 
-Therefore `baseline-002` remains **NOT FROZEN**, M3-J is **NOT STARTED**, and
-M4 remains **NOT STARTED**.
+Therefore `baseline-002` remains **NOT FROZEN**, M3-J is **BLOCKED / NOT
+STARTED**, and M4 remains **NOT STARTED**.
+
+## M3-R2-A — baseline-002 Research Round-002 Protocol Freeze
+
+Status: UNDER REVIEW; documentation only
+
+M3-R2-A begins the separate `baseline-002-research-round-002` stream after
+Round-001 closed with `NO BASELINE-002 CANDIDATE`. The complete frozen protocol
+is in `docs/BASELINE_002_RESEARCH_R2.md`.
+
+The Round-002 research universe remains exactly
+`2023-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`, classified as
+`RESEARCH_AVAILABLE_SEEN_DATA`. No data after that boundary may be inspected
+for Round-002 design or selection, and no result in that interval is true OOS.
+
+The protocol predeclares exactly five mechanism families (H6 strict BTC
+alignment, H7 strong symbol regime, H8 recent pullback, H9 volume confirmation,
+and H10 breakout buffer) and exactly nine candidates plus the baseline-001
+CONTROL. Every candidate is a strict eligibility subset of baseline-001 and
+selectors may use only contemporaneous decision-time features.
+
+Round-002 inherits the Round-001 gate values, formulas, semantics, sample
+floors, PF status rules, aggregate-validation construction, fold-improvement
+definition, catastrophic-fold definition, concentration rules, fee-burden
+rule, and selection tie rules unchanged. M3-R2-B may encode them in a
+separate machine record but may not alter them. An actual structural
+incompatibility stops the round and requires a new research-round decision;
+there is no in-round gate-change escape hatch.
+
+`requiredRedundancyImprovement` remains REQUIRED only for declared H1 or H4
+mechanisms (including combinations containing either). None of the nine
+Round-002 candidates declares H1/H4, so all nine have redundancy-gate
+applicability and evaluated status `NOT_APPLICABLE`; N/A is not PASS and
+incidental H6-H10 overlap reduction is not an H1/H4 mechanism. The exact
+five-step Round-001 tie rule and the non-negative-integer complexity tuple for
+each candidate must be frozen in M3-R2-B before performance.
+
+A separate machine-readable Round-002 gate record must be frozen and merged in
+M3-R2-B before any performance output. M3-R2-A does not implement selectors,
+feature extraction, a runner, a CLI, evidence generation, or baseline-002.
+
+The frozen sequence is M3-R2-A protocol freeze, M3-R2-B machine gate and
+synthetic selector tooling, M3-R2-C one authoritative CONTROL capture and
+offline derivation, then M3-R2-D mechanical gate application. If no candidate
+passes, the exact outcome is `NO BASELINE-002 CANDIDATE — ROUND-002` and M3-J
+remains blocked.
 
 ## M4 — Realtime Scanner
+
+Status: NOT STARTED
 
 ### Scope
 
