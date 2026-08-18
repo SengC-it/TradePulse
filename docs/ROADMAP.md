@@ -953,9 +953,9 @@ M3-R4-B is based on authoritative main
 `baseline-002-research-round-004`. It adds only pre-performance, machine-
 readable protocol records, pure decision-time reference helpers, synthetic
 tests, and documentation. The canonical Gate SHA is
-`3c0a975cc0cbcd3dea73fc343b6298b76010d2bf7655e96986a638b646c625e5`; the
+`c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`; the
 canonical Plan SHA is
-`bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e`.
+`f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981`.
 
 The frozen registry contains exactly the CONTROL
 `R4-CONTROL-BASELINE-001` and four standalone candidates in this order:
@@ -967,11 +967,14 @@ construction. H11/H12/H14 decision predicates are outcome-blind and may use
 only candles closed by signalTime; H13's 48-candle exit overlay is variant-
 local and does not alter the global 24-candle policy.
 
-Round-004 gates inherit Round-003 values and semantics. Ten hard gates apply;
-the redundancy gate is NOT_APPLICABLE for all four candidates and is excluded
-from the conjunction, not treated as a pass. Any gate, formula, candidate,
-complexity, cost, fold, or applicability change after the first performance
-result requires `ROUND_004_INVALIDATION_REQUIRED` and a stop.
+Round-004 gates inherit Round-003 values and semantics. The machine registry
+contains 11 hard-gate identities, of which 10 are applicable; the redundancy
+gate is `NOT_APPLICABLE` for all four candidates and is excluded from the
+conjunction, not treated as a pass. Any gate, formula, candidate, complexity,
+cost, fold, applicability, entry/exit, horizon, ranking, funding, or
+decision-time semantic change after the first performance result requires
+`ROUND_004_INVALIDATION_REQUIRED` and a stop without patching or rerunning the
+same round.
 
 ### Deliverables
 

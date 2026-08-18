@@ -15,9 +15,9 @@ or candidate performance generation.
 - R4-A research protocol raw SHA-256:
   `6b36aa7ef4ec273182f4ff2a9873f95f69f1409ec4474055610dddfbf350e746`
 - Gate record SHA-256:
-  `3c0a975cc0cbcd3dea73fc343b6298b76010d2bf7655e96986a638b646c625e5`
+  `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`
 - Plan SHA-256:
-  `bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e`
+  `f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981`
 - `performanceStatus`: `NOT_GENERATED`
 - `performanceAuthorization`: `NONE_IN_M3_R4_B`
 - `baseline-002`: **NOT FROZEN**
@@ -59,6 +59,30 @@ Exactly four standalone candidates exist, in this order:
 There are no combinations, fifth candidate, parameter sweep, grid search,
 optimizer, or outcome-dependent candidate definition.
 
+## Machine gate registry
+
+The SHA-covered `hardGateIdentities` registry contains exactly these 11
+identities, in order:
+
+```text
+minimumAggregateImprovement
+minimumImprovedValidationFolds
+catastrophicFoldLimit
+minimumNetExpectancy
+minimumProfitFactor
+maximumSymbolConcentration
+maximumSingleTradeConcentration
+maximumFeeBurdenRatio
+requiredRedundancyImprovement
+minimumFormalSignals
+minimumExecutedTrades
+```
+
+`requiredRedundancyImprovement` remains in the registry, but all four
+Round-004 candidates serialize `redundancyApplicability = NOT_APPLICABLE`.
+The other 10 identities are applicable; `NOT_APPLICABLE` is excluded from the
+conjunction and is never counted as PASS.
+
 ## Decision-time contract
 
 Candidate formation may use only candles with `closeTime <= signalTime`.
@@ -80,10 +104,20 @@ ordered by signal time ascending, frozen symbol order, then LONG before SHORT.
 ## H11 — breakout retest entry
 
 At closed 1H candle `t`, search origin ages 1, 2, 3, and 4 bars, newest
-first. Reconstruct the exact baseline evaluation from data closed by the
-origin time. The first same-symbol/same-direction origin that is formal and
-has total score at least 70 is eligible; no origin older than four bars is
-considered.
+first. The frozen selection rule is:
+
+```text
+FIRST ORIGIN IN AGE 1→4 ORDER THAT PASSES THE COMPLETE ORIGIN+INVALIDATION+RETEST+RISK PIPELINE.
+```
+
+For each origin, reconstruct the exact baseline evaluation from data closed
+by the origin time, require a formal same-symbol/same-direction score of at
+least 70, compute the exact three-candle pre-origin breakout, require a
+complete chronological closed-1H sequence from the first candle after origin
+through the current candle inclusive, reject every stop touch in that
+sequence, then apply current retest/reclaim and risk geometry. A missing,
+gapped, duplicated, or sequence-not-ending-at-current candle fails that origin
+closed; no origin older than four bars is considered.
 
 The breakout level is the maximum of the three fully closed candles before the
 origin for LONG, or the minimum for SHORT. From the first candle after origin
@@ -104,6 +138,9 @@ current close must be strictly above EMA20 and `p.high`. SHORT is the exact
 mirror. The stop is the prior-five low minimum minus `0.2 * ATR14` for LONG,
 or prior-five high maximum plus `0.2 * ATR14` for SHORT. ATR14 must be positive,
 `stop_atr` is inclusive from 0.8 to 3.0, and TP remains exactly 2R.
+The helper requires `current.closeTime == signalTime` and a timestamped
+previous candle with `previous.closeTime == current.closeTime - 1H`; any
+other previous candle or future current candle is invalid.
 
 ## H13 — adaptive trend exit
 
@@ -120,6 +157,11 @@ adverse exit slippage. If neither occurs, continue. At held candle 48, check
 the stop first; otherwise close with TIME_EXIT. No EMA-triggered next-open exit
 is created after held candle 48. Funding uses the existing policy-003 clock
 exit boundary, rate/mark fallback, sign, and audit semantics.
+The trend trigger on held candle `n` settles at held candle `n+1` OPEN, with
+`rawExitPrice = held[n+1].open` and `heldCandleNumber = n+1`; held candle 48
+cannot schedule another trend exit. The original baseline stop distance
+remains the R denominator, and the global `bt-policy-003` held-candle
+constant remains 24; H13's 48-candle overlay is local to H13.
 
 ## H14 — relative-strength context
 
@@ -136,6 +178,28 @@ rank 1–2, SHORT requires rank 4–5, and rank 3 is blocked. Missing data is
 `FAIL_CLOSED_DATA_INCOMPLETE`; it is not silently dropped. Because outcomes
 are unchanged, a later performance implementation must reuse the same-run
 CONTROL result by exact identity and return `DATA_INCOMPLETE` if it is absent.
+The machine helper requires `current.closeTime == signalTime` and
+`historical.closeTime == current.closeTime - 24H`; both candles must be
+decision-time legal. t-23, t-25, future, missing, or malformed data fails
+closed.
+
+## Round-004 invalidation contract
+
+The exact `invalidatingChanges` list is:
+
+```text
+GATE_VALUE, GATE_FORMULA, FOLD_IMPROVEMENT_DEFINITION,
+CATASTROPHIC_FOLD_DEFINITION, APPLICABILITY_RULE, SAMPLE_FLOOR,
+SELECTION_TIE_RULE, AGGREGATE_VALIDATION_DEFINITION, CANDIDATE_DEFINITION,
+FEATURE_FORMULA, SELECTOR_FORMULA, COMPLEXITY_TUPLE, COST_ASSUMPTION,
+FORMAL_SIGNAL_FORMULA, ENTRY_FORMULA, STOP_FORMULA, TP_FORMULA,
+EXIT_FORMULA, HOLDING_HORIZON, RELATIVE_STRENGTH_FORMULA, RANKING_RULE,
+FUNDING_SEMANTICS, DECISION_TIME_FIELD_SEMANTICS
+```
+
+After the performance lock, any listed change has the exact action
+`ROUND_004_INVALIDATION_REQUIRED`: stop, do not patch or rerun the same round,
+and require a new research-round decision.
 
 ## Data, folds, and safety boundary
 

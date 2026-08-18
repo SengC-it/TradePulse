@@ -40,6 +40,59 @@ export const M3_R4_ROUND_004_REDUNDANCY_APPLICABILITY = Object.freeze(
   ) as Record<M3R4CandidateId, "NOT_APPLICABLE">,
 );
 
+export const M3_R4_ROUND_004_HARD_GATE_IDENTITIES = Object.freeze([
+  "minimumAggregateImprovement",
+  "minimumImprovedValidationFolds",
+  "catastrophicFoldLimit",
+  "minimumNetExpectancy",
+  "minimumProfitFactor",
+  "maximumSymbolConcentration",
+  "maximumSingleTradeConcentration",
+  "maximumFeeBurdenRatio",
+  "requiredRedundancyImprovement",
+  "minimumFormalSignals",
+  "minimumExecutedTrades",
+] as const);
+
+export const M3_R4_ROUND_004_APPLICABLE_HARD_GATE_IDENTITIES = Object.freeze([
+  "minimumAggregateImprovement",
+  "minimumImprovedValidationFolds",
+  "catastrophicFoldLimit",
+  "minimumNetExpectancy",
+  "minimumProfitFactor",
+  "maximumSymbolConcentration",
+  "maximumSingleTradeConcentration",
+  "maximumFeeBurdenRatio",
+  "minimumFormalSignals",
+  "minimumExecutedTrades",
+] as const);
+
+export const M3_R4_ROUND_004_INVALIDATING_CATEGORIES = Object.freeze([
+  "GATE_VALUE",
+  "GATE_FORMULA",
+  "FOLD_IMPROVEMENT_DEFINITION",
+  "CATASTROPHIC_FOLD_DEFINITION",
+  "APPLICABILITY_RULE",
+  "SAMPLE_FLOOR",
+  "SELECTION_TIE_RULE",
+  "AGGREGATE_VALIDATION_DEFINITION",
+  "CANDIDATE_DEFINITION",
+  "FEATURE_FORMULA",
+  "SELECTOR_FORMULA",
+  "COMPLEXITY_TUPLE",
+  "COST_ASSUMPTION",
+  "FORMAL_SIGNAL_FORMULA",
+  "ENTRY_FORMULA",
+  "STOP_FORMULA",
+  "TP_FORMULA",
+  "EXIT_FORMULA",
+  "HOLDING_HORIZON",
+  "RELATIVE_STRENGTH_FORMULA",
+  "RANKING_RULE",
+  "FUNDING_SEMANTICS",
+  "DECISION_TIME_FIELD_SEMANTICS",
+] as const);
+
 export const BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES: SelectionGateSchema = validateSelectionGateSchema({
   ...BASELINE_002_RESEARCH_ROUND_003_SELECTION_GATES,
   researchRoundId: M3_R4_ROUND_004_RESEARCH_ROUND_ID,
@@ -59,35 +112,31 @@ type Round004Definitions = Omit<
 > & Readonly<{
   researchRoundId: typeof M3_R4_ROUND_004_RESEARCH_ROUND_ID;
   hardGateIdentities: readonly string[];
+  applicableHardGateIdentities: readonly string[];
   noCandidateOutcome: typeof M3_R4_ROUND_004_NO_CANDIDATE_OUTCOME;
   performanceLock: typeof M3_R4_ROUND_004_PERFORMANCE_LOCK;
   redundancyApplicability: typeof M3_R4_ROUND_004_REDUNDANCY_APPLICABILITY;
   round004MechanismIds: typeof M3_R4_ROUND_004_MECHANISM_IDS;
+  invalidatingCategories: typeof M3_R4_ROUND_004_INVALIDATING_CATEGORIES;
 }>;
 
 export const BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS: Round004Definitions = deepFreeze({
   ...inheritedDefinitions,
   researchRoundId: M3_R4_ROUND_004_RESEARCH_ROUND_ID,
-  hardGateIdentities: [
-    "minimumAggregateImprovement",
-    "minimumImprovedValidationFolds",
-    "catastrophicFoldLimit",
-    "minimumNetExpectancy",
-    "minimumProfitFactor",
-    "maximumSymbolConcentration",
-    "maximumSingleTradeConcentration",
-    "maximumFeeBurdenRatio",
-    "minimumFormalSignals",
-    "minimumExecutedTrades",
-  ],
+  hardGateIdentities: M3_R4_ROUND_004_HARD_GATE_IDENTITIES,
+  applicableHardGateIdentities: M3_R4_ROUND_004_APPLICABLE_HARD_GATE_IDENTITIES,
   noCandidateOutcome: M3_R4_ROUND_004_NO_CANDIDATE_OUTCOME,
   performanceLock: M3_R4_ROUND_004_PERFORMANCE_LOCK,
   redundancyApplicability: M3_R4_ROUND_004_REDUNDANCY_APPLICABILITY,
   round004MechanismIds: M3_R4_ROUND_004_MECHANISM_IDS,
+  invalidatingCategories: M3_R4_ROUND_004_INVALIDATING_CATEGORIES,
   roundImmutability: {
     ...(BASELINE_002_RESEARCH_ROUND_003_DEFINITIONS.roundImmutability as Record<string, unknown>),
     becomesImmutableAt: M3_R4_ROUND_004_PERFORMANCE_LOCK,
-    actionOnChange: "STOP_AND_REQUIRE_NEW_RESEARCH_ROUND_DECISION",
+    invalidatingChanges: M3_R4_ROUND_004_INVALIDATING_CATEGORIES,
+    actionOnChange: "ROUND_004_INVALIDATION_REQUIRED",
+    postLockAction: "ROUND_004_INVALIDATION_REQUIRED",
+    postLockMeaning: "STOP; DO NOT PATCH OR RERUN THE SAME ROUND; INVALIDATION IS REQUIRED.",
     priorResultsClassification: "RESEARCH_AVAILABLE_SEEN_DATA",
   },
 }) as unknown as Round004Definitions;
@@ -111,7 +160,7 @@ export const BASELINE_002_RESEARCH_ROUND_004_CANONICAL_JSON = stableStringify(
 
 // This value is the SHA-256 of BASELINE_002_RESEARCH_ROUND_004_CANONICAL_JSON.
 export const BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256 =
-  "3c0a975cc0cbcd3dea73fc343b6298b76010d2bf7655e96986a638b646c625e5" as const;
+  "c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54" as const;
 
 export function validateM3R4Round004MachineRecord(
   record: typeof BASELINE_002_RESEARCH_ROUND_004_MACHINE_RECORD = BASELINE_002_RESEARCH_ROUND_004_MACHINE_RECORD,
@@ -136,6 +185,25 @@ export function validateM3R4Round004MachineRecord(
   }
   if (stableStringify(record.mechanismIds) !== stableStringify(M3_R4_ROUND_004_MECHANISM_IDS)) {
     throw new Error("M3-R4-B mechanism registry mismatch.");
+  }
+  if (stableStringify(record.definitions.hardGateIdentities) !== stableStringify(M3_R4_ROUND_004_HARD_GATE_IDENTITIES)) {
+    throw new Error("M3-R4-B hard gate identity registry mismatch.");
+  }
+  if (stableStringify(record.definitions.applicableHardGateIdentities) !== stableStringify(M3_R4_ROUND_004_APPLICABLE_HARD_GATE_IDENTITIES)) {
+    throw new Error("M3-R4-B applicable hard gate registry mismatch.");
+  }
+  if (Object.values(record.definitions.redundancyApplicability).some((value) => value !== "NOT_APPLICABLE")) {
+    throw new Error("M3-R4-B redundancy applicability must be NOT_APPLICABLE for every candidate.");
+  }
+  if (stableStringify(record.definitions.invalidatingCategories) !== stableStringify(M3_R4_ROUND_004_INVALIDATING_CATEGORIES)) {
+    throw new Error("M3-R4-B invalidating category registry mismatch.");
+  }
+  const roundImmutability = record.definitions.roundImmutability as Record<string, unknown>;
+  if (stableStringify(roundImmutability.invalidatingChanges) !== stableStringify(M3_R4_ROUND_004_INVALIDATING_CATEGORIES)) {
+    throw new Error("M3-R4-B round invalidation categories mismatch.");
+  }
+  if (roundImmutability.actionOnChange !== "ROUND_004_INVALIDATION_REQUIRED" || roundImmutability.postLockAction !== "ROUND_004_INVALIDATION_REQUIRED") {
+    throw new Error("M3-R4-B post-lock action mismatch.");
   }
   if (record.selectionGates.researchRoundId !== M3_R4_ROUND_004_RESEARCH_ROUND_ID) {
     throw new Error("M3-R4-B selection gate research round mismatch.");

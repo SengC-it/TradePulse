@@ -9,9 +9,12 @@ import {
   BASELINE_002_RESEARCH_ROUND_004_MACHINE_RECORD,
   BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256,
   BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES,
+  M3_R4_ROUND_004_APPLICABLE_HARD_GATE_IDENTITIES,
   M3_R4_ROUND_004_CANDIDATE_IDS,
   M3_R4_ROUND_004_COMPLEXITY_TUPLES,
   M3_R4_ROUND_004_CONTROL_ID,
+  M3_R4_ROUND_004_HARD_GATE_IDENTITIES,
+  M3_R4_ROUND_004_INVALIDATING_CATEGORIES,
   M3_R4_ROUND_004_INHERITED_SELECTION_GATE_SHA256,
   M3_R4_ROUND_004_MECHANISM_IDS,
   M3_R4_ROUND_004_NO_CANDIDATE_OUTCOME,
@@ -29,22 +32,27 @@ import {
   computeH11BreakoutLevel,
   computeH11RiskGeometry,
   computeH12RiskGeometry,
+  computeH14Momentum24hAtSignal,
   computeH14Momentum24h,
   evaluateH11Retest,
   evaluateH12Reclaim,
   evaluateH13ExitStep,
   evaluateH14Eligibility,
+  M3_R4_BT_POLICY_003_GLOBAL_HELD_CANDLE_COUNT,
+  resolveH13TrendExitAtNextOpen,
   h13EntryProtectiveStopValid,
   isDecisionTimeCandle,
   m3R4SignalIdentity,
   rankH14RelativeStrength,
   reuseH14ControlOutcome,
   selectH11QualifyingOrigin,
+  selectH11QualifiedRetestOrigin,
   validateM3R4Round004MachineRecord,
   validateM3R4Round004Plan,
   type M3R4BaselineFormalOrigin,
   type M3R4Candle,
   type H12ReclaimInput,
+  type H11QualifiedOriginCandidate,
 } from "../src/lib/research/index.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -71,15 +79,47 @@ function origin(overrides: Partial<M3R4BaselineFormalOrigin> = {}): M3R4Baseline
   };
 }
 
-function h12(overrides: Partial<H12ReclaimInput> = {}): H12ReclaimInput {
-  return {
+function h11Candidate(
+  signalTime = 4 * HOUR,
+  overrides: Partial<H11QualifiedOriginCandidate> = {},
+): H11QualifiedOriginCandidate {
+  const base: H11QualifiedOriginCandidate = {
+    ...origin({ signalTime, originStopReference: 100 }),
+    candlesBeforeOrigin: [
+      candle(signalTime - 3 * HOUR, { high: 103 }),
+      candle(signalTime - 2 * HOUR, { high: 104 }),
+      candle(signalTime - HOUR, { high: 105 }),
+    ],
+    candlesFromFirstAfterOrigin: [],
+  };
+  return { ...base, ...overrides };
+}
+
+function h11Current(closeTime: number, values: Partial<Omit<M3R4Candle, "openTime" | "closeTime">> = {}) {
+  return { ...candle(closeTime, { open: 105, low: 104, close: 106, ...values }), atr14: 2 };
+}
+
+type H12Overrides = Omit<Partial<H12ReclaimInput>, "previous" | "current"> & {
+  previous?: Partial<H12ReclaimInput["previous"]>;
+  current?: Partial<H12ReclaimInput["current"]>;
+};
+
+function h12(overrides: H12Overrides = {}): H12ReclaimInput {
+  const base: H12ReclaimInput = {
+    signalTime: 10 * HOUR,
     symbol: "ETHUSDT",
     direction: "LONG",
     symbolRegime: "LONG_ONLY",
     btcRegime: "BTC_STRONG_BULL",
-    previous: { high: 101, low: 99, close: 99.5, ema20: 100, ema50: 102 },
-    current: { high: 103, low: 100, close: 102, ema20: 100.5, rsi14: 60, atr14: 2 },
-    ...overrides,
+    previous: { openTime: 8 * HOUR + 1, closeTime: 9 * HOUR, high: 101, low: 99, close: 99.5, ema20: 100, ema50: 102 },
+    current: { openTime: 9 * HOUR + 1, closeTime: 10 * HOUR, high: 103, low: 100, close: 102, ema20: 100.5, rsi14: 60, atr14: 2 },
+  };
+  const { previous: previousOverrides, current: currentOverrides, ...scalarOverrides } = overrides;
+  return {
+    ...base,
+    ...scalarOverrides,
+    previous: { ...base.previous, ...previousOverrides },
+    current: { ...base.current, ...currentOverrides },
   };
 }
 
@@ -96,7 +136,7 @@ describe("M3-R4-B machine gate and governance", () => {
     ["05 recomputes the canonical gate SHA", () => expect(createHash("sha256").update(BASELINE_002_RESEARCH_ROUND_004_CANONICAL_JSON, "utf8").digest("hex")).toBe(BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256)],
     ["06 freezes the plan schema", () => expect(M3_R4_ROUND_004_PLAN_SCHEMA_VERSION).toBe("m3-r4-round-004-plan-001")],
     ["07 validates the canonical plan", () => expect(validateM3R4Round004Plan()).toBe(M3_R4_ROUND_004_PLAN)],
-    ["08 recomputes the canonical plan SHA", () => expect(createHash("sha256").update(M3_R4_ROUND_004_PLAN_CANONICAL_JSON, "utf8").digest("hex")).toBe("bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e")],
+    ["08 recomputes the canonical plan SHA", () => expect(createHash("sha256").update(M3_R4_ROUND_004_PLAN_CANONICAL_JSON, "utf8").digest("hex")).toBe("f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981")],
     ["09 freezes the CONTROL id", () => expect(M3_R4_ROUND_004_CONTROL_ID).toBe("R4-CONTROL-BASELINE-001")],
     ["10 freezes baseline-001 for CONTROL", () => expect(M3_R4_ROUND_004_PLAN.control.strategyVersion).toBe("baseline-001")],
     ["11 freezes bt-policy-003 for CONTROL", () => expect(M3_R4_ROUND_004_PLAN.control.backtestPolicyVersion).toBe("bt-policy-003")],
@@ -149,6 +189,72 @@ describe("M3-R4-B H11 breakout-retest", () => {
   for (const [name, test] of cases) it(name, test);
 });
 
+describe("M3-R4-B H11 complete origin pipeline", () => {
+  const cases: readonly [string, () => void][] = [
+    ["51 selects a valid age-1 origin", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(5 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 })] })],
+    }).originAgeBars).toBe(1)],
+    ["52 skips age-1 after stop invalidation and accepts age-2", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [
+        h11Candidate(5 * HOUR, { candlesFromFirstAfterOrigin: [candle(6 * HOUR, { open: 105, low: 99, close: 106 })] }),
+        h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 }), candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+      ],
+    }).origin?.signalTime).toBe(4 * HOUR)],
+    ["53 skips age-1 when retest fails and accepts age-2", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [
+        h11Candidate(5 * HOUR, { candlesBeforeOrigin: [candle(2 * HOUR, { high: 106 }), candle(3 * HOUR, { high: 106 }), candle(4 * HOUR, { high: 106 })], candlesFromFirstAfterOrigin: [candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+        h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 }), candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+      ],
+    }).origin?.signalTime).toBe(4 * HOUR)],
+    ["54 skips a non-formal age-1 origin", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [
+        h11Candidate(5 * HOUR, { formalSignal: false, candlesFromFirstAfterOrigin: [candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+        h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 }), candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+      ],
+    }).origin?.signalTime).toBe(4 * HOUR)],
+    ["55 skips a future-data age-1 origin", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [
+        h11Candidate(5 * HOUR, { evaluationClosedThrough: 6 * HOUR, candlesFromFirstAfterOrigin: [candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+        h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 }), candle(6 * HOUR, { open: 105, low: 104, close: 106 })] }),
+      ],
+    }).origin?.signalTime).toBe(4 * HOUR)],
+    ["56 rejects a current-candle stop touch", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(5 * HOUR, { low: 100 }), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 100, close: 106 })] })],
+    }).origin).toBeNull()],
+    ["57 fails closed when an intermediate post-origin candle is missing", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(6 * HOUR, { open: 105, low: 104, close: 106 })] })],
+    }).origin).toBeNull()],
+    ["58 fails closed on a duplicate post-origin candle", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 }), candle(5 * HOUR, { open: 105, low: 104, close: 106 }), candle(6 * HOUR, { open: 105, low: 104, close: 106 })] })],
+    }).origin).toBeNull()],
+    ["59 fails closed when the post-origin sequence does not end at current", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(6 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [candle(5 * HOUR, { open: 105, low: 104, close: 106 })] })],
+    }).origin).toBeNull()],
+    ["60 accepts an age-4 origin", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(8 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [5, 6, 7, 8].map((hour) => candle(hour * HOUR, { open: 105, low: 104, close: 106 })) })],
+    }).originAgeBars).toBe(4)],
+    ["61 never accepts an age-5 origin", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(9 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [h11Candidate(4 * HOUR, { candlesFromFirstAfterOrigin: [5, 6, 7, 8, 9].map((hour) => candle(hour * HOUR, { open: 105, low: 104, close: 106 })) })],
+    }).origin).toBeNull()],
+    ["62 returns no origin when all four candidates fail", () => expect(selectH11QualifiedRetestOrigin({
+      currentCandle: h11Current(8 * HOUR), symbol: "ETHUSDT", direction: "LONG",
+      origins: [1, 2, 3, 4].map((age) => h11Candidate((8 - age) * HOUR, { formalSignal: false, candlesFromFirstAfterOrigin: [] })),
+    }).origin).toBeNull()],
+  ];
+  for (const [name, test] of cases) it(name, test);
+});
+
 describe("M3-R4-B H12 pullback-reclaim", () => {
   const cases: readonly [string, () => void][] = [
     ["51 accepts the LONG reclaim", () => expect(evaluateH12Reclaim(h12()).reason).toBe("PASS")],
@@ -171,6 +277,10 @@ describe("M3-R4-B H12 pullback-reclaim", () => {
     ["68 enforces strict LONG close above previous high", () => expect(evaluateH12Reclaim(h12({ current: { ...h12().current, close: 101 } })).eligible).toBe(false)],
     ["69 requires exactly five prior candles for risk geometry", () => expect(computeH12RiskGeometry({ direction: "LONG", currentClose: 105, currentAtr14: 2, priorFiveCandles: [candle(HOUR)] })).toBeNull()],
     ["70 applies the prior-five 0.2 ATR stop offset", () => expect(computeH12RiskGeometry({ direction: "LONG", currentClose: 105, currentAtr14: 2, priorFiveCandles: Array.from({ length: 5 }, (_, index) => ({ high: 105 + index, low: 100 + index })) })?.stopReference).toBe(99.6)],
+    ["71 accepts exact p=t-1 timestamp alignment", () => expect(evaluateH12Reclaim(h12()).reason).toBe("PASS")],
+    ["72 rejects a t-2 previous candle", () => expect(evaluateH12Reclaim(h12({ previous: { openTime: 7 * HOUR + 1, closeTime: 8 * HOUR } })).reason).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["73 rejects a same-time previous candle", () => expect(evaluateH12Reclaim(h12({ previous: { openTime: 9 * HOUR + 1, closeTime: 10 * HOUR } })).reason).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["74 rejects a future current candle", () => expect(evaluateH12Reclaim(h12({ signalTime: 9 * HOUR })).reason).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
   ];
   for (const [name, test] of cases) it(name, test);
 });
@@ -197,6 +307,9 @@ describe("M3-R4-B H13 adaptive exit", () => {
     ["88 accepts a protected SHORT fill", () => expect(h13EntryProtectiveStopValid({ direction: "SHORT", entryFill: 99, stopReference: 100 })).toBe(true)],
     ["89 rejects a SHORT fill at stop", () => expect(h13EntryProtectiveStopValid({ direction: "SHORT", entryFill: 100, stopReference: 100 })).toBe(false)],
     ["90 never exposes a fixed TP decision in the pure exit helper", () => expect(evaluateH13ExitStep({ direction: "LONG", heldCandleNumber: 12, candle: { high: 110, low: 99, close: 101 }, ema20: 100, stopReference: 98 }).action).toBe("CONTINUE")],
+    ["91 resolves a held-47 trend trigger at held-48 open", () => expect(resolveH13TrendExitAtNextOpen({ triggerHeldCandleNumber: 47, nextCandle: candle(48 * HOUR, { open: 123 }) })).toMatchObject({ exitReason: "TREND_EXIT", heldCandleNumber: 48, rawExitPrice: 123 })],
+    ["92 never schedules another trend exit from held-48", () => expect(resolveH13TrendExitAtNextOpen({ triggerHeldCandleNumber: 48, nextCandle: candle(49 * HOUR) })).toBeNull()],
+    ["93 preserves bt-policy-003 global 24-candle horizon", () => expect(M3_R4_BT_POLICY_003_GLOBAL_HELD_CANDLE_COUNT).toBe(24)],
   ];
   for (const [name, test] of cases) it(name, test);
 });
@@ -207,18 +320,23 @@ describe("M3-R4-B H14 relative strength", () => {
     ["92 rejects zero current close", () => expect(computeH14Momentum24h({ closeNow: 0, close24BarsAgo: 100 }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
     ["93 rejects zero historical close", () => expect(computeH14Momentum24h({ closeNow: 100, close24BarsAgo: 0 }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
     ["94 rejects non-finite momentum input", () => expect(computeH14Momentum24h({ closeNow: Number.NaN, close24BarsAgo: 100 }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
-    ["95 ranks all five symbols descending", () => expect(rankH14RelativeStrength({ BTCUSDT: 0.1, ETHUSDT: 0.2, SOLUSDT: 0.05, XRPUSDT: -0.1, BNBUSDT: 0 }).orderedSymbols).toEqual(["ETHUSDT", "BTCUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"])],
-    ["96 resolves equal momentum by frozen symbol order", () => expect(rankH14RelativeStrength({ BTCUSDT: 0.1, ETHUSDT: 0.1, SOLUSDT: 0, XRPUSDT: 0, BNBUSDT: -0.1 }).orderedSymbols).toEqual(["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"])],
-    ["97 fails closed when a symbol is missing", () => expect(rankH14RelativeStrength({ BTCUSDT: 0.1, ETHUSDT: 0.1, SOLUSDT: 0.1, XRPUSDT: 0.1 }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
-    ["98 admits LONG rank one", () => expect(evaluateH14Eligibility({ direction: "LONG", rank: 1 })).toBe(true)],
-    ["99 admits LONG rank two", () => expect(evaluateH14Eligibility({ direction: "LONG", rank: 2 })).toBe(true)],
-    ["100 blocks LONG rank three", () => expect(evaluateH14Eligibility({ direction: "LONG", rank: 3 })).toBe(false)],
-    ["101 admits SHORT rank four", () => expect(evaluateH14Eligibility({ direction: "SHORT", rank: 4 })).toBe(true)],
-    ["102 admits SHORT rank five", () => expect(evaluateH14Eligibility({ direction: "SHORT", rank: 5 })).toBe(true)],
-    ["103 blocks SHORT rank three", () => expect(evaluateH14Eligibility({ direction: "SHORT", rank: 3 })).toBe(false)],
-    ["104 freezes exact signal identity", () => expect(m3R4SignalIdentity({ symbol: "ETHUSDT", direction: "LONG", signalTime: 123 })).toBe("ETHUSDT|LONG|123")],
-    ["105 reuses an exact CONTROL outcome", () => expect(reuseH14ControlOutcome({ symbol: "ETHUSDT", direction: "LONG", signalTime: 10 * HOUR, controlResults: [controlOutcome()] }).status).toBe("REUSED")],
-    ["106 fails closed when CONTROL outcome is missing", () => expect(reuseH14ControlOutcome({ symbol: "ETHUSDT", direction: "LONG", signalTime: 11 * HOUR, controlResults: [controlOutcome()] }).status).toBe("DATA_INCOMPLETE")],
+    ["95 accepts exact t-24 timestamp alignment", () => expect(computeH14Momentum24hAtSignal({ signalTime: 25 * HOUR, currentCandle: candle(25 * HOUR, { close: 110 }), historicalCandle: candle(HOUR, { close: 100 }) })).toMatchObject({ status: "VALID", momentum24h: expect.closeTo(0.1, 10) })],
+    ["96 rejects t-23 historical data", () => expect(computeH14Momentum24hAtSignal({ signalTime: 25 * HOUR, currentCandle: candle(25 * HOUR), historicalCandle: candle(2 * HOUR) }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["97 rejects t-25 historical data", () => expect(computeH14Momentum24hAtSignal({ signalTime: 25 * HOUR, currentCandle: candle(25 * HOUR), historicalCandle: candle(0) }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["98 rejects a future current candle", () => expect(computeH14Momentum24hAtSignal({ signalTime: 25 * HOUR, currentCandle: candle(26 * HOUR), historicalCandle: candle(2 * HOUR) }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["99 rejects an invalid close", () => expect(computeH14Momentum24hAtSignal({ signalTime: 25 * HOUR, currentCandle: candle(25 * HOUR, { close: Number.NaN }), historicalCandle: candle(HOUR) }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["100 ranks all five symbols descending", () => expect(rankH14RelativeStrength({ BTCUSDT: 0.1, ETHUSDT: 0.2, SOLUSDT: 0.05, XRPUSDT: -0.1, BNBUSDT: 0 }).orderedSymbols).toEqual(["ETHUSDT", "BTCUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"])],
+    ["101 resolves equal momentum by frozen symbol order", () => expect(rankH14RelativeStrength({ BTCUSDT: 0.1, ETHUSDT: 0.1, SOLUSDT: 0, XRPUSDT: 0, BNBUSDT: -0.1 }).orderedSymbols).toEqual(["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"])],
+    ["102 fails closed when a symbol is missing", () => expect(rankH14RelativeStrength({ BTCUSDT: 0.1, ETHUSDT: 0.1, SOLUSDT: 0.1, XRPUSDT: 0.1 }).status).toBe("FAIL_CLOSED_DATA_INCOMPLETE")],
+    ["103 admits LONG rank one", () => expect(evaluateH14Eligibility({ direction: "LONG", rank: 1 })).toBe(true)],
+    ["104 admits LONG rank two", () => expect(evaluateH14Eligibility({ direction: "LONG", rank: 2 })).toBe(true)],
+    ["105 blocks LONG rank three", () => expect(evaluateH14Eligibility({ direction: "LONG", rank: 3 })).toBe(false)],
+    ["106 admits SHORT rank four", () => expect(evaluateH14Eligibility({ direction: "SHORT", rank: 4 })).toBe(true)],
+    ["107 admits SHORT rank five", () => expect(evaluateH14Eligibility({ direction: "SHORT", rank: 5 })).toBe(true)],
+    ["108 blocks SHORT rank three", () => expect(evaluateH14Eligibility({ direction: "SHORT", rank: 3 })).toBe(false)],
+    ["109 freezes exact signal identity", () => expect(m3R4SignalIdentity({ symbol: "ETHUSDT", direction: "LONG", signalTime: 123 })).toBe("ETHUSDT|LONG|123")],
+    ["110 reuses an exact CONTROL outcome", () => expect(reuseH14ControlOutcome({ symbol: "ETHUSDT", direction: "LONG", signalTime: 10 * HOUR, controlResults: [controlOutcome()] }).status).toBe("REUSED")],
+    ["111 fails closed when CONTROL outcome is missing", () => expect(reuseH14ControlOutcome({ symbol: "ETHUSDT", direction: "LONG", signalTime: 11 * HOUR, controlResults: [controlOutcome()] }).status).toBe("DATA_INCOMPLETE")],
   ];
   for (const [name, test] of cases) it(name, test);
 });
@@ -234,12 +352,17 @@ describe("M3-R4-B selection gates", () => {
     ["113 preserves concentration .50/.10", () => expect([BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES.maximumSymbolConcentration.value, BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES.maximumSingleTradeConcentration.value]).toEqual([0.5, 0.1])],
     ["114 preserves fee burden .75", () => expect(BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES.maximumFeeBurdenRatio.value).toBe(0.75)],
     ["115 preserves sample floors 300 and 30", () => expect([BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES.minimumFormalSignals.value, BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATES.minimumExecutedTrades.value]).toEqual([300, 30])],
-    ["116 excludes redundancy from the ten applicable hard gates", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.hardGateIdentities).not.toContain("requiredRedundancyImprovement")],
-    ["117 marks all four candidates redundancy N/A", () => expect(Object.values(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.redundancyApplicability)).toEqual(["NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_APPLICABLE"])],
-    ["118 preserves the no-candidate outcome", () => expect(M3_R4_ROUND_004_NO_CANDIDATE_OUTCOME).toBe("NO BASELINE-002 CANDIDATE — ROUND-004")],
-    ["119 freezes the performance lock", () => expect(M3_R4_ROUND_004_PERFORMANCE_LOCK).toBe("FIRST_M3_R4_PERFORMANCE_RESULT_GENERATED")],
-    ["120 keeps no-loss PF semantics", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.profitFactorStatusSemantics.NO_LOSSES).toContain("PF_GATE_PASSES_ONLY")],
-    ["121 preserves the stop action on gate change", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.roundImmutability.actionOnChange).toBe("STOP_AND_REQUIRE_NEW_RESEARCH_ROUND_DECISION")],
+    ["116 restores the exact eleven hard gate identities", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.hardGateIdentities).toEqual([...M3_R4_ROUND_004_HARD_GATE_IDENTITIES])],
+    ["117 exposes exactly ten applicable hard gates", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.applicableHardGateIdentities).toEqual([...M3_R4_ROUND_004_APPLICABLE_HARD_GATE_IDENTITIES])],
+    ["118 marks all four candidates redundancy N/A", () => expect(Object.values(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.redundancyApplicability)).toEqual(["NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_APPLICABLE"])],
+    ["119 excludes N/A redundancy from conjunction and PASS", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.eligibilityPolicy.notApplicableHandling).toBe("EXCLUDED_FROM_CONJUNCTION_NOT_COUNTED_AS_PASS")],
+    ["120 preserves the no-candidate outcome", () => expect(M3_R4_ROUND_004_NO_CANDIDATE_OUTCOME).toBe("NO BASELINE-002 CANDIDATE — ROUND-004")],
+    ["121 freezes the performance lock", () => expect(M3_R4_ROUND_004_PERFORMANCE_LOCK).toBe("FIRST_M3_R4_PERFORMANCE_RESULT_GENERATED")],
+    ["122 keeps no-loss PF semantics", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.profitFactorStatusSemantics.NO_LOSSES).toContain("PF_GATE_PASSES_ONLY")],
+    ["123 freezes the Round-004 invalidation action", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.roundImmutability.actionOnChange).toBe("ROUND_004_INVALIDATION_REQUIRED")],
+    ["124 freezes every Round-004 invalidating category", () => expect(BASELINE_002_RESEARCH_ROUND_004_DEFINITIONS.invalidatingCategories).toEqual([...M3_R4_ROUND_004_INVALIDATING_CATEGORIES])],
+    ["125 freezes the complete H11 origin selection rule", () => expect(M3_R4_ROUND_004_PLAN.candidateDefinitions[0].originSelection.selectionRule).toBe("FIRST ORIGIN IN AGE 1→4 ORDER THAT PASSES THE COMPLETE ORIGIN+INVALIDATION+RETEST+RISK PIPELINE.")],
+    ["126 freezes H13 next-open and original-R denominator metadata", () => { expect(M3_R4_ROUND_004_PLAN.candidateDefinitions[2].exit.trendExitSettlement).toContain("n+1 OPEN"); expect(M3_R4_ROUND_004_PLAN.candidateDefinitions[2].exit.stopDistanceRDenominator).toBe("ORIGINAL_BASELINE_STOP_DISTANCE"); }],
   ];
   for (const [name, test] of cases) it(name, test);
 });

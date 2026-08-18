@@ -50,9 +50,16 @@ export const M3_R4_ROUND_004_CANDIDATE_DEFINITIONS = deepFreeze([
     originSelection: {
       searchAgesBars: [1, 2, 3, 4],
       searchOrder: "NEWEST_ORIGIN_FIRST",
+      selectionRule: "FIRST ORIGIN IN AGE 1→4 ORDER THAT PASSES THE COMPLETE ORIGIN+INVALIDATION+RETEST+RISK PIPELINE.",
       baselineReconstruction: "EXACT_BASELINE_001_USING_DATA_CLOSED_BY_ORIGIN_TIME",
       eligibility: "formalSignal === true AND totalScore >= 70 AND same symbol/direction",
       noOriginAfterAge4: true,
+    },
+    postOriginSequence: {
+      required: "COMPLETE_CHRONOLOGICAL_CLOSED_1H_SEQUENCE_FROM_FIRST_AFTER_ORIGIN_THROUGH_CURRENT_INCLUSIVE",
+      noGaps: true,
+      mustEndAtCurrentCandle: true,
+      stopCheck: "EVERY_POST_ORIGIN_CANDLE_INCLUSIVE_OF_CURRENT",
     },
     breakout: {
       long: "max high of the three fully closed 1H candles before origin",
@@ -100,6 +107,7 @@ export const M3_R4_ROUND_004_CANDIDATE_DEFINITIONS = deepFreeze([
       "currentOHLC", "currentEMA20", "currentRSI14", "currentATR14", "priorFiveStopExtreme", "stopReference",
       "stopDistance", "stopAtr", "takeProfitReference",
     ],
+    timestampContract: "current.closeTime === signalTime AND previous.closeTime === current.closeTime - 1H; neither candle may be future data",
     settlement: "next 1H open with existing bt-policy-003 adverse slippage, bracket, 2R/SL/24/SL-first/funding/fee semantics",
   },
   {
@@ -118,12 +126,15 @@ export const M3_R4_ROUND_004_CANDIDATE_DEFINITIONS = deepFreeze([
       held48: "SL first; otherwise TIME_EXIT at raw held-48 close; no EMA next-open trigger after held-48",
       order: ["SL", "EMA_CLOSE_TRIGGER", "CONTINUE"],
       noSweep: true,
+      trendExitSettlement: "trigger held candle n schedules exit on held candle n+1 OPEN; rawExitPrice = held[n+1].open; held-48 cannot schedule another trend exit",
+      stopDistanceRDenominator: "ORIGINAL_BASELINE_STOP_DISTANCE",
     },
     funding: "exact bt-policy-003 rate/mark fallback/sign/audit and clock-exit boundary semantics",
     auditFields: [
       "baselineCandidateSnapshot", "exitReason", "trendTriggerHeldCandleNumber", "heldCandleNumber", "trendTriggerClose",
       "trendTriggerEma20", "rawExitPrice", "exitFill", "exitTime",
     ],
+    btPolicy003GlobalHeldCandleCount: 24,
   },
   {
     candidateId: "R4-H14-RELATIVE-STRENGTH",
@@ -141,6 +152,7 @@ export const M3_R4_ROUND_004_CANDIDATE_DEFINITIONS = deepFreeze([
       shortEligibility: "rank >= 4",
       rank3: "BLOCKED",
       missingData: "FAIL_CLOSED_DATA_INCOMPLETE",
+      timestampContract: "current.closeTime === signalTime AND historical.closeTime === current.closeTime - 24H; both candles must be decision-time legal",
     },
     outcomeReuse: "reuse same-run CONTROL BacktestSignalResult by exact symbol|direction|signalTime identity; missing is DATA_INCOMPLETE",
     auditFields: ["signalTime", "symbol", "direction", "fiveSymbolMomentum24hMap", "rankMap", "candidateRank"],
@@ -190,6 +202,8 @@ export const M3_R4_ROUND_004_PLAN = deepFreeze({
     symbols: ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
     decisionTimeOnly: true,
     noFutureOutcomeFieldsInH11H12H14: true,
+    h12TimestampContract: "current.closeTime === signalTime; previous.closeTime === current.closeTime - 1H",
+    h14TimestampContract: "current.closeTime === signalTime; historical.closeTime === current.closeTime - 24H",
   },
   dataRequirements: {
     signalTimeframe: "1h",
@@ -216,6 +230,8 @@ export const M3_R4_ROUND_004_PLAN = deepFreeze({
       "future EMA",
       "returns",
       "regime derived after signalTime",
+      "H12 previous candle other than exact t-1",
+      "H14 historical candle other than exact t-24",
     ],
     settlementSeparate: true,
   },
@@ -234,7 +250,7 @@ export const M3_R4_ROUND_004_PLAN_CANONICAL_JSON = stableStringify(M3_R4_ROUND_0
 
 // This value is the SHA-256 of M3_R4_ROUND_004_PLAN_CANONICAL_JSON.
 export const M3_R4_ROUND_004_PLAN_SHA256 =
-  "bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e" as const;
+  "f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981" as const;
 
 export function validateM3R4Round004Plan(
   plan: typeof M3_R4_ROUND_004_PLAN = M3_R4_ROUND_004_PLAN,

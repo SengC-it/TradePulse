@@ -415,19 +415,20 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
 
 - **Decision:** M3-R4-B freezes `baseline-002-research-round-004` from
   authoritative main `1bab6066cd4e9933c3d50ab29a38e9ad0792e5c8`. Its machine
-  Gate is `3c0a975cc0cbcd3dea73fc343b6298b76010d2bf7655e96986a638b646c625e5`
+  Gate is `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`
   and its Plan is
-  `bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e`.
+  `f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981`.
 - **Scope:** The registry is exactly one frozen baseline-001 CONTROL and the
   four standalone H11-H14 candidates. H11/H12/H14 are decision-time-only
   pure selectors; H13 is a variant-local 48-held-candle exit overlay. The
   existing `bt-policy-003` economics, baseline-001, folds, symbols, and
   next-open semantics are preserved.
 - **Gate:** Round-003 numeric values and semantics are inherited unchanged.
-  Ten hard gates apply; redundancy is explicitly `NOT_APPLICABLE` for every
-  Round-004 candidate and is excluded from the conjunction rather than counted
-  as a pass. The tie rule, no-candidate outcome, performance lock, and
-  fail-closed invalidation action are machine-recorded and SHA-validated.
+  The machine registry retains 11 hard-gate identities, with 10 applicable;
+  redundancy is explicitly `NOT_APPLICABLE` for every Round-004 candidate and
+  is excluded from the conjunction rather than counted as a pass. The tie
+  rule, no-candidate outcome, performance lock, and exact structural
+  invalidation categories/action are machine-recorded and SHA-validated.
 - **Reason:** R4-A identified four structural hypotheses but intentionally did
   not define executable formulas. Exact machine-readable definitions,
   decision-time boundaries, audit fields, provenance, and synthetic tests must

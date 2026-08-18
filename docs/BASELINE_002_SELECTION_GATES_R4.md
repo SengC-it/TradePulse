@@ -8,9 +8,9 @@ Status: **FROZEN FOR REVIEW / NO PERFORMANCE GENERATED**
 - inherited Round-003 Gate SHA:
   `297d658142d870557a175decb75567b68cb72b52a49a8f7c81b0c0af002f3bd2`
 - Round-004 Gate SHA:
-  `3c0a975cc0cbcd3dea73fc343b6298b76010d2bf7655e96986a638b646c625e5`
+  `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`
 - Plan SHA:
-  `bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e`
+  `f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981`
 - performance lock: `FIRST_M3_R4_PERFORMANCE_RESULT_GENERATED`
 - no-candidate outcome: `NO BASELINE-002 CANDIDATE — ROUND-004`
 
@@ -20,11 +20,27 @@ rules. The only round-specific changes are the research identity, source
 provenance, four-candidate applicability, and performance-lock/no-candidate
 labels.
 
-## Applicable hard gates
+## Hard-gate registry and applicability
 
-All four candidates must pass all ten applicable gates. A failed performance
-gate is `INELIGIBLE`; an integrity failure is incomplete evidence and must fail
-closed.
+The exact SHA-covered registry has 11 identities, in this order:
+
+```text
+minimumAggregateImprovement
+minimumImprovedValidationFolds
+catastrophicFoldLimit
+minimumNetExpectancy
+minimumProfitFactor
+maximumSymbolConcentration
+maximumSingleTradeConcentration
+maximumFeeBurdenRatio
+requiredRedundancyImprovement
+minimumFormalSignals
+minimumExecutedTrades
+```
+
+All four candidates must pass the 10 applicable identities other than
+`requiredRedundancyImprovement`. A failed performance gate is `INELIGIBLE`; an
+integrity failure is incomplete evidence and must fail closed.
 
 | Gate | Frozen value | Comparison / denominator |
 | --- | ---: | --- |
@@ -39,10 +55,10 @@ closed.
 | Minimum formal signals | `300` | aggregate F1-F6 validation formal signals, at least |
 | Minimum executed trades | `30` | each individual F1-F6 validation fold, at least |
 
-The inherited redundancy formula remains recorded for audit compatibility but
-is not an applicable hard gate in Round-004. H11, H12, H13, and H14 all have
-`redundancyApplicability = NOT_APPLICABLE`; `NOT_APPLICABLE` is excluded from
-the conjunction and never converted into PASS.
+The inherited redundancy formula remains recorded for audit compatibility.
+H11, H12, H13, and H14 all have `redundancyApplicability = NOT_APPLICABLE`;
+`NOT_APPLICABLE` is excluded from the conjunction and never converted into
+PASS.
 
 ## PF, folds, and tie rules
 
@@ -61,14 +77,26 @@ the conjunction and never converted into PASS.
 ## Immutability and stop conditions
 
 The record becomes immutable at the first generated Round-004 performance
-result. Any change to a gate value/formula, applicability rule, fold or
-catastrophic definition, candidate definition, feature/selector formula,
-complexity tuple, cost assumption, or tie rule requires:
+result. The exact invalidating categories are:
+
+```text
+GATE_VALUE, GATE_FORMULA, FOLD_IMPROVEMENT_DEFINITION,
+CATASTROPHIC_FOLD_DEFINITION, APPLICABILITY_RULE, SAMPLE_FLOOR,
+SELECTION_TIE_RULE, AGGREGATE_VALIDATION_DEFINITION, CANDIDATE_DEFINITION,
+FEATURE_FORMULA, SELECTOR_FORMULA, COMPLEXITY_TUPLE, COST_ASSUMPTION,
+FORMAL_SIGNAL_FORMULA, ENTRY_FORMULA, STOP_FORMULA, TP_FORMULA,
+EXIT_FORMULA, HOLDING_HORIZON, RELATIVE_STRENGTH_FORMULA, RANKING_RULE,
+FUNDING_SEMANTICS, DECISION_TIME_FIELD_SEMANTICS
+```
+
+Any such change requires:
 
 ```text
 ROUND_004_INVALIDATION_REQUIRED
-STOP_AND_REQUIRE_NEW_RESEARCH_ROUND_DECISION
 ```
+
+Meaning: stop, do not patch or rerun the same round, and require a new
+research-round decision.
 
 No Round-004 performance result exists in M3-R4-B. `baseline-002` remains
 NOT FROZEN, M3-J remains BLOCKED, and M4 remains NOT STARTED.
