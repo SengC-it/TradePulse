@@ -22,4 +22,8 @@ export * from "./selection-gates-round-003.ts";
 export * from "./selection-gates-round-004.ts";
 export * from "./m3-r4-round-004-plan.ts";
 export * from "./m3-r4-round-004-protocol.ts";
+export * from "./m3-r4-round-004-loader.ts";
+export * from "./m3-r4-round-004-settlement.ts";
+export * from "./m3-r4-round-004-evidence.ts";
+export * from "./m3-r4-round-004-performance.ts";
 export * from "./types.ts";
