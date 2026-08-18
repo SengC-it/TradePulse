@@ -242,6 +242,23 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   results retained as `SEEN_DATA`. No evaluator or candidate performance is
   introduced in this remediation.
 
+## ADR-023 — Freeze M3-H round-001 Stage-A plan before performance output
+
+- **Decision:** M3-H round-001 uses one fresh `bt-policy-003` CONTROL report and
+  derives exactly 13 predeclared single-mechanism candidates offline from
+  outcome-blind decision snapshots. The Stage-A plan is identified by
+  `2780b2e2d334b5a0f60e046e19073e09d28492fdf04c45a9e9917e686c1fe73a` and is
+  tied to authoritative main `99e8f86207c0bd22facf66d557e2e6f792ba0b6e`.
+- **Reason:** Re-running the Strategy Engine or settlement separately for each
+  candidate would change the comparison unit and permit result-dependent
+  experiment definitions. A single frozen CONTROL ledger preserves signal-time
+  selection and identical inherited economics.
+- **Consequence:** Stage A must be committed and pass CI before the one CONTROL
+  capture. After the first complete historical result, experiment definitions,
+  selector semantics, and result derivation are immutable. M3-H remains
+  descriptive and defers all gate application to M3-I; `baseline-002` is not
+  frozen.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
