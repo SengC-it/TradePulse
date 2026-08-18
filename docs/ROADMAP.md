@@ -640,9 +640,10 @@ only research inputs used in this milestone.
 - `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
   `m3-b-report-004`, and M3-E evidence are unchanged.
 - M3-G.2 owns the real round-001 gate values and is **CLOSED / MERGED**;
-  `baseline-002` remains **NOT FROZEN**. M3-H, M3-I, and M3-R2-A are
-  closed/merged; M3-R2-B is under review, while M3-J is blocked/not started
-  and M4 remains not started.
+  `baseline-002` remains **NOT FROZEN**. M3-H, M3-I, M3-R2-A, and M3-R2-B
+  are closed/merged. M3-R2-C is **INVALIDATED / STOPPED** for Round-002,
+  M3-R2-D is cancelled for Round-002, M3-J is blocked/not started, and M4
+  remains not started.
 
 ### Verification
 
@@ -807,7 +808,7 @@ remains blocked.
 
 ## M3-R2-B — Round-002 Machine Gate, Registry, and Pure Selector Tooling
 
-Status: UNDER REVIEW; PRE-PERFORMANCE; Draft PR
+Status: CLOSED / MERGED; pre-performance tooling
 
 M3-R2-B is limited to deterministic, synthetic-fixture tooling for the frozen
 Round-002 protocol. It adds the SHA-covered machine gate record, the exact
@@ -819,13 +820,37 @@ selectors plus exact-AND combinations C1-C4. H9 uses closed 1H
 The gate SHA is
 `9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0` and the
 plan SHA is
-`3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21`.
+`82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511`.
 All nine Round-002 redundancy gates are `NOT_APPLICABLE`, never `PASS`.
 
-This milestone does not call Binance, load historical data, run CONTROL or
+This milestone did not call Binance, load historical data, run CONTROL or
 backtest, generate evidence/performance metrics, implement `baseline-002`,
-add a CLI/runner, tune parameters, start M3-R2-C/D, freeze baseline-002, or
-start M3-J/M4. The next milestone requires a separate explicit authorization.
+add a CLI/runner, tune parameters, or freeze baseline-002. M3-R2-C was
+separately authorized after this merge; its single CONTROL capture completed,
+but the Round-002 evidence pipeline was invalidated after performance was
+generated. See `docs/M3_R2_C_INVALIDATION.md`.
+
+## M3-R2-C — Round-002 Authoritative CONTROL and Evidence
+
+Status: INVALIDATED / STOPPED; `ROUND_002_INVALIDATION_REQUIRED`
+
+The exact source-freeze commit was
+`9df170b7f72a95971825e126d4096e1e4f16be5f` on top of main
+`ce50fde82fdbed7c27668647915a2ea5b4c16f79`; its CI Run #69 / ID
+`32103930135` passed. The one authorized `baseline-001` / `COMBINED` /
+`bt-policy-003` CONTROL completed with `studyServerTime = 1787031883099`,
+`7500` formal signals, `7495` executed trades, and zero CONTROL diagnostics.
+
+Offline evidence derivation then exposed two result-affecting defects after
+`runBacktest()` returned: aggregate F1-F6 diagnostics were called without
+filtering records to the requested inclusive range, and identity hashing used
+lexical string ordering instead of the frozen time/symbol/direction order.
+The round therefore cannot be patched and rerun. Candidate performance and
+Round-002 evidence were not generated, and the captured artifacts are
+invalidated-round artifacts only. `M3-R2-D` is cancelled for Round-002;
+`baseline-002` remains **NOT FROZEN**, M3-J remains blocked, and M4 remains
+not started. The complete closure record is
+`docs/M3_R2_C_INVALIDATION.md`.
 
 ## M4 — Realtime Scanner
 
