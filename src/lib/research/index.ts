@@ -7,6 +7,7 @@ export * from "./m3-h-evidence.ts";
 export * from "./m3-h-round-001-plan.ts";
 export * from "./m3-h-selectors.ts";
 export * from "./m3-r2-decision-snapshot.ts";
+export * from "./m3-r2-c-evidence.ts";
 export * from "./m3-r2-round-002-plan.ts";
 export * from "./m3-r2-selectors.ts";
 export * from "./registry.ts";

@@ -18,6 +18,8 @@
     "backtest:run": "node --experimental-strip-types --no-warnings scripts/backtest-run.ts",
     "research:m3h:capture-control": "node --experimental-strip-types --no-warnings scripts/m3-h-capture-control.ts",
     "research:m3h:derive-evidence": "node --experimental-strip-types --no-warnings scripts/m3-h-derive-evidence.ts",
+    "research:m3r2:capture-control": "node --experimental-strip-types --no-warnings scripts/m3-r2-c-capture-control.ts",
+    "research:m3r2:derive-evidence": "node --experimental-strip-types --no-warnings scripts/m3-r2-c-derive-evidence.ts",
     "research:m3i:select": "node --experimental-strip-types --no-warnings scripts/m3-i-select.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
