@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-H — baseline-002 research round-001 evidence under review (results generated)**.
+Current milestone: **M3-I — baseline-002 round-001 mechanical gate application under review**.
 
 ## Boundary
 
@@ -22,8 +22,9 @@ remains INCOMPLETE. M3-F hardens study-clock provenance; M3-G freezes only the
 research protocol, while M3-G.1 adds downstream deterministic diagnostics and
 M3-G.2 freezes the round-001 candidate-selection gates. M3-H Stage A froze
 the single-mechanism plan before performance, and Stage B generated one
-descriptive CONTROL plus 13 offline candidate evidence records; baseline-002
-remains unfrozen until a later approved milestone.
+descriptive CONTROL plus 13 offline candidate evidence records. M3-H is closed
+and M3-I mechanically applied the frozen gates offline; the result is
+`NO BASELINE-002 CANDIDATE`, so baseline-002 remains unfrozen.
 
 ## Architecture
 
@@ -75,6 +76,7 @@ npm test           # deterministic unit tests
 npm run build      # production build
 npm run market:smoke # manual public Binance market-data smoke test
 npm run backtest:run -- --period DEV # local historical report; public data only
+npm run research:m3i:select # offline mechanical M3-I gate application
 npm run verify     # typecheck, lint, tests, and build
 ```
 
@@ -125,7 +127,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-G | baseline-002 research protocol specification (closed / merged) |
 | M3-G.1 | Research tooling and diagnostics (closed / merged; synthetic fixtures only) |
 | M3-G.2 | Candidate-selection gate freeze (closed / merged; round-001 gates only) |
-| M3-H | Round-001 single-mechanism research (evidence generated; under review; baseline-002 not frozen) |
+| M3-H | Round-001 single-mechanism research (closed / merged; evidence preserved) |
+| M3-I | Round-001 mechanical candidate gate application (under review; no baseline-002 candidate) |
 | M4 | Realtime scanner, protected endpoint, persistence |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |

@@ -1,5 +1,7 @@
 # M3-H Round-001 Research Evidence
 
+Status: M3-H CLOSED / MERGED; this descriptive evidence is the immutable input to M3-I.
+
 evidenceStatus: COMPLETE
 decision: DEFER_TO_M3_I_FROZEN_GATE_APPLICATION
 researchRoundId: baseline-002-research-round-001
@@ -41,6 +43,6 @@ The lowest `overlappingSignalRate` is `R1-H1-CD-24H = 0`.
 The generated "Lowest redundancy rate" line above is based on the minimum
 `redundancyRelativeReductionVsControl` and is therefore mislabeled. This is a
 descriptive-rendering issue only and does not alter candidate identities,
-economics, diagnostics, `evidenceStatus`, or future M3-I gate application.
+economics, diagnostics, `evidenceStatus`, or the separate M3-I gate application.
 
 No candidate is labeled PASS, ELIGIBLE, WINNER, BEST, or baseline-002.

@@ -1,6 +1,6 @@
 # M3-H Round-001 Stage-A Pre-Run Freeze
 
-Status: STAGE A FROZEN; STAGE B RESULTS GENERATED / UNDER REVIEW
+Status: STAGE A FROZEN; STAGE B COMPLETE; M3-H CLOSED / MERGED
 
 This document records the machine-readable plan committed before any M3-H
 performance output. It does not claim a CONTROL or candidate result.
@@ -45,5 +45,5 @@ The Stage-A implementation contains:
 No historical market data, Binance request, CONTROL report, candidate
 performance, M3-G.2 gate application, baseline-002 freeze, M3-I, M4, private
 API, or trading action is part of this pre-run freeze. The subsequent Stage B
-execution is recorded in `docs/M3_H_ROUND_001_STAGE_A.md` and the generated
-evidence files under `docs/evidence/`.
+execution is recorded in `docs/M3_H_ROUND_001_STAGE_A.md`, the generated
+evidence files under `docs/evidence/`, and the separate M3-I selection report.

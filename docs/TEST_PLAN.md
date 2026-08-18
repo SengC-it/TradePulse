@@ -1,7 +1,7 @@
 # TradePulse Test Plan
 
-Status: M3-G, M3-G.1, and M3-G.2 CLOSED / MERGED; M3-H evidence generated and
-under review; `baseline-002` remains NOT FROZEN.
+Status: M3-G, M3-G.1, M3-G.2, and M3-H CLOSED / MERGED; M3-I under review;
+`baseline-002` remains NOT FROZEN.
 
 ## Test layers
 
@@ -533,8 +533,35 @@ identities, all required diagnostics, and only the descriptive decision
 `baseline-002`, or rerun a candidate backtest.
 
 The M3-H performance command was authorized only after the Stage-A source was
-committed, pushed, reviewed, and its CI passed. The resulting evidence remains
-descriptive and under review; M3-I is not started.
+committed, pushed, reviewed, and its CI passed. M3-H is now closed / merged;
+M3-I consumes its committed evidence without rerunning performance.
+
+### M3-I mechanical selection tests
+
+M3-I must prove, with offline deterministic fixtures and the committed real
+evidence:
+
+1. exact M3-H provenance, selection-gate hash, plan hash, study clock, policy,
+   schema, F1-F6 ranges, and exactly 13 candidate identities are required;
+2. incomplete, duplicated, non-finite, or mismatched evidence fails closed as
+   `INCOMPLETE_EVIDENCE`;
+3. all 11 hard gates emit `PASS`, `FAIL`, or `NOT_APPLICABLE` with actual value,
+   frozen threshold, applicability, and comparison;
+4. H1/H4 redundancy is required, while H2/H3 N/A is excluded from the
+   conjunction and never counted as PASS;
+5. inclusive boundaries are covered for improvement, improved folds, expectancy,
+   PF, fee burden, formal signals, and per-fold executed trades;
+6. PF `NORMAL`, `NO_LOSSES`, and `NO_TRADES`, null concentration, catastrophic
+   folds, and invalid fee ratios follow the frozen semantics;
+7. selection tie-breaks are deterministic across improved folds, expectancy,
+   complexity, PF, and experiment ID, and CONTROL can never be selected;
+8. the committed real evidence produces exactly `NO BASELINE-002 CANDIDATE`,
+   with no candidate labeled eligible and no M3-J implementation decision.
+
+The CLI `npm run research:m3i:select` reads only
+`docs/evidence/M3_H_ROUND_001_SUMMARY.json` and the frozen repository
+definitions. It performs no network request, historical load, backtest, or
+Strategy Engine call.
 
 ### M3-B implemented test coverage
 

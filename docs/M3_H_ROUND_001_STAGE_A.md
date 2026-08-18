@@ -1,6 +1,6 @@
 # M3-H Round-001 Stage-A / Stage-B Audit
 
-Status: UNDER REVIEW / RESULTS GENERATED; `baseline-002` NOT FROZEN.
+Status: CLOSED / MERGED; RESULTS PRESERVED; `baseline-002` NOT FROZEN.
 
 ## CONTROL attempt history
 
@@ -26,9 +26,9 @@ by the existing Binance public client from `/fapi/v1/time`.
 
 All 13 candidates were derived offline from the single raw CONTROL report.
 There were no candidate backtest reruns, Strategy Engine reruns, settlement
-reruns, combinations, optimizer, threshold changes, or M3-I gate application.
-The evidence decision remains
-`DEFER_TO_M3_I_FROZEN_GATE_APPLICATION`; `baseline-002` is not frozen.
+reruns, combinations, optimizer, threshold changes, or M3-I gate application
+during Stage B. The separate offline M3-I result is recorded in
+`docs/evidence/M3_I_ROUND_001_SELECTION.json`; `baseline-002` is not frozen.
 
 ## M3-H execution-only HTTP profile
 
