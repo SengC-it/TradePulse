@@ -350,10 +350,11 @@ source-pinned to `26d18ef314594f0e79583da617a0d8c17e812be9`.
 
 The canonical pre-performance plan is
 `M3_R2_ROUND_002_PLAN` with SHA-256
-`3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21`.
+`82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511`.
 It contains exactly one control plus nine candidate identities, the exact
 complexity tuples, single-value parameter declarations, the 16-field
-`M3R2DecisionSnapshot` contract, and the no-candidate outcome
+`M3R2DecisionSnapshot` contract, exact machine-readable H6-H10 selector
+specifications and C1-C4 combinations, and the no-candidate outcome
 `NO BASELINE-002 CANDIDATE — ROUND-002`.
 
 `extractM3R2DecisionSnapshot` is pure and fail-closed: it accepts only a
@@ -364,6 +365,17 @@ Selectors accept only those contemporaneous snapshots, return original
 snapshot references as strict subsets, reject duplicate identities, and use
 exact AND composition for combinations. No selector accepts settlement,
 future-candle, funding, or performance fields.
+
+Before any Round-002 performance existed, review identified and corrected an
+implementation defect in H7 where close distance was measured from EMA50 rather
+than the already-frozen EMA200 reference. The corrected implementation follows
+the canonical machine-readable selector specification and preserves strict
+directional ordering, EMA200 close distance, EMA50-EMA200 spread, EMA200
+five-bars-ago slope, positive-ATR normalization, and inclusive thresholds.
+This is a pre-performance implementation correction, not strategy tuning; the
+frozen protocol and gate semantics remain unchanged. Consequently,
+`ROUND_002_INVALIDATION_REQUIRED` does not apply, and no performance,
+historical, or CONTROL run was performed.
 
 ## Round-002 invalidation rule
 

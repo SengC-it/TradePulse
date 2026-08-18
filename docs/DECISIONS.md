@@ -303,7 +303,7 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   combinations C1-C4, and synthetic tests. The gate record SHA is
   `9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0`; the
   plan SHA is
-  `3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21`.
+  `82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511`.
 - **Reason:** Round-002 must be mechanically reproducible without allowing
   future outcomes, settlement fields, historical loader behavior, or
   performance results to influence candidate identity or selection.
@@ -313,6 +313,10 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   `26d18ef314594f0e79583da617a0d8c17e812be9`, status remains
   `NOT_GENERATED`, and no CONTROL/backtest/historical/network run is allowed.
   M3-R2-C/D, baseline-002 freeze, M3-J, and M4 remain unauthorized.
+  Before performance existed, an H7 implementation defect that used EMA50
+  instead of EMA200 for close distance was corrected to the already-frozen
+  formula. This was not strategy tuning, and `ROUND_002_INVALIDATION_REQUIRED`
+  does not apply.
 
 ## Deferred decisions
 

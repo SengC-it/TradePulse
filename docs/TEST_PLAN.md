@@ -626,7 +626,7 @@ after documentation verification and CI with M3-I closed/merged,
 ### M3-R2-B Round-002 machine gate and pure selector tests
 
 M3-R2-B is pre-performance and uses synthetic fixtures only. The dedicated
-file `tests/m3-r2-b-round002.test.ts` contains exactly **85 tests** covering:
+file `tests/m3-r2-b-round002.test.ts` contains exactly **97 tests** covering:
 
 - Round-001 gate/plan inheritance, Round-002 identity, exact numeric gates,
   the 13 invalidating categories, canonical gate SHA, and the
@@ -641,6 +641,10 @@ file `tests/m3-r2-b-round002.test.ts` contains exactly **85 tests** covering:
 - H6-H10 inclusive thresholds, long/short mirrors, exact AND combinations
   C1-C4, strict-subset reference preservation, duplicate identity rejection,
   deterministic time/symbol/direction ordering, and no input mutation; and
+- discriminating H7 LONG and SHORT fixtures proving that close distance uses
+  EMA200 rather than EMA50, independent equality/just-below boundary tests for
+  close distance, EMA spread, and EMA200 slope, and selector behavior sourced
+  from the canonical H6-H10 machine specifications; and
 - static safety checks proving no Binance request, historical loader,
   backtest/settlement runner, optimizer, evidence generation, `Date.now`,
   randomness, or baseline-002 Strategy Engine implementation is introduced.
@@ -648,6 +652,10 @@ file `tests/m3-r2-b-round002.test.ts` contains exactly **85 tests** covering:
 The source modules are limited to the Round-002 research namespace and are
 exported through `src/lib/research/index.ts`. The suite does not run CONTROL,
 the historical loader, the backtest CLI, or any market-data endpoint.
+
+The H7 correction was identified and completed before any Round-002
+performance output. It corrects the implementation to the frozen formula and
+is not strategy tuning; `ROUND_002_INVALIDATION_REQUIRED` does not apply.
 
 ### M3-B implemented test coverage
 

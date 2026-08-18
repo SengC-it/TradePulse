@@ -15,6 +15,7 @@ import {
   BASELINE_002_RESEARCH_ROUND_002_MACHINE_RECORD,
   BASELINE_002_RESEARCH_ROUND_002_SELECTION_GATE_SHA256,
   BASELINE_002_RESEARCH_ROUND_002_SELECTION_GATES,
+  M3_H_ROUND_001_PLAN_SHA256,
   M3_R2_ROUND_002_CANDIDATE_COUNT,
   M3_R2_ROUND_002_CANDIDATE_DEFINITIONS,
   M3_R2_ROUND_002_CANDIDATE_IDS,
@@ -29,6 +30,7 @@ import {
   M3_R2_ROUND_002_RESULT_IDENTITY_COUNT,
   M3_R2_ROUND_002_RESULT_IDENTITY_ORDER,
   M3_R2_ROUND_002_RESEARCH_ROUND_ID,
+  M3_R2_ROUND_002_SELECTOR_SPECS,
   M3_R2_ROUND_002_SOURCE_SHA,
   M3_R2_ROUND_002_REDUNDANCY_APPLICABILITY,
   M3_R2_ROUND_002_INVALIDATING_CATEGORIES,
@@ -170,7 +172,7 @@ function shortSnapshot(overrides: Partial<M3R2DecisionSnapshot> = {}): M3R2Decis
   });
 }
 
-describe("M3-R2-B Round-002 pre-performance freeze and pure tooling (85 dedicated tests)", () => {
+describe("M3-R2-B Round-002 pre-performance freeze and pure tooling (97 dedicated tests)", () => {
   it("01 preserves the Round-001 selection-gate SHA", () => {
     expect(BASELINE_002_RESEARCH_ROUND_001_SELECTION_GATE_SHA256).toBe("11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd");
   });
@@ -411,7 +413,7 @@ describe("M3-R2-B Round-002 pre-performance freeze and pure tooling (85 dedicate
     expect(passesM3R2H7(snapshot())).toBe(true);
   });
   it("61 rejects H7 when close distance is below one ATR", () => {
-    expect(passesM3R2H7(snapshot({ symbol4hClose: 101.999 }))).toBe(false);
+    expect(passesM3R2H7(snapshot({ symbol4hClose: 100.999, symbol4hEma50: 100.5, symbol4hEma200: 99, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 98.8 }))).toBe(false);
   });
   it("62 includes H7 SHORT equality boundaries", () => {
     expect(passesM3R2H7(shortSnapshot())).toBe(true);
@@ -513,5 +515,79 @@ describe("M3-R2-B Round-002 pre-performance freeze and pure tooling (85 dedicate
     expect(sources).not.toMatch(/binance|historical-loader|backtest-run|settlement-adapter|Math\.random|Date\.now|optimizer|gridSearch/i);
     expect(readFileSync("src/lib/strategy/candidate.ts", "utf8")).not.toContain("baseline-002");
     expect(M3_R2_ROUND_002_PLAN.performanceStatus).toBe("NOT_GENERATED");
+  });
+  it("86 preserves the exact Round-001 plan SHA", () => {
+    expect(M3_H_ROUND_001_PLAN_SHA256).toBe("2780b2e2d334b5a0f60e046e19073e09d28492fdf04c45a9e9917e686c1fe73a");
+  });
+  it("87 passes the discriminating LONG H7 EMA200 close-distance fixture", () => {
+    expect(passesM3R2H7(snapshot({
+      symbol4hClose: 101,
+      symbol4hEma50: 100.5,
+      symbol4hEma200: 99,
+      symbol4hAtr: 2,
+      symbol4hEma200FiveBarsAgo: 98.8,
+    }))).toBe(true);
+  });
+  it("88 passes the discriminating SHORT H7 EMA200 close-distance fixture", () => {
+    expect(passesM3R2H7(shortSnapshot({
+      symbol4hClose: 99,
+      symbol4hEma50: 99.5,
+      symbol4hEma200: 101,
+      symbol4hAtr: 2,
+      symbol4hEma200FiveBarsAgo: 101.2,
+    }))).toBe(true);
+  });
+  it("89 keeps H7 close-distance measurement independent of EMA50", () => {
+    const first = snapshot({ symbol4hClose: 101, symbol4hEma50: 100.5, symbol4hEma200: 99, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 98.8 });
+    const second = { ...first, symbol4hEma50: 100.25 };
+    expect(passesM3R2H7(first)).toBe(true);
+    expect(passesM3R2H7(second)).toBe(true);
+  });
+  it("90 applies the independent LONG close-distance boundary", () => {
+    const exact = snapshot({ symbol4hClose: 101, symbol4hEma50: 100.5, symbol4hEma200: 99, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 98.8 });
+    expect(passesM3R2H7(exact)).toBe(true);
+    expect(passesM3R2H7({ ...exact, symbol4hClose: 100.999 })).toBe(false);
+  });
+  it("91 applies the independent LONG EMA-spread boundary", () => {
+    const exact = snapshot({ symbol4hClose: 101, symbol4hEma50: 100, symbol4hEma200: 99, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 98.8 });
+    expect(passesM3R2H7(exact)).toBe(true);
+    expect(passesM3R2H7({ ...exact, symbol4hEma50: 99.999 })).toBe(false);
+  });
+  it("92 applies the independent LONG EMA200-slope boundary", () => {
+    const exact = snapshot({ symbol4hClose: 101, symbol4hEma50: 100, symbol4hEma200: 99, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 98.8 });
+    expect(passesM3R2H7(exact)).toBe(true);
+    expect(passesM3R2H7({ ...exact, symbol4hEma200FiveBarsAgo: 98.801 })).toBe(false);
+  });
+  it("93 applies the independent SHORT close-distance boundary", () => {
+    const exact = shortSnapshot({ symbol4hClose: 99, symbol4hEma50: 99.5, symbol4hEma200: 101, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 101.2 });
+    expect(passesM3R2H7(exact)).toBe(true);
+    expect(passesM3R2H7({ ...exact, symbol4hClose: 99.001 })).toBe(false);
+  });
+  it("94 applies the independent SHORT EMA-spread boundary", () => {
+    const exact = shortSnapshot({ symbol4hClose: 98.999, symbol4hEma50: 100, symbol4hEma200: 101, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 101.2 });
+    expect(passesM3R2H7(exact)).toBe(true);
+    expect(passesM3R2H7({ ...exact, symbol4hEma200: 100.999 })).toBe(false);
+  });
+  it("95 applies the independent SHORT EMA200-slope boundary", () => {
+    const exact = shortSnapshot({ symbol4hClose: 99, symbol4hEma50: 100, symbol4hEma200: 101, symbol4hAtr: 2, symbol4hEma200FiveBarsAgo: 101.2 });
+    expect(passesM3R2H7(exact)).toBe(true);
+    expect(passesM3R2H7({ ...exact, symbol4hEma200FiveBarsAgo: 101.199 })).toBe(false);
+  });
+  it("96 includes the exact H7-H10 specs in the canonical plan", () => {
+    expect(M3_R2_ROUND_002_PLAN.selectorSpecs).toEqual(M3_R2_ROUND_002_SELECTOR_SPECS);
+    expect(M3_R2_ROUND_002_PLAN.selectorSpecs.H7.LONG.closeDistanceNumerator).toBe("symbol4hClose - symbol4hEma200");
+    expect(M3_R2_ROUND_002_PLAN_CANONICAL_JSON).toContain("symbol4hEma200");
+    expect(M3_R2_ROUND_002_PLAN_CANONICAL_JSON).toContain("Candle.quoteVolume");
+  });
+  it("97 matches selector behavior to the frozen selector specifications", () => {
+    expect(M3_R2_ROUND_002_SELECTOR_SPECS.H7.thresholds.closeDistanceAtrMin).toBe(1);
+    expect(M3_R2_ROUND_002_SELECTOR_SPECS.H7.thresholds.emaSpreadAtrMin).toBe(0.5);
+    expect(M3_R2_ROUND_002_SELECTOR_SPECS.H7.thresholds.ema200SlopeAtrMin).toBe(0.1);
+    expect(M3_R2_ROUND_002_SELECTOR_SPECS.H8.maxTouchAgeBars).toBe(2);
+    expect(M3_R2_ROUND_002_SELECTOR_SPECS.H9.ratioMinimum).toBe(1);
+    expect(M3_R2_ROUND_002_SELECTOR_SPECS.H10.marginMinimumAtr).toBe(0.1);
+    expect(passesM3R2H8(snapshot({ nearestBaselinePullbackTouchAgeBars: M3_R2_ROUND_002_SELECTOR_SPECS.H8.maxTouchAgeBars }))).toBe(true);
+    expect(passesM3R2H9(snapshot({ current1hQuoteVolume: 100, previous20Closed1hQuoteVolumeMean: 100 }))).toBe(true);
+    expect(passesM3R2H10(snapshot({ breakoutMarginAtr: M3_R2_ROUND_002_SELECTOR_SPECS.H10.marginMinimumAtr }))).toBe(true);
   });
 });

@@ -4,7 +4,10 @@ import {
   M3_R2_ROUND_002_CANDIDATE_IDS,
   type M3R2CandidateId,
 } from "./selection-gates-round-002.ts";
-import { M3_R2_ROUND_002_CONTROL_ID } from "./m3-r2-round-002-plan.ts";
+import {
+  M3_R2_ROUND_002_CONTROL_ID,
+  M3_R2_ROUND_002_SELECTOR_SPECS,
+} from "./m3-r2-round-002-plan.ts";
 
 export class M3R2SelectorError extends Error {
   public readonly name = "M3R2SelectorError";
@@ -61,17 +64,22 @@ function normalized(value: number, atr: number): number | null {
 
 export function passesM3R2H6(snapshot: M3R2DecisionSnapshot): boolean {
   if (!validSnapshot(snapshot)) return false;
-  if (snapshot.symbol === "BTCUSDT") return true;
+  if (snapshot.symbol === "BTCUSDT" && M3_R2_ROUND_002_SELECTOR_SPECS.H6.btcExemption) return true;
   return snapshot.direction === "LONG"
-    ? snapshot.btcRegime === "BTC_STRONG_BULL"
-    : snapshot.btcRegime === "BTC_STRONG_BEAR";
+    ? snapshot.btcRegime === M3_R2_ROUND_002_SELECTOR_SPECS.H6.nonBtcLongRequiresBtcRegime
+    : snapshot.btcRegime === M3_R2_ROUND_002_SELECTOR_SPECS.H6.nonBtcShortRequiresBtcRegime;
 }
 
 export function passesM3R2H7(snapshot: M3R2DecisionSnapshot): boolean {
   if (!validSnapshot(snapshot) || snapshot.symbol4hAtr <= 0) return false;
+  const spec = M3_R2_ROUND_002_SELECTOR_SPECS.H7;
+  const directionalRegime = snapshot.direction === "LONG"
+    ? snapshot.symbol4hClose > snapshot.symbol4hEma50 && snapshot.symbol4hEma50 > snapshot.symbol4hEma200
+    : snapshot.symbol4hClose < snapshot.symbol4hEma50 && snapshot.symbol4hEma50 < snapshot.symbol4hEma200;
+  if (!directionalRegime) return false;
   const closeDistance = snapshot.direction === "LONG"
-    ? snapshot.symbol4hClose - snapshot.symbol4hEma50
-    : snapshot.symbol4hEma50 - snapshot.symbol4hClose;
+    ? snapshot.symbol4hClose - snapshot.symbol4hEma200
+    : snapshot.symbol4hEma200 - snapshot.symbol4hClose;
   const emaSpread = snapshot.direction === "LONG"
     ? snapshot.symbol4hEma50 - snapshot.symbol4hEma200
     : snapshot.symbol4hEma200 - snapshot.symbol4hEma50;
@@ -81,24 +89,25 @@ export function passesM3R2H7(snapshot: M3R2DecisionSnapshot): boolean {
   const normalizedCloseDistance = normalized(closeDistance, snapshot.symbol4hAtr);
   const normalizedEmaSpread = normalized(emaSpread, snapshot.symbol4hAtr);
   const normalizedEmaSlope = normalized(emaSlope, snapshot.symbol4hAtr);
-  return normalizedCloseDistance !== null && normalizedCloseDistance >= 1.0 &&
-    normalizedEmaSpread !== null && normalizedEmaSpread >= 0.5 &&
-    normalizedEmaSlope !== null && normalizedEmaSlope >= 0.1;
+  return normalizedCloseDistance !== null && normalizedCloseDistance >= spec.thresholds.closeDistanceAtrMin &&
+    normalizedEmaSpread !== null && normalizedEmaSpread >= spec.thresholds.emaSpreadAtrMin &&
+    normalizedEmaSlope !== null && normalizedEmaSlope >= spec.thresholds.ema200SlopeAtrMin;
 }
 
 export function passesM3R2H8(snapshot: M3R2DecisionSnapshot): boolean {
   return validSnapshot(snapshot) && Number.isInteger(snapshot.nearestBaselinePullbackTouchAgeBars) &&
-    snapshot.nearestBaselinePullbackTouchAgeBars >= 1 && snapshot.nearestBaselinePullbackTouchAgeBars <= 2;
+    snapshot.nearestBaselinePullbackTouchAgeBars >= M3_R2_ROUND_002_SELECTOR_SPECS.H8.minTouchAgeBars &&
+    snapshot.nearestBaselinePullbackTouchAgeBars <= M3_R2_ROUND_002_SELECTOR_SPECS.H8.maxTouchAgeBars;
 }
 
 export function passesM3R2H9(snapshot: M3R2DecisionSnapshot): boolean {
   if (!validSnapshot(snapshot) || snapshot.previous20Closed1hQuoteVolumeMean <= 0 || snapshot.current1hQuoteVolume < 0) return false;
   const ratio = snapshot.current1hQuoteVolume / snapshot.previous20Closed1hQuoteVolumeMean;
-  return finite(ratio) && ratio >= 1.0;
+  return finite(ratio) && ratio >= M3_R2_ROUND_002_SELECTOR_SPECS.H9.ratioMinimum;
 }
 
 export function passesM3R2H10(snapshot: M3R2DecisionSnapshot): boolean {
-  return validSnapshot(snapshot) && snapshot.current1hAtr > 0 && snapshot.breakoutMarginAtr >= 0.1;
+  return validSnapshot(snapshot) && snapshot.current1hAtr > 0 && snapshot.breakoutMarginAtr >= M3_R2_ROUND_002_SELECTOR_SPECS.H10.marginMinimumAtr;
 }
 
 function passesCandidate(snapshot: M3R2DecisionSnapshot, candidateId: M3R2CandidateId): boolean {

@@ -95,6 +95,71 @@ export const M3_R2_ROUND_002_PARAMETER_DEFINITIONS = deepFreeze({
   breakoutBufferAtr: { name: "breakoutBufferAtr", unit: "ATR multiples", values: [0.1] },
 });
 
+const parameterValue = (name: keyof typeof M3_R2_ROUND_002_PARAMETER_DEFINITIONS): number =>
+  M3_R2_ROUND_002_PARAMETER_DEFINITIONS[name].values[0];
+
+export const M3_R2_ROUND_002_SELECTOR_SPECS = deepFreeze({
+  H6: {
+    mechanismId: "H6_STRICT_BTC_ALIGNMENT",
+    btcExemption: true,
+    nonBtcLongRequiresBtcRegime: "BTC_STRONG_BULL",
+    nonBtcShortRequiresBtcRegime: "BTC_STRONG_BEAR",
+    btcNeutralBlocksNonBtc: true,
+  },
+  H7: {
+    mechanismId: "H7_STRONG_SYMBOL_REGIME",
+    denominator: "symbol4hAtr",
+    equalityIncluded: true,
+    thresholds: {
+      closeDistanceAtrMin: parameterValue("closeDistanceAtrMin"),
+      emaSpreadAtrMin: parameterValue("emaSpreadAtrMin"),
+      ema200SlopeAtrMin: parameterValue("ema200SlopeAtrMin"),
+    },
+    LONG: {
+      preconditions: ["symbol4hClose > symbol4hEma50", "symbol4hEma50 > symbol4hEma200"],
+      closeDistanceNumerator: "symbol4hClose - symbol4hEma200",
+      emaSpreadNumerator: "symbol4hEma50 - symbol4hEma200",
+      ema200SlopeNumerator: "symbol4hEma200 - symbol4hEma200FiveBarsAgo",
+    },
+    SHORT: {
+      preconditions: ["symbol4hClose < symbol4hEma50", "symbol4hEma50 < symbol4hEma200"],
+      closeDistanceNumerator: "symbol4hEma200 - symbol4hClose",
+      emaSpreadNumerator: "symbol4hEma200 - symbol4hEma50",
+      ema200SlopeNumerator: "symbol4hEma200FiveBarsAgo - symbol4hEma200",
+    },
+  },
+  H8: {
+    mechanismId: "H8_RECENT_PULLBACK",
+    minTouchAgeBars: 1,
+    maxTouchAgeBars: parameterValue("maxTouchAgeBars"),
+    integerRequired: true,
+  },
+  H9: {
+    mechanismId: "H9_VOLUME_CONFIRMATION",
+    numerator: "current1hQuoteVolume",
+    denominator: "previous20Closed1hQuoteVolumeMean",
+    sourceField: "Candle.quoteVolume",
+    ratioMinimum: parameterValue("minCurrentToMeanRatio"),
+    currentCandleExcludedFromMean: true,
+  },
+  H10: {
+    mechanismId: "H10_BREAKOUT_BUFFER",
+    marginMinimumAtr: parameterValue("breakoutBufferAtr"),
+  },
+  combinations: {
+    C1: ["H6", "H7"],
+    C2: ["H7", "H8"],
+    C3: ["H7", "H9", "H10"],
+    C4: ["H6", "H7", "H9", "H10"],
+  },
+  composition: {
+    combinationOperator: "AND",
+    allowsOr: false,
+    allowsWeighting: false,
+    allowsScore: false,
+  },
+} as const);
+
 export type M3R2SelectorKind =
   | "CONTROL_BASELINE_001"
   | "H6_STRICT_BTC_ALIGNMENT"
@@ -235,6 +300,7 @@ export const M3_R2_ROUND_002_PLAN = deepFreeze({
   complexityDimensionDomain: BASELINE_002_RESEARCH_ROUND_001_DEFINITIONS.complexityDimensionDomain,
   decisionSnapshotFields: M3_R2_ROUND_002_DECISION_SNAPSHOT_FIELDS,
   forbiddenSelectorFields: M3_R2_ROUND_002_FORBIDDEN_SELECTOR_FIELDS,
+  selectorSpecs: M3_R2_ROUND_002_SELECTOR_SPECS,
   selectorPolicy: {
     input: "M3R2DecisionSnapshot only",
     output: "strict subset of original snapshot references",
@@ -249,7 +315,7 @@ export const M3_R2_ROUND_002_PLAN = deepFreeze({
 export const M3_R2_ROUND_002_PLAN_CANONICAL_JSON = stableStringify(M3_R2_ROUND_002_PLAN);
 
 // Replaced with the SHA of the final canonical plan before commit.
-export const M3_R2_ROUND_002_PLAN_SHA256 = "3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21" as const;
+export const M3_R2_ROUND_002_PLAN_SHA256 = "82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511" as const;
 
 export function validateM3R2Round002Plan(
   plan: typeof M3_R2_ROUND_002_PLAN = M3_R2_ROUND_002_PLAN,

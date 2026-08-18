@@ -12,7 +12,7 @@ researchRoundId = baseline-002-research-round-002
 sourceSha = 26d18ef314594f0e79583da617a0d8c17e812be9
 inheritedRound001SelectionGateSha256 = 11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd
 round002SelectionGateSha256 = 9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0
-round002PlanSha256 = 3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21
+round002PlanSha256 = 82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511
 performanceStatus = NOT_GENERATED
 performanceLock = FIRST_M3_R2_C_PERFORMANCE_RESULT_GENERATED
 ```
@@ -133,6 +133,22 @@ thresholds; combinations are exact logical ANDs. They do not accept
 `symbol|direction|signalTime` identities are rejected. Outputs are sorted by
 signal time, frozen symbol order `BTCUSDT ETHUSDT SOLUSDT XRPUSDT BNBUSDT`, and
 `LONG` before `SHORT`, and contain only original snapshot references.
+
+## Pre-performance formula remediation
+
+Before any Round-002 performance existed, review identified an implementation
+defect in H7: the selector used `symbol4hEma50` instead of `symbol4hEma200` as
+the close-distance reference. The implementation now follows the already
+frozen H7 formula and its machine-readable selector specification: strict
+directional close/EMA50/EMA200 ordering, EMA200 close distance, EMA50-EMA200
+spread, and the EMA200 five-bars-ago slope, all normalized by positive
+`symbol4hAtr` with inclusive thresholds. This is a pre-performance
+implementation correction, not strategy tuning; the frozen protocol, gate
+record, candidate identities, tuples, and gate semantics are unchanged.
+
+`ROUND_002_INVALIDATION_REQUIRED` does not apply because no performance output
+had been generated. No historical, CONTROL, or candidate-performance run was
+performed for this correction.
 
 ## Stop condition
 
