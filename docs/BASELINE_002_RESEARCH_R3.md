@@ -128,6 +128,7 @@ fixtures. It must not call a market-data endpoint, load historical data, run
 CONTROL, run a backtest or settlement/funding path, evaluate candidates, or
 apply selection gates. It must not import those execution paths.
 
-M3-R3-B is **NOT STARTED / NOT AUTHORIZED**. No candidate diagnostics,
-performance metrics, candidate evidence, or `baseline-002` freeze exists.
-M3-J is **BLOCKED** and M4 is **NOT STARTED**.
+M3-R3-B is **AUTHORIZED for Commit-A source freeze and one-time offline
+derivation**. No candidate diagnostics, performance metrics, candidate
+evidence, or `baseline-002` freeze exists yet. M3-J is **BLOCKED** and M4 is
+**NOT STARTED**.

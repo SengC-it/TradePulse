@@ -38,8 +38,9 @@ recovery protocol with plan SHA
 reuse only exact SHA-verified Round-002 captures; the verifier parses the
 snapshot envelope and CONTROL from those same bytes, validates Round-001
 parity offline, and does not generate performance. `baseline-002` remains
-unfrozen, M3-R3-B is not started/not authorized, M3-J is blocked/not started,
-and M4 remains not started.
+unfrozen. M3-R3-B is authorized and its Commit-A offline source freeze is in
+progress; no Round-003 candidate performance evidence has been generated.
+M3-J is blocked/not started, and M4 remains not started.
 
 ## Architecture
 
@@ -148,8 +149,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-R2-B | Round-002 machine gates and pure selector tooling (closed / merged) |
 | M3-R2-C | Round-002 CONTROL/evidence (invalidated / stopped; no candidate evidence) |
 | M3-R2-D | Round-002 mechanical gate application (cancelled for Round-002) |
-| M3-R3-A | Round-003 offline recovery protocol (under review / pre-performance) |
-| M3-R3-B | Round-003 candidate derivation (not started / not authorized) |
+| M3-R3-A | Round-003 offline recovery protocol (closed / merged; reuse verified) |
+| M3-R3-B | Round-003 offline candidate derivation (authorized; Commit-A source freeze) |
 | M4 | Realtime scanner, protected endpoint, persistence (not started) |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |

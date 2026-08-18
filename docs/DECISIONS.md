@@ -358,8 +358,26 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   hashes and envelope match the recorded values; otherwise the path fails
   closed. No Binance request, historical load, CONTROL/backtest/settlement
   run, candidate derivation, performance metric, or gate application is part
-  of R3-A. `baseline-002` remains not frozen, M3-R3-B is not started/not
-  authorized, M3-J is blocked/not started, and M4 is not started.
+  of R3-A. `baseline-002` remains not frozen, M3-R3-B is now separately
+  authorized for its offline source-freeze/one-time derivation flow, M3-J is
+  blocked/not started, and M4 is not started.
+
+### ADR-M3-R3-B — Offline Round-003 candidate derivation authorization
+
+- **Decision:** authorize only the two-commit M3-R3-B flow: Commit A freezes
+  the offline selector/evidence source and synthetic tests; after its CI
+  succeeds, one exact offline command may generate the nine descriptive
+  candidate diagnostics for Commit B.
+- **Constraint:** the source must reuse the exact SHA-verified Round-002
+  CONTROL and decision-snapshot bytes, existing frozen selectors, existing
+  diagnostic helpers, and inherited CONTROL economics. It must not call
+  Binance, HTTP, the historical loader, `runBacktest`, `evaluateStrategy`,
+  settlement, or any strategy path.
+- **Consequence:** the performance lock is
+  `FIRST_M3_R3_B_PERFORMANCE_RESULT_GENERATED`; after the first real
+  candidate diagnostic no result-affecting change or rerun is permitted.
+  `baseline-002` remains not frozen, M3-R3-C is not started, M3-J remains
+  blocked, and M4 remains not started.
 
 ## Deferred decisions
 

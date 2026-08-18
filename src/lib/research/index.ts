@@ -10,6 +10,7 @@ export * from "./m3-r2-decision-snapshot.ts";
 export * from "./m3-r2-round-002-plan.ts";
 export * from "./m3-r3-round-003-plan.ts";
 export * from "./m3-r3-round-003-recovery.ts";
+export * from "./m3-r3-b-round-003-evidence.ts";
 export * from "./m3-r2-selectors.ts";
 export * from "./registry.ts";
 export * from "./report.ts";

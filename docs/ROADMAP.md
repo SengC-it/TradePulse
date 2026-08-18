@@ -881,17 +881,20 @@ M3-R3-A permits only machine-record validation and synthetic tests. It does
 not call Binance, load historical data, run CONTROL/backtest/settlement,
 derive candidate diagnostics, apply gates, or modify strategy/candidate
 definitions, thresholds, complexity, baseline-001, or `bt-policy-003`.
-`baseline-002` remains **NOT FROZEN**. M3-R3-B is **NOT STARTED / NOT
-AUTHORIZED**, M3-J is blocked, and M4 is not started. See
+`baseline-002` remains **NOT FROZEN**. M3-R3-B is **AUTHORIZED / COMMIT-A
+SOURCE FREEZE IN PROGRESS**; no candidate performance evidence has been
+generated. M3-J is blocked, and M4 is not started. See
 `docs/BASELINE_002_RESEARCH_R3.md` and
 `docs/BASELINE_002_SELECTION_GATES_R3.md`.
 
 ## M3-R3-B — Round-003 Candidate Derivation
 
-Status: NOT STARTED / NOT AUTHORIZED
+Status: AUTHORIZED — COMMIT-A SOURCE FREEZE IN PROGRESS
 
-This step may begin only after separate human authorization and acceptance of
-the M3-R3-A freeze. It is not part of this change.
+This step is authorized only for the offline source freeze, synthetic tests,
+and later one-time evidence derivation described by the M3-R3-B protocol.
+Commit-A CI must pass before the formal offline command runs. Candidate gate
+application remains deferred to M3-R3-C; no performance evidence exists yet.
 
 ## M4 — Realtime Scanner
 
