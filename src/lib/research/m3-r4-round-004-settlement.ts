@@ -145,6 +145,18 @@ function emptyResult(
   });
 }
 
+export function createH13PeriodEndCensoredResult(
+  snapshot: BacktestSignalSnapshot,
+  decisionAudit: H13DecisionAudit,
+): H13RawResult {
+  return emptyResult(
+    snapshot,
+    "PERIOD_END_CENSORED",
+    decisionAudit,
+    "The H13 held-48 close crosses the frozen DEV end.",
+  );
+}
+
 function validHeldCandleSequence(signalCandle: Candle, heldCandles: readonly Candle[]): boolean {
   if (heldCandles.length !== 48) return false;
   return heldCandles.every((candle, index) =>
@@ -285,7 +297,7 @@ export function settleH13Signal(input: H13SettlementInput): H13RawResult {
     return emptyResult(input.snapshot, "DATA_INCOMPLETE", decisionAudit, "Exactly 48 contiguous held candles are required for H13.");
   }
   if (input.period === "DEV" && input.heldCandles[47]!.closeTime > input.periodEndTime) {
-    return emptyResult(input.snapshot, "PERIOD_END_CENSORED", decisionAudit, "The H13 held-48 close crosses the frozen DEV end.");
+    return createH13PeriodEndCensoredResult(input.snapshot, decisionAudit);
   }
   const rawEntryPrice = input.heldCandles[0]!.open;
   const entryFill = input.snapshot.direction === "LONG"
@@ -353,6 +365,9 @@ export function settleH13Signal(input: H13SettlementInput): H13RawResult {
       entryFill,
     });
   }
+  const resolvedExitTime = plan.exitReason === "SL" && windowResult.exitMinute
+    ? windowResult.exitMinute.closeTime
+    : plan.exitTime;
   const exitFill = input.snapshot.direction === "LONG"
     ? plan.rawExitPrice * (1 - BACKTEST_POLICY.slippageRate)
     : plan.rawExitPrice * (1 + BACKTEST_POLICY.slippageRate);
@@ -374,7 +389,7 @@ export function settleH13Signal(input: H13SettlementInput): H13RawResult {
     trendTriggerEma20: plan.trendTriggerHeldCandleNumber === null ? null : input.ema20ByHeldCandle[plan.trendTriggerHeldCandleNumber - 1] ?? null,
     rawExitPrice: plan.rawExitPrice,
     exitFill,
-    exitTime: plan.exitTime,
+    exitTime: resolvedExitTime,
     originalStopDistance: input.snapshot.stopDistance,
   });
   return Object.freeze({
@@ -383,7 +398,7 @@ export function settleH13Signal(input: H13SettlementInput): H13RawResult {
     entryTime,
     rawEntryPrice,
     entryFill,
-    exitTime: plan.exitTime,
+    exitTime: resolvedExitTime,
     rawExitPrice: plan.rawExitPrice,
     exitFill,
     heldCandleNumber: plan.heldCandleNumber,

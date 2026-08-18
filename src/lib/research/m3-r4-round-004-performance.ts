@@ -8,6 +8,7 @@ import {
   calculateRsi14,
 } from "../indicators/index.ts";
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
+import { INTERVAL_MS } from "../market-data/intervals.ts";
 import { evaluateStrategy } from "../strategy/engine.ts";
 import type { StrategyCandidate, StrategyDirection } from "../strategy/types.ts";
 import {
@@ -81,14 +82,18 @@ import {
 import {
   buildRound004ExecutionArtifacts,
   normalizeRound004Result,
+  validateRound004EvidenceIntegrity,
   type Round004CandidateKey,
+  type Round004EvidenceIntegrity,
   type Round004ExecutionArtifacts,
   type Round004Report,
   type Round004ResearchRecord,
 } from "./m3-r4-round-004-evidence.ts";
 import {
+  createH13PeriodEndCensoredResult,
   planH13Exit,
   settleH13Signal,
+  type H13DecisionAudit,
   type H13RawResult,
   type H13SettlementInput,
   type H13ExitPlan,
@@ -135,6 +140,37 @@ export type Round004RequirementDiscovery = Readonly<{
   performanceEconomics: null;
   evidence: null;
 }>;
+
+export type Round004H14FormationResult = Readonly<{
+  baseline: Round004BaselineCacheEntry;
+  status: "PASS" | "NO_SIGNAL" | "DATA_INCOMPLETE";
+  rankBySymbol: Readonly<Partial<Record<ResearchSymbol, number>>>;
+  momentum24hBySymbol: Readonly<Partial<Record<ResearchSymbol, number>>>;
+}>;
+
+export type Round004H13FormationResult = Readonly<{
+  baseline: Round004BaselineCacheEntry;
+  status: "PASS" | "DATA_INCOMPLETE" | "PERIOD_END_CENSORED";
+  candidate: Round004DecisionCandidate | null;
+  censoredResult?: H13RawResult;
+}>;
+
+export function evaluateH14FormationFromMomentum(input: Readonly<{
+  baseline: Round004BaselineCacheEntry;
+  momentum24hBySymbol: Partial<Record<ResearchSymbol, number>>;
+}>): Round004H14FormationResult {
+  const ranking = rankH14RelativeStrength(input.momentum24hBySymbol);
+  if (ranking.status !== "VALID") {
+    return { baseline: input.baseline, status: "DATA_INCOMPLETE", rankBySymbol: {}, momentum24hBySymbol: input.momentum24hBySymbol };
+  }
+  const rank = ranking.rankBySymbol[input.baseline.candidate.symbol];
+  return {
+    baseline: input.baseline,
+    status: evaluateH14Eligibility({ direction: input.baseline.candidate.direction, rank }) ? "PASS" : "NO_SIGNAL",
+    rankBySymbol: ranking.rankBySymbol,
+    momentum24hBySymbol: input.momentum24hBySymbol,
+  };
+}
 
 function periodForSignalTime(signalTime: number): Exclude<BacktestPeriod, "COMBINED"> | null {
   if (signalTime >= BACKTEST_PERIOD_RANGES.DEV.startTime && signalTime <= BACKTEST_PERIOD_RANGES.DEV.endTime) return "DEV";
@@ -415,22 +451,31 @@ export function evaluateH12Decision(input: Readonly<{
   });
 }
 
+export function evaluateH14Formation(input: Readonly<{
+  indexes: HistoricalIndexes;
+  currentTime: number;
+  baseline: Round004BaselineCacheEntry;
+}>): Round004H14FormationResult {
+  const currentBySymbol = Object.fromEntries(M3_R4_ROUND_004_SYMBOL_ORDER.map((symbol) => {
+    const candle = candleAtCloseTime(input.indexes, symbol, input.currentTime);
+    const historical = candle ? candleAtCloseTime(input.indexes, symbol, input.currentTime - 24 * 3_600_000) : null;
+    return [symbol, candle && historical ? computeH14Momentum24hAtSignal({ signalTime: input.currentTime, currentCandle: candle, historicalCandle: historical }) : { status: "FAIL_CLOSED_DATA_INCOMPLETE", momentum24h: null }];
+  })) as Record<ResearchSymbol, { status: "VALID" | "FAIL_CLOSED_DATA_INCOMPLETE"; momentum24h: number | null }>;
+  if (Object.values(currentBySymbol).some((result) => result.status !== "VALID" || result.momentum24h === null)) {
+    return { baseline: input.baseline, status: "DATA_INCOMPLETE", rankBySymbol: {}, momentum24hBySymbol: {} };
+  }
+  const momentum24hBySymbol = Object.freeze(Object.fromEntries(M3_R4_ROUND_004_SYMBOL_ORDER.map((symbol) => [symbol, currentBySymbol[symbol]!.momentum24h!])) as Record<ResearchSymbol, number>);
+  return evaluateH14FormationFromMomentum({ baseline: input.baseline, momentum24hBySymbol });
+}
+
 export function evaluateH14Decision(input: Readonly<{
   indexes: HistoricalIndexes;
   currentTime: number;
   baseline: Round004BaselineCacheEntry;
   controlResults: readonly BacktestSignalResult[];
 }>): Readonly<{ candidate: Round004DecisionCandidate | null; status: "PASS" | "NO_SIGNAL" | "DATA_INCOMPLETE"; reused: BacktestSignalResult | null }> {
-  const currentBySymbol = Object.fromEntries(M3_R4_ROUND_004_SYMBOL_ORDER.map((symbol) => {
-    const candle = candleAtCloseTime(input.indexes, symbol, input.currentTime);
-    const historical = candle ? candleAtCloseTime(input.indexes, symbol, input.currentTime - 24 * 3_600_000) : null;
-    return [symbol, candle && historical ? computeH14Momentum24hAtSignal({ signalTime: input.currentTime, currentCandle: candle, historicalCandle: historical }) : { status: "FAIL_CLOSED_DATA_INCOMPLETE", momentum24h: null }];
-  })) as Record<ResearchSymbol, { status: "VALID" | "FAIL_CLOSED_DATA_INCOMPLETE"; momentum24h: number | null }>;
-  if (Object.values(currentBySymbol).some((result) => result.status !== "VALID" || result.momentum24h === null)) return { candidate: null, status: "DATA_INCOMPLETE", reused: null };
-  const ranking = rankH14RelativeStrength(Object.fromEntries(M3_R4_ROUND_004_SYMBOL_ORDER.map((symbol) => [symbol, currentBySymbol[symbol]!.momentum24h!])));
-  if (ranking.status !== "VALID") return { candidate: null, status: "DATA_INCOMPLETE", reused: null };
-  const rank = ranking.rankBySymbol[input.baseline.candidate.symbol];
-  if (!evaluateH14Eligibility({ direction: input.baseline.candidate.direction, rank })) return { candidate: null, status: "NO_SIGNAL", reused: null };
+  const formation = evaluateH14Formation(input);
+  if (formation.status !== "PASS") return { candidate: null, status: formation.status, reused: null };
   const reused = reuseH14ControlOutcome({ symbol: input.baseline.candidate.symbol, direction: input.baseline.candidate.direction, signalTime: input.currentTime, controlResults: input.controlResults.map((result) => ({ ...result.snapshot, result })) });
   if (reused.status !== "REUSED" || !reused.outcome || !("result" in reused.outcome)) return { candidate: null, status: "DATA_INCOMPLETE", reused: null };
   const result = reused.outcome.result as BacktestSignalResult;
@@ -448,9 +493,9 @@ export function evaluateH14Decision(input: Readonly<{
         signalTime: input.currentTime,
         symbol: input.baseline.candidate.symbol,
         direction: input.baseline.candidate.direction,
-        fiveSymbolMomentum24hMap: Object.freeze(Object.fromEntries(M3_R4_ROUND_004_SYMBOL_ORDER.map((symbol) => [symbol, currentBySymbol[symbol]!.momentum24h]))),
-        rankMap: ranking.rankBySymbol,
-        candidateRank: rank,
+        fiveSymbolMomentum24hMap: formation.momentum24hBySymbol,
+        rankMap: formation.rankBySymbol,
+        candidateRank: formation.rankBySymbol[input.baseline.candidate.symbol],
         controlOutcomeIdentity: `${input.baseline.candidate.symbol}|${input.baseline.candidate.direction}|${input.currentTime}`,
       }),
     }),
@@ -523,34 +568,66 @@ function settleStandardCandidate(candidate: Round004DecisionCandidate, data: Bac
   });
 }
 
-function buildH13DecisionCandidate(
+export function evaluateH13Formation(
   baseline: Round004BaselineCacheEntry,
   decisionIndexes: HistoricalIndexes,
   settlementIndexes: HistoricalIndexes,
-): Round004DecisionCandidate | null {
+): Round004H13FormationResult {
   const signalCandle = candleAtCloseTime(decisionIndexes, baseline.candidate.symbol, baseline.signalTime);
-  if (!signalCandle) throw new Error(`H13 baseline signal candle is missing at ${baseline.signalTime}.`);
-  const heldCandles48 = getHeldCandles48(settlementIndexes, baseline.candidate.symbol, baseline.signalTime);
+  if (!signalCandle) return { baseline, status: "DATA_INCOMPLETE", candidate: null };
+  const snapshot = snapshotFromCandidate(baseline.candidate, baseline.signalTime, M3_R4_C_STANDARD_POLICY);
+  const decisionAudit: H13DecisionAudit = Object.freeze({
+    baselineCandidateSnapshot: snapshot,
+    originalTakeProfitReference: snapshot.takeProfitReference,
+  });
+  const expectedHeld48Close = signalCandle.openTime + 49 * INTERVAL_MS["1h"] - 1;
+  if (baseline.period === "DEV" && expectedHeld48Close > BACKTEST_PERIOD_RANGES.DEV.endTime) {
+    return {
+      baseline,
+      status: "PERIOD_END_CENSORED",
+      candidate: Object.freeze({
+        candidateId: "R4-H13-ADAPTIVE-TREND-EXIT",
+        signalTime: baseline.signalTime,
+        period: baseline.period,
+        snapshot,
+        signalCandle,
+        heldCandles24: Object.freeze([]),
+        decisionAudit,
+      }),
+      censoredResult: createH13PeriodEndCensoredResult(snapshot, decisionAudit),
+    };
+  }
+  const indexesForSettlement = baseline.period === "DEV" ? decisionIndexes : settlementIndexes;
+  let heldCandles48: readonly import("../market-data/types.ts").Candle[];
+  try {
+    heldCandles48 = getHeldCandles48(indexesForSettlement, baseline.candidate.symbol, baseline.signalTime);
+  } catch {
+    return { baseline, status: "DATA_INCOMPLETE", candidate: null };
+  }
   const ema20ByHeldCandle = heldCandles48.map((candle) => {
-    const series = settlementIndexes.bySymbol[baseline.candidate.symbol].candles1h;
+    const series = indexesForSettlement.bySymbol[baseline.candidate.symbol].candles1h;
     const index = findCandleIndexAtCloseTime(series, candle.closeTime);
     if (index < 0) return null;
     return calculateEma20(series.candles.slice(0, index + 1).map((item) => item.close)).at(-1) ?? null;
   });
   const plan = planH13Exit({ direction: baseline.candidate.direction, heldCandles: heldCandles48, ema20ByHeldCandle, stopReference: baseline.candidate.stopReference });
-  const snapshot = snapshotFromCandidate(baseline.candidate, baseline.signalTime, M3_R4_C_STANDARD_POLICY);
-  return Object.freeze({
-    candidateId: "R4-H13-ADAPTIVE-TREND-EXIT",
-    signalTime: baseline.signalTime,
-    period: baseline.period,
-    snapshot,
-    signalCandle,
-    heldCandles24: heldCandles48.slice(0, 24),
-    heldCandles48,
-    ema20ByHeldCandle,
-    ...(plan ? { rawH13Plan: plan } : {}),
-    decisionAudit: Object.freeze({ baselineCandidateSnapshot: snapshot }),
-  });
+  if (!plan) return { baseline, status: "DATA_INCOMPLETE", candidate: null };
+  return {
+    baseline,
+    status: "PASS",
+    candidate: Object.freeze({
+      candidateId: "R4-H13-ADAPTIVE-TREND-EXIT",
+      signalTime: baseline.signalTime,
+      period: baseline.period,
+      snapshot,
+      signalCandle,
+      heldCandles24: heldCandles48.slice(0, 24),
+      heldCandles48,
+      ema20ByHeldCandle,
+      rawH13Plan: plan,
+      decisionAudit,
+    }),
+  };
 }
 
 function toH13Input(candidate: Round004DecisionCandidate, data: BacktestData): H13SettlementInput {
@@ -574,6 +651,10 @@ function rawResultRecord(candidateId: Round004CandidateKey, result: BacktestSign
   return normalizeRound004Result(candidateId, result, { decision: decisionAudit, outcome: outcomeAudit });
 }
 
+function baselineSignalIdentity(entry: Round004BaselineCacheEntry): string {
+  return `${entry.candidate.symbol}|${entry.candidate.direction}|${entry.signalTime}`;
+}
+
 export function verifyRound004ControlParity(
   officialCache: readonly Round004BaselineCacheEntry[],
   controlResults: readonly BacktestSignalResult[],
@@ -591,11 +672,10 @@ export async function executeRound004AuthoritativeDetailed(input: Readonly<{
   validateM3R4Round004Plan();
   const study: Round004LoadedStudy = await loadRound004Study(input.loader);
   const decisionIndexes = buildHistoricalIndexes(study.standardData.datasets);
-  const settlementIndexes = buildHistoricalIndexes(study.combinedData.datasets);
+  const settlementIndexes = buildHistoricalIndexes(study.h13SettlementData.datasets);
   const officialTimes = buildOfficialRound004EvaluationTimes(decisionIndexes);
   const officialCache = buildBaselineFormalCache({ indexes: decisionIndexes, evaluationTimes: officialTimes });
   const originCache = buildH11OriginSupportCache(decisionIndexes, officialTimes);
-  const controlRequirements = discoverIntrabarSettlementRequirements({ period: "COMBINED", data: study.standardData });
   const h11Candidates: Round004DecisionCandidate[] = [];
   const h12Candidates: Round004DecisionCandidate[] = [];
   for (const time of officialTimes) {
@@ -608,26 +688,54 @@ export async function executeRound004AuthoritativeDetailed(input: Readonly<{
       }
     }
   }
-  const h13Candidates = officialCache.map((entry) => buildH13DecisionCandidate(entry, decisionIndexes, settlementIndexes)).filter((candidate): candidate is Round004DecisionCandidate => candidate !== null);
+  const h13Formation = officialCache.map((entry) => evaluateH13Formation(entry, decisionIndexes, settlementIndexes));
+  const h13FormationIncomplete = h13Formation.filter((formation) => formation.status === "DATA_INCOMPLETE");
+  if (h13FormationIncomplete.length > 0) {
+    throw new Error(`ROUND_004_H13_FORMATION_DATA_INCOMPLETE:${h13FormationIncomplete.map((formation) => baselineSignalIdentity(formation.baseline)).join(",")}`);
+  }
+  const h13Candidates = h13Formation
+    .filter((formation): formation is Round004H13FormationResult & { status: "PASS"; candidate: Round004DecisionCandidate } => formation.status === "PASS" && formation.candidate !== null)
+    .map((formation) => formation.candidate);
+  const h14Formation = officialCache.map((baseline) => evaluateH14Formation({ indexes: decisionIndexes, currentTime: baseline.signalTime, baseline }));
+  const h14FormationIncomplete = h14Formation.filter((formation) => formation.status === "DATA_INCOMPLETE");
+  if (h14FormationIncomplete.length > 0) {
+    throw new Error(`ROUND_004_H14_FORMATION_DATA_INCOMPLETE:${h14FormationIncomplete.map((formation) => baselineSignalIdentity(formation.baseline)).join(",")}`);
+  }
+  const controlRequirements = discoverIntrabarSettlementRequirements({ period: "COMBINED", data: study.standardData });
   const requirementDiscovery = discoverRound004IntrabarRequirements({ controlData: study.standardData, standardCandidates: [...h11Candidates, ...h12Candidates], h13Candidates, controlRequirements });
   if (requirementDiscovery.diagnostics.length > 0) throw new Error(requirementDiscovery.diagnostics.join("; "));
   const windows = await loadRound004IntrabarWindows(input.loader ?? new (await import("../historical-data/binance/loader.ts")).BinanceHistoricalDataLoader(), requirementDiscovery.requirements, study.standard.serverTime);
   const finalStudy = appendRound004IntrabarWindows(study, windows);
-  const controlReport = runBacktest({ period: "COMBINED", policy: M3_R4_C_STANDARD_POLICY, data: finalStudy.combinedData });
+  const controlReport = runBacktest({ period: "COMBINED", policy: M3_R4_C_STANDARD_POLICY, data: finalStudy.standardDataWithIntrabar });
   verifyRound004ControlParity(officialCache, controlReport.signalResults);
   const controlRecords = controlReport.signalResults.map((result) => rawResultRecord("CONTROL", result));
   const records: Round004ResearchRecord[] = [...controlRecords];
-  for (const candidate of h11Candidates) records.push(rawResultRecord(candidate.candidateId, settleStandardCandidate(candidate, finalStudy.combinedData), candidate.decisionAudit));
-  for (const candidate of h12Candidates) records.push(rawResultRecord(candidate.candidateId, settleStandardCandidate(candidate, finalStudy.combinedData), candidate.decisionAudit));
+  for (const formation of h13Formation) {
+    if (formation.status === "PERIOD_END_CENSORED" && formation.censoredResult) {
+      records.push(rawResultRecord("R4-H13-ADAPTIVE-TREND-EXIT", formation.censoredResult, formation.candidate?.decisionAudit));
+    }
+  }
+  for (const candidate of h11Candidates) records.push(rawResultRecord(candidate.candidateId, settleStandardCandidate(candidate, finalStudy.standardDataWithIntrabar), candidate.decisionAudit));
+  for (const candidate of h12Candidates) records.push(rawResultRecord(candidate.candidateId, settleStandardCandidate(candidate, finalStudy.standardDataWithIntrabar), candidate.decisionAudit));
   for (const candidate of h13Candidates) {
-    const result = settleH13Signal(toH13Input(candidate, finalStudy.combinedData));
+    const h13Data = candidate.period === "DEV" ? finalStudy.standardDataWithIntrabar : finalStudy.h13SettlementData;
+    const result = settleH13Signal(toH13Input(candidate, h13Data));
     records.push(rawResultRecord(candidate.candidateId, result, candidate.decisionAudit, result.settlementAudit));
   }
   const controlOutcomeResults = controlReport.signalResults;
-  for (const baseline of officialCache) {
-    const h14 = evaluateH14Decision({ indexes: decisionIndexes, currentTime: baseline.signalTime, baseline, controlResults: controlOutcomeResults });
+  const h14ExpectedEligibleIdentities = h14Formation.filter((formation) => formation.status === "PASS").map((formation) => baselineSignalIdentity(formation.baseline));
+  const h14MissingControlIdentities: string[] = [];
+  for (const formation of h14Formation) {
+    if (formation.status !== "PASS") continue;
+    const h14 = evaluateH14Decision({ indexes: decisionIndexes, currentTime: formation.baseline.signalTime, baseline: formation.baseline, controlResults: controlOutcomeResults });
     if (h14.candidate && h14.reused) records.push(rawResultRecord(h14.candidate.candidateId, h14.reused, h14.candidate.decisionAudit));
+    else h14MissingControlIdentities.push(baselineSignalIdentity(formation.baseline));
   }
+  const integrityValidation: Round004EvidenceIntegrity = validateRound004EvidenceIntegrity(records, {
+    controlParityPassed: true,
+    h13ExpectedIdentities: officialCache.map(baselineSignalIdentity),
+    h14ExpectedEligibleIdentities,
+  });
   return buildRound004ExecutionArtifacts({
     protocolBaseMainSha: M3_R4_C_PROTOCOL_BASE_MAIN_SHA,
     executionSourceSha: input.executionSourceSha,
@@ -636,6 +744,10 @@ export async function executeRound004AuthoritativeDetailed(input: Readonly<{
     studyServerTime: study.standard.serverTime,
     researchUniverse: M3_R4_C_RESEARCH_UNIVERSE,
     records,
+    integrityErrors: h14MissingControlIdentities.length > 0
+      ? ["ROUND_004_PERFORMANCE_REVIEW_REQUIRED", ...h14MissingControlIdentities]
+      : [],
+    integrityValidation,
   });
 }
 

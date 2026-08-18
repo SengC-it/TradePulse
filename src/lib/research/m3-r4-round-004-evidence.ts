@@ -90,6 +90,18 @@ export type Round004ExecutionArtifacts = Readonly<{
   resultsMarkdown: string;
 }>;
 
+export type Round004EvidenceIntegrityInput = Readonly<{
+  controlParityPassed: boolean;
+  candidateFormationDataIncomplete?: readonly string[];
+  h13ExpectedIdentities: readonly string[];
+  h14ExpectedEligibleIdentities: readonly string[];
+}>;
+
+export type Round004EvidenceIntegrity = Readonly<{
+  passed: boolean;
+  errors: readonly string[];
+}>;
+
 const CANDIDATE_ORDER: readonly Round004CandidateKey[] = Object.freeze([
   "CONTROL",
   "R4-H11-BREAKOUT-RETEST",
@@ -224,6 +236,71 @@ export function buildRound004CandidateEvidence(input: Readonly<{
   });
 }
 
+function identitySetForCandidate(
+  records: readonly Round004ResearchRecord[],
+  candidateId: Round004CandidateKey,
+): ReadonlySet<string> {
+  return new Set(records.filter((record) => record.candidateId === candidateId).map((record) => identity(record.signal)));
+}
+
+function appendIdentityMismatch(
+  errors: string[],
+  label: string,
+  expectedIdentities: readonly string[],
+  actualIdentities: ReadonlySet<string>,
+): void {
+  const expected = new Set(expectedIdentities);
+  if (expected.size !== expectedIdentities.length) errors.push(`${label}_EXPECTED_IDENTITIES_DUPLICATE`);
+  if (actualIdentities.size !== expected.size || [...expected].some((item) => !actualIdentities.has(item))) {
+    errors.push(`${label}_IDENTITY_MISMATCH`);
+  }
+  if ([...actualIdentities].some((item) => !expected.has(item))) errors.push(`${label}_UNEXPECTED_IDENTITY`);
+}
+
+export function validateRound004EvidenceIntegrity(
+  records: readonly Round004ResearchRecord[],
+  input: Round004EvidenceIntegrityInput,
+): Round004EvidenceIntegrity {
+  const errors: string[] = [];
+  if (input.controlParityPassed !== true) errors.push("CONTROL_PARITY_REQUIRED");
+  for (const diagnostic of input.candidateFormationDataIncomplete ?? []) {
+    errors.push(`CANDIDATE_FORMATION_DATA_INCOMPLETE:${diagnostic}`);
+  }
+  try {
+    canonicalizeRound004Records(records);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : "ROUND_004_RECORD_IDENTITY_INVALID");
+  }
+  for (const record of records) {
+    if (record.signal.status === "DATA_INCOMPLETE") errors.push(`DATA_INCOMPLETE:${record.candidateId}:${identity(record.signal)}`);
+    if (record.signal.status === "SETTLEMENT_AMBIGUOUS") errors.push(`SETTLEMENT_AMBIGUOUS:${record.candidateId}:${identity(record.signal)}`);
+  }
+  appendIdentityMismatch(
+    errors,
+    "H13_FORMAL_POPULATION",
+    input.h13ExpectedIdentities,
+    identitySetForCandidate(records, "R4-H13-ADAPTIVE-TREND-EXIT"),
+  );
+  appendIdentityMismatch(
+    errors,
+    "H14_ELIGIBLE_POPULATION",
+    input.h14ExpectedEligibleIdentities,
+    identitySetForCandidate(records, "R4-H14-RELATIVE-STRENGTH"),
+  );
+  try {
+    const constructionRange = Object.freeze({
+      startTime: RESEARCH_FOLDS.F1.research.startTime,
+      endTime: RESEARCH_FOLDS.F6.validation.endTime,
+    });
+    for (const candidateId of CANDIDATE_ORDER) {
+      buildRound004CandidateEvidence({ candidateId, records, researchUniverse: constructionRange });
+    }
+  } catch (error) {
+    errors.push(`CANDIDATE_EVIDENCE_CONSTRUCTION_FAILED:${error instanceof Error ? error.message : "unknown"}`);
+  }
+  return Object.freeze({ passed: errors.length === 0, errors: Object.freeze(errors) });
+}
+
 export function buildRound004AuditArtifact(records: readonly Round004ResearchRecord[]): Round004AuditArtifact {
   const decisions: Record<string, Readonly<Record<string, unknown>>[]> = {};
   const outcomes: Record<string, Readonly<Record<string, unknown>>[]> = {};
@@ -243,6 +320,7 @@ export function buildRound004Report(input: Readonly<{
   researchUniverse: ResearchRange;
   records: readonly Round004ResearchRecord[];
   integrityErrors?: readonly string[];
+  integrityValidation?: Round004EvidenceIntegrity;
 }>): Round004Report {
   const all = canonicalizeRound004Records(input.records);
   const artifact = buildRound004AuditArtifact(all);
@@ -250,7 +328,11 @@ export function buildRound004Report(input: Readonly<{
   const byCandidate = CANDIDATE_ORDER.map((candidateId) =>
     buildRound004CandidateEvidence({ candidateId, records: all, researchUniverse: input.researchUniverse }),
   );
-  const integrityErrors = Object.freeze([...(input.integrityErrors ?? [])]);
+  const integrityErrors = Object.freeze([
+    ...(input.integrityErrors ?? []),
+    ...(input.integrityValidation?.errors ?? ["EVIDENCE_INTEGRITY_NOT_VALIDATED"]),
+  ]);
+  const evidenceComplete = input.integrityValidation?.passed === true && integrityErrors.length === 0;
   return deepFreeze({
     schemaVersion: M3_R4_ROUND_004_REPORT_SCHEMA_VERSION,
     researchRoundId: "baseline-002-research-round-004",
@@ -265,7 +347,7 @@ export function buildRound004Report(input: Readonly<{
     studyServerTime: input.studyServerTime,
     performanceLock: "FIRST_M3_R4_PERFORMANCE_RESULT_GENERATED",
     performanceLockTriggered: all.some((record) => record.signal.status === "EXECUTED"),
-    evidenceStatus: integrityErrors.length === 0 ? "COMPLETE" : "INCOMPLETE",
+    evidenceStatus: evidenceComplete ? "COMPLETE" : "INCOMPLETE",
     integrityErrors,
     control: byCandidate[0]!,
     candidates: Object.freeze(byCandidate.slice(1)),
@@ -357,6 +439,7 @@ export function buildRound004ExecutionArtifacts(input: Readonly<{
   researchUniverse: ResearchRange;
   records: readonly Round004ResearchRecord[];
   integrityErrors?: readonly string[];
+  integrityValidation?: Round004EvidenceIntegrity;
 }>): Round004ExecutionArtifacts {
   const report = buildRound004Report(input);
   const auditArtifact = buildRound004AuditArtifact(input.records);

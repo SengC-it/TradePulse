@@ -13,6 +13,7 @@ import type {
   BacktestSignalSnapshot,
 } from "../src/lib/backtest/types.ts";
 import { BACKTEST_PERIOD_RANGES, BACKTEST_POLICY } from "../src/lib/backtest/constants.ts";
+import { buildHistoricalIndexes } from "../src/lib/backtest/windows.ts";
 import { buildHistoricalLoadRanges } from "../src/lib/backtest/ranges.ts";
 import {
   BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256,
@@ -30,6 +31,8 @@ import {
   assertRound004FrozenArchitecture,
   candidateRecordIdentity,
   discoverRound004IntrabarRequirements,
+  evaluateH13Formation,
+  evaluateH14FormationFromMomentum,
   h13UsesSettlementOnlyExtension,
   type Round004ExecutionPreflight,
 } from "../src/lib/research/m3-r4-round-004-performance.ts";
@@ -50,6 +53,7 @@ import {
   hashRound004Identities,
   normalizeRound004Result,
   serializeRound004Report,
+  validateRound004EvidenceIntegrity,
 } from "../src/lib/research/m3-r4-round-004-evidence.ts";
 import {
   M3_R4_H13_EXIT_REASONS,
@@ -132,6 +136,63 @@ function h13Input(overrides: Partial<H13SettlementInput> = {}): H13SettlementInp
     period: "DEV",
     periodEndTime: BASE + 100 * HOUR,
     ...overrides,
+  };
+}
+
+function baselineEntry(overrides: Partial<{ symbol: "BTCUSDT" | "ETHUSDT" | "SOLUSDT" | "XRPUSDT" | "BNBUSDT"; direction: "LONG" | "SHORT"; signalTime: number; period: "DEV" | "OOS" }> = {}) {
+  const baselineSnapshot = snapshot({
+    symbol: overrides.symbol ?? "ETHUSDT",
+    direction: overrides.direction ?? "LONG",
+    signalTime: overrides.signalTime ?? BASE,
+  });
+  return {
+    candidate: { ...baselineSnapshot, formalSignal: true },
+    signalTime: overrides.signalTime ?? BASE,
+    evaluationClosedThrough: overrides.signalTime ?? BASE,
+    period: overrides.period ?? "DEV",
+  } as const;
+}
+
+function h13IntrabarWindow(exitCandleOpenTime: number, stopMinuteIndex: number): import("../src/lib/historical-data/types.ts").HistoricalIntrabarSettlementWindow {
+  const candles = Array.from({ length: 60 }, (_, index) => {
+    const openTime = exitCandleOpenTime + index * 60_000;
+    return {
+      symbol: "ETHUSDT" as const,
+      timeframe: "1m" as const,
+      openTime,
+      closeTime: openTime + 59_999,
+      open: 100,
+      high: 101,
+      low: index === stopMinuteIndex ? 89 : 99,
+      close: 100,
+      volume: 1,
+      quoteVolume: 100,
+      tradeCount: 1,
+      takerBuyBaseVolume: 0.5,
+      takerBuyQuoteVolume: 50,
+    };
+  });
+  return {
+    symbol: "ETHUSDT",
+    exitCandleOpenTime,
+    settlementOnly: false,
+    candles,
+    manifest: {
+      kind: "intrabar-settlement",
+      provider: "binance-usdm-public",
+      source: "/fapi/v1/klines",
+      symbol: "ETHUSDT",
+      timeframe: "1m",
+      requestedStartTime: exitCandleOpenTime,
+      requestedEndTime: exitCandleOpenTime + HOUR - 1,
+      actualStartTime: exitCandleOpenTime,
+      actualEndTime: exitCandleOpenTime + HOUR - 1,
+      rowCount: 60,
+      retrievedAt: "2026-08-18T00:00:00.000Z",
+      sha256: "a".repeat(64),
+      settlementOnly: false,
+      exitCandleOpenTime,
+    },
   };
 }
 
@@ -384,6 +445,79 @@ describe("M3-R4-C H13 Phase B settlement", () => {
   for (const [name, test] of cases) it(name, test);
 });
 
+describe("M3-R4-C.1 fail-closed formation and settlement audit", () => {
+  const fullMomentum = { BTCUSDT: 0.10, ETHUSDT: 0.08, SOLUSDT: 0.06, XRPUSDT: 0.04, BNBUSDT: 0.02 } as const;
+  const incompleteH14 = evaluateH14FormationFromMomentum({ baseline: baselineEntry(), momentum24hBySymbol: { BTCUSDT: 0.10, ETHUSDT: 0.08, SOLUSDT: 0.06, XRPUSDT: 0.04 } });
+  const noSignalH14 = evaluateH14FormationFromMomentum({ baseline: baselineEntry({ symbol: "SOLUSDT", direction: "LONG" }), momentum24hBySymbol: fullMomentum });
+  const missingControlValidation = validateRound004EvidenceIntegrity([], {
+    controlParityPassed: true,
+    h13ExpectedIdentities: [],
+    h14ExpectedEligibleIdentities: [`ETHUSDT|LONG|${BASE}`],
+  });
+  const acceptedNoSignalValidation = validateRound004EvidenceIntegrity([], {
+    controlParityPassed: true,
+    h13ExpectedIdentities: [],
+    h14ExpectedEligibleIdentities: [],
+  });
+  const cases: readonly [string, () => void][] = [
+    ["221 one missing H14 momentum symbol is DATA_INCOMPLETE", () => expect(incompleteH14.status).toBe("DATA_INCOMPLETE")],
+    ["222 H14 NO_SIGNAL is not an integrity failure", () => expect(noSignalH14.status).toBe("NO_SIGNAL")],
+    ["223 missing eligible H14 CONTROL identity requires review", () => expect(missingControlValidation.errors).toContain("H14_ELIGIBLE_POPULATION_IDENTITY_MISMATCH")],
+    ["224 legitimate H14 NO_SIGNAL can pass integrity validation", () => expect(acceptedNoSignalValidation.passed).toBe(true)],
+    ["225 integrity validation is not optional", () => expect(buildRound004Report({ protocolBaseMainSha: M3_R4_C_PROTOCOL_BASE_MAIN_SHA, executionSourceSha: VALID_SOURCE_SHA, selectionGateSha256: BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256, experimentPlanSha256: M3_R4_ROUND_004_PLAN_SHA256, studyServerTime: BASE + 1_000, researchUniverse: M3_R4_C_RESEARCH_UNIVERSE, records: [] }).evidenceStatus).toBe("INCOMPLETE")],
+    ["226 H13 DATA_INCOMPLETE blocks complete evidence", () => {
+      const raw = settleH13Signal(h13Input({ funding: [] }));
+      const validation = validateRound004EvidenceIntegrity([normalizeRound004Result("R4-H13-ADAPTIVE-TREND-EXIT", raw)], { controlParityPassed: true, h13ExpectedIdentities: [`ETHUSDT|LONG|${BASE}`], h14ExpectedEligibleIdentities: [] });
+      expect(validation.errors.some((error) => error.startsWith("DATA_INCOMPLETE:"))).toBe(true);
+    }],
+    ["227 H13 SETTLEMENT_AMBIGUOUS blocks complete evidence", () => {
+      const raw = { ...settleH13Signal(h13Input()), status: "SETTLEMENT_AMBIGUOUS" as const };
+      const validation = validateRound004EvidenceIntegrity([normalizeRound004Result("R4-H13-ADAPTIVE-TREND-EXIT", raw)], { controlParityPassed: true, h13ExpectedIdentities: [`ETHUSDT|LONG|${BASE}`], h14ExpectedEligibleIdentities: [] });
+      expect(validation.errors.some((error) => error.startsWith("SETTLEMENT_AMBIGUOUS:"))).toBe(true);
+    }],
+  ];
+  for (const [name, test] of cases) it(name, test);
+});
+
+describe("M3-R4-C.1 DEV isolation and intrabar SL timing", () => {
+  const devEnd = BACKTEST_PERIOD_RANGES.DEV.endTime;
+  const decisionIndexes = buildHistoricalIndexes(Object.fromEntries(RESEARCH_SYMBOLS.map((symbol) => [symbol, {
+    candles1h: [marketCandle(0, { symbol, openTime: devEnd - HOUR + 1, closeTime: devEnd })],
+    candles4h: [{ ...marketCandle(0, { symbol, timeframe: "4h", openTime: BASE, closeTime: BASE + 4 * HOUR - 1 }) }],
+  }])) as never);
+  const throwingOosIndexes = new Proxy({}, { get: () => { throw new Error("OOS settlement accessor was touched"); } }) as never;
+  const censored = evaluateH13Formation(baselineEntry({ signalTime: devEnd }), decisionIndexes, throwingOosIndexes);
+  const stopHeld = [marketCandle(1, { low: 89 }), ...held48().slice(1)];
+  const exitOpen = stopHeld[0]!.openTime;
+  const collision = settleH13Signal(h13Input({
+    heldCandles: stopHeld,
+    funding: [{ symbol: "ETHUSDT", fundingTime: exitOpen + 10 * 60_000 + 30_000, fundingRate: 0.0001, directMarkPrice: 100 }],
+    intrabarSettlementWindows: [h13IntrabarWindow(exitOpen, 10)],
+  }));
+  const performanceSource = readFileSync("src/lib/research/m3-r4-round-004-performance.ts", "utf8");
+  const loaderSource = readFileSync("src/lib/research/m3-r4-round-004-loader.ts", "utf8");
+  const cases: readonly [string, () => void][] = [
+    ["228 DEV H13 crossing is censored before OOS access", () => expect(censored.status).toBe("PERIOD_END_CENSORED")],
+    ["229 DEV-censored H13 has a formal record", () => expect(censored.censoredResult?.status).toBe("PERIOD_END_CENSORED")],
+    ["230 DEV-censored H13 does not carry 48-candle settlement data", () => expect(censored.candidate?.heldCandles48).toBeUndefined()],
+    ["231 DEV-censored H13 cannot create an intrabar requirement", () => expect(discoverRound004IntrabarRequirements({ controlData: emptyData(), standardCandidates: [], h13Candidates: [], controlRequirements: [] }).requirements).toEqual([])],
+    ["232 CONTROL is wired to standard-only data", () => expect(performanceSource).toContain("data: finalStudy.standardDataWithIntrabar")],
+    ["233 H11 and H12 use standard-only data", () => expect(performanceSource.match(/settleStandardCandidate\(candidate, finalStudy\.standardDataWithIntrabar\)/gu)?.length).toBe(2)],
+    ["234 H13 is the only path using the H13 settlement data", () => expect(performanceSource).toContain("finalStudy.h13SettlementData")],
+    ["235 H13 SL remains SL after 1m resolution", () => expect(collision.exitReason).toBe("SL")],
+    ["236 H13 SL raw exit price remains the frozen stop", () => expect(collision.rawExitPrice).toBe(90)],
+    ["237 H13 SL exitTime is the resolved stop-minute close", () => expect(collision.exitTime).toBe(exitOpen + 10 * 60_000 + 59_999)],
+    ["238 H13 settlement audit uses the resolved stop-minute close", () => expect(collision.settlementAudit.exitTime).toBe(exitOpen + 10 * 60_000 + 59_999)],
+    ["239 CONTROL receives no H13 extension candles", () => expect(performanceSource).toContain("data: finalStudy.standardDataWithIntrabar")],
+    ["240 CONTROL receives no H13 extension funding", () => expect(performanceSource).toContain("data: finalStudy.standardDataWithIntrabar")],
+    ["241 CONTROL receives no H13 extension manifests", () => expect(loaderSource).toContain("appendIntrabarWindowsToData(study.standardData, standardWindows)")],
+    ["242 H11 receives standard-only settlement data", () => expect(performanceSource).toContain("settleStandardCandidate(candidate, finalStudy.standardDataWithIntrabar)")],
+    ["243 H12 receives standard-only settlement data", () => expect(performanceSource).toContain("settleStandardCandidate(candidate, finalStudy.standardDataWithIntrabar)")],
+    ["244 H13 receives the separate settlement extension view", () => expect(performanceSource).toContain("finalStudy.h13SettlementData")],
+  ];
+  for (const [name, test] of cases) it(name, test);
+});
+
 describe("M3-R4-C two-phase requirement discovery", () => {
   const data = emptyData();
   const empty = discoverRound004IntrabarRequirements({ controlData: data, standardCandidates: [], h13Candidates: [], controlRequirements: [] });
@@ -487,6 +621,8 @@ describe("M3-R4-C offline and no-execution guardrails", () => {
     ["188 keeps no selection field in report JSON", () => expect(serializeRound004Report(reportForGuard())).not.toContain("selectedCandidate")],
     ["189 keeps no baseline freeze field in report JSON", () => expect(serializeRound004Report(reportForGuard())).not.toContain("baseline002Frozen")],
     ["190 keeps the runner invocation behind the preflight call", () => { const text = readFileSync("scripts/m3-r4-performance.ts", "utf8"); expect(text.indexOf("assertRound004ExecutionPreflight")).toBeLessThan(text.indexOf("executeRound004Authoritative")); }],
+    ["190a keeps authoritative execution out of unit tests", () => expect(readFileSync("tests/m3-r4-c-performance.test.ts", "utf8")).not.toMatch(/executeRound004AuthoritativeDetailed\(/u)],
+    ["190b keeps authoritative execution out of normal CI", () => expect(readFileSync(".github/workflows/ci.yml", "utf8")).not.toContain("research:m3r4:performance")],
   ];
   for (const [name, test] of cases) it(name, test);
 });

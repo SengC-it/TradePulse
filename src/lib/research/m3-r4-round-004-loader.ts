@@ -53,6 +53,9 @@ export type Round004LoadedStudy = Readonly<{
   standard: HistoricalStudyData;
   settlementExtension: Round004SettlementExtension;
   standardData: BacktestData;
+  standardDataWithIntrabar: BacktestData;
+  h13SettlementData: BacktestData;
+  /** Compatibility alias for callers that need the complete H13 settlement view. */
   combinedData: BacktestData;
 }>;
 
@@ -124,6 +127,20 @@ function standardDataFromStudy(study: HistoricalStudyData): BacktestData {
     markPriceSegments,
     manifests: study.manifests,
     serverTime: study.serverTime,
+  });
+}
+
+function appendIntrabarWindowsToData(
+  data: BacktestData,
+  windows: readonly HistoricalIntrabarSettlementWindow[],
+): BacktestData {
+  return Object.freeze({
+    ...data,
+    intrabarSettlementWindows: Object.freeze([...windows]),
+    manifests: Object.freeze([
+      ...data.manifests,
+      ...windows.map((window) => window.manifest),
+    ]),
   });
 }
 
@@ -259,8 +276,16 @@ export async function loadRound004Study(
   const standard = await loader.loadStudyData({ ...ranges, policy: M3_R4_C_STANDARD_POLICY });
   const extension = await loadSettlementExtension(loader, standard.serverTime);
   const standardData = standardDataFromStudy(standard);
-  const combinedData = combineStudyData(standard, extension);
-  return Object.freeze({ standard, settlementExtension: extension, standardData, combinedData });
+  const h13SettlementData = combineStudyData(standard, extension);
+  const standardDataWithIntrabar = appendIntrabarWindowsToData(standardData, []);
+  return Object.freeze({
+    standard,
+    settlementExtension: extension,
+    standardData,
+    standardDataWithIntrabar,
+    h13SettlementData,
+    combinedData: h13SettlementData,
+  });
 }
 
 export async function loadRound004IntrabarWindows(
@@ -275,7 +300,16 @@ export function appendRound004IntrabarWindows(
   study: Round004LoadedStudy,
   windows: readonly HistoricalIntrabarSettlementWindow[],
 ): Round004LoadedStudy {
-  return Object.freeze({ ...study, combinedData: combineStudyData(study.standard, study.settlementExtension, windows) });
+  const standardTailEnd = buildHistoricalLoadRanges("COMBINED").settlementTail?.candleRange.endTime ?? Number.MAX_SAFE_INTEGER;
+  const standardWindows = windows.filter((window) => window.exitCandleOpenTime <= standardTailEnd);
+  const standardDataWithIntrabar = appendIntrabarWindowsToData(study.standardData, standardWindows);
+  const h13SettlementData = combineStudyData(study.standard, study.settlementExtension, windows);
+  return Object.freeze({
+    ...study,
+    standardDataWithIntrabar,
+    h13SettlementData,
+    combinedData: h13SettlementData,
+  });
 }
 
 export const toRound004BacktestData = standardDataFromStudy;
