@@ -3,8 +3,9 @@
 Status: M3-G, M3-G.1, M3-G.2, M3-H, and M3-I CLOSED / MERGED;
 M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
 with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
-M3-R2-D is CANCELLED FOR ROUND-002, M3-J is BLOCKED / NOT STARTED, and M4
-is not started.
+M3-R2-D is CANCELLED FOR ROUND-002; M3-R3-A is UNDER REVIEW /
+PRE-PERFORMANCE; M3-R3-B is NOT STARTED / NOT AUTHORIZED; `baseline-002`
+remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED, and M4 is not started.
 
 ## Test layers
 
@@ -682,6 +683,48 @@ failed closed after performance was generated. The closure record must retain:
 The complete documentation record is `docs/M3_R2_C_INVALIDATION.md`. These
 checks do not run Binance, a historical loader, CONTROL, backtest, candidate
 derivation, gate application, or any result-affecting code.
+
+### M3-R3-A Round-003 offline recovery tests
+
+M3-R3-A is pre-performance and must use synthetic fixtures plus exact local
+artifact bytes only; it must not run Binance, the historical loader, CONTROL,
+backtest, settlement/funding, candidate derivation, or gate application. The
+dedicated `tests/m3-r3-a-recovery.test.ts` must prove:
+
+1. the new `baseline-002-research-round-003` identity, exact nine unchanged
+   candidate IDs, inherited Round-002 gate/plan SHAs, exact F1-F6 folds,
+   selector specs, complexity tuple, and pre-performance status;
+2. Round-003 gate values and semantic fields are equivalent to Round-002
+   apart from round/source provenance, with all nine redundancy gates still
+   `NOT_APPLICABLE`;
+3. a pre-F1 signal is removed before aggregate diagnostics, while the
+   inclusive F1 start and F6 end remain included;
+4. the exact invalidating signal timestamp `1673341199999` is excluded from
+   aggregate validation;
+5. formal identity hashes include all statuses, executed hashes include only
+   `EXECUTED`, ordering is signal time ascending then frozen symbol order then
+   LONG before SHORT, duplicate identities fail closed, and no lexical
+   default sort is used;
+6. artifact reuse requires exact raw SHA-256 values and the exact Round-002
+   envelope (`studyServerTime = 1787031883099`, `snapshotCount = 7500`,
+   source SHA, source gate SHA, source plan SHA, and source round) parsed from
+   the same SHA-verified bytes;
+7. the CONTROL is parsed from raw bytes and requires schema-004, policy-003,
+   baseline-001, COMBINED, 7,500 formal results, 7,495 executed results,
+   zero diagnostics, and no incomplete/ambiguous statuses;
+8. any artifact, envelope, CONTROL, identity, or parity mismatch fails closed
+   with no fallback;
+9. the recovery source and `scripts/m3-r3-a-verify-reuse.ts` import no
+   market-data, historical-loader, backtest, settlement, network, or
+   candidate-execution path.
+
+The expected control SHA is
+`5ecfae3258d2ace774965eba12df25b888b04593b32e1b92a2593c41fdad8b33` and the
+expected decision-snapshot SHA is
+`65a011d813c55f936f89069706730f5de33dfda9f2eba94f0dfb2b914818eec9`.
+The machine gate and plan SHAs are recorded in the two Round-003 protocol
+documents. These tests do not produce candidate diagnostics or performance
+metrics; M3-R3-B remains not authorized.
 
 ### M3-B implemented test coverage
 

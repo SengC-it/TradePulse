@@ -852,6 +852,47 @@ invalidated-round artifacts only. `M3-R2-D` is cancelled for Round-002;
 not started. The complete closure record is
 `docs/M3_R2_C_INVALIDATION.md`.
 
+## M3-R3-A — baseline-002 Research Round-003 Offline Recovery Protocol
+
+Status: UNDER REVIEW / PRE-PERFORMANCE; Round-002 remains INVALIDATED
+
+M3-R3-A creates the separate `baseline-002-research-round-003` protocol after
+the Round-002 evidence-pipeline invalidation. It is based on authoritative
+main `a20803c9cf33aefcb1d376f916eb9fe666f1bf58` and preserves the exact
+Round-002 research universe, F1-F6 folds, CONTROL/candidate registry, H6-H10
+selectors, C1-C4 AND composition, parameters, complexity tuples, costs,
+`bt-policy-003`, and selection-gate semantics. The machine gate SHA is
+`297d658142d870557a175decb75567b68cb72b52a49a8f7c81b0c0af002f3bd2`; the
+plan SHA is
+`d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67`.
+
+The only protocol repairs are: filter aggregate records to the inclusive
+F1-validation-start through F6-validation-end range before diagnostics;
+canonicalize formal/executed identity hashes by signal time, frozen symbol
+order, and direction; and permit only exact SHA- and envelope-verified reuse
+of the existing Round-002 CONTROL/snapshot captures. The verifier parses the
+envelope and CONTROL from those same verified raw bytes, validates the
+immutable Round-001 evidence SHA, and requires aggregate plus F1-F6
+diagnostics parity before reporting all three reuse statuses as passing. The
+expected artifact hashes, study clock `1787031883099`, snapshot count `7500`,
+and source provenance are recorded in `docs/BASELINE_002_RESEARCH_R3.md`.
+
+M3-R3-A permits only machine-record validation and synthetic tests. It does
+not call Binance, load historical data, run CONTROL/backtest/settlement,
+derive candidate diagnostics, apply gates, or modify strategy/candidate
+definitions, thresholds, complexity, baseline-001, or `bt-policy-003`.
+`baseline-002` remains **NOT FROZEN**. M3-R3-B is **NOT STARTED / NOT
+AUTHORIZED**, M3-J is blocked, and M4 is not started. See
+`docs/BASELINE_002_RESEARCH_R3.md` and
+`docs/BASELINE_002_SELECTION_GATES_R3.md`.
+
+## M3-R3-B — Round-003 Candidate Derivation
+
+Status: NOT STARTED / NOT AUTHORIZED
+
+This step may begin only after separate human authorization and acceptance of
+the M3-R3-A freeze. It is not part of this change.
+
 ## M4 — Realtime Scanner
 
 Status: NOT STARTED

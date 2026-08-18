@@ -337,6 +337,30 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   cancelled for Round-002, M3-J is blocked/not started, M4 is not started,
   and Round-003 is not started/not authorized.
 
+## ADR-027 — Freeze Round-003 offline recovery after Round-002 invalidation
+
+- **Decision:** Create the separate pre-performance research round
+  `baseline-002-research-round-003` from authoritative main
+  `a20803c9cf33aefcb1d376f916eb9fe666f1bf58`. Preserve the exact Round-002
+  universe, folds, CONTROL/candidate registry, H6-H10 selectors, parameters,
+  complexity tuples, `bt-policy-003`, and gate semantics. The Round-003
+  machine gate SHA is
+  `297d658142d870557a175decb75567b68cb72b52a49a8f7c81b0c0af002f3bd2` and
+  the plan SHA is
+  `d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67`.
+- **Reason:** Round-002 was invalidated after performance generation because
+  aggregate validation did not filter to its requested range and identity
+  hashing did not use the frozen time/symbol/direction order. A new round is
+  required; patching or rerunning Round-002 is forbidden.
+- **Consequence:** R3-A only fixes the offline validation filter, canonical
+  identity ordering, and SHA-verified reuse provenance. The exact existing
+  CONTROL and decision-snapshot captures may be reused only when their raw
+  hashes and envelope match the recorded values; otherwise the path fails
+  closed. No Binance request, historical load, CONTROL/backtest/settlement
+  run, candidate derivation, performance metric, or gate application is part
+  of R3-A. `baseline-002` remains not frozen, M3-R3-B is not started/not
+  authorized, M3-J is blocked/not started, and M4 is not started.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
