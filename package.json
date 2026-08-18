@@ -19,6 +19,7 @@
     "research:m3h:capture-control": "node --experimental-strip-types --no-warnings scripts/m3-h-capture-control.ts",
     "research:m3h:derive-evidence": "node --experimental-strip-types --no-warnings scripts/m3-h-derive-evidence.ts",
     "research:m3i:select": "node --experimental-strip-types --no-warnings scripts/m3-i-select.ts",
+    "research:m3r3:derive-evidence": "node --experimental-strip-types --no-warnings scripts/m3-r3-b-derive-evidence.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {

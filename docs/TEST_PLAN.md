@@ -3,9 +3,10 @@
 Status: M3-G, M3-G.1, M3-G.2, M3-H, and M3-I CLOSED / MERGED;
 M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
 with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
-M3-R2-D is CANCELLED FOR ROUND-002; M3-R3-A is UNDER REVIEW /
-PRE-PERFORMANCE; M3-R3-B is NOT STARTED / NOT AUTHORIZED; `baseline-002`
-remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED, and M4 is not started.
+M3-R2-D is CANCELLED FOR ROUND-002; M3-R3-A is CLOSED / MERGED /
+PRE-PERFORMANCE; M3-R3-B is AUTHORIZED for Commit-A source freeze and
+one-time offline derivation; `baseline-002` remains NOT FROZEN; M3-J is
+BLOCKED / NOT STARTED, and M4 is not started.
 
 ## Test layers
 
@@ -723,8 +724,20 @@ The expected control SHA is
 expected decision-snapshot SHA is
 `65a011d813c55f936f89069706730f5de33dfda9f2eba94f0dfb2b914818eec9`.
 The machine gate and plan SHAs are recorded in the two Round-003 protocol
-documents. These tests do not produce candidate diagnostics or performance
-metrics; M3-R3-B remains not authorized.
+documents. The M3-R3-B source-freeze tests exercise the offline derivation
+contract without reading network data or producing formal performance
+evidence; the one-time formal command is deferred until Commit-A CI passes.
+
+### M3-R3-B Round-003 offline evidence source-freeze coverage
+
+The source-freeze suite covers the exact report/provenance schema, recovery
+base and reuse-record hashes, all nine frozen candidate IDs and order, use of
+the existing selector outputs, CONTROL/snapshot identity-set equality,
+duplicate/missing/extra identity failures, strict non-empty candidate subsets,
+original CONTROL result reference inheritance, F1–F6 validation diagnostics,
+`NOT_APPLICABLE` redundancy fields, performance-lock semantics, and the
+absence of network/backtest/strategy execution paths. No gate, eligibility,
+rank, winner, or baseline-002 decision is applied by M3-R3-B.
 
 ### M3-B implemented test coverage
 
