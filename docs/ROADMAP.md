@@ -881,20 +881,41 @@ M3-R3-A permits only machine-record validation and synthetic tests. It does
 not call Binance, load historical data, run CONTROL/backtest/settlement,
 derive candidate diagnostics, apply gates, or modify strategy/candidate
 definitions, thresholds, complexity, baseline-001, or `bt-policy-003`.
-`baseline-002` remains **NOT FROZEN**. M3-R3-B is **AUTHORIZED / COMMIT-A
-SOURCE FREEZE IN PROGRESS**; no candidate performance evidence has been
-generated. M3-J is blocked, and M4 is not started. See
+`baseline-002` remains **NOT FROZEN**. M3-R3-B is **CLOSED / MERGED**.
+M3-R3-C is **HOLD / IMPLEMENTATION REVIEW REQUIRED**; M3-R3-C.1 is authorized
+only for source recovery and source-freeze CI. No recovery selection result
+has been generated. M3-J is blocked, and M4 is not started. See
 `docs/BASELINE_002_RESEARCH_R3.md` and
 `docs/BASELINE_002_SELECTION_GATES_R3.md`.
 
 ## M3-R3-B — Round-003 Candidate Derivation
 
-Status: AUTHORIZED — COMMIT-A SOURCE FREEZE IN PROGRESS
+Status: CLOSED / MERGED
 
 This step is authorized only for the offline source freeze, synthetic tests,
 and later one-time evidence derivation described by the M3-R3-B protocol.
 Commit-A CI must pass before the formal offline command runs. Candidate gate
-application remains deferred to M3-R3-C; no performance evidence exists yet.
+application remains deferred to M3-R3-C; the committed evidence is immutable.
+
+## M3-R3-C — Round-003 Frozen Selection Gate Application
+
+Status: HOLD — IMPLEMENTATION REVIEW REQUIRED
+
+This stage applies the frozen gates mechanically to the committed Round-003
+evidence only. It does not run performance, recalculate economics, change
+gates, freeze `baseline-002`, start M3-J, or start M4. The first implementation
+attempt is held after an integrity-validation defect; its result was not
+committed and the branch is retained for audit.
+
+## M3-R3-C.1 — Round-003 Selection Implementation Recovery
+
+Status: AUTHORIZED — SOURCE FREEZE ONLY
+
+This recovery corrects only the CONTROL count scope and identity-hash
+validation defects. It preserves the frozen gate machine record, plan,
+candidate definitions, thresholds, performance evidence, and tie-breaking
+semantics. The authoritative recovery selection command remains deferred
+until a separate review authorizes it.
 
 ## M4 — Realtime Scanner
 
