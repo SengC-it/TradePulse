@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-R4-A — Round-004 diagnosis and structural hypothesis freeze under review**.
+Current milestone: **M3-R4-B — Round-004 exact machine-readable protocol freeze under review**.
 
 ## Boundary
 
@@ -41,9 +41,10 @@ parity offline, and does not generate performance. `baseline-002` remains
 unfrozen. M3-R3-B, M3-R3-C, and M3-R3-C.1/C.2 are now closed/merged. The
 authoritative Round-003 selection result is
 `NO BASELINE-002 CANDIDATE — ROUND-003`; no candidate was eligible. M3-R4-A
-freezes only the diagnosis and four qualitative structural hypotheses for
-Round-004. M3-R4-B is not authorized, M3-J is blocked/not started, and M4
-remains not started.
+is closed/merged. M3-R4-B freezes the exact pre-performance machine protocol
+for four standalone hypotheses; no Round-004 performance is authorized,
+baseline-002 remains unfrozen, M3-J is blocked/not started, and M4 remains
+not started.
 
 ## Architecture
 
@@ -155,8 +156,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-R3-A | Round-003 offline recovery protocol (closed / merged; reuse verified) |
 | M3-R3-B | Round-003 offline candidate derivation (closed / merged) |
 | M3-R3-C | Round-003 frozen selection (closed / merged; no baseline-002 candidate) |
-| M3-R4-A | Round-004 diagnosis and structural hypothesis freeze (under review) |
-| M3-R4-B | Round-004 exact machine-readable protocol (not authorized) |
+| M3-R4-A | Round-004 diagnosis and structural hypothesis freeze (closed / merged) |
+| M3-R4-B | Round-004 exact machine-readable protocol (under review; no performance authorized) |
 | M4 | Realtime scanner, protected endpoint, persistence (not started) |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
@@ -183,4 +184,6 @@ Each milestone requires tests, documentation updates, acceptance review, and an 
 - [Round-003 selection gates](docs/BASELINE_002_SELECTION_GATES_R3.md)
 - [Round-004 diagnosis](docs/BASELINE_002_DIAGNOSIS_R4.md)
 - [Round-004 research protocol](docs/BASELINE_002_RESEARCH_R4.md)
+- [Round-004 machine protocol](docs/BASELINE_002_MACHINE_PROTOCOL_R4.md)
+- [Round-004 selection gates](docs/BASELINE_002_SELECTION_GATES_R4.md)
 - [Long-term agent constraints](AGENTS.md)

@@ -921,7 +921,7 @@ remains **NOT FROZEN**.
 
 ## M3-R4-A — baseline-002 Research Round-004 Diagnosis and Structural Hypotheses
 
-Status: UNDER REVIEW / DIAGNOSIS AND HYPOTHESIS FREEZE
+Status: CLOSED / MERGED / DIAGNOSIS AND HYPOTHESIS FREEZE
 
 M3-R4-A starts from authoritative main
 `0f994ddde6d3303eb34560cdc1c8babbae5115a5` and uses only the committed
@@ -943,6 +943,54 @@ candidate performance, freeze baseline-002, start M3-J, or start M4. M3-R4-B
 must first specify exact formulas, execution semantics, data requirements,
 complexity, non-weakened gates, canonical SHAs, and synthetic tests. Only
 after M3-R4-B is reviewed and merged may Round-004 performance be authorized.
+
+## M3-R4-B — baseline-002 Research Round-004 Exact Machine Protocol Freeze
+
+Status: UNDER REVIEW / MACHINE PROTOCOL FREEZE; PERFORMANCE NOT AUTHORIZED
+
+M3-R4-B is based on authoritative main
+`1bab6066cd4e9933c3d50ab29a38e9ad0792e5c8` and identifies the round as
+`baseline-002-research-round-004`. It adds only pre-performance, machine-
+readable protocol records, pure decision-time reference helpers, synthetic
+tests, and documentation. The canonical Gate SHA is
+`3c0a975cc0cbcd3dea73fc343b6298b76010d2bf7655e96986a638b646c625e5`; the
+canonical Plan SHA is
+`bca9ac355a96b894b11f2df80ee719077f0944356f44ec26cc2fc62f7e1f8d2e`.
+
+The frozen registry contains exactly the CONTROL
+`R4-CONTROL-BASELINE-001` and four standalone candidates in this order:
+`R4-H11-BREAKOUT-RETEST`, `R4-H12-PULLBACK-RECLAIM`,
+`R4-H13-ADAPTIVE-TREND-EXIT`, and `R4-H14-RELATIVE-STRENGTH`. The protocol
+preserves `baseline-001`, `bt-policy-003`, the five-symbol universe, the
+existing fee/slippage/funding/SL-first economics, and the exact F1-F6 fold
+construction. H11/H12/H14 decision predicates are outcome-blind and may use
+only candles closed by signalTime; H13's 48-candle exit overlay is variant-
+local and does not alter the global 24-candle policy.
+
+Round-004 gates inherit Round-003 values and semantics. Ten hard gates apply;
+the redundancy gate is NOT_APPLICABLE for all four candidates and is excluded
+from the conjunction, not treated as a pass. Any gate, formula, candidate,
+complexity, cost, fold, or applicability change after the first performance
+result requires `ROUND_004_INVALIDATION_REQUIRED` and a stop.
+
+### Deliverables
+
+- `src/lib/research/selection-gates-round-004.ts`: hashed Gate record and
+  fail-closed validator;
+- `src/lib/research/m3-r4-round-004-plan.ts`: hashed Plan, CONTROL contract,
+  candidate registry, folds, provenance, and governance boundary;
+- `src/lib/research/m3-r4-round-004-protocol.ts`: pure H11-H14 helpers only;
+- `tests/m3-r4-b-round004.test.ts`: synthetic machine, decision-time,
+  boundary, and fail-closed coverage;
+- `docs/BASELINE_002_MACHINE_PROTOCOL_R4.md` and
+  `docs/BASELINE_002_SELECTION_GATES_R4.md`.
+
+### Acceptance and out of scope
+
+CI must pass typecheck, lint, tests, and build. No Binance request, HTTP market
+data, historical loader, CONTROL capture, backtest, settlement, candidate
+performance, evidence derivation, selection, baseline-002 freeze, M3-J, or M4
+work is part of M3-R4-B.
 
 ## M4 — Realtime Scanner
 

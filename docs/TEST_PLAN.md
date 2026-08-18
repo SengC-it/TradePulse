@@ -5,8 +5,9 @@ M3-R3-B, M3-R3-C, and M3-R3-C.1/C.2 CLOSED / MERGED;
 M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
 with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
 M3-R2-D is CANCELLED FOR ROUND-002; Round-003 final selection is
-`NO BASELINE-002 CANDIDATE — ROUND-003`; M3-R4-A is UNDER REVIEW for
-diagnosis and structural hypothesis freeze; M3-R4-B is NOT AUTHORIZED;
+`NO BASELINE-002 CANDIDATE — ROUND-003`; M3-R4-A is CLOSED / MERGED after
+diagnosis and structural hypothesis freeze; M3-R4-B is UNDER REVIEW for the
+exact machine-readable protocol and remains pre-performance;
 `baseline-002` remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED, and M4 is
 not started.
 
