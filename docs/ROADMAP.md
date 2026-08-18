@@ -578,10 +578,9 @@ when that later freeze occurs.
 - `baseline-001` and `bt-policy-001`/`002`/`003` remain unchanged.
 - No historical performance run, parameter search, optimization, or
   baseline-002 experiment is executed in M3-G.
-- `baseline-002` is **NOT FROZEN**; M3-G.1 and M3-G.2 are closed/merged. M3-H
-  Stage B evidence is generated and under review. M3-I
-  specification freeze and M3-J implementation still require separate
-  approval.
+- `baseline-002` is **NOT FROZEN**; M3-G.1, M3-G.2, and M3-H are closed/merged.
+  M3-I mechanical application is under review and returned
+  `NO BASELINE-002 CANDIDATE`. M3-J implementation remains not started.
 - M4, trading, private Binance APIs, persistence, and deployment remain out of
   scope.
 
@@ -640,9 +639,8 @@ only research inputs used in this milestone.
 - `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
   `m3-b-report-004`, and M3-E evidence are unchanged.
 - M3-G.2 owns the real round-001 gate values and is **CLOSED / MERGED**;
-  `baseline-002` remains **NOT FROZEN**. M3-H Stage B evidence is under review
-  in a separate Draft PR; no M3-I gate decision has been applied. M3-I, M3-J, and
-  M4 remain **NOT STARTED**.
+  `baseline-002` remains **NOT FROZEN**. M3-H is closed/merged and M3-I is under
+  review; M3-J and M4 remain **NOT STARTED**.
 
 ### Verification
 
@@ -679,8 +677,8 @@ invalidation contract.
 This milestone uses synthetic validation only. It does not run or inspect
 candidate performance, fetch historical data, rerun baseline-001, implement
 baseline-002, or start M3-H. The canonical gate record SHA-256 is recorded in
-the selection-gate document. Gate application/evaluator work remains deferred
-to the later M3-I application boundary.
+  the selection-gate document. Gate application/evaluator work is performed
+  only in the separate M3-I milestone.
 
 The gate record becomes immutable at the first M3-H performance result. A later
 change to any recorded gate value, formula, fold-improvement definition,
@@ -696,7 +694,7 @@ baseline-002 freeze. No M3-H result exists or is authorized in M3-G.2.
 
 ## M3-H — baseline-002 Research Round-001 Single-Mechanism Experiments
 
-Status: UNDER REVIEW / RESULTS GENERATED; `baseline-002` NOT FROZEN
+Status: CLOSED / MERGED; RESULTS PRESERVED; `baseline-002` NOT FROZEN
 
 M3-H Stage A froze the machine-readable experiment plan before historical
 performance output. Stage B generated one `bt-policy-003` CONTROL report and
@@ -721,9 +719,44 @@ derived all 13 candidates offline:
 
 Stage A includes the immutable registry, outcome-blind selectors, deterministic
 offline derivation, compact evidence schema, and renderer. Stage B used one
-CONTROL capture and no candidate backtest or Binance reruns. M3-H remains
-descriptive only: it does not apply M3-G.2 gates, freeze `baseline-002`, start
-M3-I, or add trading capability.
+CONTROL capture and no candidate backtest or Binance reruns. M3-H itself did
+not apply M3-G.2 gates or freeze `baseline-002`; its committed evidence is the
+immutable input to M3-I.
+
+## M3-I — Mechanical Round-001 Candidate Gate Application
+
+Status: UNDER REVIEW; `baseline-002` NOT FROZEN
+
+M3-I reads only the committed M3-H evidence and the frozen machine definitions.
+It does not call Binance, load historical data, rerun CONTROL/backtest/Strategy
+Engine, regenerate M3-H evidence, change gates, add candidates, combine
+mechanisms, optimize, or tune.
+
+Authoritative inputs:
+
+- source `main`: `533f1017676739cdfb3a377f167b5fc42251c525`;
+- input: `docs/evidence/M3_H_ROUND_001_SUMMARY.json`;
+- input evidence SHA-256: `883001ac34470120cdbc754c2f47437bf13b6f13ce6ffb3e4f7795558a6a2fc7`;
+- selection-gate SHA-256:
+  `11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd`;
+- experiment-plan SHA-256:
+  `2780b2e2d334b5a0f60e046e19073e09d28492fdf04c45a9e9917e686c1fe73a`;
+- M3-H CONTROL SHA-256:
+  `0d620013f85bff28de11fc9ca4765d300d29630a0e0e04f9175e9c6b97715020`;
+- M3-H execution source: `7b3fa166d01fde79dc95ced182c3c515f904a847`;
+- M3-H studyServerTime: `1787016706276`.
+
+The machine-readable output is
+`docs/evidence/M3_I_ROUND_001_SELECTION.json`; the human-readable matrix is
+`docs/M3_I_ROUND_001_SELECTION.md`. Integrity is `COMPLETE`, all 13 candidates
+are `INELIGIBLE`, no candidate is eligible, and the exact final decision is:
+
+```text
+NO BASELINE-002 CANDIDATE
+```
+
+Therefore `baseline-002` remains **NOT FROZEN**, M3-J is **NOT STARTED**, and
+M4 remains **NOT STARTED**.
 
 ## M4 — Realtime Scanner
 
