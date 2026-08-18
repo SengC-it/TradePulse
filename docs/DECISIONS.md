@@ -347,7 +347,7 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   machine gate SHA is
   `297d658142d870557a175decb75567b68cb72b52a49a8f7c81b0c0af002f3bd2` and
   the plan SHA is
-  `6501a1d8264728cc955a905e03f8a99c157629113a9efbb5fcb544a81d7ed2ab`.
+  `d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67`.
 - **Reason:** Round-002 was invalidated after performance generation because
   aggregate validation did not filter to its requested range and identity
   hashing did not use the frozen time/symbol/direction order. A new round is

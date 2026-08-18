@@ -13,12 +13,18 @@ semantics. The machine record is
 The Round-003 plan SHA-256 is:
 
 ```text
-6501a1d8264728cc955a905e03f8a99c157629113a9efbb5fcb544a81d7ed2ab
+d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67
 ```
 
 The inherited Round-002 gate and plan SHAs are, respectively,
 `9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0` and
 `82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511`.
+
+Candidate gates remain unchanged. Before any future M3-R3-B authorization,
+the exact SHA-verified raw-artifact reuse status, CONTROL validation status,
+and offline CONTROL parity status must all pass according to the canonical
+Round-003 plan; this precondition does not apply a candidate gate or generate
+performance.
 
 ## Frozen gate values
 

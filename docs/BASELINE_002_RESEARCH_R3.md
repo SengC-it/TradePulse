@@ -18,7 +18,7 @@ performance and does not authorize M3-R3-B.
 - Round-003 machine gate SHA:
   `297d658142d870557a175decb75567b68cb72b52a49a8f7c81b0c0af002f3bd2`
 - Round-003 plan SHA:
-  `6501a1d8264728cc955a905e03f8a99c157629113a9efbb5fcb544a81d7ed2ab`
+  `d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67`
 
 Round-002 is `INVALIDATED / CLOSED`; `M3-R2-D` is cancelled. Its captured
 artifacts are reusable only after the exact SHA and envelope checks below.
@@ -91,6 +91,34 @@ Exact matches are labeled
 
 The raw captures remain local ignored inputs and are not committed as evidence
 or performance results.
+
+### Pre-performance reuse verification
+
+The verifier accepts only `controlReportBytes` and
+`decisionSnapshotBytes`. It hashes those exact bytes first, parses both JSON
+documents from the verified bytes, and reads the snapshot envelope only from
+the parsed snapshot artifact. A separately supplied envelope or CONTROL
+object is not part of the API.
+
+The CONTROL contract is frozen to `m3-b-report-004`, `bt-policy-003`,
+`baseline-001`, `COMBINED`, `studyServerTime = 1787031883099`, 7,500 formal
+results, 7,495 `EXECUTED` results, zero diagnostics, and no
+`DATA_INCOMPLETE`/`SETTLEMENT_AMBIGUOUS` result. Economic `FAIL` remains
+structurally acceptable.
+
+The immutable Round-001 evidence input is verified by raw SHA-256
+`883001ac34470120cdbc754c2f47437bf13b6f13ce6ffb3e4f7795558a6a2fc7`.
+`scripts/m3-r3-a-verify-reuse.ts` performs this process offline and reports
+`VERIFIED_REUSABLE_INPUT`, `PASS`, and `PASS` only after formal identity,
+executed identity, aggregate validation, and each F1-F6 validation diagnostic
+matches the Round-001 evidence. The command reads only the two ignored `.tmp`
+captures and the committed Round-001 evidence; it does not load market data,
+run a backtest, derive candidates, or apply gates.
+
+M3-R3-B requires all three statuses before it can be separately authorized.
+The successful verification provenance, when produced, is recorded in
+`docs/evidence/M3_R3_A_REUSE_VERIFICATION.json` with no candidate economics
+or diagnostics.
 
 ## M3-R3-A boundary
 

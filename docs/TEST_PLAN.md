@@ -707,10 +707,16 @@ dedicated `tests/m3-r3-a-recovery.test.ts` must prove:
    default sort is used;
 6. artifact reuse requires exact raw SHA-256 values and the exact Round-002
    envelope (`studyServerTime = 1787031883099`, `snapshotCount = 7500`,
-   source SHA, source gate SHA, source plan SHA, and source round);
-7. any artifact or envelope mismatch fails closed with no fallback; and
-8. the recovery source imports no market-data, historical-loader, backtest,
-   settlement, or network execution path.
+   source SHA, source gate SHA, source plan SHA, and source round) parsed from
+   the same SHA-verified bytes;
+7. the CONTROL is parsed from raw bytes and requires schema-004, policy-003,
+   baseline-001, COMBINED, 7,500 formal results, 7,495 executed results,
+   zero diagnostics, and no incomplete/ambiguous statuses;
+8. any artifact, envelope, CONTROL, identity, or parity mismatch fails closed
+   with no fallback;
+9. the recovery source and `scripts/m3-r3-a-verify-reuse.ts` import no
+   market-data, historical-loader, backtest, settlement, network, or
+   candidate-execution path.
 
 The expected control SHA is
 `5ecfae3258d2ace774965eba12df25b888b04593b32e1b92a2593c41fdad8b33` and the

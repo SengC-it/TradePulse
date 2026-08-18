@@ -33,10 +33,13 @@ M3-R2-C completed one authoritative CONTROL, then its offline evidence
 derivation exposed result-affecting defects after performance generation.
 Round-002 is therefore `INVALIDATED / STOPPED` and must not be patched and
 rerun. M3-R2-D is cancelled for Round-002. M3-R3-A freezes a new offline
-recovery protocol that may reuse only exact SHA-verified Round-002 captures;
-it does not generate performance. `baseline-002` remains unfrozen, M3-R3-B
-is not started/not authorized, M3-J is blocked/not started, and M4 remains
-not started.
+recovery protocol with plan SHA
+`d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67`. It may
+reuse only exact SHA-verified Round-002 captures; the verifier parses the
+snapshot envelope and CONTROL from those same bytes, validates Round-001
+parity offline, and does not generate performance. `baseline-002` remains
+unfrozen, M3-R3-B is not started/not authorized, M3-J is blocked/not started,
+and M4 remains not started.
 
 ## Architecture
 

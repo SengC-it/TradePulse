@@ -864,15 +864,18 @@ selectors, C1-C4 AND composition, parameters, complexity tuples, costs,
 `bt-policy-003`, and selection-gate semantics. The machine gate SHA is
 `297d658142d870557a175decb75567b68cb72b52a49a8f7c81b0c0af002f3bd2`; the
 plan SHA is
-`6501a1d8264728cc955a905e03f8a99c157629113a9efbb5fcb544a81d7ed2ab`.
+`d4238bec817425fddd4a1e556277aa58de84c5986da55a9e08b661cc9f621e67`.
 
 The only protocol repairs are: filter aggregate records to the inclusive
 F1-validation-start through F6-validation-end range before diagnostics;
 canonicalize formal/executed identity hashes by signal time, frozen symbol
 order, and direction; and permit only exact SHA- and envelope-verified reuse
-of the existing Round-002 CONTROL/snapshot captures. The expected artifact
-hashes, study clock `1787031883099`, snapshot count `7500`, and source
-provenance are recorded in `docs/BASELINE_002_RESEARCH_R3.md`.
+of the existing Round-002 CONTROL/snapshot captures. The verifier parses the
+envelope and CONTROL from those same verified raw bytes, validates the
+immutable Round-001 evidence SHA, and requires aggregate plus F1-F6
+diagnostics parity before reporting all three reuse statuses as passing. The
+expected artifact hashes, study clock `1787031883099`, snapshot count `7500`,
+and source provenance are recorded in `docs/BASELINE_002_RESEARCH_R3.md`.
 
 M3-R3-A permits only machine-record validation and synthetic tests. It does
 not call Binance, load historical data, run CONTROL/backtest/settlement,
