@@ -73,12 +73,11 @@ import {
 import {
   M3_R4_C_PROTOCOL_BASE_MAIN_SHA,
   M3_R4_C_STANDARD_POLICY,
-  Round004HistoricalLoader,
-  Round004LoadedStudy,
   appendRound004IntrabarWindows,
   loadRound004IntrabarWindows,
   loadRound004Study,
 } from "./m3-r4-round-004-loader.ts";
+import type { Round004HistoricalLoader, Round004LoadedStudy } from "./m3-r4-round-004-loader.ts";
 import {
   buildRound004ExecutionArtifacts,
   normalizeRound004Result,
