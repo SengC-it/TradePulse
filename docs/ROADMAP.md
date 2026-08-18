@@ -640,9 +640,9 @@ only research inputs used in this milestone.
 - `baseline-001`, `bt-policy-001`, `bt-policy-002`, `bt-policy-003`,
   `m3-b-report-004`, and M3-E evidence are unchanged.
 - M3-G.2 owns the real round-001 gate values and is **CLOSED / MERGED**;
-  `baseline-002` remains **NOT FROZEN**. M3-H and M3-I are closed/merged;
-  M3-R2-A is under review, while M3-J is blocked/not started and M4 remains
-  not started.
+  `baseline-002` remains **NOT FROZEN**. M3-H, M3-I, and M3-R2-A are
+  closed/merged; M3-R2-B is under review, while M3-J is blocked/not started
+  and M4 remains not started.
 
 ### Verification
 
@@ -762,7 +762,7 @@ STARTED**, and M4 remains **NOT STARTED**.
 
 ## M3-R2-A — baseline-002 Research Round-002 Protocol Freeze
 
-Status: UNDER REVIEW; documentation only
+Status: CLOSED / MERGED; documentation only
 
 M3-R2-A begins the separate `baseline-002-research-round-002` stream after
 Round-001 closed with `NO BASELINE-002 CANDIDATE`. The complete frozen protocol
@@ -804,6 +804,28 @@ synthetic selector tooling, M3-R2-C one authoritative CONTROL capture and
 offline derivation, then M3-R2-D mechanical gate application. If no candidate
 passes, the exact outcome is `NO BASELINE-002 CANDIDATE — ROUND-002` and M3-J
 remains blocked.
+
+## M3-R2-B — Round-002 Machine Gate, Registry, and Pure Selector Tooling
+
+Status: UNDER REVIEW; PRE-PERFORMANCE; Draft PR
+
+M3-R2-B is limited to deterministic, synthetic-fixture tooling for the frozen
+Round-002 protocol. It adds the SHA-covered machine gate record, the exact
+one-control/nine-candidate registry, frozen complexity tuples and single-value
+parameters, the outcome-blind `M3R2DecisionSnapshot` extractor, and pure H6-H10
+selectors plus exact-AND combinations C1-C4. H9 uses closed 1H
+`Candle.quoteVolume` and excludes the current candle from the previous-20 mean.
+
+The gate SHA is
+`9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0` and the
+plan SHA is
+`3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21`.
+All nine Round-002 redundancy gates are `NOT_APPLICABLE`, never `PASS`.
+
+This milestone does not call Binance, load historical data, run CONTROL or
+backtest, generate evidence/performance metrics, implement `baseline-002`,
+add a CLI/runner, tune parameters, start M3-R2-C/D, freeze baseline-002, or
+start M3-J/M4. The next milestone requires a separate explicit authorization.
 
 ## M4 — Realtime Scanner
 

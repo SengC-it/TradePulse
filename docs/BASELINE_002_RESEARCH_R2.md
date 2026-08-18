@@ -1,6 +1,6 @@
 # TradePulse baseline-002 Research Round-002 Protocol
 
-Status: **M3-R2-A UNDER REVIEW**
+Status: **M3-R2-A CLOSED / MERGED; M3-R2-B UNDER REVIEW**
 
 This document freezes the pre-performance protocol for
 `baseline-002-research-round-002`. It is a research specification, not a
@@ -25,7 +25,9 @@ Neither file may be changed by Round-002.
 
 ## Absolute no-run boundary
 
-M3-R2-A performs protocol freeze only. It must not:
+The Round-002 stream remains pre-performance. M3-R2-A performed protocol
+freeze only; M3-R2-B adds only pure, outcome-blind machine tooling. Neither
+stage may:
 
 - call Binance or any other market-data endpoint;
 - load historical data or inspect market data after
@@ -34,8 +36,7 @@ M3-R2-A performs protocol freeze only. It must not:
   historical loader;
 - derive candidate performance, net R, profit factor, expectancy, or any
   other outcome metric;
-- implement candidate selectors, a feature extractor, a research engine,
-  `baseline-002`, an optimizer, or parameter search;
+- implement `baseline-002`, an optimizer, or parameter search;
 - create candidate performance reports or evidence JSON.
 
 Synthetic and documentation-consistency checks are allowed. No performance
@@ -159,13 +160,15 @@ touch in any earlier candle does not satisfy H8.
 Use fully closed 1H data only. Define:
 
 ```text
-volumeMean20 = arithmetic mean of t-20 through t-1 volumes
+previous20Closed1hQuoteVolumeMean = arithmetic mean of t-20 through t-1
+closed 1H `Candle.quoteVolume` values
 ```
 
-The current candle `t` is excluded. Require `currentVolume >= volumeMean20`.
-All volumes must be finite and greater than or equal to zero, and
-`volumeMean20` must be finite and greater than zero. Otherwise the selector
-fails closed.
+The current candle `t` is excluded. Require
+`current1hQuoteVolume >= previous20Closed1hQuoteVolumeMean`. Both the current
+and previous values must be finite and non-negative, and the mean must be
+finite and greater than zero. Base `Candle.volume` is not used by H9.
+Otherwise the selector fails closed.
 
 ### H10 — `BREAKOUT_BUFFER`
 
@@ -227,7 +230,8 @@ At minimum it includes:
 - `symbol4hClose`, `symbol4hEma50`, `symbol4hEma200`, `symbol4hAtr`, and
   `symbol4hEma200FiveBarsAgo`;
 - `nearestBaselinePullbackTouchAgeBars`;
-- `current1hVolume` and `previous20Closed1hVolumeMean`;
+- `current1hQuoteVolume` and `previous20Closed1hQuoteVolumeMean` from
+  `Candle.quoteVolume`;
 - `current1hClose`, `previous3BreakoutExtreme`, `current1hAtr`, and
   `breakoutMarginAtr`.
 
@@ -334,6 +338,33 @@ M3-J remains blocked. If one or more candidates are eligible, the frozen tie
 rules select one mechanically; only then may baseline-002 be frozen and M3-J
 separately authorized.
 
+## M3-R2-B machine artifacts
+
+M3-R2-B freezes the pre-performance primitives without running them over
+historical data. The machine-readable gate record is
+`BASELINE_002_RESEARCH_ROUND_002_MACHINE_RECORD` with canonical SHA-256
+`9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0`.
+It inherits Round-001 gate SHA
+`11eb5e11333b11bb3d75f762fa6d9868db33ec378f59ac1a636530a81d0962fd` and is
+source-pinned to `26d18ef314594f0e79583da617a0d8c17e812be9`.
+
+The canonical pre-performance plan is
+`M3_R2_ROUND_002_PLAN` with SHA-256
+`3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21`.
+It contains exactly one control plus nine candidate identities, the exact
+complexity tuples, single-value parameter declarations, the 16-field
+`M3R2DecisionSnapshot` contract, and the no-candidate outcome
+`NO BASELINE-002 CANDIDATE — ROUND-002`.
+
+`extractM3R2DecisionSnapshot` is pure and fail-closed: it accepts only a
+formal baseline-001 signal with exactly 250 closed 1H and 250 closed 4H
+candles, finite positive indicators/ATR, valid pullback and breakout
+features, and the current plus previous-20 `Candle.quoteVolume` values.
+Selectors accept only those contemporaneous snapshots, return original
+snapshot references as strict subsets, reject duplicate identities, and use
+exact AND composition for combinations. No selector accepts settlement,
+future-candle, funding, or performance fields.
+
 ## Round-002 invalidation rule
 
 Before the first Round-002 performance output, implementation defects may be
@@ -352,16 +383,19 @@ The same research round must not be patched and rerun.
 
 ## Scope and stop condition
 
-M3-R2-A changes documentation only. It does not create Round-002 source code,
-selectors, feature extraction, a runner, a CLI, evidence JSON, or candidate
-performance output. It does not change baseline-001, bt-policy-003, Round-001
-gates, Round-001 evidence, or any trading capability.
+M3-R2-A changes documentation only. M3-R2-B creates only the pure
+pre-performance gate/plan/snapshot/selector modules and synthetic tests. This
+stream does not create a runner or CLI, evidence JSON, historical loader,
+candidate performance output, or any network request. It does not change
+baseline-001, bt-policy-003, Round-001 gates, Round-001 evidence, or any
+trading capability.
 
 The milestone stops after documentation verification and CI with this state:
 
 - M3-I: **CLOSED / MERGED**;
 - Round-001: **NO BASELINE-002 CANDIDATE**;
 - `baseline-002`: **NOT FROZEN**;
-- M3-R2-A: **UNDER REVIEW**;
+- M3-R2-A: **CLOSED / MERGED**;
+- M3-R2-B: **UNDER REVIEW**;
 - M3-J: **BLOCKED / NOT STARTED**;
 - M4: **NOT STARTED**.

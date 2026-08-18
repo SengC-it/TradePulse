@@ -294,6 +294,26 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   M3-R2-A is documentation-only; `baseline-002` remains not frozen, M3-J
   remains blocked/not started, and M4 remains not started.
 
+## ADR-025 — Freeze Round-002 machine gates and pure selector tooling
+
+- **Decision:** M3-R2-B implements only pre-performance, outcome-blind tooling
+  for `baseline-002-research-round-002`: a separate canonical gate record,
+  exact control/candidate registry, frozen complexity tuples and parameters,
+  pure decision-time feature extraction, pure H6-H10 selectors, exact-AND
+  combinations C1-C4, and synthetic tests. The gate record SHA is
+  `9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0`; the
+  plan SHA is
+  `3438882d019a5fc99875214e7a6a56892c83aa8e8b47d45fd5443045e097fd21`.
+- **Reason:** Round-002 must be mechanically reproducible without allowing
+  future outcomes, settlement fields, historical loader behavior, or
+  performance results to influence candidate identity or selection.
+- **Consequence:** H9 uses closed 1H `Candle.quoteVolume`, with the current
+  candle excluded from the previous-20 mean. All nine Round-002 redundancy
+  gates are `NOT_APPLICABLE` and never `PASS`. The source is pinned to
+  `26d18ef314594f0e79583da617a0d8c17e812be9`, status remains
+  `NOT_GENERATED`, and no CONTROL/backtest/historical/network run is allowed.
+  M3-R2-C/D, baseline-002 freeze, M3-J, and M4 remain unauthorized.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
