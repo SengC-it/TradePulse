@@ -779,8 +779,23 @@ and H10 breakout buffer) and exactly nine candidates plus the baseline-001
 CONTROL. Every candidate is a strict eligibility subset of baseline-001 and
 selectors may use only contemporaneous decision-time features.
 
-Round-002 inherits the exact Round-001 numeric gate values and semantics. A
-separate machine-readable Round-002 gate record must be frozen and merged in
+Round-002 inherits the Round-001 gate values, formulas, semantics, sample
+floors, PF status rules, aggregate-validation construction, fold-improvement
+definition, catastrophic-fold definition, concentration rules, fee-burden
+rule, and selection tie rules unchanged. M3-R2-B may encode them in a
+separate machine record but may not alter them. An actual structural
+incompatibility stops the round and requires a new research-round decision;
+there is no in-round gate-change escape hatch.
+
+`requiredRedundancyImprovement` remains REQUIRED only for declared H1 or H4
+mechanisms (including combinations containing either). None of the nine
+Round-002 candidates declares H1/H4, so all nine have redundancy-gate
+applicability and evaluated status `NOT_APPLICABLE`; N/A is not PASS and
+incidental H6-H10 overlap reduction is not an H1/H4 mechanism. The exact
+five-step Round-001 tie rule and the non-negative-integer complexity tuple for
+each candidate must be frozen in M3-R2-B before performance.
+
+A separate machine-readable Round-002 gate record must be frozen and merged in
 M3-R2-B before any performance output. M3-R2-A does not implement selectors,
 feature extraction, a runner, a CLI, evidence generation, or baseline-002.
 

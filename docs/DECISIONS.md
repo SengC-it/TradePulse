@@ -274,13 +274,25 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   the closed Round-001 registry, gates, evidence, or result.
 - **Consequence:** Round-002 candidates are strict eligibility subsets of
   baseline-001 and selectors may use only contemporaneous decision-time
-  features. Round-001 numeric gate values and semantics cannot be weakened; a
-  separate equivalent machine gate record must be merged before any Round-002
-  performance output. The sequence is M3-R2-A protocol freeze, M3-R2-B machine
-  gate and synthetic tooling, M3-R2-C one CONTROL capture/offline derivation,
-  then M3-R2-D mechanical gate application. M3-R2-A is documentation-only;
-  `baseline-002` remains not frozen, M3-J remains blocked/not started, and M4
-  remains not started.
+  features. Round-002 inherits the complete Round-001 gate contract
+  unchanged: values, formulas, semantics, sample floors, PF status rules,
+  aggregate-validation construction, fold-improvement and catastrophic-fold
+  definitions, concentration and fee-burden rules, and selection tie rules.
+  M3-R2-B may encode but may not alter that contract. An actual structural
+  incompatibility stops the round and requires a new research-round decision;
+  there is no in-round gate-change escape hatch.
+- **Consequence (continued):** `requiredRedundancyImprovement` is REQUIRED only
+  for declared H1/H4 mechanisms or combinations containing them. All nine
+  Round-002 candidates declare neither, so their redundancy gate is
+  `NOT_APPLICABLE` and never PASS. The exact five-step tie rule is inherited,
+  and M3-R2-B must freeze each candidate's non-negative-integer complexity
+  tuple before performance; neither the tuple nor the tie rules may change
+  afterward. A separate equivalent machine gate record must be merged before
+  any Round-002 performance output. The sequence is M3-R2-A protocol freeze,
+  M3-R2-B machine gate and synthetic tooling, M3-R2-C one CONTROL
+  capture/offline derivation, then M3-R2-D mechanical gate application.
+  M3-R2-A is documentation-only; `baseline-002` remains not frozen, M3-J
+  remains blocked/not started, and M4 remains not started.
 
 ## Deferred decisions
 

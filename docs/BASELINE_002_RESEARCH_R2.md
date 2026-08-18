@@ -235,19 +235,73 @@ No future/outcome field may be added to the selector input contract.
 
 ## Selection gates
 
-Round-002 must not weaken Round-001. The Round-002 numeric hard gates must be
-identical in value and semantics to Round-001 unless a future pre-performance
-specification demonstrates a purely structural incompatibility.
+Round-002 inherits the Round-001 gate values, formulas, semantics, sample
+floors, PF status rules, aggregate-validation construction, fold-improvement
+definition, catastrophic-fold definition, concentration rules, fee-burden
+rule, and selection tie rules unchanged.
 
-In particular, no future work may lower the minimum aggregate improvement,
-minimum improved folds, minimum expectancy, minimum PF, redundancy/sample/
-concentration safeguards, or fee-burden requirement to obtain a candidate.
+M3-R2-B may encode these rules into a separate Round-002 machine record, but
+may not alter them. There is no gate-change escape hatch. If an actual
+structural incompatibility is discovered, the process must stop; the gate
+must not be modified inside Round-002. The protocol must instead be amended
+as a new research-round decision before performance.
+
+No future work may lower any inherited safeguard, including minimum aggregate
+improvement, minimum improved folds, minimum expectancy, minimum PF,
+redundancy/sample/concentration safeguards, or the fee-burden requirement.
 
 M3-R2-B must create and freeze a separate machine-readable Round-002 gate
 record, with a distinct Round-002 identity, before any Round-002 performance
 output. That record must assert canonical equivalence of every inherited
-numeric gate value and semantic rule to Round-001. No gate value may be chosen
-after seeing Round-002 performance.
+gate value and semantic rule to Round-001. No gate value may be chosen after
+seeing Round-002 performance.
+
+### Redundancy-gate applicability
+
+Round-001 `requiredRedundancyImprovement` applicability is preserved
+semantically. It is REQUIRED only for a hypothesis whose declared mechanism
+claims `H1_SIGNAL_REDUNDANCY` or `H4_SIGNAL_DENSITY`, including a combination
+that contains either family.
+
+None of H6, H7, H8, H9, H10, C1, C2, C3, or C4 declares H1 or H4. Therefore,
+for all nine Round-002 candidates:
+
+```text
+requiredRedundancyImprovement.applicability = NOT_APPLICABLE
+requiredRedundancyImprovement.status       = NOT_APPLICABLE
+```
+
+`NOT_APPLICABLE` is not counted as `PASS`. Incidental signal-count or overlap
+reduction caused by H6-H10 must not be reinterpreted as an H1/H4 redundancy
+mechanism. This preserves Round-001 semantics without post-result weakening
+or strengthening.
+
+### Exact selection tie rule
+
+Round-002 inherits the exact Round-001 selection ordering:
+
+1. greater `improvedValidationFolds`;
+2. if tied, and the aggregate expectancy difference is greater than `0.01 R`,
+   higher aggregate expectancy;
+3. if the expectancy difference is less than or equal to `0.01 R`, the
+   lexicographically smaller complexity tuple;
+4. higher aggregate profit factor;
+5. `experimentId` lexical ascending.
+
+The complexity tuple is exactly:
+
+```text
+(
+  newRules,
+  newTunableThresholds,
+  modifiedBaselineRules,
+  mechanismFamiliesUsed
+)
+```
+
+M3-R2-B must freeze a non-negative-integer complexity tuple for each of the
+nine candidates before any performance output. No complexity value may be
+changed after performance is generated.
 
 ## Folds and metric boundary
 

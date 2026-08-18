@@ -599,6 +599,25 @@ consistency review must confirm:
 12. no Round-002 source code, selector, runner, CLI, evidence JSON, Binance
     request, historical load, backtest, optimizer, or M3-J/M4 work is present.
 
+The same checks must explicitly prove that:
+
+- every inherited Round-001 gate value, formula, semantic rule, sample floor,
+  PF status rule, aggregate-validation construction, fold-improvement and
+  catastrophic-fold definition, concentration rule, fee-burden rule, and
+  selection tie rule is unchanged;
+- `requiredRedundancyImprovement` is `NOT_APPLICABLE` for all nine Round-002
+  candidates because none declares H1 or H4, and `NOT_APPLICABLE` is never
+  counted as `PASS`;
+- the exact five-step tie rule is greater improved folds, expectancy only when
+  the difference is greater than 0.01 R, lexicographically smaller complexity
+  tuple when the difference is at most 0.01 R, higher PF, then lexical
+  `experimentId`;
+- M3-R2-B freezes a non-negative-integer complexity tuple for every candidate
+  before performance and no tuple can change afterward; and
+- no gate-change escape hatch exists: an actual structural incompatibility
+  stops the round and requires a new research-round decision rather than an
+  in-round gate modification.
+
 The protocol document is `docs/BASELINE_002_RESEARCH_R2.md`. M3-R2-A stops
 after documentation verification and CI with M3-I closed/merged,
 `baseline-002` not frozen, M3-J blocked/not started, and M4 not started.
