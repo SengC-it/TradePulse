@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-R4-B — Round-004 exact machine-readable protocol freeze under review**.
+Current milestone: **M3-R4-C — Round-004 performance implementation source freeze under review**.
 
 ## Boundary
 
@@ -42,7 +42,8 @@ unfrozen. M3-R3-B, M3-R3-C, and M3-R3-C.1/C.2 are now closed/merged. The
 authoritative Round-003 selection result is
 `NO BASELINE-002 CANDIDATE — ROUND-003`; no candidate was eligible. M3-R4-A
 is closed/merged. M3-R4-B freezes the exact pre-performance machine protocol
-for four standalone hypotheses; no Round-004 performance is authorized,
+for four standalone hypotheses. M3-R4-C freezes only the executable source
+for the later performance run; no Round-004 performance is authorized,
 baseline-002 remains unfrozen, M3-J is blocked/not started, and M4 remains
 not started.
 
@@ -157,7 +158,8 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-R3-B | Round-003 offline candidate derivation (closed / merged) |
 | M3-R3-C | Round-003 frozen selection (closed / merged; no baseline-002 candidate) |
 | M3-R4-A | Round-004 diagnosis and structural hypothesis freeze (closed / merged) |
-| M3-R4-B | Round-004 exact machine-readable protocol (under review; no performance authorized) |
+| M3-R4-B | Round-004 exact machine-readable protocol (closed / merged) |
+| M3-R4-C | Round-004 performance implementation source freeze (under review; not executed) |
 | M4 | Realtime scanner, protected endpoint, persistence (not started) |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
@@ -186,4 +188,5 @@ Each milestone requires tests, documentation updates, acceptance review, and an 
 - [Round-004 research protocol](docs/BASELINE_002_RESEARCH_R4.md)
 - [Round-004 machine protocol](docs/BASELINE_002_MACHINE_PROTOCOL_R4.md)
 - [Round-004 selection gates](docs/BASELINE_002_SELECTION_GATES_R4.md)
+- [Round-004 performance implementation](docs/M3_R4_C_PERFORMANCE_IMPLEMENTATION.md)
 - [Long-term agent constraints](AGENTS.md)

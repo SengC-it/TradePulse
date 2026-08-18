@@ -440,6 +440,34 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   the first performance result requires `ROUND_004_INVALIDATION_REQUIRED` and
   a new research-round decision.
 
+## ADR-030 — Freeze the Round-004 performance implementation before execution
+
+- **Decision:** M3-R4-C freezes the executable source for
+  `baseline-002-research-round-004` on authoritative main
+  `fd42381d903f9b60ec98e7b297578de95dc8160b`. It does not run the performance
+  command or create historical evidence.
+- **Scope:** The implementation preserves `baseline-001`, `bt-policy-003`,
+  the frozen five-symbol universe, the global 24-held-candle policy, and all
+  M3-R4-B decision formulas. H13 alone receives a `SETTLEMENT_ONLY` extension
+  for held #25–#48; H13 raw output is research-only. H11/H12 use standard
+  settlement and H14 reuses the same-run CONTROL outcome.
+- **Execution guard:** A later authorized command must supply
+  `--confirm-authoritative-run`, exact source/Gate/Plan SHA values, and the
+  exact round id. Before any network access it must validate exact HEAD,
+  clean worktree, successful Gate/Plan validators, and absent output files;
+  missing values fail closed and outputs cannot be overwritten.
+- **Phases:** Phase A discovers decision populations and the deduplicated
+  intrabar requirement union without economics/evidence. Phase B loads one
+  final set of 1m windows with the same study server time, runs the existing
+  CONTROL, verifies identity parity, settles the candidates, and then
+  serializes report schema `m3-r4-round-004-report-001`. Gate application and
+  candidate selection remain deferred to M3-R4-D.
+- **Consequence:** M3-R4-C is source freeze only. No Binance request,
+  historical run, CONTROL, evidence artifact, candidate gate, baseline-002
+  freeze, M3-J, M4, private API, or trading path is authorized. The exact
+  status remains `baseline-002 NOT FROZEN`, `M3-J BLOCKED / NOT STARTED`, and
+  `M4 NOT STARTED`.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

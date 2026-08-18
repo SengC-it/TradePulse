@@ -995,6 +995,39 @@ data, historical loader, CONTROL capture, backtest, settlement, candidate
 performance, evidence derivation, selection, baseline-002 freeze, M3-J, or M4
 work is part of M3-R4-B.
 
+## M3-R4-C — baseline-002 Research Round-004 Performance Implementation Source Freeze
+
+Status: **UNDER REVIEW / SOURCE FREEZE; PERFORMANCE NOT EXECUTED**
+
+M3-R4-C is based on authoritative main
+`fd42381d903f9b60ec98e7b297578de95dc8160b`. It implements the complete future
+Round-004 performance pipeline without running it on historical data. The
+frozen round is `baseline-002-research-round-004`, with Gate SHA
+`c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54` and Plan
+SHA `f05a363b7d7e48d9706c7fe471db18c36122e99e4c88884d7df54be2ccf24981`.
+
+The source freeze adds a guarded CLI, an unchanged standard `bt-policy-003`
+loader plus H13's `SETTLEMENT_ONLY` held #25–#48 extension, research-only H13
+settlement, two-phase requirement discovery/final 1m settlement, same-run
+CONTROL parity, H11/H12/H14 decision-time population handling, and the
+schema `m3-r4-round-004-report-001` evidence serializer. Decision indexes and
+settlement indexes are separate. H13 settlement data is never passed to the
+Strategy Engine, and H14 reuses the same-run CONTROL outcome rather than
+settling independently.
+
+The CLI requires `--confirm-authoritative-run`, exact source/Gate/Plan SHA
+arguments, the exact round id, a clean worktree, successful frozen validators,
+and no pre-existing output artifacts before any network access. It rejects
+overwrite and publishes future artifacts atomically. The source-freeze branch
+does not call the CLI, Binance, the historical loader, CONTROL, settlement,
+evidence derivation, candidate selection, or any M3-R4-D gate.
+
+M3-R4-C tests are synthetic and offline. `baseline-001`, `bt-policy-003`, the
+five symbols, the global 24-held-candle policy, M3-J, and M4 are unchanged.
+`baseline-002` remains **NOT FROZEN**, M3-J remains **BLOCKED / NOT STARTED**,
+and M4 remains **NOT STARTED**. See
+`docs/M3_R4_C_PERFORMANCE_IMPLEMENTATION.md`.
+
 ## M4 — Realtime Scanner
 
 Status: NOT STARTED

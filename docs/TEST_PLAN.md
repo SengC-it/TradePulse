@@ -6,10 +6,10 @@ M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
 with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
 M3-R2-D is CANCELLED FOR ROUND-002; Round-003 final selection is
 `NO BASELINE-002 CANDIDATE — ROUND-003`; M3-R4-A is CLOSED / MERGED after
-diagnosis and structural hypothesis freeze; M3-R4-B is UNDER REVIEW for the
-exact machine-readable protocol and remains pre-performance;
-`baseline-002` remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED, and M4 is
-not started.
+diagnosis and structural hypothesis freeze; M3-R4-B is CLOSED / MERGED;
+M3-R4-C is UNDER REVIEW / PERFORMANCE SOURCE FREEZE and has NOT EXECUTED
+Round-004; `baseline-002` remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED,
+and M4 is not started.
 
 ## Test layers
 
@@ -836,6 +836,37 @@ pre-performance. It must prove:
 7. the canonical Gate and Plan records recompute their final SHA-256 values,
    and the suite contains no network, historical loader, performance,
    candidate-selection, baseline-002 freeze, or M4 execution path.
+
+### M3-R4-C Round-004 performance source-freeze coverage
+
+The dedicated `tests/m3-r4-c-performance.test.ts` suite contains 227
+deterministic offline tests. It must prove:
+
+1. the guarded CLI requires the explicit confirmation flag, exact source SHA,
+   exact Round/Gate/Plan identifiers, clean worktree, successful frozen
+   validators, and absent output artifacts before constructing a network
+   loader;
+2. the H13 extension begins exactly at held #25, ends at held #48, is tagged
+   `SETTLEMENT_ONLY`, uses the same study server time, and never enters
+   decision-time Strategy Engine inputs;
+3. Phase A builds the baseline/candidate populations and discovers the
+   canonical intrabar union without net R, PF, evidence, or selection fields;
+4. Phase B uses one final settlement pass, preserves the standard 24-candle
+   policy for CONTROL/H11/H12, uses H13's 48-held research-only result, and
+   reuses same-run CONTROL for H14;
+5. H13 preserves SL-first, next-open trend exits, held #48 TIME_EXIT, the
+   original stop-distance denominator, funding provenance, and fail-closed
+   missing/invalid data behavior;
+6. the evidence serializer preserves canonical time/symbol/direction order,
+   separates decision and outcome audit records, computes the exact F1-F6
+   validation union, emits `m3-r4-round-004-report-001`, and does not apply
+   gates or freeze `baseline-002`;
+7. no test calls Binance, the historical loader, CONTROL, the performance CLI,
+   a private/trading API, an optimizer, or a real-data evidence path.
+
+The source-freeze milestone must run typecheck, lint, all tests, build, and
+`git diff --check`, but must not run
+`npm run research:m3r4:performance`.
 
 ### M3-B implemented test coverage
 

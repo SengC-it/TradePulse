@@ -173,7 +173,9 @@ function makeEvaluation(formalSignalCount: number): BacktestEvaluation {
 function sourceText(): string {
   const root = resolve(process.cwd(), "src/lib/research");
   return readdirSync(root)
-    .filter((name) => name.endsWith(".ts"))
+    // Round-004 performance source is intentionally a later, separate
+    // execution boundary and is covered by its own source-freeze suite.
+    .filter((name) => name.endsWith(".ts") && !name.startsWith("m3-r4-round-004-"))
     .sort()
     .map((name) => readFileSync(resolve(root, name), "utf8"))
     .join("\n");
