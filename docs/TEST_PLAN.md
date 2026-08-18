@@ -1,9 +1,10 @@
 # TradePulse Test Plan
 
 Status: M3-G, M3-G.1, M3-G.2, M3-H, and M3-I CLOSED / MERGED;
-M3-R2-A is CLOSED / MERGED; M3-R2-B is UNDER REVIEW and remains
-PRE-PERFORMANCE; `baseline-002` remains NOT FROZEN; M3-R2-C/D and M3-J are
-not started and M4 is not started.
+M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
+with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
+M3-R2-D is CANCELLED FOR ROUND-002, M3-J is BLOCKED / NOT STARTED, and M4
+is not started.
 
 ## Test layers
 
@@ -655,7 +656,32 @@ the historical loader, the backtest CLI, or any market-data endpoint.
 
 The H7 correction was identified and completed before any Round-002
 performance output. It corrects the implementation to the frozen formula and
-is not strategy tuning; `ROUND_002_INVALIDATION_REQUIRED` does not apply.
+is not strategy tuning.
+
+### M3-R2-C Round-002 invalidation closure checks
+
+The M3-R2-C invalidation closure is documentation-only. The authoritative
+CONTROL completed exactly once on the source-freeze commit and triggered
+`FIRST_M3_R2_C_PERFORMANCE_RESULT_GENERATED = TRUE`. Offline derivation then
+failed closed after performance was generated. The closure record must retain:
+
+1. the exact source SHA, source-freeze CI result, study server time, CONTROL
+   report SHA, decision-snapshot SHA, Round-001 evidence SHA, and snapshot
+   count;
+2. the exact first range-filter failure
+   `BTCUSDT|LONG|1673341199999`, which is before F1's validation range;
+3. the independent identity-hash ordering defect: frozen time/symbol/direction
+   order is required instead of lexical identity-string sorting;
+4. `ROUND_002_INVALIDATION_REQUIRED`, with no patch or rerun of the same round;
+5. candidate performance and Round-002 evidence marked NOT GENERATED;
+6. captured files marked `INVALIDATED_ROUND_CAPTURE_ARTIFACTS`, with reuse only
+   `CONDITIONAL_PENDING_NEW_ROUND_PROTOCOL_AND_SHA_VERIFICATION`;
+7. M3-R2-D cancelled for Round-002, `baseline-002` not frozen, M3-J blocked,
+   M4 not started, and Round-003 not started/not authorized.
+
+The complete documentation record is `docs/M3_R2_C_INVALIDATION.md`. These
+checks do not run Binance, a historical loader, CONTROL, backtest, candidate
+derivation, gate application, or any result-affecting code.
 
 ### M3-B implemented test coverage
 

@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-R2-B — Round-002 machine gates and pure selector tooling under review**.
+Current milestone: **M3-R2-C — Round-002 invalidated / stopped; closure under review**.
 
 ## Boundary
 
@@ -25,9 +25,15 @@ the single-mechanism plan before performance, and Stage B generated one
 descriptive CONTROL plus 13 offline candidate evidence records. M3-H is closed
 and M3-I mechanically applied the frozen gates offline; M3-I is now closed and
 the result is `NO BASELINE-002 CANDIDATE`. baseline-002 remains unfrozen.
-M3-R2-A is closed/merged. M3-R2-B adds only pre-performance, synthetic,
-outcome-blind gate, feature-snapshot, and selector tooling; it does not
-generate performance results or start M3-R2-C/D or M3-J.
+M3-R2-A and M3-R2-B are closed/merged. M3-R2-B's frozen gate SHA is
+`9781635614e1be3703384c3b1d734278628ff156553e195e33842949bc1f10f0` and its
+plan SHA is
+`82680d0cdbb08c1973eb4b5a4ef4dae81cd064d0cbe17ff85739d2def862d511`.
+M3-R2-C completed one authoritative CONTROL, then its offline evidence
+derivation exposed result-affecting defects after performance generation.
+Round-002 is therefore `INVALIDATED / STOPPED` and must not be patched and
+rerun. M3-R2-D is cancelled for Round-002, `baseline-002` remains unfrozen,
+M3-J is blocked/not started, and M4 remains not started.
 
 ## Architecture
 
@@ -133,7 +139,9 @@ The later notification milestone uses `smtp.gmail.com` on port `587` with STARTT
 | M3-H | Round-001 single-mechanism research (closed / merged; evidence preserved) |
 | M3-I | Round-001 mechanical candidate gate application (closed / merged; no baseline-002 candidate) |
 | M3-R2-A | Round-002 research protocol freeze (closed / merged) |
-| M3-R2-B | Round-002 machine gates and pure selector tooling (under review; pre-performance) |
+| M3-R2-B | Round-002 machine gates and pure selector tooling (closed / merged) |
+| M3-R2-C | Round-002 CONTROL/evidence (invalidated / stopped; no candidate evidence) |
+| M3-R2-D | Round-002 mechanical gate application (cancelled for Round-002) |
 | M4 | Realtime scanner, protected endpoint, persistence (not started) |
 | M5 | Gmail notifications and delivery tracking |
 | M6 | Forward tracking and signal results |
@@ -155,4 +163,5 @@ Each milestone requires tests, documentation updates, acceptance review, and an 
 - [Test plan](docs/TEST_PLAN.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture decisions](docs/DECISIONS.md)
+- [M3-R2-C invalidation record](docs/M3_R2_C_INVALIDATION.md)
 - [Long-term agent constraints](AGENTS.md)

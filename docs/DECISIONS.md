@@ -309,14 +309,33 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   performance results to influence candidate identity or selection.
 - **Consequence:** H9 uses closed 1H `Candle.quoteVolume`, with the current
   candle excluded from the previous-20 mean. All nine Round-002 redundancy
-  gates are `NOT_APPLICABLE` and never `PASS`. The source is pinned to
-  `26d18ef314594f0e79583da617a0d8c17e812be9`, status remains
-  `NOT_GENERATED`, and no CONTROL/backtest/historical/network run is allowed.
-  M3-R2-C/D, baseline-002 freeze, M3-J, and M4 remain unauthorized.
-  Before performance existed, an H7 implementation defect that used EMA50
-  instead of EMA200 for close distance was corrected to the already-frozen
-  formula. This was not strategy tuning, and `ROUND_002_INVALIDATION_REQUIRED`
-  does not apply.
+  gates are `NOT_APPLICABLE` and never `PASS`. The source was pinned to
+  `26d18ef314594f0e79583da617a0d8c17e812be9`, and M3-R2-B was merged before
+  any Round-002 performance. M3-R2-C/D, baseline-002 freeze, M3-J, and M4
+  remained unauthorized at this freeze point. The later M3-R2-C invalidation
+  is recorded separately and does not alter this machine gate contract.
+
+## ADR-026 — Invalidate Round-002 after post-performance evidence defects
+
+- **Decision:** Classify `baseline-002-research-round-002` as
+  `ROUND_002_INVALIDATION_REQUIRED`. The single CONTROL capture completed on
+  source `9df170b7f72a95971825e126d4096e1e4f16be5f`, but offline evidence
+  derivation exposed result-affecting defects after `runBacktest()` returned.
+  The round must not be patched and rerun; PR #22 remains unmerged and
+  preserved as audit evidence.
+- **Reason:** The aggregate F1-F6 diagnostics path passed all CONTROL records
+  into a bounded-range calculation instead of first filtering records to the
+  requested inclusive range. Independently, identity hashing used lexical
+  string sorting instead of the frozen signal-time/symbol/direction order.
+  Either defect can invalidate evidence or create false CONTROL parity drift.
+- **Consequence:** Candidate performance and Round-002 evidence are not
+  generated. The captured CONTROL and decision-snapshot files are
+  `INVALIDATED_ROUND_CAPTURE_ARTIFACTS`, not a baseline-002 result and not
+  eligible for M3-R2-D. Reuse is only
+  `CONDITIONAL_PENDING_NEW_ROUND_PROTOCOL_AND_SHA_VERIFICATION` and is not
+  approved by this record. `baseline-002` remains not frozen, M3-R2-D is
+  cancelled for Round-002, M3-J is blocked/not started, M4 is not started,
+  and Round-003 is not started/not authorized.
 
 ## Deferred decisions
 
