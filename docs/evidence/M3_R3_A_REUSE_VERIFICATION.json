@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "m3-r3-a-reuse-verification-001",
+  "researchRoundId": "baseline-002-research-round-003",
+  "verificationSourceSha": "f50ec319573fddd186cd9ebb194da30ec1298501",
+  "controlReportSha256": "5ecfae3258d2ace774965eba12df25b888b04593b32e1b92a2593c41fdad8b33",
+  "decisionSnapshotArtifactSha256": "65a011d813c55f936f89069706730f5de33dfda9f2eba94f0dfb2b914818eec9",
+  "round001EvidenceSha256": "883001ac34470120cdbc754c2f47437bf13b6f13ce6ffb3e4f7795558a6a2fc7",
+  "studyServerTime": 1787031883099,
+  "snapshotCount": 7500,
+  "artifactReuseStatus": "VERIFIED_REUSABLE_INPUT",
+  "controlValidationStatus": "PASS",
+  "controlParityStatus": "PASS"
+}
