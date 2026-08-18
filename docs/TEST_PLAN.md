@@ -1,12 +1,14 @@
 # TradePulse Test Plan
 
-Status: M3-G, M3-G.1, M3-G.2, M3-H, and M3-I CLOSED / MERGED;
+Status: M3-G, M3-G.1, M3-G.2, M3-H, M3-I, M3-R2-A, M3-R2-B, M3-R3-A,
+M3-R3-B, M3-R3-C, and M3-R3-C.1/C.2 CLOSED / MERGED;
 M3-R2-A and M3-R2-B are CLOSED / MERGED; M3-R2-C is INVALIDATED / STOPPED
 with `ROUND_002_INVALIDATION_REQUIRED`; `baseline-002` remains NOT FROZEN;
-M3-R2-D is CANCELLED FOR ROUND-002; M3-R3-A is CLOSED / MERGED /
-PRE-PERFORMANCE; M3-R3-B is AUTHORIZED for Commit-A source freeze and
-one-time offline derivation; `baseline-002` remains NOT FROZEN; M3-J is
-BLOCKED / NOT STARTED, and M4 is not started.
+M3-R2-D is CANCELLED FOR ROUND-002; Round-003 final selection is
+`NO BASELINE-002 CANDIDATE — ROUND-003`; M3-R4-A is UNDER REVIEW for
+diagnosis and structural hypothesis freeze; M3-R4-B is NOT AUTHORIZED;
+`baseline-002` remains NOT FROZEN; M3-J is BLOCKED / NOT STARTED, and M4 is
+not started.
 
 ## Test layers
 
@@ -774,6 +776,35 @@ scope, all 11 gate identities, thresholds, candidate order, complexity tuples,
 PF behavior, catastrophic-fold semantics, eligibility, and tie-breaking. The
 recovery authorization is source-freeze only: no authoritative selection result
 is generated and `npm run research:m3r3:select` must not run in this stage.
+
+### M3-R4-A diagnosis and structural-hypothesis documentation coverage
+
+M3-R4-A is documentation-only and must not add executable selectors, runners,
+strategy code, backtest code, tests, or a new machine Gate/Plan record. Review
+must verify:
+
+1. the five authoritative input artifacts are named with their raw SHA-256
+   values and the data boundary remains
+   `2026-08-15T23:59:59.999Z` / `RESEARCH_AVAILABLE_SEEN_DATA`;
+2. Round-001 and Round-003 final governance results are reconciled, while
+   Round-002 candidate performance is explicitly excluded as invalidated;
+3. D1-D5 distinguish measured EVIDENCE from RESEARCH INFERENCE;
+4. H1-H10 and C1-C4 tested mechanism families are retired from the first
+   Round-004 stage, with no threshold recreation or combination search;
+5. exactly H11, H12, H13, and H14 are frozen as qualitative standalone
+   hypotheses, with exactly one future variant each;
+6. H11-H14 exact formulas, execution semantics, complexity tuples, data
+   requirements, gate record, plan SHA, and synthetic tests are deferred to
+   M3-R4-B before any performance;
+7. no post-2026-08-15 data, Binance, backtest, candidate performance,
+   baseline-002 freeze, M3-J, or M4 work is present;
+8. changed filenames are limited to the R4-A allowlist:
+   `docs/BASELINE_002_RESEARCH_R4.md`,
+   `docs/BASELINE_002_DIAGNOSIS_R4.md`, `docs/DECISIONS.md`,
+   `docs/ROADMAP.md`, `docs/TEST_PLAN.md`, and `README.md`.
+
+This review is a documentation acceptance check; it does not execute a
+historical study or create a performance result.
 
 ### M3-B implemented test coverage
 
