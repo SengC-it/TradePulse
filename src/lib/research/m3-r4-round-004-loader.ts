@@ -22,6 +22,7 @@ export const M3_R4_C_PROTOCOL_BASE_MAIN_SHA =
   "fd42381d903f9b60ec98e7b297578de95dc8160b" as const;
 export const M3_R4_C_SETTLEMENT_EXTENSION_TAG = "SETTLEMENT_ONLY" as const;
 export const M3_R4_C_STANDARD_POLICY = "bt-policy-003" as const;
+export const M3_R4_H11_SUPPORT_MAX_OFFSET_MS = 4 * INTERVAL_MS["1h"];
 
 export type Round004HistoricalLoader = Pick<
   BinanceHistoricalDataLoader,
@@ -65,6 +66,28 @@ function freezeRecord<T>(record: Record<ResearchSymbol, T>): Readonly<Record<Res
 
 function isFiniteSafeTimestamp(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
+}
+
+/**
+ * Round-004 H11 origin support can evaluate up to four fully closed 1H
+ * candles before an official evaluation time. Keep the frozen research and
+ * settlement ranges unchanged, and extend only the two decision candle
+ * ranges required to build that support window.
+ */
+export function buildRound004HistoricalLoadRanges(): ReturnType<typeof buildHistoricalLoadRanges> {
+  const standard = buildHistoricalLoadRanges("COMBINED");
+  const extendCandleRange = (timeframe: "1h" | "4h") => Object.freeze({
+    ...standard.candleRange[timeframe],
+    startTime: standard.candleRange[timeframe].startTime - M3_R4_H11_SUPPORT_MAX_OFFSET_MS,
+  });
+  return Object.freeze({
+    ...standard,
+    candleRange: Object.freeze({
+      ...standard.candleRange,
+      "1h": extendCandleRange("1h"),
+      "4h": extendCandleRange("4h"),
+    }),
+  });
 }
 
 /**
@@ -272,7 +295,7 @@ function combineStudyData(
 export async function loadRound004Study(
   loader: Round004HistoricalLoader = new BinanceHistoricalDataLoader(),
 ): Promise<Round004LoadedStudy> {
-  const ranges = buildHistoricalLoadRanges("COMBINED");
+  const ranges = buildRound004HistoricalLoadRanges();
   const standard = await loader.loadStudyData({ ...ranges, policy: M3_R4_C_STANDARD_POLICY });
   const extension = await loadSettlementExtension(loader, standard.serverTime);
   const standardData = standardDataFromStudy(standard);

@@ -74,6 +74,22 @@ atomic operation. This source-freeze milestone does not invoke the command.
    `DEFER_TO_M3_R4_D_FROZEN_GATE_APPLICATION`; no gate result, selected
    candidate, or baseline-002 freeze is emitted here.
 
-All tests are synthetic/offline. The dedicated M3-R4-C suite contains 227
+All tests are synthetic/offline. The dedicated M3-R4-C suite contains 262
 tests and does not call Binance, the historical loader, CONTROL, or the
 performance command.
+
+## C.3 pre-performance H11 warm-up remediation
+
+Authoritative Round-004 execution attempt #6 aborted before performance while
+building the H11 origin support cache with `DATA_INCOMPLETE`: the standard
+historical candle range did not contain a complete 250-candle Strategy Engine
+window at the earliest support time, four 1H hours before the frozen research
+start. No CONTROL run, performance result, or evidence artifact was
+generated, and the performance lock remains `NOT_TRIGGERED`.
+
+The C.3 remediation extends only the Round-004 decision candle request starts
+for 1H and 4H by the exact four-hour H11 support offset. It leaves the frozen
+official evaluation timeline, research universe, settlement tail, H11
+semantics, H12/H13/H14 definitions, Gate and Plan content, economics, and
+candidate definitions unchanged. This is a historical decision warm-up fix
+only; it does not claim performance success or authorize another execution.
