@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { RESEARCH_SYMBOLS } from "../src/lib/config/constants.ts";
+import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../src/lib/config/constants.ts";
 import { INTERVAL_MS } from "../src/lib/market-data/intervals.ts";
 import type { Candle } from "../src/lib/market-data/types.ts";
 import type {
@@ -13,7 +13,7 @@ import type {
   BacktestSignalSnapshot,
 } from "../src/lib/backtest/types.ts";
 import { BACKTEST_PERIOD_RANGES, BACKTEST_POLICY } from "../src/lib/backtest/constants.ts";
-import { buildHistoricalIndexes } from "../src/lib/backtest/windows.ts";
+import { buildHistoricalIndexes, buildStrategyInputFromIndexes } from "../src/lib/backtest/windows.ts";
 import { buildHistoricalLoadRanges } from "../src/lib/backtest/ranges.ts";
 import {
   BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256,
@@ -29,6 +29,8 @@ import {
   M3_R4_C_RESEARCH_UNIVERSE,
   assertRound004ExecutionPreflight,
   assertRound004FrozenArchitecture,
+  buildH11OriginSupportCache,
+  buildOfficialRound004EvaluationTimes,
   candidateRecordIdentity,
   discoverRound004IntrabarRequirements,
   evaluateH13Formation,
@@ -40,7 +42,9 @@ import {
   M3_R4_C_PROTOCOL_BASE_MAIN_SHA,
   M3_R4_C_SETTLEMENT_EXTENSION_TAG,
   M3_R4_C_STANDARD_POLICY,
+  M3_R4_H11_SUPPORT_MAX_OFFSET_MS,
   buildH13SettlementOnlyExtensionRanges,
+  buildRound004HistoricalLoadRanges,
 } from "../src/lib/research/m3-r4-round-004-loader.ts";
 import {
   M3_R4_ROUND_004_DECISION,
@@ -87,6 +91,25 @@ function marketCandle(index: number, values: Partial<Candle> = {}): Candle {
     takerBuyQuoteVolume: 500,
     ...values,
   };
+}
+
+function boundaryCandles(
+  symbol: ResearchSymbol,
+  timeframe: "1h" | "4h",
+  startTime: number,
+  lastOpenTime: number,
+): readonly Candle[] {
+  const interval = INTERVAL_MS[timeframe];
+  const count = Math.floor((lastOpenTime - startTime) / interval) + 1;
+  return Array.from({ length: count }, (_, index) => {
+    const openTime = startTime + index * interval;
+    return marketCandle(index, {
+      symbol,
+      timeframe,
+      openTime,
+      closeTime: openTime + interval - 1,
+    });
+  });
 }
 
 function held48(values: Partial<Candle> = {}): readonly Candle[] {
@@ -374,6 +397,50 @@ describe("M3-R4-C H13 settlement-only extension", () => {
     ["068 keeps extension funding and mark ranges identical", () => expect(ranges.fundingRange).toEqual(ranges.markPriceRange)],
     ["069 keeps H13 tagged SETTLEMENT_ONLY in the loader source", () => expect(readFileSync("src/lib/research/m3-r4-round-004-loader.ts", "utf8")).toContain("SETTLEMENT_ONLY")],
     ["070 keeps H13 extension out of StrategyInput in source", () => expect(readFileSync("src/lib/research/m3-r4-round-004-performance.ts", "utf8")).toContain("standardData")],
+  ];
+  for (const [name, test] of cases) it(name, test);
+});
+
+describe("M3-R4-C.3 H11 support warm-up", () => {
+  const standard = buildHistoricalLoadRanges("COMBINED");
+  const round004 = buildRound004HistoricalLoadRanges();
+  const supportEvaluationTime = M3_R4_C_RESEARCH_UNIVERSE.startTime - 4 * HOUR;
+  const boundaryDatasets = Object.fromEntries(
+    RESEARCH_SYMBOLS.map((symbol) => [symbol, {
+      candles1h: boundaryCandles(symbol, "1h", round004.candleRange["1h"].startTime, M3_R4_C_RESEARCH_UNIVERSE.startTime + HOUR),
+      candles4h: boundaryCandles(symbol, "4h", round004.candleRange["4h"].startTime, M3_R4_C_RESEARCH_UNIVERSE.startTime),
+    }]),
+  ) as never;
+  const boundaryIndexes = buildHistoricalIndexes(boundaryDatasets);
+  const loaderSource = readFileSync("src/lib/research/m3-r4-round-004-loader.ts", "utf8");
+  const cases: readonly [string, () => void][] = [
+    ["C3-001 freezes the H11 support offset at exactly four 1H intervals", () => expect(M3_R4_H11_SUPPORT_MAX_OFFSET_MS).toBe(4 * HOUR)],
+    ["C3-002 keeps the official evaluation timeline bounded by the frozen research start", () => {
+      const officialTimes = buildOfficialRound004EvaluationTimes(boundaryIndexes);
+      expect(officialTimes).toEqual(boundaryIndexes.timeline1h.filter((time) => time >= M3_R4_C_RESEARCH_UNIVERSE.startTime && time <= M3_R4_C_RESEARCH_UNIVERSE.endTime));
+      expect(officialTimes[0]).toBeGreaterThanOrEqual(M3_R4_C_RESEARCH_UNIVERSE.startTime);
+    }],
+    ["C3-003 extends only the 1H candle start by four hours", () => expect(round004.candleRange["1h"].startTime).toBe(standard.candleRange["1h"].startTime - 4 * HOUR)],
+    ["C3-004 extends only the 4H candle start by four hours", () => expect(round004.candleRange["4h"].startTime).toBe(standard.candleRange["4h"].startTime - 4 * HOUR)],
+    ["C3-005 keeps official candle ends and non-candle ranges unchanged", () => {
+      expect(round004.candleRange["1h"].endTime).toBe(standard.candleRange["1h"].endTime);
+      expect(round004.candleRange["4h"].endTime).toBe(standard.candleRange["4h"].endTime);
+      expect(round004.fundingRange).toEqual(standard.fundingRange);
+      expect(round004.markPriceRange).toEqual(standard.markPriceRange);
+      expect(round004.settlementTail).toEqual(standard.settlementTail);
+    }],
+    ["C3-006 wires loadRound004Study to the isolated Round-004 range builder", () => expect(loaderSource).toContain("const ranges = buildRound004HistoricalLoadRanges();")],
+    ["C3-007 provides 250 closed 1H and 4H candles for every symbol at H11 support boundary", () => {
+      const input = buildStrategyInputFromIndexes(boundaryIndexes, supportEvaluationTime);
+      for (const symbol of RESEARCH_SYMBOLS) {
+        expect(input.datasets[symbol]!.candles1h).toHaveLength(BACKTEST_POLICY.strategyWindowCandles);
+        expect(input.datasets[symbol]!.candles4h).toHaveLength(BACKTEST_POLICY.strategyWindowCandles);
+        expect(input.datasets[symbol]!.candles1h[0]!.openTime).toBe(round004.candleRange["1h"].startTime);
+        expect(input.datasets[symbol]!.candles4h[0]!.openTime).toBe(round004.candleRange["4h"].startTime);
+      }
+    }],
+    ["C3-008 builds the H11 origin support cache at the earliest support boundary", () => expect(() => buildH11OriginSupportCache(boundaryIndexes, [M3_R4_C_RESEARCH_UNIVERSE.startTime])).not.toThrow()],
+    ["C3-009 does not expand the official timeline for pre-start support candles", () => expect(buildOfficialRound004EvaluationTimes(boundaryIndexes).every((time) => time >= M3_R4_C_RESEARCH_UNIVERSE.startTime)).toBe(true)],
   ];
   for (const [name, test] of cases) it(name, test);
 });
