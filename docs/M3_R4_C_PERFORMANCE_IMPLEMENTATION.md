@@ -93,3 +93,14 @@ official evaluation timeline, research universe, settlement tail, H11
 semantics, H12/H13/H14 definitions, Gate and Plan content, economics, and
 candidate definitions unchanged. This is a historical decision warm-up fix
 only; it does not claim performance success or authorize another execution.
+
+## C.4 publication recovery closeout
+
+Authoritative Attempt #7 completed the Round-004 performance execution and
+triggered the performance lock. The evidence status was `COMPLETE`, but
+publication failed only because Windows `renameSync()` crossed from the
+`os.tmpdir()` volume to the repository volume (`EXDEV`). The original
+Attempt #7 SUMMARY, AUDIT, and RESULTS artifacts were recovered byte-for-byte;
+no performance rerun occurred. Round-004 remains `VALID`. The publisher now
+stages on the destination filesystem and preserves the overwrite rejection and
+`AUDIT → RESULTS → SUMMARY` publication order.
