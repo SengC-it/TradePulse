@@ -44,6 +44,18 @@ export function round004ArtifactStagingPrefix(summaryPath: string): string {
   return path.join(path.dirname(summaryPath), ".tradepulse-m3-r4-");
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function publicationFailureWithRollbackErrors(publicationError: unknown, rollbackErrors: readonly unknown[]): Error {
+  const rollbackMessage = rollbackErrors.map(errorMessage).join("; ");
+  return new Error(
+    `Round-004 artifact publication failed: ${errorMessage(publicationError)}; rollback failed: ${rollbackMessage}`,
+    { cause: publicationError },
+  );
+}
+
 export function publishRound004ArtifactsAtomically(input: Readonly<{
   summaryPath: string;
   auditPath: string;
@@ -51,6 +63,7 @@ export function publishRound004ArtifactsAtomically(input: Readonly<{
   summary: string;
   audit: string;
   results: string;
+  rename?: typeof renameSync;
 }>): void {
   const destinations = [input.auditPath, input.resultsPath, input.summaryPath];
   if (destinations.some((destination) => existsSync(destination))) {
@@ -60,14 +73,40 @@ export function publishRound004ArtifactsAtomically(input: Readonly<{
   mkdirSync(parent, { recursive: true });
   const temporaryDirectory = mkdtempSync(round004ArtifactStagingPrefix(input.summaryPath));
   const temporaryPaths = destinations.map((destination) => path.join(temporaryDirectory, path.basename(destination)));
+  const publishedDestinations: string[] = [];
+  const renameArtifact = input.rename ?? renameSync;
   try {
     writeFileSync(temporaryPaths[0]!, input.audit, "utf8");
     writeFileSync(temporaryPaths[1]!, input.results, "utf8");
     writeFileSync(temporaryPaths[2]!, input.summary, "utf8");
-    for (let index = 0; index < destinations.length; index += 1) renameSync(temporaryPaths[index]!, destinations[index]!);
-  } finally {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
+    for (let index = 0; index < destinations.length; index += 1) {
+      const destination = destinations[index]!;
+      if (existsSync(destination)) {
+        throw new Error(`Round-004 output appeared during publication; refusing overwrite: ${destination}`);
+      }
+      renameArtifact(temporaryPaths[index]!, destination);
+      publishedDestinations.push(destination);
+    }
+  } catch (publicationError) {
+    const rollbackErrors: unknown[] = [];
+    for (const destination of [...publishedDestinations].reverse()) {
+      try {
+        rmSync(destination, { force: true });
+      } catch (rollbackError) {
+        rollbackErrors.push(rollbackError);
+      }
+    }
+    try {
+      rmSync(temporaryDirectory, { recursive: true, force: true });
+    } catch (rollbackError) {
+      rollbackErrors.push(rollbackError);
+    }
+    if (rollbackErrors.length > 0) {
+      throw publicationFailureWithRollbackErrors(publicationError, rollbackErrors);
+    }
+    throw publicationError;
   }
+  rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
 async function main(): Promise<void> {
