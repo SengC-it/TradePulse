@@ -468,6 +468,19 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   status remains `baseline-002 NOT FROZEN`, `M3-J BLOCKED / NOT STARTED`, and
   `M4 NOT STARTED`.
 
+## ADR-031 — Close the Round-004 frozen Gate application
+
+- **Decision:** M3-R4-D.2 mechanically applied the frozen Gate for
+  `baseline-002-research-round-004` from gate-application source
+  `90b1643e8521411edaf57ab96961cb2113c90ef6`, using the unchanged Gate and
+  Plan. Attempt #7 remains the sole authoritative performance result.
+- **Result:** The application is `COMPLETE` with zero integrity errors. No
+  candidate passed all 10 applicable gates, so the exact final decision is
+  `NO BASELINE-002 CANDIDATE — ROUND-004`; no candidate was selected.
+- **Consequence:** `baseline-002` remains `NOT_FROZEN`, M3-J remains
+  `BLOCKED`, and M4 remains `NOT_STARTED`. No performance rerun occurred,
+  and no Gate, Plan, or candidate definition changed.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
