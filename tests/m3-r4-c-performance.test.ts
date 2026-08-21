@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../src/lib/config/constants.ts";
 import { INTERVAL_MS } from "../src/lib/market-data/intervals.ts";
@@ -67,7 +67,7 @@ import {
   settleH13Signal,
   type H13SettlementInput,
 } from "../src/lib/research/m3-r4-round-004-settlement.ts";
-import { parseRound004AuthoritativeArguments, publishRound004ArtifactsAtomically } from "../scripts/m3-r4-performance.ts";
+import { parseRound004AuthoritativeArguments, publishRound004ArtifactsAtomically, round004ArtifactStagingPrefix } from "../scripts/m3-r4-performance.ts";
 
 const HOUR = INTERVAL_MS["1h"];
 const BASE = Date.parse("2023-01-01T00:00:00.000Z");
@@ -364,6 +364,86 @@ describe("M3-R4-C explicit command arguments", () => {
         const input = { summaryPath, auditPath, resultsPath, summary: "summary", audit: "audit", results: "results" };
         publishRound004ArtifactsAtomically(input);
         expect(() => publishRound004ArtifactsAtomically(input)).toThrow("refusing overwrite");
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }],
+    ["050c stages on the destination filesystem without os.tmpdir", () => {
+      const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-m3-r4-test-"));
+      const tmpDir = vi.spyOn(os, "tmpdir").mockImplementation(() => { throw new Error("os.tmpdir must not be used"); });
+      try {
+        const summaryPath = path.join(root, "evidence", "summary.json");
+        expect(round004ArtifactStagingPrefix(summaryPath)).toBe(path.join(root, "evidence", ".tradepulse-m3-r4-"));
+        publishRound004ArtifactsAtomically({ summaryPath, auditPath: path.join(root, "evidence", "audit.json"), resultsPath: path.join(root, "results.md"), summary: "summary", audit: "audit", results: "results" });
+      } finally {
+        tmpDir.mockRestore();
+        rmSync(root, { recursive: true, force: true });
+      }
+    }],
+    ["050d preserves exact artifact bytes and publishes summary last", () => {
+      const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-m3-r4-test-"));
+      try {
+        const summaryPath = path.join(root, "evidence", "summary.json");
+        const auditPath = path.join(root, "evidence", "audit.json");
+        const resultsPath = path.join(root, "results.md");
+        const input = { summaryPath, auditPath, resultsPath, summary: "{\"status\":\"COMPLETE\"}\n", audit: "audit\u0000bytes", results: "# Results\r\n" };
+        publishRound004ArtifactsAtomically(input);
+        expect(readFileSync(auditPath)).toEqual(Buffer.from(input.audit, "utf8"));
+        expect(readFileSync(resultsPath)).toEqual(Buffer.from(input.results, "utf8"));
+        expect(readFileSync(summaryPath)).toEqual(Buffer.from(input.summary, "utf8"));
+        const source = readFileSync("scripts/m3-r4-performance.ts", "utf8");
+        expect(source).toContain("const destinations = [input.auditPath, input.resultsPath, input.summaryPath]");
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }],
+    ["050e rolls back after audit publication fails before results", () => {
+      const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-m3-r4-test-"));
+      try {
+        const summaryPath = path.join(root, "evidence", "summary.json");
+        const auditPath = path.join(root, "evidence", "audit.json");
+        const resultsPath = path.join(root, "missing", "results.md");
+        expect(() => publishRound004ArtifactsAtomically({ summaryPath, auditPath, resultsPath, summary: "summary", audit: "audit", results: "results" })).toThrow();
+        expect(existsSync(auditPath)).toBe(false);
+        expect(existsSync(resultsPath)).toBe(false);
+        expect(existsSync(summaryPath)).toBe(false);
+        expect(readdirSync(path.join(root, "evidence")).filter((name) => name.startsWith(".tradepulse-m3-r4-")).length).toBe(0);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }],
+    ["050f rolls back after results publication fails before summary", () => {
+      const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-m3-r4-test-"));
+      try {
+        const summaryPath = path.join(root, "evidence", "summary.json");
+        const auditPath = path.join(root, "evidence", "audit.json");
+        const resultsPath = path.join(root, "results.md");
+        const rename = (source: Parameters<typeof renameSync>[0], destination: Parameters<typeof renameSync>[1]) => {
+          if (destination === summaryPath) throw new Error("summary publication failed");
+          return renameSync(source, destination);
+        };
+        expect(() => publishRound004ArtifactsAtomically({ summaryPath, auditPath, resultsPath, summary: "summary", audit: "audit", results: "results", rename })).toThrow("summary publication failed");
+        expect(existsSync(auditPath)).toBe(false);
+        expect(existsSync(resultsPath)).toBe(false);
+        expect(existsSync(summaryPath)).toBe(false);
+        expect(readdirSync(path.join(root, "evidence")).filter((name) => name.startsWith(".tradepulse-m3-r4-")).length).toBe(0);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }],
+    ["050g rejects a pre-existing destination before staging", () => {
+      const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-m3-r4-test-"));
+      try {
+        const summaryPath = path.join(root, "evidence", "summary.json");
+        const auditPath = path.join(root, "evidence", "audit.json");
+        const resultsPath = path.join(root, "results.md");
+        mkdirSync(path.dirname(summaryPath), { recursive: true });
+        writeFileSync(auditPath, "original-audit", "utf8");
+        expect(() => publishRound004ArtifactsAtomically({ summaryPath, auditPath, resultsPath, summary: "summary", audit: "new-audit", results: "results" })).toThrow("refusing overwrite");
+        expect(readFileSync(auditPath, "utf8")).toBe("original-audit");
+        expect(existsSync(resultsPath)).toBe(false);
+        expect(existsSync(summaryPath)).toBe(false);
+        expect(readdirSync(path.join(root, "evidence")).filter((name) => name.startsWith(".tradepulse-m3-r4-")).length).toBe(0);
       } finally {
         rmSync(root, { recursive: true, force: true });
       }
