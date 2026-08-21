@@ -26,4 +26,5 @@ export * from "./m3-r4-round-004-loader.ts";
 export * from "./m3-r4-round-004-settlement.ts";
 export * from "./m3-r4-round-004-evidence.ts";
 export * from "./m3-r4-round-004-performance.ts";
+export * from "./m3-r4-d-selection.ts";
 export * from "./types.ts";
