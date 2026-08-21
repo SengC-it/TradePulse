@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 import { getResearchFoldRoleRange } from "./folds.ts";
@@ -23,7 +25,7 @@ import {
 import { stableStringify } from "./utils.ts";
 
 export const M3_R4_D_SELECTION_SCHEMA_VERSION = "m3-r4-d-selection-001" as const;
-export const M3_R4_D_GATE_APPLICATION_SOURCE_SHA = "354401eef24b410ea5ee1c74564a9f76f0538ae9" as const;
+export const M3_R4_D_EXPECTED_PERFORMANCE_EXECUTION_SOURCE_SHA = "354401eef24b410ea5ee1c74564a9f76f0538ae9" as const;
 export const M3_R4_D_EXPECTED_INPUT_SUMMARY_SHA256 =
   "3d5da8412a972e7b2d313b975244cb0843d7989e7600cd29bc50eac7a9318a53" as const;
 export const M3_R4_D_EXPECTED_INPUT_AUDIT_SHA256 =
@@ -146,7 +148,7 @@ export type M3R4DInputHashes = Readonly<{
 export type M3R4DSelectionReport = Readonly<{
   schemaVersion: typeof M3_R4_D_SELECTION_SCHEMA_VERSION;
   researchRoundId: typeof M3_R4_ROUND_004_RESEARCH_ROUND_ID;
-  gateApplicationSourceSha: typeof M3_R4_D_GATE_APPLICATION_SOURCE_SHA;
+  gateApplicationSourceSha: string;
   performanceExecutionSourceSha: string;
   selectionGateSha256: typeof BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256;
   experimentPlanSha256: typeof M3_R4_ROUND_004_PLAN_SHA256;
@@ -168,6 +170,18 @@ export type M3R4DSelectionReport = Readonly<{
   baseline002Status: typeof M3_R4_D_BASELINE_002_STATUS;
   m3JStatus: typeof M3_R4_D_M3_J_STATUS;
   m4Status: typeof M3_R4_D_M4_STATUS;
+}>;
+
+export type M3R4DSelectionOutputPayloads = Readonly<{
+  jsonPath: string;
+  markdownPath: string;
+  jsonBytes: Uint8Array;
+  markdownBytes: Uint8Array;
+}>;
+
+export type M3R4DSelectionPublicationOptions = Readonly<{
+  renameFile?: (source: string, destination: string) => void;
+  onStagingDirectory?: (path: string) => void;
 }>;
 
 export type M3R4DIdentitySignal = Readonly<{
@@ -316,8 +330,8 @@ function validateDiagnostics(value: unknown, path: string, expectedRange: Readon
   for (const key of ["formalSignals", "executedTrades"] as const) {
     if (!isSafeNonNegativeInteger(value[key])) errors.push(`${path}.${key} is invalid.`);
   }
+  if (!isFiniteNumber(value.grossR)) errors.push(`${path}.grossR is invalid.`);
   for (const key of [
-    "grossR",
     "expectancyR",
     "profitFactor",
     "topSymbolShareOfPositiveNetR",
@@ -476,7 +490,7 @@ function validateSummary(evidence: unknown, inputHashes: M3R4DInputHashes): { st
     ["researchRoundId", evidence.researchRoundId, M3_R4_ROUND_004_RESEARCH_ROUND_ID],
     ["selectionGateSha256", evidence.selectionGateSha256, BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256],
     ["experimentPlanSha256", evidence.experimentPlanSha256, M3_R4_ROUND_004_PLAN_SHA256],
-    ["executionSourceSha", evidence.executionSourceSha, M3_R4_D_GATE_APPLICATION_SOURCE_SHA],
+    ["executionSourceSha", evidence.executionSourceSha, M3_R4_D_EXPECTED_PERFORMANCE_EXECUTION_SOURCE_SHA],
     ["strategyVersion", evidence.strategyVersion, M3_R4_ROUND_004_STRATEGY_VERSION],
     ["backtestPolicyVersion", evidence.backtestPolicyVersion, M3_R4_ROUND_004_POLICY_VERSION],
     ["dataClassification", evidence.dataClassification, M3_R4_ROUND_004_DATA_CLASSIFICATION],
@@ -627,7 +641,8 @@ function compareComplexity(left: M3R4DCandidateEvaluation, right: M3R4DCandidate
 function compareEligibleCandidates(left: M3R4DCandidateEvaluation, right: M3R4DCandidateEvaluation, tieThreshold: number): number {
   if (left.metrics.improvedValidationFoldCount !== right.metrics.improvedValidationFoldCount) return right.metrics.improvedValidationFoldCount! - left.metrics.improvedValidationFoldCount!;
   const expectancyDifference = right.metrics.expectancyR! - left.metrics.expectancyR!;
-  if (Math.abs(expectancyDifference) > tieThreshold) return expectancyDifference > 0 ? 1 : -1;
+  const tieComparisonTolerance = Number.EPSILON * Math.max(1, Math.abs(expectancyDifference), Math.abs(tieThreshold));
+  if (Math.abs(expectancyDifference) - tieThreshold > tieComparisonTolerance) return expectancyDifference > 0 ? 1 : -1;
   const complexityDifference = compareComplexity(left, right);
   if (complexityDifference !== 0) return complexityDifference;
   const leftPf = left.metrics.profitFactor;
@@ -657,14 +672,21 @@ export function createM3R4DSelectionReport(input: Readonly<{
   evidence: unknown;
   inputSummaryPath: string;
   inputHashes: M3R4DInputHashes;
+  gateApplicationSourceSha: string;
 }>): M3R4DSelectionReport {
   const evaluation = evaluateM3R4DSelection(input.evidence, input.inputHashes);
+  const gateSourceErrors = isSha1(input.gateApplicationSourceSha)
+    ? []
+    : ["gateApplicationSourceSha must be a 40-character lowercase Git SHA."];
+  const effectiveEvaluation = gateSourceErrors.length === 0
+    ? evaluation
+    : incompleteEvaluation([...evaluation.integrityErrors, ...gateSourceErrors]);
   const performanceExecutionSourceSha = isRecord(input.evidence) && typeof input.evidence.executionSourceSha === "string" ? input.evidence.executionSourceSha : "";
   const performanceEvidenceStatus = isRecord(input.evidence) && input.evidence.evidenceStatus === "COMPLETE" ? "COMPLETE" : "INCOMPLETE";
   return Object.freeze({
     schemaVersion: M3_R4_D_SELECTION_SCHEMA_VERSION,
     researchRoundId: M3_R4_ROUND_004_RESEARCH_ROUND_ID,
-    gateApplicationSourceSha: M3_R4_D_GATE_APPLICATION_SOURCE_SHA,
+    gateApplicationSourceSha: input.gateApplicationSourceSha,
     performanceExecutionSourceSha,
     selectionGateSha256: BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256,
     experimentPlanSha256: M3_R4_ROUND_004_PLAN_SHA256,
@@ -676,13 +698,13 @@ export function createM3R4DSelectionReport(input: Readonly<{
     inputResultsSha256: input.inputHashes.results,
     performanceLock: M3_R4_ROUND_004_PERFORMANCE_LOCK,
     performanceEvidenceStatus,
-    integrityStatus: evaluation.integrityStatus,
-    integrityErrors: evaluation.integrityErrors,
-    candidates: evaluation.candidates,
-    eligibleCandidateIds: evaluation.eligibleCandidateIds,
-    selectionAlgorithmApplied: evaluation.selectionAlgorithmApplied,
-    selectedCandidateId: evaluation.selectedCandidateId,
-    finalDecision: evaluation.finalDecision,
+    integrityStatus: effectiveEvaluation.integrityStatus,
+    integrityErrors: effectiveEvaluation.integrityErrors,
+    candidates: effectiveEvaluation.candidates,
+    eligibleCandidateIds: effectiveEvaluation.eligibleCandidateIds,
+    selectionAlgorithmApplied: effectiveEvaluation.selectionAlgorithmApplied,
+    selectedCandidateId: effectiveEvaluation.selectedCandidateId,
+    finalDecision: effectiveEvaluation.finalDecision,
     baseline002Status: M3_R4_D_BASELINE_002_STATUS,
     m3JStatus: M3_R4_D_M3_J_STATUS,
     m4Status: M3_R4_D_M4_STATUS,
@@ -695,6 +717,55 @@ export function serializeM3R4DSelectionReport(report: M3R4DSelectionReport): str
 
 export function sha256M3R4DSelectionRawBytes(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+export function publishM3R4DSelectionOutputsAtomically(
+  payloads: M3R4DSelectionOutputPayloads,
+  options: M3R4DSelectionPublicationOptions = {},
+): void {
+  const jsonPath = resolve(payloads.jsonPath);
+  const markdownPath = resolve(payloads.markdownPath);
+  if (existsSync(jsonPath) || existsSync(markdownPath)) throw new Error("M3-R4-D selection output already exists.");
+
+  const stagingDirectory = mkdtempSync(join(dirname(jsonPath), ".m3-r4-d-selection-"));
+  const stagedMarkdownPath = join(stagingDirectory, "M3_R4_D_SELECTION.md");
+  const stagedJsonPath = join(stagingDirectory, "M3_R4_D_SELECTION.json");
+  const publishedPaths: string[] = [];
+  const rename = options.renameFile ?? renameSync;
+
+  try {
+    options.onStagingDirectory?.(stagingDirectory);
+    writeFileSync(stagedMarkdownPath, Buffer.from(payloads.markdownBytes));
+    writeFileSync(stagedJsonPath, Buffer.from(payloads.jsonBytes));
+    rename(stagedMarkdownPath, markdownPath);
+    publishedPaths.push(markdownPath);
+    rename(stagedJsonPath, jsonPath);
+    publishedPaths.push(jsonPath);
+    rmSync(stagingDirectory, { recursive: true, force: true });
+  } catch (error) {
+    const rollbackErrors: string[] = [];
+    for (const destination of [...publishedPaths].reverse()) {
+      try {
+        unlinkSync(destination);
+      } catch (rollbackError) {
+        rollbackErrors.push(`remove ${destination}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+      }
+    }
+    try {
+      rmSync(stagingDirectory, { recursive: true, force: true });
+    } catch (rollbackError) {
+      rollbackErrors.push(`remove staging ${stagingDirectory}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+    }
+    if (rollbackErrors.length > 0) {
+      const rollbackMessage = `rollback errors: ${rollbackErrors.join("; ")}`;
+      if (error instanceof Error) {
+        error.message = `${error.message}; ${rollbackMessage}`;
+        throw error;
+      }
+      throw new Error(`${String(error)}; ${rollbackMessage}`);
+    }
+    throw error;
+  }
 }
 
 function display(value: number | null): string {

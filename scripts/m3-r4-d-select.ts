@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import {
   M3_R4_D_EXPECTED_INPUT_AUDIT_SHA256,
   M3_R4_D_EXPECTED_INPUT_RESULTS_SHA256,
   M3_R4_D_EXPECTED_INPUT_SUMMARY_SHA256,
-  M3_R4_D_GATE_APPLICATION_SOURCE_SHA,
   createM3R4DSelectionReport,
+  publishM3R4DSelectionOutputsAtomically,
   renderM3R4DSelectionMarkdown,
   serializeM3R4DSelectionReport,
   sha256M3R4DSelectionRawBytes,
@@ -56,6 +56,11 @@ function currentGitSha(): string {
   return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 }
 
+export function validateM3R4DAuthoritativeSource(currentSha: string, requestedSha: string): void {
+  if (!/^[0-9a-f]{40}$/u.test(requestedSha)) fail("source SHA is not a 40-character lowercase Git SHA.");
+  if (currentSha !== requestedSha) fail("source SHA mismatch.");
+}
+
 function assertCleanWorktree(): void {
   const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
   if (status !== "") fail("worktree is not clean.");
@@ -71,7 +76,7 @@ function assertExpectedHash(path: string, bytes: Uint8Array, expected: string): 
 
 function assertAuthorization(args: M3R4DAuthorizationArguments): void {
   assertCleanWorktree();
-  if (currentGitSha() !== args.sourceSha || args.sourceSha !== M3_R4_D_GATE_APPLICATION_SOURCE_SHA) fail("source SHA mismatch.");
+  validateM3R4DAuthoritativeSource(currentGitSha(), args.sourceSha);
   if (args.round !== M3_R4_ROUND_004_RESEARCH_ROUND_ID) fail("research round mismatch.");
   if (args.gateSha !== BASELINE_002_RESEARCH_ROUND_004_SELECTION_GATE_SHA256) fail("Gate SHA mismatch.");
   if (args.planSha !== M3_R4_ROUND_004_PLAN_SHA256) fail("Plan SHA mismatch.");
@@ -92,12 +97,17 @@ export function runM3R4DAuthoritativeSelection(args: M3R4DAuthorizationArguments
     results: M3_R4_D_EXPECTED_INPUT_RESULTS_SHA256,
   } as const;
   const evidence = JSON.parse(readFileSync(M3_R4_D_SELECTION_INPUT_PATH, "utf8")) as unknown;
-  const report = createM3R4DSelectionReport({ evidence, inputSummaryPath: M3_R4_D_SELECTION_INPUT_PATH, inputHashes });
+  const report = createM3R4DSelectionReport({ evidence, inputSummaryPath: M3_R4_D_SELECTION_INPUT_PATH, inputHashes, gateApplicationSourceSha: args.sourceSha });
   if (report.integrityStatus !== "COMPLETE") fail(`input evidence is ${report.integrityStatus}.`);
   const jsonBytes = Buffer.from(serializeM3R4DSelectionReport(report), "utf8");
+  const markdownBytes = Buffer.from(renderM3R4DSelectionMarkdown(report, sha256M3R4DSelectionRawBytes(jsonBytes)), "utf8");
   const selectionJsonSha256 = sha256M3R4DSelectionRawBytes(jsonBytes);
-  writeFileSync(M3_R4_D_SELECTION_OUTPUT_JSON_PATH, jsonBytes, { flag: "wx" });
-  writeFileSync(M3_R4_D_SELECTION_OUTPUT_MARKDOWN_PATH, renderM3R4DSelectionMarkdown(report, selectionJsonSha256), { flag: "wx", encoding: "utf8" });
+  publishM3R4DSelectionOutputsAtomically({
+    jsonPath: M3_R4_D_SELECTION_OUTPUT_JSON_PATH,
+    markdownPath: M3_R4_D_SELECTION_OUTPUT_MARKDOWN_PATH,
+    jsonBytes,
+    markdownBytes,
+  });
   console.log(JSON.stringify({
     schemaVersion: report.schemaVersion,
     researchRoundId: report.researchRoundId,
