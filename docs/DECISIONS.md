@@ -481,6 +481,20 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   `BLOCKED`, and M4 remains `NOT_STARTED`. No performance rerun occurred,
   and no Gate, Plan, or candidate definition changed.
 
+## ADR-032 — Authorize Round-005 research design only
+
+- **Decision:** Round-004 is complete with final decision
+  `NO BASELINE-002 CANDIDATE — ROUND-004`. `baseline-002` remains
+  `NOT_FROZEN`. Round-005 is authorized for research-design work only.
+- **Scope:** M3-R5-A freezes four qualitative standalone hypotheses:
+  H15 HTF low-frequency trend architecture, H16 neutral-regime mean
+  reversion, H17 funding crowding reversal, and H18 volatility compression
+  to expansion. It does not freeze formulas, a Gate, a Plan, candidates, or
+  performance.
+- **Consequence:** No performance is authorized. M3-J remains `BLOCKED` and
+  M4 remains `NOT_STARTED`. R5-B must be independently accepted and merged
+  before any historical performance command.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
