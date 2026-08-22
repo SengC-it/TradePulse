@@ -450,8 +450,8 @@ describe("H17 funding qualification and reversal", () => {
     });
     await expect(loader.loadFunding({ symbol: "BTCUSDT", range: { startTime: 0, endTime: HOUR }, policy: "bt-policy-003" })).rejects.toMatchObject({ code: "DATA_INCOMPLETE" });
     expect(calls).toBeGreaterThan(1);
-    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.json)).toBe(false);
-    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.markdown)).toBe(false);
+    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.json)).toBe(true);
+    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.markdown)).toBe(true);
   });
 
   it("freezes the formal signal before resolving the first 1H open", () => {
@@ -682,9 +682,9 @@ describe("M3-R5 H17 preflight and publication", () => {
     }
   });
 
-  it("keeps the reserved B.1A outputs absent", () => {
-    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.json)).toBe(false);
-    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.markdown)).toBe(false);
+  it("keeps the authoritative B.1A outputs present", () => {
+    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.json)).toBe(true);
+    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.markdown)).toBe(true);
     expect(renderH17QualificationMarkdown).toBeTypeOf("function");
   });
 });
