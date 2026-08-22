@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
@@ -14,6 +14,7 @@ import type {
 import { HISTORICAL_PROVIDER } from "../historical-data/types.ts";
 import { BinanceHistoricalDataLoader } from "../historical-data/binance/loader.ts";
 import { runBacktest, discoverIntrabarSettlementRequirements } from "../backtest/runner.ts";
+import { requiresIntrabarFundingResolution } from "../backtest/funding.ts";
 import { validateIntrabarSettlementManifestCoverage } from "../backtest/manifests.ts";
 import type { BacktestData, BacktestReport, BacktestSignalResult, IntrabarSettlementRequirement } from "../backtest/types.ts";
 import { adaptBacktestSignalResult } from "./adapter.ts";
@@ -44,7 +45,11 @@ import {
   validateM3R5Round005MachineRecord,
 } from "./selection-gates-round-005.ts";
 import { M3_R5_ROUND_005_PLAN, M3_R5_ROUND_005_PLAN_SHA256, validateM3R5Round005Plan } from "./m3-r5-round-005-plan.ts";
-import { settleR5Candidate, type R5SettlementResult } from "./m3-r5-round-005-settlement.ts";
+import {
+  planR5CandidateSettlementGeometry,
+  settleR5Candidate,
+  type R5SettlementResult,
+} from "./m3-r5-round-005-settlement.ts";
 
 export const M3_R5_ROUND_005_SCHEMA_VERSION = "m3-r5-round-005-report-001" as const;
 export const M3_R5_ROUND_005_AUDIT_SCHEMA_VERSION = "m3-r5-round-005-audit-001" as const;
@@ -55,6 +60,38 @@ export const M3_R5_ROUND_005_OUTPUT_PATHS = Object.freeze([
 ] as const);
 export const M3_R5_ROUND_005_CONTROL_DISCLAIMER =
   "THIS IS A SIGNAL-LEVEL BACKTEST, NOT A PORTFOLIO EQUITY SIMULATION." as const;
+
+export const M3_R5_H17_QUALIFICATION_PATHS = Object.freeze({
+  json: "docs/evidence/M3_R5_H17_DATA_QUALIFICATION.json",
+  markdown: "docs/M3_R5_H17_DATA_QUALIFICATION.md",
+} as const);
+
+export type Round005ExecutionClassification =
+  | "PRE_PERFORMANCE_ABORT"
+  | "POST_PERFORMANCE_EXECUTION_ABORT"
+  | "POST_PERFORMANCE_EVIDENCE_PUBLISH_ABORT"
+  | "SUCCESS";
+
+export type Round005PerformanceLifecycle = "PRE_PERFORMANCE" | "PERFORMANCE_LOCKED" | "POST_PERFORMANCE";
+
+export class Round005AuthoritativeExecutionError extends Error {
+  readonly classification: Exclude<Round005ExecutionClassification, "SUCCESS">;
+  readonly performanceLockTriggered: boolean;
+  readonly lifecycle: Round005PerformanceLifecycle;
+
+  constructor(
+    classification: Exclude<Round005ExecutionClassification, "SUCCESS">,
+    performanceLockTriggered: boolean,
+    message: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = "Round005AuthoritativeExecutionError";
+    this.classification = classification;
+    this.performanceLockTriggered = performanceLockTriggered;
+    this.lifecycle = performanceLockTriggered ? "POST_PERFORMANCE" : "PRE_PERFORMANCE";
+  }
+}
 
 export type Round005HistoricalLoader = Pick<
   BinanceHistoricalDataLoader,
@@ -120,6 +157,7 @@ export type Round005Report = Readonly<{
   studyServerTime: number;
   performanceLock: typeof M3_R5_ROUND_005_PERFORMANCE_LOCK;
   performanceLockTriggered: boolean;
+  performanceLifecycle: Round005PerformanceLifecycle;
   evidenceStatus: "COMPLETE" | "INCOMPLETE";
   integrityErrors: readonly string[];
   control: Round005CandidateEvidence;
@@ -155,6 +193,8 @@ export type Round005Preflight = Readonly<{
   existingOutputArtifacts: readonly string[];
   gateValidatorPass: boolean;
   planValidatorPass: boolean;
+  h17QualificationJsonSha256: string;
+  h17QualificationMarkdownSha256: string;
 }>;
 
 function round005BaseEnd(): number {
@@ -180,6 +220,21 @@ export function buildRound005HistoricalLoadRanges(): Round005LoadRanges {
       fundingRange: { startTime: M3_R5_RESEARCH_RANGE.endTime + 1, endTime: tailFundingEnd, settlementOnly: true },
       markPriceRange: { startTime: M3_R5_RESEARCH_RANGE.endTime + 1, endTime: tailFundingEnd, settlementOnly: true },
     },
+  });
+}
+
+export function round005AuthorizedSettlementEndTime(): number {
+  const ranges = buildRound005HistoricalLoadRanges();
+  return ranges.settlementTail.candleRange.endTime + INTERVAL_MS["1h"] - 1;
+}
+
+export function readRound005H17EvidenceSha256(): Readonly<{
+  json: string;
+  markdown: string;
+}> {
+  return Object.freeze({
+    json: createHash("sha256").update(readFileSync(M3_R5_H17_QUALIFICATION_PATHS.json)).digest("hex"),
+    markdown: createHash("sha256").update(readFileSync(M3_R5_H17_QUALIFICATION_PATHS.markdown)).digest("hex"),
   });
 }
 
@@ -282,6 +337,42 @@ function candidateSignalAt(
   return result.status === "SIGNAL" ? result.signal : null;
 }
 
+export type Round005FormalSignal = Readonly<{
+  candidateId: R5CandidateId;
+  signal: R5CandidateSignal;
+}>;
+
+export function round005DecisionTimeline(candles: readonly Candle[]): readonly Candle[] {
+  return Object.freeze(candles.filter((candle) => candle.closeTime <= M3_R5_RESEARCH_RANGE.endTime));
+}
+
+/** Enumerates only formal signals whose decision candle is inside the cutoff. */
+export function enumerateRound005FormalSignals(input: Readonly<{ data: BacktestData; candidateId: R5CandidateId }>): readonly Round005FormalSignal[] {
+  const signals: Round005FormalSignal[] = [];
+  for (const symbol of RESEARCH_SYMBOLS) {
+    const dataset = input.data.datasets[symbol];
+    const timeline = round005DecisionTimeline(
+      input.candidateId === "R5-H15-HTF-TREND" ? dataset.candles4h : dataset.candles1h,
+    );
+    for (let currentIndex = 0; currentIndex < timeline.length; currentIndex += 1) {
+      const signal = candidateSignalAt(input.candidateId, symbol, dataset.candles1h, dataset.candles4h, currentIndex, input.data.serverTime);
+      if (!signal || signal.signalTime < M3_R5_RESEARCH_RANGE.startTime || signal.signalTime > M3_R5_RESEARCH_RANGE.endTime) continue;
+      signals.push(Object.freeze({ candidateId: input.candidateId, signal }));
+    }
+  }
+  const seen = new Set<string>();
+  for (const item of signals) {
+    const key = `${item.candidateId}|${item.signal.symbol}|${item.signal.direction}|${item.signal.signalTime}`;
+    if (seen.has(key)) throw new Error(`Duplicate Round-005 candidate identity: ${key}`);
+    seen.add(key);
+  }
+  return Object.freeze(signals.sort((left, right) =>
+    left.signal.signalTime - right.signal.signalTime ||
+    symbolOrder(left.signal.symbol) - symbolOrder(right.signal.symbol) ||
+    directionOrder(left.signal.direction) - directionOrder(right.signal.direction) ||
+    candidateOrder(left.candidateId) - candidateOrder(right.candidateId)));
+}
+
 /**
  * Builds formal candidate records from native candle timelines. The function
  * uses no loader and deliberately has no metrics, gate, or selection side effect.
@@ -292,30 +383,20 @@ export function buildRound005CandidateRecords(input: Readonly<{
   intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
 }>): readonly Round005ResearchRecord[] {
   const records: Round005ResearchRecord[] = [];
-  for (const symbol of RESEARCH_SYMBOLS) {
-    const dataset = input.data.datasets[symbol];
-    const timeline = input.candidateId === "R5-H15-HTF-TREND" ? dataset.candles4h : dataset.candles1h;
-    for (let currentIndex = 0; currentIndex < timeline.length; currentIndex += 1) {
-      const signal = candidateSignalAt(input.candidateId, symbol, dataset.candles1h, dataset.candles4h, currentIndex, input.data.serverTime);
-      if (!signal || signal.signalTime < M3_R5_RESEARCH_RANGE.startTime || signal.signalTime > M3_R5_RESEARCH_RANGE.endTime) continue;
-      const result = settleR5Candidate({
-        signal,
-        candles1h: dataset.candles1h,
-        funding: input.data.funding[symbol] ?? [],
-        markPriceCandles: input.data.markPrice?.[symbol],
-        markPriceSegments: input.data.markPriceSegments?.[symbol],
-        intrabarSettlementWindows: input.intrabarSettlementWindows ?? input.data.intrabarSettlementWindows,
-        serverTime: input.data.serverTime,
-        periodEndTime: M3_R5_RESEARCH_RANGE.endTime,
-      });
-      records.push(Object.freeze({ candidateId: input.candidateId, signal: normalizeR5Result(result), raw: result }));
-    }
-  }
-  const seen = new Set<string>();
-  for (const record of records) {
-    const key = identity(record);
-    if (seen.has(key)) throw new Error(`Duplicate Round-005 candidate identity: ${key}`);
-    seen.add(key);
+  const authorizedSettlementEndTime = round005AuthorizedSettlementEndTime();
+  for (const formal of enumerateRound005FormalSignals({ data: input.data, candidateId: input.candidateId })) {
+    const dataset = input.data.datasets[formal.signal.symbol];
+    const result = settleR5Candidate({
+      signal: formal.signal,
+      candles1h: dataset.candles1h,
+      funding: input.data.funding[formal.signal.symbol] ?? [],
+      markPriceCandles: input.data.markPrice?.[formal.signal.symbol],
+      markPriceSegments: input.data.markPriceSegments?.[formal.signal.symbol],
+      intrabarSettlementWindows: input.intrabarSettlementWindows ?? input.data.intrabarSettlementWindows,
+      serverTime: input.data.serverTime,
+      settlementEndTime: authorizedSettlementEndTime,
+    });
+    records.push(Object.freeze({ candidateId: input.candidateId, signal: normalizeR5Result(result), raw: result }));
   }
   return Object.freeze(records.sort(recordSort));
 }
@@ -344,16 +425,22 @@ export function discoverRound005IntrabarRequirements(input: Readonly<{ data: Bac
     ...discoverIntrabarSettlementRequirements({ period: "COMBINED", data: input.data }),
   ];
   for (const candidateId of M3_R5_ROUND_005_CANDIDATE_IDS) {
-    const records = buildRound005CandidateRecords({ data: input.data, candidateId });
-    for (const record of records) {
-      const result = record.raw as R5SettlementResult;
-      if (result.status !== "SETTLEMENT_AMBIGUOUS" || result.settlementAmbiguousExitCandleOpenTime === undefined) continue;
-      const exitCandleOpenTime = result.settlementAmbiguousExitCandleOpenTime;
+    for (const formal of enumerateRound005FormalSignals({ data: input.data, candidateId })) {
+      const dataset = input.data.datasets[formal.signal.symbol];
+      const geometry = planR5CandidateSettlementGeometry({ signal: formal.signal, candles1h: dataset.candles1h });
+      if (!geometry) continue;
+      const funding = input.data.funding[formal.signal.symbol] ?? [];
+      if (!requiresIntrabarFundingResolution({
+        funding,
+        entryTime: geometry.entryTime,
+        exitReason: geometry.exitReason,
+        exitCandle: { openTime: geometry.exitCandleOpenTime, closeTime: geometry.exitCandleCloseTime },
+      })) continue;
       requirements.push({
-        symbol: result.signal.symbol,
-        exitCandleOpenTime,
-        exitCandleCloseTime: exitCandleOpenTime + INTERVAL_MS["1h"] - 1,
-        settlementOnly: exitCandleOpenTime > M3_R5_RESEARCH_RANGE.endTime && exitCandleOpenTime + INTERVAL_MS["1h"] - 1 > M3_R5_RESEARCH_RANGE.endTime,
+        symbol: formal.signal.symbol,
+        exitCandleOpenTime: geometry.exitCandleOpenTime,
+        exitCandleCloseTime: geometry.exitCandleCloseTime,
+        settlementOnly: geometry.exitCandleOpenTime > M3_R5_RESEARCH_RANGE.endTime,
       });
     }
   }
@@ -571,6 +658,7 @@ export function buildRound005PerformanceReport(input: Readonly<{
     studyServerTime: input.data.serverTime ?? 0,
     performanceLock: M3_R5_ROUND_005_PERFORMANCE_LOCK,
     performanceLockTriggered: input.performanceLockTriggered === true,
+    performanceLifecycle: input.performanceLockTriggered === true ? "PERFORMANCE_LOCKED" : "PRE_PERFORMANCE",
     evidenceStatus: integrityErrors.length === 0 && input.controlReport.overallAcceptance.status !== "INCOMPLETE" ? "COMPLETE" : "INCOMPLETE",
     integrityErrors,
     control,
@@ -602,6 +690,7 @@ export function buildRound005ExecutionArtifacts(input: Readonly<{
     `- executionSourceSha: ${input.report.executionSourceSha}`,
     `- evidenceStatus: ${input.report.evidenceStatus}`,
     `- performanceLockTriggered: ${input.report.performanceLockTriggered}`,
+    `- performanceLifecycle: ${input.report.performanceLifecycle}`,
     "- selectionApplied: false",
     "- selectedCandidateId: null",
     "",
@@ -620,6 +709,12 @@ export function assertRound005PerformancePreflight(input: Round005Preflight): vo
   if (!input.cleanWorktree) throw new Error("Round-005 authoritative execution requires a clean git worktree.");
   if (input.existingOutputArtifacts.length > 0) throw new Error("Round-005 authoritative output already exists; refusing overwrite.");
   if (input.gateValidatorPass !== true || input.planValidatorPass !== true) throw new Error("Round-005 frozen validator failed.");
+  if (input.h17QualificationJsonSha256 !== M3_R5_ROUND_005_QUALIFICATION_JSON_SHA256) {
+    throw new Error("Round-005 H17 JSON raw SHA-256 mismatch.");
+  }
+  if (input.h17QualificationMarkdownSha256 !== M3_R5_ROUND_005_QUALIFICATION_MARKDOWN_SHA256) {
+    throw new Error("Round-005 H17 Markdown raw SHA-256 mismatch.");
+  }
 }
 
 export function readRound005GitState(): Readonly<{ headSha: string; cleanWorktree: boolean }> {
@@ -633,17 +728,29 @@ export function existingRound005OutputArtifacts(): readonly string[] {
 }
 
 export async function executeRound005Authoritative(input: Readonly<{ loader?: Round005HistoricalLoader; executionSourceSha: string }>): Promise<Round005ExecutionArtifacts> {
-  const loader = input.loader ?? new BinanceHistoricalDataLoader();
-  const ranges = buildRound005HistoricalLoadRanges();
-  const study = await loader.loadStudyData({ ...ranges, policy: "bt-policy-003" });
-  const initialData = toBacktestData(study);
-  const requirements = discoverRound005IntrabarRequirements({ data: initialData });
-  const windows = await loader.loadIntrabarSettlementWindows(requirements, study.serverTime);
-  const data = appendRound005IntrabarWindows(initialData, windows, requirements);
-  const control = buildRound005ControlRecords(data);
-  const candidateRecords = M3_R5_ROUND_005_CANDIDATE_IDS.flatMap((candidateId) => buildRound005CandidateRecords({ data, candidateId }));
-  const report = buildRound005PerformanceReport({ data, executionSourceSha: input.executionSourceSha, controlReport: control.report, controlRecords: control.records, candidateRecords, performanceLockTriggered: true });
-  return buildRound005ExecutionArtifacts({ report, records: [...control.records, ...candidateRecords] });
+  let performanceLockTriggered = false;
+  try {
+    const loader = input.loader ?? new BinanceHistoricalDataLoader();
+    const ranges = buildRound005HistoricalLoadRanges();
+    const study = await loader.loadStudyData({ ...ranges, policy: "bt-policy-003" });
+    const initialData = toBacktestData(study);
+    const requirements = discoverRound005IntrabarRequirements({ data: initialData });
+    const windows = await loader.loadIntrabarSettlementWindows(requirements, study.serverTime);
+    const data = appendRound005IntrabarWindows(initialData, windows, requirements);
+    const control = buildRound005ControlRecords(data);
+    performanceLockTriggered = true;
+    const candidateRecords = M3_R5_ROUND_005_CANDIDATE_IDS.flatMap((candidateId) => buildRound005CandidateRecords({ data, candidateId }));
+    const report = buildRound005PerformanceReport({ data, executionSourceSha: input.executionSourceSha, controlReport: control.report, controlRecords: control.records, candidateRecords, performanceLockTriggered });
+    return buildRound005ExecutionArtifacts({ report, records: [...control.records, ...candidateRecords] });
+  } catch (error) {
+    if (error instanceof Round005AuthoritativeExecutionError) throw error;
+    throw new Round005AuthoritativeExecutionError(
+      performanceLockTriggered ? "POST_PERFORMANCE_EXECUTION_ABORT" : "PRE_PERFORMANCE_ABORT",
+      performanceLockTriggered,
+      error instanceof Error ? error.message : String(error),
+      { cause: error },
+    );
+  }
 }
 
 export { M3_R5_ROUND_005_PLAN };

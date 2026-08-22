@@ -15,14 +15,19 @@ import {
   assertRound005PerformancePreflight,
   buildRound005HistoricalLoadRanges,
   discoverRound005IntrabarRequirements,
+  readRound005H17EvidenceSha256,
+  round005AuthorizedSettlementEndTime,
+  round005DecisionTimeline,
+  Round005AuthoritativeExecutionError,
 } from "../src/lib/research/m3-r5-round-005-performance.ts";
 import {
   R5_EXECUTION_CONTRACTS,
   makeR5CandidateIdentity,
+  M3_R5_RESEARCH_RANGE,
   resolveR5Entry,
   type R5CandidateSignal,
 } from "../src/lib/research/m3-r5-round-005-protocol.ts";
-import { settleR5Candidate } from "../src/lib/research/m3-r5-round-005-settlement.ts";
+import { planR5CandidateSettlementGeometry, settleR5Candidate } from "../src/lib/research/m3-r5-round-005-settlement.ts";
 import { publishRound005ArtifactsAtomically, round005ArtifactStagingPrefix, parseRound005AuthoritativeArguments } from "../scripts/m3-r5-performance.ts";
 
 const HOUR = INTERVAL_MS["1h"];
@@ -112,14 +117,14 @@ describe("M3-R5-B.2 frozen native data and execution contracts", () => {
 
 describe("M3-R5-B.2 settlement using bt-policy-003", () => {
   it("retains a formal signal when the next entry is unavailable", () => {
-    const result = settleR5Candidate({ signal: signal(), candles1h: [candle(0)], funding: fundingRecord(BASE + HOUR), periodEndTime: BASE + 100 * HOUR });
+    const result = settleR5Candidate({ signal: signal(), candles1h: [candle(0)], funding: fundingRecord(BASE + HOUR), settlementEndTime: BASE + 100 * HOUR });
     expect(result.status).toBe("ENTRY_UNAVAILABLE");
     expect(result.signal.candidateId).toBe("R5-H18-COMPRESSION-EXPANSION");
   });
 
   it("settles a 24-candle H18 TIME_EXIT with actual fill prices and funding", () => {
     const candles = [candle(0), ...Array.from({ length: 24 }, (_, index) => candle(index + 1))];
-    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(BASE + 2 * HOUR), periodEndTime: BASE + 100 * HOUR });
+    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(BASE + 2 * HOUR), settlementEndTime: BASE + 100 * HOUR });
     expect(result.status).toBe("EXECUTED");
     expect(result.exitReason).toBe("TIME_EXIT");
     expect(result.heldCandleNumber).toBe(24);
@@ -131,28 +136,72 @@ describe("M3-R5-B.2 settlement using bt-policy-003", () => {
 
   it("applies SL before TP when the same candle touches both", () => {
     const candles = [candle(0), candle(1, { high: 110, low: 95 }), ...Array.from({ length: 23 }, (_, index) => candle(index + 2))];
-    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(BASE + HOUR), periodEndTime: BASE + 100 * HOUR });
+    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(BASE + HOUR), settlementEndTime: BASE + 100 * HOUR });
     expect(result.status).toBe("EXECUTED");
     expect(result.exitReason).toBe("SL");
     expect(result.heldCandleNumber).toBe(1);
   });
 
-  it("censors only when the required held horizon exceeds the frozen research end", () => {
+  it("censors only when the required held horizon exceeds the authorized settlement end", () => {
     const candles = [candle(0), ...Array.from({ length: 24 }, (_, index) => candle(index + 1))];
-    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(BASE + HOUR), periodEndTime: candle(1).closeTime });
+    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(BASE + HOUR), settlementEndTime: candle(1).closeTime });
     expect(result.status).toBe("PERIOD_END_CENSORED");
+  });
+
+  it("uses the authorized settlement end rather than the decision cutoff", () => {
+    const candles = [candle(0), ...Array.from({ length: 24 }, (_, index) => candle(index + 1))];
+    const result = settleR5Candidate({
+      signal: signal(),
+      candles1h: candles,
+      funding: fundingRecord(BASE + HOUR),
+      settlementEndTime: BASE + 100 * HOUR,
+    });
+    expect(result.status).toBe("EXECUTED");
+  });
+
+  it("settles an early held-candle exit inside the settlement tail", () => {
+    const result = settleR5Candidate({
+      signal: signal(),
+      candles1h: [candle(0), candle(1, { high: 110 })],
+      funding: fundingRecord(BASE + HOUR),
+      settlementEndTime: BASE + 2 * HOUR,
+    });
+    expect(result.status).toBe("EXECUTED");
+    expect(result.exitReason).toBe("TP");
+    expect(result.heldCandleNumber).toBe(1);
   });
 
   it("reports missing intrabar settlement as unresolved, with exit-candle provenance", () => {
     const exitOpen = candle(1).openTime;
     const candles = [candle(0), candle(1, { high: 110, low: 99 }), ...Array.from({ length: 23 }, (_, index) => candle(index + 2))];
-    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(exitOpen + 30 * 60_000), periodEndTime: BASE + 100 * HOUR });
+    const result = settleR5Candidate({ signal: signal(), candles1h: candles, funding: fundingRecord(exitOpen + 30 * 60_000), settlementEndTime: BASE + 100 * HOUR });
     expect(result.status).toBe("SETTLEMENT_AMBIGUOUS");
     expect(result.settlementAmbiguousExitCandleOpenTime).toBe(exitOpen);
   });
 });
 
 describe("M3-R5-B.2 phase-A and CLI safety boundaries", () => {
+  it("keeps the decision timeline free of settlement-tail candles", () => {
+    const decision = candle(0, { closeTime: 100 });
+    const tail = candle(1, { closeTime: 101 });
+    expect(round005DecisionTimeline([decision, tail])).toEqual([decision, tail]);
+    expect(round005DecisionTimeline([
+      { ...decision, closeTime: Date.parse("2026-08-15T23:59:59.999Z") },
+      { ...tail, closeTime: Date.parse("2026-08-16T00:59:59.999Z") },
+    ])).toHaveLength(1);
+  });
+
+  it("plans Phase-A geometry without producing settlement metrics", () => {
+    const candles = [candle(0), ...Array.from({ length: 24 }, (_, index) => candle(index + 1, { high: 101, low: 99 }))];
+    const geometry = planR5CandidateSettlementGeometry({ signal: signal(), candles1h: candles });
+    expect(geometry).not.toBeNull();
+    expect(geometry).not.toHaveProperty("priceR");
+    expect(geometry).not.toHaveProperty("feeR");
+    expect(geometry).not.toHaveProperty("fundingR");
+    expect(geometry).not.toHaveProperty("grossR");
+    expect(geometry).not.toHaveProperty("netR");
+  });
+
   it("does not discover intrabar windows when the data contains no formal trades", () => {
     expect(discoverRound005IntrabarRequirements({ data: emptyData() })).toEqual([]);
   });
@@ -169,12 +218,68 @@ describe("M3-R5-B.2 phase-A and CLI safety boundaries", () => {
       existingOutputArtifacts: [],
       gateValidatorPass: true,
       planValidatorPass: true,
+      h17QualificationJsonSha256: "aa0898d6f760e79675eae251f04fbcdc7afd584bfebf567cdd77189210d8b234",
+      h17QualificationMarkdownSha256: "01aa31e0390c51369ffcff45757eb43226b3ef74084964d0fbde1fd741a51950",
     } as const;
     expect(() => assertRound005PerformancePreflight(valid)).not.toThrow();
     expect(() => assertRound005PerformancePreflight({ ...valid, confirmAuthoritativePerformance: false })).toThrow();
     expect(() => assertRound005PerformancePreflight({ ...valid, gateSha: "b".repeat(64) })).toThrow();
     expect(() => assertRound005PerformancePreflight({ ...valid, planSha: "b".repeat(64) })).toThrow();
     expect(() => assertRound005PerformancePreflight({ ...valid, existingOutputArtifacts: [M3_R5_ROUND_005_OUTPUT_PATHS[0]] })).toThrow();
+    expect(() => assertRound005PerformancePreflight({ ...valid, h17QualificationJsonSha256: "0".repeat(64) })).toThrow("H17 JSON");
+    expect(() => assertRound005PerformancePreflight({ ...valid, h17QualificationMarkdownSha256: "0".repeat(64) })).toThrow("H17 Markdown");
+    expect(readRound005H17EvidenceSha256()).toEqual({
+      json: "aa0898d6f760e79675eae251f04fbcdc7afd584bfebf567cdd77189210d8b234",
+      markdown: "01aa31e0390c51369ffcff45757eb43226b3ef74084964d0fbde1fd741a51950",
+    });
+    expect(round005AuthorizedSettlementEndTime()).toBeGreaterThan(M3_R5_RESEARCH_RANGE.endTime);
+  });
+
+  it("keeps every invalid preflight path before loader invocation", async () => {
+    const valid = {
+      confirmAuthoritativePerformance: true,
+      sourceSha: "a".repeat(40),
+      round: "baseline-002-research-round-005",
+      gateSha: "e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5",
+      planSha: "ab16a63462825441e00682f2b2bcbe04cb249e469843ce7f9a097017d992b6d1",
+      headSha: "a".repeat(40),
+      cleanWorktree: true,
+      existingOutputArtifacts: [],
+      gateValidatorPass: true,
+      planValidatorPass: true,
+      h17QualificationJsonSha256: "aa0898d6f760e79675eae251f04fbcdc7afd584bfebf567cdd77189210d8b234",
+      h17QualificationMarkdownSha256: "01aa31e0390c51369ffcff45757eb43226b3ef74084964d0fbde1fd741a51950",
+    } as const;
+    let loaderCalls = 0;
+    const loader = { loadStudyData: async () => { loaderCalls += 1; throw new Error("NETWORK_MUST_NOT_RUN"); } };
+    const guarded = async (overrides: Record<string, unknown>) => {
+      assertRound005PerformancePreflight({ ...valid, ...overrides } as typeof valid);
+      await loader.loadStudyData();
+    };
+    await expect(guarded({ confirmAuthoritativePerformance: false })).rejects.toThrow();
+    await expect(guarded({ sourceSha: "b".repeat(40), headSha: "a".repeat(40) })).rejects.toThrow();
+    await expect(guarded({ cleanWorktree: false })).rejects.toThrow();
+    await expect(guarded({ round: "wrong-round" })).rejects.toThrow();
+    await expect(guarded({ gateSha: "b".repeat(64) })).rejects.toThrow();
+    await expect(guarded({ planSha: "b".repeat(64) })).rejects.toThrow();
+    await expect(guarded({ h17QualificationJsonSha256: "0".repeat(64) })).rejects.toThrow();
+    await expect(guarded({ h17QualificationMarkdownSha256: "0".repeat(64) })).rejects.toThrow();
+    await expect(guarded({ existingOutputArtifacts: [M3_R5_ROUND_005_OUTPUT_PATHS[0]] })).rejects.toThrow();
+    await expect(guarded({ gateValidatorPass: false })).rejects.toThrow();
+    await expect(guarded({ planValidatorPass: false })).rejects.toThrow();
+    expect(loaderCalls).toBe(0);
+  });
+
+  it("uses explicit pre- and post-performance abort classifications", () => {
+    const before = new Round005AuthoritativeExecutionError("PRE_PERFORMANCE_ABORT", false, "loader failed");
+    expect(before.lifecycle).toBe("PRE_PERFORMANCE");
+    expect(before.performanceLockTriggered).toBe(false);
+    const after = new Round005AuthoritativeExecutionError("POST_PERFORMANCE_EXECUTION_ABORT", true, "candidate failed");
+    expect(after.lifecycle).toBe("POST_PERFORMANCE");
+    expect(after.performanceLockTriggered).toBe(true);
+    const publication = new Round005AuthoritativeExecutionError("POST_PERFORMANCE_EVIDENCE_PUBLISH_ABORT", true, "publication failed");
+    expect(publication.lifecycle).toBe("POST_PERFORMANCE");
+    expect(publication.performanceLockTriggered).toBe(true);
   });
 
   it("parses only the explicit authoritative command contract", () => {

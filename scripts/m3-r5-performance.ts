@@ -7,6 +7,8 @@ import {
   executeRound005Authoritative,
   existingRound005OutputArtifacts,
   assertRound005PerformancePreflight,
+  readRound005H17EvidenceSha256,
+  Round005AuthoritativeExecutionError,
   readRound005GitState,
 } from "../src/lib/research/m3-r5-round-005-performance.ts";
 import { M3_R5_ROUND_005_RESEARCH_ROUND_ID, M3_R5_ROUND_005_SELECTION_GATE_SHA256, validateM3R5Round005MachineRecord } from "../src/lib/research/selection-gates-round-005.ts";
@@ -103,30 +105,60 @@ export function publishRound005ArtifactsAtomically(input: Readonly<{
 }
 
 async function main(): Promise<void> {
-  const args = parseRound005AuthoritativeArguments();
-  if (!args.confirmAuthoritativePerformance) throw new Error("--confirm-authoritative-performance is required; no network access was attempted.");
-  const state = readRound005GitState();
-  assertRound005PerformancePreflight({
-    ...args,
-    headSha: state.headSha,
-    cleanWorktree: state.cleanWorktree,
-    existingOutputArtifacts: existingRound005OutputArtifacts(),
-    gateValidatorPass: validateM3R5Round005MachineRecord() !== undefined,
-    planValidatorPass: validateM3R5Round005Plan() !== undefined,
-  });
-  const artifacts = await executeRound005Authoritative({ executionSourceSha: args.sourceSha });
-  publishRound005ArtifactsAtomically({
-    summaryPath: M3_R5_ROUND_005_OUTPUT_PATHS[0],
-    auditPath: M3_R5_ROUND_005_OUTPUT_PATHS[1],
-    resultsPath: M3_R5_ROUND_005_OUTPUT_PATHS[2],
-    summary: artifacts.summaryJson,
-    audit: artifacts.auditJson,
-    results: artifacts.resultsMarkdown,
-  });
-  console.log(`Round-005 report schema: ${artifacts.report.schemaVersion}`);
-  console.log(`Round-005 execution source: ${artifacts.report.executionSourceSha}`);
-  console.log(`Round-005 performance lock: ${artifacts.report.performanceLock}`);
-  console.log(`Round-005 evidence status: ${artifacts.report.evidenceStatus}`);
+  let performanceLockTriggered = false;
+  try {
+    const args = parseRound005AuthoritativeArguments();
+    if (!args.confirmAuthoritativePerformance) throw new Error("--confirm-authoritative-performance is required; no network access was attempted.");
+    const state = readRound005GitState();
+    const h17Hashes = readRound005H17EvidenceSha256();
+    assertRound005PerformancePreflight({
+      ...args,
+      headSha: state.headSha,
+      cleanWorktree: state.cleanWorktree,
+      existingOutputArtifacts: existingRound005OutputArtifacts(),
+      gateValidatorPass: validateM3R5Round005MachineRecord() !== undefined,
+      planValidatorPass: validateM3R5Round005Plan() !== undefined,
+      h17QualificationJsonSha256: h17Hashes.json,
+      h17QualificationMarkdownSha256: h17Hashes.markdown,
+    });
+    const artifacts = await executeRound005Authoritative({ executionSourceSha: args.sourceSha });
+    performanceLockTriggered = artifacts.report.performanceLockTriggered;
+    try {
+      publishRound005ArtifactsAtomically({
+        summaryPath: M3_R5_ROUND_005_OUTPUT_PATHS[0],
+        auditPath: M3_R5_ROUND_005_OUTPUT_PATHS[1],
+        resultsPath: M3_R5_ROUND_005_OUTPUT_PATHS[2],
+        summary: artifacts.summaryJson,
+        audit: artifacts.auditJson,
+        results: artifacts.resultsMarkdown,
+      });
+    } catch (error) {
+      throw new Round005AuthoritativeExecutionError(
+        "POST_PERFORMANCE_EVIDENCE_PUBLISH_ABORT",
+        performanceLockTriggered,
+        error instanceof Error ? error.message : String(error),
+        { cause: error },
+      );
+    }
+    console.log("Round-005 execution classification: SUCCESS");
+    console.log(`Round-005 report schema: ${artifacts.report.schemaVersion}`);
+    console.log(`Round-005 execution source: ${artifacts.report.executionSourceSha}`);
+    console.log(`Round-005 performance lock: ${artifacts.report.performanceLock}`);
+    console.log(`Round-005 performance lock triggered: ${artifacts.report.performanceLockTriggered}`);
+    console.log(`Round-005 evidence status: ${artifacts.report.evidenceStatus}`);
+  } catch (error) {
+    const classified = error instanceof Round005AuthoritativeExecutionError
+      ? error
+      : new Round005AuthoritativeExecutionError(
+          performanceLockTriggered ? "POST_PERFORMANCE_EXECUTION_ABORT" : "PRE_PERFORMANCE_ABORT",
+          performanceLockTriggered,
+          error instanceof Error ? error.message : String(error),
+          { cause: error },
+        );
+    console.error(`Round-005 execution classification: ${classified.classification}`);
+    console.error(`Round-005 performance lock triggered: ${classified.performanceLockTriggered}`);
+    throw classified;
+  }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) await main();

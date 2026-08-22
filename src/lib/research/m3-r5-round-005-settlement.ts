@@ -45,6 +45,22 @@ export type R5SettlementResult = Readonly<{
   diagnostic?: string;
 }>;
 
+export type R5SettlementGeometry = Readonly<{
+  signal: R5CandidateSignal;
+  entryTime: number;
+  rawEntryPrice: number;
+  entryFill: number;
+  stopPrice: number;
+  stopDistance: number;
+  takeProfitPrice: number;
+  exitTime: number;
+  rawExitPrice: number;
+  exitCandleOpenTime: number;
+  exitCandleCloseTime: number;
+  heldCandleNumber: number;
+  exitReason: "TP" | "SL" | "TIME_EXIT";
+}>;
+
 function emptyResult(
   signal: R5CandidateSignal,
   status: R5ExecutionStatus,
@@ -155,33 +171,88 @@ function findEntry(candles: readonly Candle[], signalTime: number): Candle | und
   return candles.find((candle) => candle.timeframe === "1h" && candle.openTime > signalTime && positive(candle.open));
 }
 
-function findHeldCandles(
+type FrozenExit = Readonly<{ candle: Candle; reason: "TP" | "SL" | "TIME_EXIT"; number: number }>;
+
+function scanHeldCandles(
+  signal: R5CandidateSignal,
   candles: readonly Candle[],
   entry: Candle,
-  count: number,
-): readonly Candle[] | null {
-  const held = candles.filter((candle) => candle.openTime >= entry.openTime).slice(0, count);
-  if (held.length !== count) return null;
-  if (!held.every((candle, index) => candleIsValid(candle, entry.symbol, entry.openTime + index * INTERVAL_MS["1h"]))) return null;
-  return Object.freeze(held);
-}
-
-function frozenExit(
-  signal: R5CandidateSignal,
-  heldCandles: readonly Candle[],
   stopPrice: number,
   takeProfitPrice: number,
-): Readonly<{ candle: Candle; reason: "TP" | "SL" | "TIME_EXIT"; number: number }> {
-  for (let index = 0; index < heldCandles.length; index += 1) {
-    const candle = heldCandles[index]!;
+): Readonly<{ heldCandles: readonly Candle[]; exit: FrozenExit | null }> {
+  const heldCandles: Candle[] = [];
+  for (let index = 0; index < signal.maxHeldCandles; index += 1) {
+    const expectedOpenTime = entry.openTime + index * INTERVAL_MS["1h"];
+    const candle = candles.find((candidate) => candidate.openTime === expectedOpenTime);
+    if (!candle || !candleIsValid(candle, entry.symbol, expectedOpenTime)) {
+      return Object.freeze({ heldCandles: Object.freeze(heldCandles), exit: null });
+    }
+    heldCandles.push(candle);
     const stopTouched = signal.direction === "LONG" ? candle.low <= stopPrice : candle.high >= stopPrice;
     const targetTouched = signal.direction === "LONG" ? candle.high >= takeProfitPrice : candle.low <= takeProfitPrice;
     if (stopTouched || targetTouched) {
-      return Object.freeze({ candle, reason: stopTouched ? "SL" : "TP", number: index + 1 });
+      return Object.freeze({
+        heldCandles: Object.freeze(heldCandles),
+        exit: Object.freeze({ candle, reason: stopTouched ? "SL" : "TP", number: index + 1 }),
+      });
     }
   }
   const candle = heldCandles.at(-1)!;
-  return Object.freeze({ candle, reason: "TIME_EXIT", number: heldCandles.length });
+  return Object.freeze({
+    heldCandles: Object.freeze(heldCandles),
+    exit: Object.freeze({ candle, reason: "TIME_EXIT", number: heldCandles.length }),
+  });
+}
+
+/**
+ * Phase-A geometry only. It identifies the deterministic exit candle and
+ * funding-order ambiguity without calculating fees, funding, or R metrics.
+ */
+export function planR5CandidateSettlementGeometry(input: Readonly<{
+  signal: R5CandidateSignal;
+  candles1h: readonly Candle[];
+}>): R5SettlementGeometry | null {
+  const signalCandle = findSignalCandle(input.candles1h, input.signal.signalTime);
+  const entry = findEntry(input.candles1h, input.signal.signalTime);
+  if (!signalCandle || !entry) return null;
+
+  const rawEntryPrice = entry.open;
+  const entryFill = input.signal.direction === "LONG"
+    ? rawEntryPrice * (1 + BACKTEST_POLICY.slippageRate)
+    : rawEntryPrice * (1 - BACKTEST_POLICY.slippageRate);
+  const stopDistance = input.signal.decisionAtr * input.signal.stopAtrMultiple;
+  const stopPrice = input.signal.direction === "LONG" ? entryFill - stopDistance : entryFill + stopDistance;
+  const takeProfitPrice = input.signal.takeProfitR === "FIXED_DECISION_EMA20"
+    ? input.signal.fixedTargetPrice ?? Number.NaN
+    : input.signal.direction === "LONG"
+      ? entryFill + stopDistance * input.signal.takeProfitR
+      : entryFill - stopDistance * input.signal.takeProfitR;
+  if (!positive(rawEntryPrice) || !positive(entryFill) || !positive(stopDistance) || !positive(stopPrice) || !positive(takeProfitPrice)) return null;
+  const validTargetGeometry = input.signal.direction === "LONG"
+    ? takeProfitPrice > entryFill && stopPrice < entryFill
+    : takeProfitPrice < entryFill && stopPrice > entryFill;
+  if (!validTargetGeometry) return null;
+
+  const scan = scanHeldCandles(input.signal, input.candles1h, entry, stopPrice, takeProfitPrice);
+  if (!scan.exit) return null;
+  const exit = scan.exit;
+  const rawExitPrice = exit.reason === "TIME_EXIT" ? exit.candle.close : exit.reason === "SL" ? stopPrice : takeProfitPrice;
+  if (!positive(rawExitPrice)) return null;
+  return Object.freeze({
+    signal: input.signal,
+    entryTime: entry.openTime,
+    rawEntryPrice,
+    entryFill,
+    stopPrice,
+    stopDistance,
+    takeProfitPrice,
+    exitTime: exit.candle.closeTime,
+    rawExitPrice,
+    exitCandleOpenTime: exit.candle.openTime,
+    exitCandleCloseTime: exit.candle.closeTime,
+    heldCandleNumber: exit.number,
+    exitReason: exit.reason,
+  });
 }
 
 /**
@@ -197,7 +268,7 @@ export function settleR5Candidate(input: Readonly<{
   markPriceSegments?: readonly HistoricalMarkPriceSegment[];
   intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
   serverTime?: number;
-  periodEndTime: number;
+  settlementEndTime: number;
 }>): R5SettlementResult {
   const signalCandle = findSignalCandle(input.candles1h, input.signal.signalTime);
   const entry = findEntry(input.candles1h, input.signal.signalTime);
@@ -224,14 +295,27 @@ export function settleR5Candidate(input: Readonly<{
     : takeProfitPrice < entryFill && stopPrice > entryFill;
   if (!validTargetGeometry) return emptyResult(input.signal, "INVALID_TARGET_GEOMETRY", "INVALID_TARGET_GEOMETRY", { ...baseDetails });
 
-  const heldCandles = findHeldCandles(input.candles1h, entry, input.signal.maxHeldCandles);
   const expectedLastClose = entry.openTime + input.signal.maxHeldCandles * INTERVAL_MS["1h"] - 1;
-  if (expectedLastClose > input.periodEndTime) {
-    return emptyResult(input.signal, "PERIOD_END_CENSORED", "REQUIRED_HELD_CANDLE_CLOSE_AFTER_RESEARCH_END", baseDetails);
+  const scan = scanHeldCandles(input.signal, input.candles1h, entry, stopPrice, takeProfitPrice);
+  if (!scan.exit) {
+    return emptyResult(
+      input.signal,
+      expectedLastClose > input.settlementEndTime ? "PERIOD_END_CENSORED" : "DATA_INCOMPLETE",
+      expectedLastClose > input.settlementEndTime
+        ? "REQUIRED_HELD_CANDLE_CLOSE_AFTER_AUTHORIZED_SETTLEMENT_END"
+        : "REQUIRED_HELD_CANDLES_UNAVAILABLE_OR_INVALID",
+      baseDetails,
+    );
   }
-  if (!heldCandles) return emptyResult(input.signal, "DATA_INCOMPLETE", "REQUIRED_HELD_CANDLES_UNAVAILABLE_OR_INVALID", baseDetails);
-
-  const exit = frozenExit(input.signal, heldCandles, stopPrice, takeProfitPrice);
+  const exit = scan.exit;
+  if (exit.candle.closeTime > input.settlementEndTime) {
+    return emptyResult(input.signal, "PERIOD_END_CENSORED", "EXIT_CANDLE_CLOSE_AFTER_AUTHORIZED_SETTLEMENT_END", {
+      ...baseDetails,
+      exitTime: exit.candle.closeTime,
+      exitReason: exit.reason,
+      heldCandleNumber: exit.number,
+    });
+  }
   const rawExitPrice = exit.reason === "TIME_EXIT" ? exit.candle.close : exit.reason === "SL" ? stopPrice : takeProfitPrice;
   const exitFill = input.signal.direction === "LONG"
     ? rawExitPrice * (1 - BACKTEST_POLICY.slippageRate)
