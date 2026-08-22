@@ -1028,6 +1028,30 @@ five symbols, the global 24-held-candle policy, M3-J, and M4 are unchanged.
 and M4 remains **NOT STARTED**. See
 `docs/M3_R4_C_PERFORMANCE_IMPLEMENTATION.md`.
 
+## M3-R5-B.1A — Round-005 exact protocol and H17 qualification tooling
+
+Status: UNDER REVIEW / PROTOCOL AND QUALIFICATION TOOLING FREEZE; PERFORMANCE NOT AUTHORIZED
+
+M3-R5-B.1A is based on authoritative main
+`cb004575fb899d62a4d6e4f5424e3b88a43ac4ac`. It freezes exactly one
+provisional standalone variant for each of H15, H16, H17, and H18, including
+decision-time formulas, strict next-open entry, stops, targets, holding
+horizons, complexity tuples, no-future-data semantics, and synthetic
+boundary tests. H17 is conditional on complete canonical UTC 00:00/08:00/16:00
+funding coverage for all five symbols. Its qualification report records only
+coverage and provenance; it does not expose funding-rate distributions or
+performance metrics.
+
+The B.1A CLI is guarded by exact source SHA, round, frozen research range,
+clean worktree, and absent-output checks before any future network access. It
+publishes no artifact in B.1A. Final Round-005 registry, Gate SHA, Plan SHA,
+H17 eligibility, and any performance remain deferred to B.1B. No Binance
+request, historical loader, CONTROL, backtest, evidence generation, candidate
+selection, baseline-002 freeze, M3-J, or M4 work is part of this stage.
+`baseline-002` remains **NOT FROZEN**, M3-J remains **BLOCKED / NOT STARTED**,
+and M4 remains **NOT STARTED**. See `docs/M3_R5_B1A_PROTOCOL.md` and
+`docs/BASELINE_002_RESEARCH_R5.md`.
+
 ## M4 — Realtime Scanner
 
 Status: NOT STARTED

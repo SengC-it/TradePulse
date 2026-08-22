@@ -175,7 +175,13 @@ function sourceText(): string {
   return readdirSync(root)
     // Round-004 performance source is intentionally a later, separate
     // execution boundary and is covered by its own source-freeze suite.
-    .filter((name) => name.endsWith(".ts") && !name.startsWith("m3-r4-round-004-"))
+    // Round-005 H17 qualification is an explicit data-qualification boundary,
+    // not generic offline diagnostics tooling, and has its own B.1A suite.
+    .filter((name) =>
+      name.endsWith(".ts") &&
+      !name.startsWith("m3-r4-round-004-") &&
+      name !== "m3-r5-h17-funding-qualification.ts",
+    )
     .sort()
     .map((name) => readFileSync(resolve(root, name), "utf8"))
     .join("\n");

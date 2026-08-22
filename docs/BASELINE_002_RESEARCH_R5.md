@@ -1,27 +1,29 @@
 # baseline-002 Research Round-005 Protocol Freeze
 
-Status: M3-R5-A DIAGNOSIS AND HYPOTHESIS FREEZE
+Status: M3-R5-B.1A PROTOCOL AND H17 DATA-QUALIFICATION TOOLING FREEZE
 
 Research round: `baseline-002-research-round-005`
 
-Authoritative base: `0cba8fc75fc65b5a53ee760bf15af9a0e0594033`
+Authoritative base: `cb004575fb899d62a4d6e4f5424e3b88a43ac4ac`
 
 ## Purpose and boundary
 
 Round-005 is a research-design stage for structurally different edge
-architectures. This document freezes exactly four standalone qualitative
-hypotheses. It does not implement H15-H18, define executable formulas, run
-historical data, run baseline-001, run CONTROL, calculate performance, or
-authorize a backtest.
+architectures. M3-R5-A froze the four standalone qualitative hypotheses;
+M3-R5-B.1A now freezes their exact provisional formulas, decision-time
+contracts, synthetic boundary tests, and H17 data-qualification tooling. It
+does not run historical data, run baseline-001, run CONTROL, calculate
+performance, or authorize a backtest. The detailed B.1A contract is in
+`docs/M3_R5_B1A_PROTOCOL.md`.
 
 The research data boundary remains through
 `2026-08-15T23:59:59.999Z`, classified as
 `RESEARCH_AVAILABLE_SEEN_DATA`. No newly arrived Aug-16-or-later data may be
 inspected in R5-A; that data is reserved for future forward evaluation.
 
-Exactly one variant per hypothesis may be frozen in R5-B. R5-A does not
-freeze indicators, thresholds, stops, take-profit rules, holding horizons,
-entry timing, or settlement formulas.
+Exactly one provisional variant per hypothesis is frozen in B.1A. The final
+Round-005 registry, Gate SHA, and Plan SHA remain deferred to B.1B, after the
+conditional H17 qualification boundary is resolved.
 
 ## H15 — HTF low-frequency trend architecture
 
@@ -34,10 +36,11 @@ entry timing, or settlement formulas.
   preferably 4H. This is a new signal source, not a 4H filter applied to
   baseline-001. Trade cadence should be structurally lower than baseline-001.
   Entry and outcome settlement may still use lower-timeframe execution data
-  after exact semantics are frozen in R5-B.
+  after exact semantics are frozen in R5-B.1A.
 
-Exactly one H15 variant may be frozen in R5-B. R5-A does not freeze its exact
-indicators, thresholds, stop, take-profit, holding horizon, or entry timing.
+The exact H15 indicators, strict breakout, stop, take-profit, holding horizon,
+and next-open contract are frozen in B.1A; it remains a provisional variant
+until B.1B finalizes the registry.
 
 ## H16 — Neutral-regime mean reversion
 
@@ -53,7 +56,8 @@ indicators, thresholds, stop, take-profit, holding horizon, or entry timing.
 
 H16 must not become another baseline filter, RSI threshold sweep,
 EMA-distance grid, Bollinger grid, or parameter optimization. Exactly one H16
-variant may be frozen in R5-B.
+variant is frozen provisionally in B.1A; B.1B may include it only if its
+qualification boundary is satisfied.
 
 ## H17 — Funding crowding reversal
 
@@ -67,12 +71,13 @@ variant may be frozen in R5-B.
   decision time may be used. Future funding leakage and external
   sentiment/news data are prohibited.
 
-**Data gate:** R5-B must first prove historical funding availability and
+**Data gate:** R5-B.1B must first apply the frozen H17 qualification tooling
+to prove historical funding availability and
 timestamp completeness across the entire frozen research universe. If
 complete decision-time funding cannot be reproduced for the required period,
 H17 must be marked `DATA_NOT_AVAILABLE` and must not enter performance.
-R5-A does not fetch ad-hoc replacement historical data. Exactly one H17
-variant may be frozen only if the data gate passes.
+R5-A/B.1A do not fetch ad-hoc replacement historical data. Exactly one H17
+variant may enter performance only if the data gate passes.
 
 ## H18 — Volatility compression to expansion
 
@@ -85,8 +90,9 @@ variant may be frozen only if the data gate passes.
   OHLC-derived compression data with deterministic expansion confirmation.
   It is not a recreation of H9 volume confirmation or H10 breakout buffer.
 
-Exactly one H18 variant may be frozen in R5-B. R5-A does not define a
-volatility percentile or ATR threshold grid.
+The exact H18 compression, expansion, strict breakout, risk, and holding
+contract is frozen in B.1A. No volatility percentile or ATR threshold grid is
+introduced.
 
 ## Standalone and anti-snooping rule
 
@@ -121,15 +127,14 @@ semantics of:
 - `minimumFormalSignals`; and
 - `minimumExecutedTrades`.
 
-No existing threshold may be weakened. R5-B may propose additional stricter
+No existing threshold may be weakened. R5-B.1B may propose additional stricter
 diagnostics or gates only when they are justified before performance,
 machine-readable, frozen before performance, and not derived from candidate
 outcomes. R5-A creates no Gate SHA and no Plan SHA.
 
-## M3-R5-B contract
+## M3-R5-B.1A / B.1B contract
 
-Before any historical performance is authorized, R5-B is responsible for
-freezing:
+Before any historical performance is authorized, B.1A freezes:
 
 1. exact H15-H18 formulas;
 2. the exact candidate registry;
@@ -140,13 +145,17 @@ freezing:
 7. historical data and manifest requirements;
 8. the H17 funding data-completeness proof;
 9. the exact no-future-data contract;
-10. a non-weakened machine-readable Gate record;
-11. the canonical Gate SHA;
-12. the canonical Plan record and Plan SHA;
-13. synthetic boundary tests; and
-14. performance-lock and round-invalidation rules.
+10. the inherited non-weakened Gate requirements without a final Gate record;
+11. synthetic boundary tests; and
+12. performance-lock and round-invalidation rules.
 
-No historical performance is authorized until R5-B is independently accepted
+B.1B remains responsible for the conditional final registry, a machine-
+readable non-weakened Gate record and Gate SHA, the canonical Plan record and
+Plan SHA, and the final H17 eligibility decision. H17 must not enter
+performance unless the complete canonical funding qualification returns
+`COMPLETE` / `H17_DATA_QUALIFICATION=PASS`.
+
+No historical performance is authorized until R5-B.1B is independently accepted
 and merged. If a semantic incompatibility would silently alter baseline-001,
 frozen economics, metrics, or gates, R5-B must stop and surface it for
 review.
@@ -155,7 +164,9 @@ review.
 
 `baseline-002 = NOT_FROZEN`
 
-`M3-R5-B = NOT_AUTHORIZED`
+`M3-R5-B.1A = PROTOCOL_AND_QUALIFICATION_TOOLING_FROZEN`
+
+`M3-R5-B.1B = DEFERRED_PENDING_H17_QUALIFICATION`
 
 `M3-J = BLOCKED`
 
@@ -163,4 +174,5 @@ review.
 
 No performance command, Binance request, historical loader, evidence
 generation, candidate selection, or baseline freeze is authorized by this
-R5-A document.
+B.1A document. `baseline-002` remains not frozen, M3-J remains blocked, and
+M4 remains not started.
