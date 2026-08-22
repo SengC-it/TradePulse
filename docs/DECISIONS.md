@@ -555,6 +555,62 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED`.
 
+## ADR-036 — Freeze the Round-006 final registry, Gate, and Plan
+
+- Decision: Freeze baseline-002-research-round-006 from the accepted B.1A
+  post-merge source b8e03e34360ceaaf515882226940eba99bf89b1c. The four
+  standalone candidates are H19, H20, H21, and H22 exactly as recorded by
+  the B.1A protocol, with one variant each and unchanged complexity tuples.
+- Gate: Round-005 numeric values, comparison directions, fold-improvement
+  semantics, catastrophic-fold semantics, sample floors, concentration,
+  profit-factor, and fee-burden definitions are inherited without weakening.
+  Round-006 has exactly ten applicable gates because redundancy is
+  NOT_APPLICABLE for every candidate. The accepted Round-005 Gate SHA is
+  e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5; the
+  inherited Round-004 ancestry SHA remains
+  c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54. The
+  corrected Round-006 canonical Gate SHA is
+  ff51cdc587f5a79cc9dd8d449202e481f4d2eed23e7f843797b8348b8cebe1f6.
+- Plan: The canonical Plan binds the five-symbol universe, F1–F6 folds,
+  seen-data boundary, baseline-001, bt-policy-003, R6 protocol identity,
+  Gate SHA, settlement/economics, deterministic staged selection, the complete
+  metric/status/output contract, and runtime provenance checks. Its corrected
+  canonical SHA is
+  0e9521e373764c8e9389326f84d25172693b3e3a0894e9829183bb0c7a96a591.
+- Constraint: The future performance execution SHA is not predeclared; it
+  must be supplied only by a separately authorized runtime and must equal the
+  authorized source SHA and the clean-worktree Git HEAD. Required manifests
+  must pass and authoritative outputs must be absent before network access.
+  No performance, selection, Binance access, historical exploration,
+  optimizer, sweep, or evidence generation occurs in B.1B.
+- Consequence: Performance remains NOT_AUTHORIZED / NOT_GENERATED,
+  baseline-002 remains NOT_FROZEN, M3-J remains BLOCKED, and M4 remains
+  NOT_STARTED. After FIRST_M3_R6_PERFORMANCE_RESULT_GENERATED,
+  result-affecting changes require ROUND_006_INVALIDATION_REQUIRED.
+
+## ADR-037 — Remediate the Round-006 B.1B provenance, selector, and metric contract
+
+- **Decision:** B.1B remains pre-performance and unmerged on its existing PR.
+  The machine Gate now records the accepted Round-005 Gate independently from
+  the inherited Round-004 ancestry Gate. The selector is a staged algorithm:
+  eligibility, maximum improved folds, an inclusive 0.01 expectancy tie band,
+  complexity tuple, PF with null after finite, then candidate ID. This avoids
+  the non-transitive behavior of a pairwise comparator and freezes eligible-ID
+  serialization in ascending order.
+- **Metric contract:** Only formal evaluator signals create records. The Plan
+  explicitly defines the status semantics, formal/executed counts, PF
+  NO_TRADES/NO_LOSSES behavior, fee burden, concentration, fold improvement,
+  catastrophic folds, minimum fold executed trades, finite/null/rounding
+  normalization, deterministic ordering, and the accepted-base implementation
+  identities used for diagnostics and stable serialization.
+- **Authorization:** The future source remains `null` in B.1B. A later run
+  must provide the execution source, separately authorized source, and Git HEAD
+  as the same SHA, plus clean worktree, passing manifests, and absent output
+  artifacts before any network request. Arbitrary valid SHAs are rejected.
+- **Consequence:** The corrected Gate and Plan hashes are recorded above.
+  Performance remains `NOT_AUTHORIZED` / `NOT_GENERATED`; baseline-002 remains
+  `NOT_FROZEN`; M3-J remains `BLOCKED`; and M4 remains `NOT_STARTED`.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
