@@ -580,6 +580,10 @@ function compareEligibleCandidates(left: M3R5C3ACandidateEvaluation, right: M3R5
   return compareStrings(left.candidateId, right.candidateId);
 }
 
+export function compareM3R5C3ASelectionOrder(left: M3R5C3ACandidateEvaluation, right: M3R5C3ACandidateEvaluation): number {
+  return compareEligibleCandidates(left, right, M3_R5_PLAN_GATES.complexityTieThreshold.value);
+}
+
 function incompleteEvaluation(errors: readonly string[]): M3R5C3ASelectionEvaluation {
   return Object.freeze({ integrityStatus: "INCOMPLETE_EVIDENCE", integrityErrors: Object.freeze([...errors]), candidates: Object.freeze([]), eligibleCandidateIds: Object.freeze([]), selectionAlgorithmApplied: false, selectedCandidateId: null, finalDecision: "INCOMPLETE_EVIDENCE" });
 }
@@ -593,7 +597,7 @@ export function evaluateM3R5C3ASelection(evidence: unknown, input: M3R5C3AInputH
   const candidates = integrity.evidence.candidates.map((candidate) => evaluateCandidate(candidate, integrity.evidence!.control));
   const eligible = candidates.filter((candidate) => candidate.eligibility === "ELIGIBLE");
   if (eligible.length === 0) return Object.freeze({ integrityStatus: "COMPLETE", integrityErrors: Object.freeze([]), candidates: Object.freeze(candidates), eligibleCandidateIds: Object.freeze([]), selectionAlgorithmApplied: false, selectedCandidateId: null, finalDecision: M3_R5_ROUND_005_NO_CANDIDATE_OUTCOME });
-  const sorted = [...eligible].sort((left, right) => compareEligibleCandidates(left, right, M3_R5_PLAN_GATES.complexityTieThreshold.value));
+  const sorted = [...eligible].sort(compareM3R5C3ASelectionOrder);
   return Object.freeze({ integrityStatus: "COMPLETE", integrityErrors: Object.freeze([]), candidates: Object.freeze(candidates), eligibleCandidateIds: Object.freeze(eligible.map((candidate) => candidate.candidateId)), selectionAlgorithmApplied: true, selectedCandidateId: sorted[0]!.candidateId, finalDecision: "SELECTED_BASELINE_002_CANDIDATE" });
 }
 

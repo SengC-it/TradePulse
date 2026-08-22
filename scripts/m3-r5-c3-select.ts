@@ -56,6 +56,18 @@ function fail(message: string): never {
   throw new Error(`M3-R5-C.3 selection refused: ${message}`);
 }
 
+export function validateM3R5C3AWorktreeStatus(status: string): void {
+  if (status !== "") fail("worktree is not clean.");
+}
+
+export function validateM3R5C3AOutputsAbsent(jsonExists: boolean, markdownExists: boolean): void {
+  if (jsonExists || markdownExists) fail("selection output already exists.");
+}
+
+export function validateM3R5C3ACommittedBlobHash(path: string, actualSha256: string, expectedSha256: string): void {
+  if (actualSha256 !== expectedSha256) fail(`${path} committed Git blob SHA-256 mismatch.`);
+}
+
 function currentGitSha(): string {
   return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 }
@@ -67,7 +79,7 @@ export function validateM3R5C3AAuthoritativeSource(currentSha: string, requested
 
 function assertCleanWorktree(): void {
   const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" });
-  if (status !== "") fail("worktree is not clean.");
+  validateM3R5C3AWorktreeStatus(status);
 }
 
 function committedBlob(path: string): Buffer {
@@ -79,7 +91,7 @@ function sha256(bytes: Uint8Array): string {
 }
 
 function assertExpectedBlob(path: string, bytes: Uint8Array, expected: string): void {
-  if (sha256(bytes) !== expected) fail(`${path} committed Git blob SHA-256 mismatch.`);
+  validateM3R5C3ACommittedBlobHash(path, sha256(bytes), expected);
 }
 
 export function assertM3R5C3AAuthorization(args: M3R5C3AAuthorizationArguments): void {
@@ -91,7 +103,7 @@ export function assertM3R5C3AAuthorization(args: M3R5C3AAuthorizationArguments):
   if (args.inputSummarySha !== M3_R5_C3A_EXPECTED_INPUT_SUMMARY_SHA256) fail("summary SHA mismatch.");
   if (args.inputAuditSha !== M3_R5_C3A_EXPECTED_INPUT_AUDIT_SHA256) fail("audit SHA mismatch.");
   if (args.inputResultsSha !== M3_R5_C3A_EXPECTED_INPUT_RESULTS_SHA256) fail("results SHA mismatch.");
-  if (existsSync(M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH) || existsSync(M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH)) fail("selection output already exists.");
+  validateM3R5C3AOutputsAbsent(existsSync(M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH), existsSync(M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH));
 
   validateM3R5Round005MachineRecord();
   validateM3R5Round005Plan();

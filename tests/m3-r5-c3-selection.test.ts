@@ -9,10 +9,13 @@ import {
   M3_R5_C3A_EXPECTED_INPUT_RESULTS_SHA256,
   M3_R5_C3A_EXPECTED_INPUT_SUMMARY_SHA256,
   M3_R5_C3A_SELECTION_SCHEMA_VERSION,
+  compareM3R5C3ASelectionOrder,
   evaluateM3R5C3ASelection,
   hashM3R5C3AIdentityRecords,
   publishM3R5C3ASelectionOutputsAtomically,
+  sha256M3R5C3ARawBytes,
   type M3R5C3AInputHashes,
+  type M3R5C3ACandidateEvaluation,
 } from "../src/lib/research/m3-r5-c3-selection.ts";
 import {
   M3_R5_ROUND_005_CANDIDATE_IDS,
@@ -26,7 +29,13 @@ import {
 } from "../src/lib/research/selection-gates-round-005.ts";
 import { M3_R5_ROUND_005_PLAN, M3_R5_ROUND_005_PLAN_SHA256 } from "../src/lib/research/m3-r5-round-005-plan.ts";
 import { getResearchFoldRoleRange } from "../src/lib/research/folds.ts";
-import { parseM3R5C3ASelectionArguments, validateM3R5C3AAuthoritativeSource } from "../scripts/m3-r5-c3-select.ts";
+import {
+  parseM3R5C3ASelectionArguments,
+  validateM3R5C3AAuthoritativeSource,
+  validateM3R5C3ACommittedBlobHash,
+  validateM3R5C3AOutputsAbsent,
+  validateM3R5C3AWorktreeStatus,
+} from "../scripts/m3-r5-c3-select.ts";
 
 type MutableRecord = Record<string, unknown>;
 type FrozenRange = Readonly<{ startTime: number; endTime: number }>;
@@ -306,6 +315,38 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     expect(evaluateM3R5C3ASelection(expectancyWins, INPUT_HASHES).selectedCandidateId).toBe("R5-H16-NEUTRAL-MEAN-REVERSION");
   });
 
+  function syntheticEvaluation(candidateId: string, profitFactor: number, complexity: Readonly<Record<string, number>>): M3R5C3ACandidateEvaluation {
+    return {
+      candidateId,
+      complexity,
+      metrics: {
+        aggregateImprovement: 0.1,
+        improvedValidationFoldCount: 6,
+        catastrophicFoldCount: 0,
+        expectancyR: 0.1,
+        profitFactor,
+        profitFactorStatus: "NORMAL",
+        topSymbolShareOfPositiveNetR: 0.2,
+        largestSingleTradeShareOfPositiveNetR: 0.05,
+        feeBurdenRatio: 0.5,
+        formalSignals: 300,
+        minimumFoldExecutedTrades: 30,
+      },
+      gateResults: [],
+      applicableGateCount: 10,
+      passedApplicableGateCount: 10,
+      failedGateCount: 0,
+      failedGateIds: [],
+      eligibility: "ELIGIBLE",
+    };
+  }
+
+  it("applies PF and candidate-ID tie-breakers after equal complexity", () => {
+    const complexity = { newRules: 1, newTunableThresholds: 1, modifiedBaselineRules: 1, mechanismFamiliesUsed: 1 };
+    expect(compareM3R5C3ASelectionOrder(syntheticEvaluation("left", 2, complexity), syntheticEvaluation("right", 1, complexity))).toBeLessThan(0);
+    expect(compareM3R5C3ASelectionOrder(syntheticEvaluation("A", 1, complexity), syntheticEvaluation("B", 1, complexity))).toBeLessThan(0);
+  });
+
   it.each([
     ["selectionGateSha256", "bad"],
     ["experimentPlanSha256", "bad"],
@@ -349,6 +390,22 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     expect(args.inputResultsSha).toBe(INPUT_HASHES.results);
     expect(() => validateM3R5C3AAuthoritativeSource("a".repeat(40), "b".repeat(40))).toThrow("source SHA mismatch");
     expect(() => validateM3R5C3AAuthoritativeSource("a".repeat(40), "a".repeat(40))).not.toThrow();
+  });
+
+  it("locks future preflight refusals for dirty worktrees, existing outputs, and Git blob hashes", () => {
+    expect(() => validateM3R5C3AWorktreeStatus(" M package.json\n")).toThrow("worktree is not clean");
+    expect(() => validateM3R5C3AWorktreeStatus("?? generated-output.json\n")).toThrow("worktree is not clean");
+    expect(() => validateM3R5C3AWorktreeStatus("")).not.toThrow();
+    expect(() => validateM3R5C3AOutputsAbsent(true, false)).toThrow("selection output already exists");
+    expect(() => validateM3R5C3AOutputsAbsent(false, true)).toThrow("selection output already exists");
+    expect(() => validateM3R5C3AOutputsAbsent(false, false)).not.toThrow();
+    const committedBytes = Buffer.from("committed\n", "utf8");
+    const committedSha = sha256M3R5C3ARawBytes(committedBytes);
+    const workingTreeBytes = Buffer.from("committed\r\n", "utf8");
+    expect(sha256M3R5C3ARawBytes(workingTreeBytes)).not.toBe(committedSha);
+    expect(() => validateM3R5C3ACommittedBlobHash("summary", committedSha, committedSha)).not.toThrow();
+    expect(() => validateM3R5C3ACommittedBlobHash("summary", sha256M3R5C3ARawBytes(workingTreeBytes), committedSha)).toThrow("committed Git blob SHA-256 mismatch");
+    expect(committedBytes.toString("utf8")).toBe("committed\n");
   });
 
   it("serializes a deterministic report without invoking real evidence or network code", () => {
