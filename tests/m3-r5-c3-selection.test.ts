@@ -330,15 +330,19 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     const exactComplexityTie = makeEvidence();
     Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H15-HTF-TREND")), { expectancyR: 0.1 });
     Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.11 });
+    Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H18-COMPRESSION-EXPANSION")), { expectancyR: 0.1 });
     expect(evaluateM3R5C3ASelection(exactComplexityTie, INPUT_HASHES).selectedCandidateId).toBe("R5-H15-HTF-TREND");
 
     const belowComplexityTie = makeEvidence();
     Object.assign(aggregateDiagnostics(candidateById(belowComplexityTie, "R5-H15-HTF-TREND")), { expectancyR: 0.1 });
     Object.assign(aggregateDiagnostics(candidateById(belowComplexityTie, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.109 });
+    Object.assign(aggregateDiagnostics(candidateById(belowComplexityTie, "R5-H18-COMPRESSION-EXPANSION")), { expectancyR: 0.1 });
     expect(evaluateM3R5C3ASelection(belowComplexityTie, INPUT_HASHES).selectedCandidateId).toBe("R5-H15-HTF-TREND");
 
     const expectancyWins = makeEvidence();
+    Object.assign(aggregateDiagnostics(candidateById(expectancyWins, "R5-H15-HTF-TREND")), { expectancyR: 0.1 });
     Object.assign(aggregateDiagnostics(candidateById(expectancyWins, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.1101 });
+    Object.assign(aggregateDiagnostics(candidateById(expectancyWins, "R5-H18-COMPRESSION-EXPANSION")), { expectancyR: 0.1 });
     expect(evaluateM3R5C3ASelection(expectancyWins, INPUT_HASHES).selectedCandidateId).toBe("R5-H16-NEUTRAL-MEAN-REVERSION");
   });
 
