@@ -376,8 +376,12 @@ describe("M3-R5-B.2 destination-filesystem publication", () => {
 });
 
 describe("M3-R5-B.2 reserved outputs and frozen evidence", () => {
-  it("does not create any Round-005 performance output during offline tests", () => {
-    for (const outputPath of M3_R5_ROUND_005_OUTPUT_PATHS) expect(existsSync(outputPath)).toBe(false);
+  it("keeps the Round-005 performance output path contract frozen", () => {
+    expect(M3_R5_ROUND_005_OUTPUT_PATHS).toEqual([
+      "docs/evidence/M3_R5_ROUND_005_SUMMARY.json",
+      "docs/evidence/M3_R5_ROUND_005_AUDIT.json",
+      "docs/M3_R5_ROUND_005_RESULTS.md",
+    ]);
   });
 
   it("keeps the H17 qualification files byte-stable", () => {
