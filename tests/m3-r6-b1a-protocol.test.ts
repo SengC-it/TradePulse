@@ -11,13 +11,16 @@ import {
   M3_R6_RESEARCH_RANGE,
   M3_R6_RESEARCH_ROUND_ID,
   R6_CANDIDATE_REGISTRY,
+  R6_COMPLEXITY_COUNTING_RUBRIC,
   R6_COMPLEXITY_TUPLES,
   R6_DATA_CONTRACT,
+  R6_EXECUTION_CONTRACTS,
   R6_FROZEN_FOLD_IDS,
   R6_FORMULA_DEFINITIONS,
   R6_GATE_INHERITANCE,
   R6_H21_PARAMETERS,
   R6_H22_ROUTE_MAP,
+  R6_PROTOCOL_MACHINE_RECORD,
   R6_SYMBOLS,
   evaluateR6H19,
   evaluateR6H20,
@@ -145,7 +148,19 @@ describe("M3-R6-B.1A machine-readable protocol", () => {
       "R6-H22-PREDECLARED-REGIME-ROUTING",
     ]);
     expect(R6_CANDIDATE_REGISTRY.every((candidate) => candidate.variantCount === 1)).toBe(true);
-    expect(Object.values(R6_COMPLEXITY_TUPLES).every((tuple) => tuple.mechanismFamiliesUsed === 1)).toBe(true);
+    expect(Object.entries(R6_COMPLEXITY_TUPLES).every(([candidateId, tuple]) => {
+      const basis = R6_COMPLEXITY_COUNTING_RUBRIC.candidates[candidateId as keyof typeof R6_COMPLEXITY_COUNTING_RUBRIC.candidates];
+      return tuple.newRules === basis.newRules.length
+        && tuple.newTunableThresholds === basis.newTunableThresholds.length
+        && tuple.modifiedBaselineRules === basis.modifiedBaselineRules.length
+        && tuple.mechanismFamiliesUsed === basis.mechanismFamiliesUsed.length;
+    })).toBe(true);
+    expect(R6_COMPLEXITY_COUNTING_RUBRIC.parameterClassification.lookbackLengths).toBe("FIXED_STRUCTURAL_NOT_TUNABLE");
+    expect(R6_COMPLEXITY_COUNTING_RUBRIC.parameterClassification.costMultiples).toBe("CANDIDATE_SPECIFIC_NUMERIC_VALUE_IS_TUNABLE");
+    expect(R6_COMPLEXITY_COUNTING_RUBRIC.candidates["R6-H21-ECONOMIC-RANGE-IMPULSE"].newTunableThresholds).toEqual([
+      "H21_MOVE_TO_COST_MULTIPLE_8",
+      "H21_CLOSE_LOCATION_FRACTION_0_75",
+    ]);
   });
 
   it("inherits the named gates without creating a final Gate or Plan", () => {
@@ -173,6 +188,12 @@ describe("M3-R6-B.1A machine-readable protocol", () => {
     ]);
     expect(R6_DATA_CONTRACT.common.missingData).toBe("DATA_INCOMPLETE");
     expect(R6_DATA_CONTRACT.common.futureData).toContain("NEVER_USED_FOR_SIGNAL_FORMATION");
+    expect(R6_DATA_CONTRACT.common.windowSelection).toContain("EXACT_LATEST_REQUIRED_CLOSED_CANDLES_BY_OPEN_TIME");
+    expect(R6_EXECUTION_CONTRACTS.common.entry).toBe("IMMEDIATE_NEXT_CANONICAL_1H_REQUIRED");
+    expect(R6_EXECUTION_CONTRACTS.common.entryGapBehavior).toContain("LATER_CANDLES_NEVER_USED");
+    expect(R6_PROTOCOL_MACHINE_RECORD.formulas.h20.nonOverlap).toBe("latestStructural4h.closeTime < h20EventWindowFirst1h.openTime");
+    expect(R6_PROTOCOL_MACHINE_RECORD.h22RouteMap).toEqual(R6_H22_ROUTE_MAP);
+    expect(R6_PROTOCOL_MACHINE_RECORD.complexityCountingRubric.version).toBe("m3-r6-b1a-complexity-rubric-001");
     expect(R6_FORMULA_DEFINITIONS.h19.cadence).toContain("first_closed_1h_candle_opening_at_each_utc_4h_block");
     expect(R6_DATA_CONTRACT.common.fieldValidation).toContain("tradeCount_NON_NEGATIVE_INTEGER");
     expect(R6_DATA_CONTRACT.common.continuity).toContain("STRICTLY_CONTIGUOUS");
@@ -243,6 +264,19 @@ describe("R6-H19 cross-sectional relative strength", () => {
     expect(evaluateR6H19({ decisionTime: snapshots[0]!.candles1h.at(-1)!.closeTime, snapshots: invalid }).status).toBe("DATA_INCOMPLETE");
   });
 
+  it("ignores an irrelevant old invalid prefix outside the exact required window", () => {
+    const complete = RESEARCH_SYMBOLS.map((symbol) => ({ symbol, candles1h: h19Snapshot(symbol, 100) }));
+    const decisionTime = complete[0]!.candles1h.at(-1)!.closeTime;
+    const withOldPrefix = complete.map((snapshot) => ({
+      ...snapshot,
+      candles1h: [
+        { ...makeCandle({ symbol: snapshot.symbol, openTime: BASE - 3 * HOUR, open: 90, high: 91, low: 89, close: 90 }), volume: Number.NaN },
+        ...snapshot.candles1h,
+      ],
+    }));
+    expect(evaluateR6H19({ decisionTime, snapshots: withOldPrefix })).toEqual(evaluateR6H19({ decisionTime, snapshots: complete }));
+  });
+
   it("does not change when future candle values are mutated and separates next-open entry", () => {
     const snapshots = RESEARCH_SYMBOLS.map((symbol) => ({ symbol, candles1h: h19Snapshot(symbol, 100) }));
     const decisionTime = snapshots[0]!.candles1h.at(-1)!.closeTime;
@@ -279,6 +313,22 @@ describe("R6-H20 structural trend continuation", () => {
     const input = h20Input();
     expect(evaluateR6H20({ ...input, candles4h: input.candles4h.slice(0, 2) }).status).toBe("DATA_INCOMPLETE");
     expect(evaluateR6H20({ ...input, candles1h: input.candles1h.slice(0, 3) }).status).toBe("DATA_INCOMPLETE");
+  });
+
+  it("ignores invalid older 1H and 4H prefixes outside the required windows", () => {
+    const input = h20Input();
+    const withOldPrefix = {
+      ...input,
+      candles1h: [
+        { ...makeCandle({ openTime: BASE - 3 * HOUR, open: 90, high: 91, low: 89, close: 90 }), volume: Number.NaN },
+        ...input.candles1h,
+      ],
+      candles4h: [
+        { ...makeCandle({ timeframe: "4h", openTime: BASE - 8 * HOUR, open: 90, high: 91, low: 89, close: 90 }), volume: Number.NaN },
+        ...input.candles4h,
+      ],
+    };
+    expect(evaluateR6H20(withOldPrefix)).toEqual(evaluateR6H20(input));
   });
 
   it("rejects a structural 4H candle that overlaps the H20 event window", () => {
@@ -340,6 +390,32 @@ describe("R6-H21 economic range impulse", () => {
     expect(shortExecution).toMatchObject({ status: "READY", actualEntryFill: 999.5, stopReferencePrice: 1_010, riskDistance: 10.5, takeProfitPrice: 978.5 });
   });
 
+  it("requires the immediate canonical next open and never skips to a later candle", () => {
+    const signalResult = evaluateR6H21(h21Input(0.02, 0.8));
+    expect(signalResult.status).toBe("SIGNALS");
+    if (signalResult.status !== "SIGNALS") return;
+    const signal = signalResult.signals[0]!;
+    const immediate = makeCandle({ symbol: signal.symbol, openTime: signal.signalTime + 1, open: 1_000, high: 1_002, low: 998, close: 1_000 });
+    const later = makeCandle({ symbol: signal.symbol, openTime: immediate.openTime + HOUR, open: 1_001, high: 1_003, low: 999, close: 1_001 });
+
+    expect(resolveR6NextOpenEntry({ signal, candles1h: [later, immediate] })).toMatchObject({ status: "READY", entryOpenTime: immediate.openTime });
+    expect(resolveR6NextOpenEntry({ signal, candles1h: [later] })).toMatchObject({
+      status: "ENTRY_UNAVAILABLE",
+      reason: "IMMEDIATE_NEXT_1H_OPEN_UNAVAILABLE",
+      entryOpenTime: immediate.openTime,
+    });
+
+    const malformedImmediate = { ...immediate, closeTime: immediate.closeTime - 1 };
+    expect(resolveR6NextOpenEntry({ signal, candles1h: [later, malformedImmediate] })).toMatchObject({
+      status: "DATA_INCOMPLETE",
+      reason: "MALFORMED_IMMEDIATE_NEXT_1H_CANDLE",
+    });
+    expect(resolveR6NextOpenEntry({ signal, candles1h: [immediate, { ...immediate, close: 1_001 }, later] })).toMatchObject({
+      status: "DATA_INCOMPLETE",
+      reason: "DUPLICATE_IMMEDIATE_NEXT_1H_OPEN",
+    });
+  });
+
   it.each([
     ["LONG fill equals stop", "LONG", 1_000.5],
     ["LONG fill below stop", "LONG", 1_001],
@@ -368,6 +444,12 @@ describe("R6-H21 economic range impulse", () => {
     expect(evaluateR6H21(h21Input(0.02, 0.7499)).status).toBe("NO_SIGNAL");
     const equal = makeCandle({ openTime: BASE, open: 100, high: 102, low: 98, close: 100 });
     expect(evaluateR6H21({ symbol: "BTCUSDT", candles1h: [equal], decisionTime: equal.closeTime }).status).toBe("NO_SIGNAL");
+  });
+
+  it("uses only the exact current decision candle and ignores an invalid older prefix", () => {
+    const input = h21Input(0.02, 0.8);
+    const oldInvalid = { ...makeCandle({ openTime: BASE - 2 * HOUR, open: 90, high: 91, low: 89, close: 90 }), volume: Number.NaN };
+    expect(evaluateR6H21({ ...input, candles1h: [oldInvalid, ...input.candles1h] })).toEqual(evaluateR6H21(input));
   });
 
   it("does not use compression or H18 predicates and ignores future values", () => {
@@ -411,6 +493,22 @@ describe("R6-H22 standalone regime route", () => {
     expect(classifyR6H22Regime(balanced4h, input.symbol, input.decisionTime)).toBe("BALANCED");
     expect(evaluateR6H22({ ...input, candles4h: balanced4h }).status).toBe("NO_SIGNAL");
     expect(evaluateR6H22({ ...input, candles4h: input.candles4h.slice(0, 2) }).status).toBe("DATA_INCOMPLETE");
+  });
+
+  it("ignores an invalid older prefix outside the exact H22 windows", () => {
+    const input = h22Input();
+    const withOldPrefix = {
+      ...input,
+      candles1h: [
+        { ...makeCandle({ openTime: BASE - 2 * HOUR, open: 90, high: 91, low: 89, close: 90 }), volume: Number.NaN },
+        ...input.candles1h,
+      ],
+      candles4h: [
+        { ...makeCandle({ timeframe: "4h", openTime: BASE - 4 * FOUR_HOURS, open: 90, high: 91, low: 89, close: 90 }), volume: Number.NaN },
+        ...input.candles4h,
+      ],
+    };
+    expect(evaluateR6H22(withOldPrefix)).toEqual(evaluateR6H22(input));
   });
 
   it("keeps the signal unchanged when future candle data is mutated", () => {

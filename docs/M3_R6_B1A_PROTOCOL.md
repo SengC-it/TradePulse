@@ -26,13 +26,15 @@ symbol|direction|signalTime
 ```
 
 `signalTime` is the close time of the fully closed decision candle. A signal
-may use only fields available at that time. The first legal entry is the first
-1H open strictly after `signalTime`; entry and settlement use unchanged
-`bt-policy-003` economics: 5 bps adverse slippage per side, 5 bps fee per
-side, official funding with the frozen mark-price fallback, conservative
-SL-first intrabar ordering, exactly 24 held 1H candles, and TIME_EXIT at the
-close of held candle #24. All missing or invalid decision-time inputs fail
-closed as `DATA_INCOMPLETE`.
+may use only fields available at that time. The required entry is the immediate
+next canonical 1H candle: its `openTime` must equal `signalTime + 1ms`.
+Missing immediate entry returns `ENTRY_UNAVAILABLE`; a malformed immediate
+entry returns `DATA_INCOMPLETE`; a later candle is never used as a substitute.
+Entry and settlement use unchanged `bt-policy-003` economics: 5 bps adverse
+slippage per side, 5 bps fee per side, official funding with the frozen
+mark-price fallback, conservative SL-first intrabar ordering, exactly 24 held
+1H candles, and TIME_EXIT at the close of held candle #24. All missing or
+invalid decision-time inputs fail closed as `DATA_INCOMPLETE`.
 
 ## Candidate registry
 
@@ -47,12 +49,44 @@ No combination, route-to-another-candidate, optimizer, grid, sweep, or
 post-result variant is allowed. The complexity tuple is frozen before any
 performance and cannot be adjusted after it.
 
+### Complexity counting rubric
+
+The machine-readable rubric version is
+`m3-r6-b1a-complexity-rubric-001`. Tuple dimensions are counted in this
+order: `newRules`, `newTunableThresholds`, `modifiedBaselineRules`,
+`mechanismFamiliesUsed`.
+
+- `newRules` counts each named candidate-specific signal predicate,
+  ordering/cadence rule, route rule, or candidate-specific stop reference
+  exactly once. Shared data validation and `bt-policy-003` execution are not
+  counted.
+- `newTunableThresholds` counts only candidate-specific numeric comparison
+  constants declared as research-adjustable thresholds.
+- `modifiedBaselineRules` counts baseline-001 predicate or threshold changes.
+- `mechanismFamiliesUsed` counts distinct mechanism-family identifiers.
+
+Lookback lengths, bar-count windows, and cadence values are fixed structural
+values, not tunable thresholds. Inherited stop/TP/holding values are common
+policy and are not counted. Categorical tie/fallback rules are rules, not
+numeric thresholds. Candidate-specific cost multiples, comparison values,
+and close-location thresholds are tunable thresholds.
+
+Under this rubric, H19 has six named rules and zero tunable thresholds; H20
+has eight named rules and zero tunable thresholds; H21 has five named rules
+and two tunable thresholds (`8` times round-trip cost and `0.75` close
+location); H22 has seven named rules and zero tunable thresholds. Each has
+zero modified baseline rules and one mechanism family, yielding exactly the
+tuples in the registry. The rubric and candidate rule lists are part of the
+machine-readable protocol record and cannot be reinterpreted after the
+`FIRST_M3_R6_PERFORMANCE_RESULT_GENERATED` lock.
+
 ## H19 — cross-sectional relative strength
 
 At each UTC 4H block, use the first fully closed 1H candle whose `openTime`
-belongs to that block (`current 1H openTime mod 4h == 0`). Require one valid,
-synchronized, fully closed 1H decision candle for every approved symbol. For
-each symbol `s`, compute:
+belongs to that block (`current 1H openTime mod 4h == 0`). Select exactly the
+latest 25 closed 1H candles by `openTime` for each approved symbol, then
+validate that required window. Require one valid, synchronized, fully closed
+1H decision candle for every approved symbol. For each symbol `s`, compute:
 
 ```text
 return_s = close_s(t) / close_s(t - 24 closed 1H candles) - 1
@@ -71,8 +105,9 @@ opposite extreme; TP is exactly 2R; maximum holding is 24 held candles.
 
 ## H20 — structural trend continuation
 
-Use exactly the latest three fully closed 4H candles for structure and the
-latest four fully closed 1H candles for the continuation event. The latest
+Select exactly the latest three fully closed 4H candles by `openTime` for
+structure and exactly the latest four fully closed 1H candles by `openTime` for
+the continuation event. The latest
 structural 4H candle must be fully closed before the first 1H event candle
 begins:
 
@@ -103,8 +138,8 @@ and no replacement is permitted in this B.1A stage.
 
 ## H21 — economic range impulse
 
-H21 has exactly one unified event, not a “range OR impulse” choice. For the
-fully closed decision 1H candle, compute:
+H21 has exactly one unified event, not a “range OR impulse” choice. Select
+exactly the current closed 1H decision candle and compute:
 
 ```text
 rangeFraction = (high - low) / open
@@ -128,7 +163,8 @@ extreme; TP is exactly 2R; maximum holding is 24 held candles.
 ## H22 — predeclared regime routing
 
 H22 is one standalone architecture and never routes among H19, H20, or H21.
-Classify the latest three fully closed 4H candles:
+Select exactly the latest two closed 1H candles and latest three closed 4H
+candles by `openTime`. Classify the three 4H candles:
 
 - `UP_REGIME`: all three closes are strictly greater than their opens;
 - `DOWN_REGIME`: all three closes are strictly less than their opens;
@@ -159,17 +195,20 @@ finite and positive, volume-like fields are finite and non-negative,
 `tradeCount` is a finite non-negative integer, and OHLC relationships are
 valid. Required windows are strictly contiguous, with no duplicate or
 irregular timestamps. H19 additionally requires identical 25-candle
-open/close timestamp windows for all five symbols. The required input is
-limited to the approved 1H/4H closed-candle datasets and existing settlement
-data; no new market data is fetched in B.1A.
+open/close timestamp windows for all five symbols. Each evaluator selects its
+exact latest required window by `openTime` before validation; older candles
+outside that window are ignored and cannot change the result. The required
+input is limited to the approved 1H/4H closed-candle datasets and existing
+settlement data; no new market data is fetched in B.1A.
 
-The evaluator first limits its view to candles with `closeTime <= signalTime`,
-requires canonical timestamps, contiguous windows, synchronized H19 windows,
-and valid declared fields, and fails closed when a required window is absent
-or invalid. It never reads the future entry candle, held candles, exit candle,
-future funding, or outcome data while forming a signal. The entry resolver is
-a separate operation and only finds the first legal 1H open strictly after the
-already-formed signal.
+The evaluator first selects the exact candidate-required window from candles
+closed by `signalTime`, ordered by `openTime`; it then requires canonical
+timestamps, contiguous windows, synchronized H19 windows, and valid declared
+fields, and fails closed when that window is absent or invalid. Older prefix
+records outside the required window do not affect the result. It never reads
+the future entry candle, held candles, exit candle, future funding, or outcome
+data while forming a signal. The entry resolver is a separate operation and
+requires the immediate next canonical 1H open exactly at `signalTime + 1ms`.
 
 ## Entry, stop, and target geometry
 

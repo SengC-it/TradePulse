@@ -46,6 +46,13 @@ export type R6ComplexityTuple = Readonly<{
   mechanismFamiliesUsed: number;
 }>;
 
+type R6ComplexityBasis = Readonly<{
+  newRules: readonly string[];
+  newTunableThresholds: readonly string[];
+  modifiedBaselineRules: readonly string[];
+  mechanismFamiliesUsed: readonly string[];
+}>;
+
 export type R6CandidateSignal = Readonly<{
   candidateId: R6CandidateId;
   hypothesisId: R6HypothesisId;
@@ -141,7 +148,8 @@ export const R6_H22_ROUTE_MAP: Readonly<Record<R6H22Regime, R6H22InternalRoute>>
 export const R6_EXECUTION_CONTRACTS = Object.freeze({
   common: Object.freeze({
     backtestPolicyVersion: "bt-policy-003",
-    entry: "FIRST_1H_OPEN_STRICTLY_AFTER_SIGNAL_TIME",
+    entry: "IMMEDIATE_NEXT_CANONICAL_1H_REQUIRED",
+    entryGapBehavior: "MISSING_IMMEDIATE_ENTRY_IS_ENTRY_UNAVAILABLE;MALFORMED_IMMEDIATE_ENTRY_IS_DATA_INCOMPLETE;LATER_CANDLES_NEVER_USED",
     feeRate: BACKTEST_POLICY.feeRate,
     slippageRate: BACKTEST_POLICY.slippageRate,
     funding: "OFFICIAL_FUNDING_WITH_FROZEN_MARK_PRICE_FALLBACK",
@@ -175,11 +183,97 @@ export const R6_EXECUTION_CONTRACTS = Object.freeze({
   }),
 } as const);
 
+export const R6_COMPLEXITY_COUNTING_RUBRIC = Object.freeze({
+  version: "m3-r6-b1a-complexity-rubric-001",
+  dimensionOrder: Object.freeze(["newRules", "newTunableThresholds", "modifiedBaselineRules", "mechanismFamiliesUsed"]),
+  countingRules: Object.freeze({
+    newRules: "Count each named candidate-specific signal predicate, ordering/cadence rule, route rule, or candidate-specific stop-reference rule exactly once. Shared data validation and bt-policy-003 execution are excluded.",
+    newTunableThresholds: "Count only candidate-specific numeric comparison constants declared as research-adjustable thresholds. Fixed structural lookbacks, bar-count windows, cadence values, inherited stop/TP/holding values, and categorical/tie/fallback rules are not thresholds.",
+    modifiedBaselineRules: "Count baseline-001 predicate or threshold modifications; Round-006 candidates declare none.",
+    mechanismFamiliesUsed: "Count distinct mechanism-family identifiers used by the candidate; each candidate has exactly one.",
+  }),
+  parameterClassification: Object.freeze({
+    lookbackLengths: "FIXED_STRUCTURAL_NOT_TUNABLE",
+    barCountWindows: "FIXED_STRUCTURAL_NOT_TUNABLE",
+    cadenceValues: "FIXED_STRUCTURAL_NOT_TUNABLE",
+    comparisonThresholds: "CANDIDATE_SPECIFIC_NUMERIC_VALUE_IS_TUNABLE",
+    costMultiples: "CANDIDATE_SPECIFIC_NUMERIC_VALUE_IS_TUNABLE",
+    closeLocationThresholds: "CANDIDATE_SPECIFIC_NUMERIC_VALUE_IS_TUNABLE",
+    inheritedStopTpHoldingValues: "INHERITED_COMMON_POLICY_NOT_COUNTED",
+    categoricalTieFallbackRules: "CATEGORICAL_RULE_NOT_A_NUMERIC_THRESHOLD",
+  }),
+  candidates: Object.freeze({
+    "R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH": Object.freeze({
+      newRules: Object.freeze([
+        "H19_FIRST_CLOSED_1H_OPENING_ON_UTC_4H_BLOCK",
+        "H19_FIVE_SYMBOL_UNIVERSE_REQUIRED",
+        "H19_24_CLOSED_1H_RETURN_LOOKBACK",
+        "H19_ARGMAX_LEADER_SYMBOL_ASC_TIE",
+        "H19_ARGMIN_LAGGARD_SYMBOL_DESC_TIE",
+        "H19_SIGNAL_CANDLE_OPPOSITE_EXTREME_STOP",
+      ]),
+      newTunableThresholds: Object.freeze([]),
+      modifiedBaselineRules: Object.freeze([]),
+      mechanismFamiliesUsed: Object.freeze(["CROSS_SECTIONAL_RELATIVE_STRENGTH"]),
+    }),
+    "R6-H20-STRUCTURAL-TREND-CONTINUATION": Object.freeze({
+      newRules: Object.freeze([
+        "H20_THREE_CLOSED_4H_STRUCTURAL_BARS",
+        "H20_FOUR_CLOSED_1H_EVENT_BARS",
+        "H20_STRICT_MONOTONIC_HIGH_LOW_TREND",
+        "H20_TWO_COUNTER_TREND_RETRACEMENT_CLOSES",
+        "H20_RETRACEMENT_REMAINS_ABOVE_OR_BELOW_STRUCTURAL_ANCHOR",
+        "H20_CONFIRMATION_CROSSES_BOTH_RETRACEMENT_EXTREMES",
+        "H20_STRUCTURAL_EVENT_NON_OVERLAP",
+        "H20_RETRACEMENT_EXTREME_STOP",
+      ]),
+      newTunableThresholds: Object.freeze([]),
+      modifiedBaselineRules: Object.freeze([]),
+      mechanismFamiliesUsed: Object.freeze(["STRUCTURAL_TREND_CONTINUATION"]),
+    }),
+    "R6-H21-ECONOMIC-RANGE-IMPULSE": Object.freeze({
+      newRules: Object.freeze([
+        "H21_RANGE_FRACTION_COST_MULTIPLE_COMPARISON",
+        "H21_DIRECTIONAL_CLOSE_RELATION",
+        "H21_CLOSE_LOCATION_COMPARISON",
+        "H21_UNIFIED_RANGE_AND_CLOSE_LOCATION_CONJUNCTION",
+        "H21_SIGNAL_CANDLE_OPPOSITE_EXTREME_STOP",
+      ]),
+      newTunableThresholds: Object.freeze(["H21_MOVE_TO_COST_MULTIPLE_8", "H21_CLOSE_LOCATION_FRACTION_0_75"]),
+      modifiedBaselineRules: Object.freeze([]),
+      mechanismFamiliesUsed: Object.freeze(["ECONOMIC_RANGE_IMPULSE"]),
+    }),
+    "R6-H22-PREDECLARED-REGIME-ROUTING": Object.freeze({
+      newRules: Object.freeze([
+        "H22_THREE_CLOSED_4H_REGIME_CLASSIFIER",
+        "H22_UP_REGIME_ALL_CLOSES_ABOVE_OPENS",
+        "H22_DOWN_REGIME_ALL_CLOSES_BELOW_OPENS",
+        "H22_BALANCED_AND_INACTIVE_FALLBACKS",
+        "H22_PREDECLARED_INTERNAL_ROUTE_MAP",
+        "H22_DIRECTIONAL_PRIOR_EXTREME_CONFIRMATION",
+        "H22_SIGNAL_CANDLE_OPPOSITE_EXTREME_STOP",
+      ]),
+      newTunableThresholds: Object.freeze([]),
+      modifiedBaselineRules: Object.freeze([]),
+      mechanismFamiliesUsed: Object.freeze(["PREDECLARED_REGIME_ROUTING"]),
+    }),
+  }),
+} as const);
+
+function complexityTupleFromBasis(basis: R6ComplexityBasis): R6ComplexityTuple {
+  return Object.freeze({
+    newRules: basis.newRules.length,
+    newTunableThresholds: basis.newTunableThresholds.length,
+    modifiedBaselineRules: basis.modifiedBaselineRules.length,
+    mechanismFamiliesUsed: basis.mechanismFamiliesUsed.length,
+  });
+}
+
 export const R6_COMPLEXITY_TUPLES: Readonly<Record<R6CandidateId, R6ComplexityTuple>> = Object.freeze({
-  "R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH": Object.freeze({ newRules: 6, newTunableThresholds: 0, modifiedBaselineRules: 0, mechanismFamiliesUsed: 1 }),
-  "R6-H20-STRUCTURAL-TREND-CONTINUATION": Object.freeze({ newRules: 8, newTunableThresholds: 0, modifiedBaselineRules: 0, mechanismFamiliesUsed: 1 }),
-  "R6-H21-ECONOMIC-RANGE-IMPULSE": Object.freeze({ newRules: 5, newTunableThresholds: 2, modifiedBaselineRules: 0, mechanismFamiliesUsed: 1 }),
-  "R6-H22-PREDECLARED-REGIME-ROUTING": Object.freeze({ newRules: 7, newTunableThresholds: 0, modifiedBaselineRules: 0, mechanismFamiliesUsed: 1 }),
+  "R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH": complexityTupleFromBasis(R6_COMPLEXITY_COUNTING_RUBRIC.candidates["R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH"]),
+  "R6-H20-STRUCTURAL-TREND-CONTINUATION": complexityTupleFromBasis(R6_COMPLEXITY_COUNTING_RUBRIC.candidates["R6-H20-STRUCTURAL-TREND-CONTINUATION"]),
+  "R6-H21-ECONOMIC-RANGE-IMPULSE": complexityTupleFromBasis(R6_COMPLEXITY_COUNTING_RUBRIC.candidates["R6-H21-ECONOMIC-RANGE-IMPULSE"]),
+  "R6-H22-PREDECLARED-REGIME-ROUTING": complexityTupleFromBasis(R6_COMPLEXITY_COUNTING_RUBRIC.candidates["R6-H22-PREDECLARED-REGIME-ROUTING"]),
 });
 
 export const R6_CANDIDATE_REGISTRY = Object.freeze([
@@ -200,13 +294,14 @@ export const R6_DATA_CONTRACT = Object.freeze({
     timestamp: "UTC_MILLISECONDS;1H_OPEN_ALIGNED_TO_UTC_HOUR;4H_OPEN_ALIGNED_TO_UTC_4H;CLOSE_EQUALS_OPEN_PLUS_INTERVAL_MINUS_1MS;signalTime_IS_CLOSED_CANDLE_CLOSE_TIME",
     fieldValidation: "ALL_DECLARED_FIELDS_FINITE;VOLUME_FIELDS_NON_NEGATIVE;tradeCount_NON_NEGATIVE_INTEGER;VALID_OHLC",
     continuity: "REQUIRED_WINDOWS_STRICTLY_CONTIGUOUS_WITH_NO_DUPLICATE_OR_IRREGULAR_INTERVAL",
+    windowSelection: "SELECT_EXACT_LATEST_REQUIRED_CLOSED_CANDLES_BY_OPEN_TIME;IGNORE_OLDER_PREFIX_OUTSIDE_REQUIRED_WINDOW",
     missingData: "DATA_INCOMPLETE",
     futureData: "IGNORED_BEYOND_DECISION_TIME_AND_NEVER_USED_FOR_SIGNAL_FORMATION",
   }),
-  h19: Object.freeze({ timeframes: ["1h"], symbols: R6_SYMBOLS, required: "25_CLOSED_1H_CANDLES_PER_SYMBOL_AT_ONE_SYNCHRONIZED_DECISION_TIME" }),
-  h20: Object.freeze({ timeframes: ["1h", "4h"], required: "4_CLOSED_1H_CANDLES_AND_3_CLOSED_4H_STRUCTURAL_CANDLES" }),
-  h21: Object.freeze({ timeframes: ["1h"], required: "ONE_CLOSED_1H_CANDLE_AT_DECISION_TIME" }),
-  h22: Object.freeze({ timeframes: ["1h", "4h"], required: "TWO_CLOSED_1H_CANDLES_AND_3_CLOSED_4H_REGIME_CANDLES" }),
+  h19: Object.freeze({ timeframes: ["1h"], symbols: R6_SYMBOLS, required: "EXACT_LATEST_25_CLOSED_1H_CANDLES_PER_SYMBOL_AT_ONE_SYNCHRONIZED_DECISION_TIME" }),
+  h20: Object.freeze({ timeframes: ["1h", "4h"], required: "EXACT_LATEST_4_CLOSED_1H_EVENT_CANDLES_AND_EXACT_LATEST_3_CLOSED_4H_STRUCTURAL_CANDLES" }),
+  h21: Object.freeze({ timeframes: ["1h"], required: "EXACT_CURRENT_CLOSED_1H_DECISION_CANDLE" }),
+  h22: Object.freeze({ timeframes: ["1h", "4h"], required: "EXACT_LATEST_2_CLOSED_1H_CANDLES_AND_EXACT_LATEST_3_CLOSED_4H_REGIME_CANDLES" }),
 } as const);
 
 export const R6_FORMULA_DEFINITIONS = Object.freeze({
@@ -223,6 +318,7 @@ export const R6_FORMULA_DEFINITIONS = Object.freeze({
     shortRetracement: "c[-3].close >= c[-4].close AND c[-2].close >= c[-3].close AND c[-3].high,c[-2].high < h[-3].high",
     longConfirmation: "c[-1].close > max(c[-3].high,c[-2].high) AND c[-1].close > c[-1].open",
     shortConfirmation: "c[-1].close < min(c[-3].low,c[-2].low) AND c[-1].close < c[-1].open",
+    nonOverlap: "latestStructural4h.closeTime < h20EventWindowFirst1h.openTime",
   }),
   h21: Object.freeze({
     event: "rangeFraction >= 8 * (2*feeRate + 2*slippageRate) AND closeLocation >= 0.75 AND direction != null",
@@ -266,6 +362,8 @@ export const R6_PROTOCOL_MACHINE_RECORD = Object.freeze({
   formulas: R6_FORMULA_DEFINITIONS,
   dataContract: R6_DATA_CONTRACT,
   executionContracts: R6_EXECUTION_CONTRACTS,
+  h22RouteMap: R6_H22_ROUTE_MAP,
+  complexityCountingRubric: R6_COMPLEXITY_COUNTING_RUBRIC,
   complexityTuples: R6_COMPLEXITY_TUPLES,
   gateInheritance: R6_GATE_INHERITANCE,
   performanceLock: M3_R6_PERFORMANCE_LOCK,
@@ -329,29 +427,38 @@ function closedSeries(
   symbol: ResearchSymbol,
   timeframe: "1h" | "4h",
   decisionTime: number,
+  requiredCount: number,
 ): readonly Candle[] | null {
-  const closed = candles.filter((candle) => candle.symbol === symbol && candle.timeframe === timeframe && candle.closeTime <= decisionTime);
-  if (closed.length === 0 || !closed.every((candle) => validCandle(candle, symbol, timeframe))) return null;
+  const closed = candles
+    .filter((candle) => candle.symbol === symbol
+      && candle.timeframe === timeframe
+      && safeTimestamp(candle.openTime)
+      && candle.openTime <= decisionTime
+      && (!safeTimestamp(candle.closeTime) || candle.closeTime <= decisionTime))
+    .slice()
+    .sort((left, right) => left.openTime - right.openTime);
+  const requiredWindow = closed.slice(-requiredCount);
+  if (requiredWindow.length !== requiredCount || !requiredWindow.every((candle) => validCandle(candle, symbol, timeframe))) return null;
   const intervalMs = timeframe === "1h" ? HOUR_MS : FOUR_HOUR_MS;
   const seenOpenTimes = new Set<number>();
-  for (let index = 1; index < closed.length; index += 1) {
-    const previous = closed[index - 1]!;
-    const current = closed[index]!;
+  for (let index = 1; index < requiredWindow.length; index += 1) {
+    const previous = requiredWindow[index - 1]!;
+    const current = requiredWindow[index]!;
     if (seenOpenTimes.has(current.openTime)
       || previous.openTime >= current.openTime
       || previous.closeTime >= current.closeTime
       || current.openTime - previous.openTime !== intervalMs) return null;
     seenOpenTimes.add(previous.openTime);
   }
-  if (seenOpenTimes.has(closed.at(-1)!.openTime)) return null;
-  return closed;
+  if (seenOpenTimes.has(requiredWindow.at(-1)!.openTime)) return null;
+  return requiredWindow;
 }
 
-function current1h(input: Readonly<{ symbol: ResearchSymbol; candles1h: readonly Candle[]; decisionTime: number }>):
+function current1h(input: Readonly<{ symbol: ResearchSymbol; candles1h: readonly Candle[]; decisionTime: number }>, requiredCount: number):
   | Readonly<{ series: readonly Candle[]; current: Candle }>
   | null {
   if (!validDecisionTime(input.decisionTime)) return null;
-  const series = closedSeries(input.candles1h, input.symbol, "1h", input.decisionTime);
+  const series = closedSeries(input.candles1h, input.symbol, "1h", input.decisionTime, requiredCount);
   const current = series?.at(-1);
   if (!series || !current || current.closeTime !== input.decisionTime) return null;
   return { series, current };
@@ -391,7 +498,7 @@ export function evaluateR6H19(input: Readonly<{
   const observations: Array<{ symbol: ResearchSymbol; returnValue: number; current: Candle }> = [];
   let referenceWindow: readonly Candle[] | null = null;
   for (const snapshot of input.snapshots) {
-    const currentInput = current1h({ ...snapshot, decisionTime: input.decisionTime });
+    const currentInput = current1h({ ...snapshot, decisionTime: input.decisionTime }, 25);
     if (!currentInput || currentInput.series.length < R6_H19_PARAMETERS.returnLookbackClosed1hCandles + 1) return incomplete("H19_RETURN_LOOKBACK_UNAVAILABLE");
     const decisionWindow = currentInput.series.slice(-(R6_H19_PARAMETERS.returnLookbackClosed1hCandles + 1));
     if (referenceWindow === null) {
@@ -451,9 +558,9 @@ export function evaluateR6H20(input: Readonly<{
   candles4h: readonly Candle[];
   decisionTime: number;
 }>): R6CandidateEvaluation {
-  const currentInput = current1h(input);
+  const currentInput = current1h(input, 4);
   if (!currentInput || currentInput.series.length < 4) return incomplete("H20_1H_STRUCTURE_UNAVAILABLE");
-  const higherTimeframe = closedSeries(input.candles4h, input.symbol, "4h", input.decisionTime);
+  const higherTimeframe = closedSeries(input.candles4h, input.symbol, "4h", input.decisionTime, 3);
   if (!higherTimeframe || higherTimeframe.length < R6_H20_PARAMETERS.structuralTrendBars4h) return incomplete("H20_4H_STRUCTURE_UNAVAILABLE");
   const direction = h20TrendDirection(higherTimeframe);
   if (!direction) return noSignal("H20_STRUCTURAL_TREND_NOT_SATISFIED");
@@ -495,7 +602,7 @@ export function evaluateR6H21(input: Readonly<{
   candles1h: readonly Candle[];
   decisionTime: number;
 }>): R6CandidateEvaluation {
-  const currentInput = current1h(input);
+  const currentInput = current1h(input, 1);
   if (!currentInput) return incomplete("H21_DECISION_CANDLE_UNAVAILABLE");
   const current = currentInput.current;
   const range = current.high - current.low;
@@ -523,7 +630,7 @@ export function evaluateR6H21(input: Readonly<{
 }
 
 export function classifyR6H22Regime(candles4h: readonly Candle[], symbol: ResearchSymbol, decisionTime: number): R6H22Regime {
-  const closed = closedSeries(candles4h, symbol, "4h", decisionTime);
+  const closed = closedSeries(candles4h, symbol, "4h", decisionTime, 3);
   if (!closed || closed.length < R6_H22_PARAMETERS.classifierWindow4h) return "INACTIVE";
   const window = closed.slice(-R6_H22_PARAMETERS.classifierWindow4h);
   if (window.every((candle) => candle.close > candle.open)) return "UP_REGIME";
@@ -537,7 +644,7 @@ export function evaluateR6H22(input: Readonly<{
   candles4h: readonly Candle[];
   decisionTime: number;
 }>): R6CandidateEvaluation {
-  const currentInput = current1h(input);
+  const currentInput = current1h(input, 2);
   if (!currentInput || currentInput.series.length < 2) return incomplete("H22_1H_INPUT_UNAVAILABLE");
   const regime = classifyR6H22Regime(input.candles4h, input.symbol, input.decisionTime);
   if (regime === "INACTIVE") return incomplete("H22_REGIME_INPUT_UNAVAILABLE");
@@ -567,15 +674,23 @@ export function resolveR6NextOpenEntry(input: Readonly<{
   candles1h: readonly Candle[];
   periodEndTime?: number;
 }>): R6EntryResolution {
-  const entry = input.candles1h.find((candle) =>
+  const expectedEntryOpenTime = input.signal.signalTime + 1;
+  if (!safeTimestamp(input.signal.signalTime) || !safeTimestamp(expectedEntryOpenTime)) {
+    return Object.freeze({ status: "DATA_INCOMPLETE", signal: input.signal, reason: "INVALID_SIGNAL_TIME_FOR_IMMEDIATE_ENTRY" });
+  }
+  if (input.periodEndTime !== undefined && expectedEntryOpenTime > input.periodEndTime) {
+    return Object.freeze({ status: "PERIOD_END_CENSORED", signal: input.signal, reason: "NEXT_1H_OPEN_AFTER_PERIOD_END", entryOpenTime: expectedEntryOpenTime });
+  }
+  const candidates = input.candles1h.filter((candle) =>
     candle.symbol === input.signal.symbol
     && candle.timeframe === "1h"
-    && candle.openTime > input.signal.signalTime
-    && validCandle(candle, input.signal.symbol, "1h"),
+    && candle.openTime === expectedEntryOpenTime,
   );
-  if (!entry) return Object.freeze({ status: "ENTRY_UNAVAILABLE", signal: input.signal, reason: "NEXT_1H_OPEN_UNAVAILABLE" });
-  if (input.periodEndTime !== undefined && entry.openTime > input.periodEndTime) {
-    return Object.freeze({ status: "PERIOD_END_CENSORED", signal: input.signal, reason: "NEXT_1H_OPEN_AFTER_PERIOD_END", entryOpenTime: entry.openTime });
+  if (candidates.length === 0) return Object.freeze({ status: "ENTRY_UNAVAILABLE", signal: input.signal, reason: "IMMEDIATE_NEXT_1H_OPEN_UNAVAILABLE", entryOpenTime: expectedEntryOpenTime });
+  if (candidates.length !== 1) return Object.freeze({ status: "DATA_INCOMPLETE", signal: input.signal, reason: "DUPLICATE_IMMEDIATE_NEXT_1H_OPEN", entryOpenTime: expectedEntryOpenTime });
+  const entry = candidates[0]!;
+  if (!validCandle(entry, input.signal.symbol, "1h")) {
+    return Object.freeze({ status: "DATA_INCOMPLETE", signal: input.signal, reason: "MALFORMED_IMMEDIATE_NEXT_1H_CANDLE", entryOpenTime: expectedEntryOpenTime });
   }
   const rawEntryPrice = entry.open;
   const actualEntryFill = input.signal.direction === "LONG"
