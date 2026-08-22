@@ -563,8 +563,9 @@ function compareComplexity(left: M3R5C3ACandidateEvaluation, right: M3R5C3ACandi
 }
 
 function exceedsComplexityTieThreshold(left: number, right: number, threshold: number): boolean {
-  const precision = 1_000_000_000_000;
-  return Math.round(Math.abs(left - right) * precision) / precision > threshold;
+  const difference = Math.abs(left - right);
+  const tolerance = Number.EPSILON * Math.max(1, difference, threshold);
+  return difference - threshold > tolerance;
 }
 
 function compareEligibleCandidates(left: M3R5C3ACandidateEvaluation, right: M3R5C3ACandidateEvaluation, tieThreshold: number): number {
@@ -730,7 +731,7 @@ export function renderM3R5C3ASelectionMarkdown(report: M3R5C3ASelectionReport, s
     return `| ${candidate.candidateId} | ${display(metrics.aggregateImprovement)} | ${metrics.improvedValidationFoldCount} | ${metrics.catastrophicFoldCount} | ${display(metrics.expectancyR)} | ${metrics.profitFactorStatus ?? "null"}${metrics.profitFactor === null ? "" : ` (${metrics.profitFactor})`} | ${display(metrics.topSymbolShareOfPositiveNetR)} | ${display(metrics.largestSingleTradeShareOfPositiveNetR)} | ${display(metrics.feeBurdenRatio)} | ${display(metrics.formalSignals)} | ${display(metrics.minimumFoldExecutedTrades)} | ${candidate.applicableGateCount} | ${candidate.passedApplicableGateCount} | ${candidate.failedGateIds.length === 0 ? "none" : candidate.failedGateIds.join(", ")} | ${candidate.eligibility} |`;
   }), "", "## Gate details", "");
   for (const candidate of report.candidates) lines.push(`### ${candidate.candidateId}`, "", ...candidate.gateResults.map((gate) => `- ${gate.gateId}: ${gate.status} (${gate.applicability}; actual=${JSON.stringify(gate.actualValue)}; threshold=${gate.threshold} ${gate.comparison})`), "");
-  lines.push("## Frozen boundary", "", "- All 10 applicable gates and the NOT_APPLICABLE redundancy identity are evaluated for every candidate; no early exit is used.", "- Aggregate gates use aggregate F1-F6 validation diagnostics; minimumExecutedTrades uses every individual validation fold.", "- H17 is excluded from the performance candidate registry because its qualification is DATA_NOT_AVAILABLE.", "- This C.3A implementation does not apply selection to real Round-005 evidence.", "- baseline-002 remains NOT_FROZEN.", "");
+  lines.push("## Frozen boundary", "", "- All 10 applicable gates and the NOT_APPLICABLE redundancy identity are evaluated for every candidate; no early exit is used.", "- Aggregate gates use aggregate F1-F6 validation diagnostics; minimumExecutedTrades uses every individual validation fold.", "- H17 is excluded from the performance candidate registry because its qualification is DATA_NOT_AVAILABLE.", "- The selector uses only the frozen Round-005 Gate, Plan, and committed performance evidence; baseline-002 remains NOT_FROZEN pending a separately authorized freeze stage.", "");
   return `${lines.join("\n")}\n`;
 }
 

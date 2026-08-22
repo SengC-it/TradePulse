@@ -72,6 +72,10 @@ function currentGitSha(): string {
   return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 }
 
+export function readM3R5C3ACommittedBlob(path: string): Buffer {
+  return execFileSync("git", ["cat-file", "blob", `HEAD:${path}`], { maxBuffer: 64 * 1024 * 1024 });
+}
+
 export function validateM3R5C3AAuthoritativeSource(currentSha: string, requestedSha: string): void {
   if (!/^[0-9a-f]{40}$/u.test(requestedSha)) fail("source SHA is not a 40-character lowercase Git SHA.");
   if (currentSha !== requestedSha) fail("source SHA mismatch.");
@@ -83,7 +87,7 @@ function assertCleanWorktree(): void {
 }
 
 function committedBlob(path: string): Buffer {
-  return execFileSync("git", ["cat-file", "blob", `HEAD:${path}`], { maxBuffer: 64 * 1024 * 1024 });
+  return readM3R5C3ACommittedBlob(path);
 }
 
 function sha256(bytes: Uint8Array): string {

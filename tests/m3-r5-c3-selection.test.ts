@@ -1,4 +1,5 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -10,10 +11,12 @@ import {
   M3_R5_C3A_EXPECTED_INPUT_SUMMARY_SHA256,
   M3_R5_C3A_SELECTION_SCHEMA_VERSION,
   compareM3R5C3ASelectionOrder,
+  createM3R5C3ASelectionReport,
   evaluateM3R5C3ASelection,
   hashM3R5C3AIdentityRecords,
   publishM3R5C3ASelectionOutputsAtomically,
   sha256M3R5C3ARawBytes,
+  serializeM3R5C3ASelectionReport,
   type M3R5C3AInputHashes,
   type M3R5C3ACandidateEvaluation,
 } from "../src/lib/research/m3-r5-c3-selection.ts";
@@ -31,6 +34,8 @@ import { M3_R5_ROUND_005_PLAN, M3_R5_ROUND_005_PLAN_SHA256 } from "../src/lib/re
 import { getResearchFoldRoleRange } from "../src/lib/research/folds.ts";
 import {
   parseM3R5C3ASelectionArguments,
+  assertM3R5C3AAuthorization,
+  readM3R5C3ACommittedBlob,
   validateM3R5C3AAuthoritativeSource,
   validateM3R5C3ACommittedBlobHash,
   validateM3R5C3AOutputsAbsent,
@@ -276,13 +281,30 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     Object.assign(foldDiagnostics(candidateById(catastrophic, "R5-H15-HTF-TREND"), 0), { expectancyR: -0.1001 });
     expect(candidateEvaluation(catastrophic, "R5-H15-HTF-TREND").metrics.catastrophicFoldCount).toBe(1);
 
+    const exactPfBoundary = makeEvidence();
+    Object.assign(foldDiagnostics(candidateById(exactPfBoundary, "R5-H15-HTF-TREND"), 0), { profitFactor: 0.8 });
+    expect(candidateEvaluation(exactPfBoundary, "R5-H15-HTF-TREND").metrics.catastrophicFoldCount).toBe(0);
+
+    const belowPfBoundary = makeEvidence();
+    Object.assign(foldDiagnostics(candidateById(belowPfBoundary, "R5-H15-HTF-TREND"), 0), { profitFactor: 0.799 });
+    expect(candidateEvaluation(belowPfBoundary, "R5-H15-HTF-TREND").metrics.catastrophicFoldCount).toBe(1);
+
     const noTrades = makeEvidence();
-    Object.assign(aggregateDiagnostics(candidateById(noTrades, "R5-H15-HTF-TREND")), { profitFactor: null, profitFactorStatus: "NO_TRADES" });
+    const noTradesCandidate = candidateById(noTrades, "R5-H15-HTF-TREND");
+    Object.assign(aggregateDiagnostics(noTradesCandidate), { profitFactor: null, profitFactorStatus: "NO_TRADES" });
+    Object.assign(foldDiagnostics(noTradesCandidate, 0), { profitFactor: null, profitFactorStatus: "NO_TRADES" });
+    expect(candidateEvaluation(noTrades, "R5-H15-HTF-TREND").metrics.catastrophicFoldCount).toBe(1);
     expect(candidateEvaluation(noTrades, "R5-H15-HTF-TREND").gateResults.find((gate) => gate.gateId === "minimumProfitFactor")?.status).toBe("FAIL");
 
     const noLosses = makeEvidence();
     Object.assign(aggregateDiagnostics(candidateById(noLosses, "R5-H15-HTF-TREND")), { profitFactor: null, profitFactorStatus: "NO_LOSSES" });
     expect(candidateEvaluation(noLosses, "R5-H15-HTF-TREND").gateResults.find((gate) => gate.gateId === "minimumProfitFactor")?.status).toBe("PASS");
+
+    const noLossesShortSample = makeEvidence();
+    const noLossesShortCandidate = candidateById(noLossesShortSample, "R5-H15-HTF-TREND");
+    Object.assign(aggregateDiagnostics(noLossesShortCandidate), { profitFactor: null, profitFactorStatus: "NO_LOSSES" });
+    Object.assign(foldDiagnostics(noLossesShortCandidate, 0), { executedTrades: 29 });
+    expect(candidateEvaluation(noLossesShortSample, "R5-H15-HTF-TREND").gateResults.find((gate) => gate.gateId === "minimumProfitFactor")?.status).toBe("FAIL");
 
     const shortFold = makeEvidence();
     Object.assign(foldDiagnostics(candidateById(shortFold, "R5-H15-HTF-TREND"), 0), { executedTrades: 29 });
@@ -306,12 +328,17 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     expect(evaluateM3R5C3ASelection(moreFolds, INPUT_HASHES).selectedCandidateId).toBe("R5-H15-HTF-TREND");
 
     const exactComplexityTie = makeEvidence();
-    Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H15-HTF-TREND")), { expectancyR: 0.14 });
-    Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.15 });
+    Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H15-HTF-TREND")), { expectancyR: 0.1 });
+    Object.assign(aggregateDiagnostics(candidateById(exactComplexityTie, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.11 });
     expect(evaluateM3R5C3ASelection(exactComplexityTie, INPUT_HASHES).selectedCandidateId).toBe("R5-H15-HTF-TREND");
 
+    const belowComplexityTie = makeEvidence();
+    Object.assign(aggregateDiagnostics(candidateById(belowComplexityTie, "R5-H15-HTF-TREND")), { expectancyR: 0.1 });
+    Object.assign(aggregateDiagnostics(candidateById(belowComplexityTie, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.109 });
+    expect(evaluateM3R5C3ASelection(belowComplexityTie, INPUT_HASHES).selectedCandidateId).toBe("R5-H15-HTF-TREND");
+
     const expectancyWins = makeEvidence();
-    Object.assign(aggregateDiagnostics(candidateById(expectancyWins, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.161 });
+    Object.assign(aggregateDiagnostics(candidateById(expectancyWins, "R5-H16-NEUTRAL-MEAN-REVERSION")), { expectancyR: 0.1101 });
     expect(evaluateM3R5C3ASelection(expectancyWins, INPUT_HASHES).selectedCandidateId).toBe("R5-H16-NEUTRAL-MEAN-REVERSION");
   });
 
@@ -408,12 +435,55 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     expect(committedBytes.toString("utf8")).toBe("committed\n");
   });
 
+  function currentAuthorizationArguments() {
+    return {
+      sourceSha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+      round: M3_R5_ROUND_005_RESEARCH_ROUND_ID,
+      gateSha: M3_R5_ROUND_005_SELECTION_GATE_SHA256,
+      planSha: M3_R5_ROUND_005_PLAN_SHA256,
+      inputSummarySha: INPUT_HASHES.summary,
+      inputAuditSha: INPUT_HASHES.audit,
+      inputResultsSha: INPUT_HASHES.results,
+    };
+  }
+
+  it("runs the real authorization preflight and refuses every provenance mismatch", () => {
+    const valid = currentAuthorizationArguments();
+    expect(() => assertM3R5C3AAuthorization(valid)).not.toThrow();
+    expect(() => assertM3R5C3AAuthorization({ ...valid, sourceSha: "0".repeat(40) })).toThrow("source SHA mismatch");
+    expect(() => assertM3R5C3AAuthorization({ ...valid, gateSha: "0".repeat(64) })).toThrow("Gate SHA mismatch");
+    expect(() => assertM3R5C3AAuthorization({ ...valid, planSha: "0".repeat(64) })).toThrow("Plan SHA mismatch");
+    expect(() => assertM3R5C3AAuthorization({ ...valid, inputSummarySha: "0".repeat(64) })).toThrow("summary SHA mismatch");
+    expect(() => assertM3R5C3AAuthorization({ ...valid, inputAuditSha: "0".repeat(64) })).toThrow("audit SHA mismatch");
+    expect(() => assertM3R5C3AAuthorization({ ...valid, inputResultsSha: "0".repeat(64) })).toThrow("results SHA mismatch");
+
+    const dirtyPath = resolve(".m3-r5-c3a-preflight-dirty-test.tmp");
+    try {
+      writeFileSync(dirtyPath, "temporary dirty marker", "utf8");
+      expect(() => assertM3R5C3AAuthorization(valid)).toThrow("worktree is not clean");
+    } finally {
+      if (existsSync(dirtyPath)) unlinkSync(dirtyPath);
+    }
+  });
+
+  it("hashes the committed RESULTS Git blob rather than a CRLF working-tree representation", () => {
+    const committed = readM3R5C3ACommittedBlob("docs/M3_R5_ROUND_005_RESULTS.md");
+    expect(committed.length).toBe(459);
+    expect(sha256M3R5C3ARawBytes(committed)).toBe("ee6374f08493e73fc505fbd0d374a4f1d53addceb13ddbfe67cfc67ebb8a9ce0");
+    const crlfWorkingTree = Buffer.from(committed.toString("utf8").replace(/\n/gu, "\r\n"), "utf8");
+    expect(crlfWorkingTree.length).toBeGreaterThan(committed.length);
+    expect(sha256M3R5C3ARawBytes(crlfWorkingTree)).not.toBe(sha256M3R5C3ARawBytes(committed));
+  });
+
   it("serializes a deterministic report without invoking real evidence or network code", () => {
     const evidence = makeEvidence();
     const first = evaluateM3R5C3ASelection(evidence, INPUT_HASHES);
     const second = evaluateM3R5C3ASelection(clone(evidence), INPUT_HASHES);
     expect(first).toEqual(second);
     expect(M3_R5_C3A_SELECTION_SCHEMA_VERSION).toBe("m3-r5-c3-selection-001");
+    const firstReport = createM3R5C3ASelectionReport({ evidence, inputSummaryPath: "synthetic-summary.json", inputHashes: INPUT_HASHES, gateApplicationSourceSha: "a".repeat(40) });
+    const secondReport = createM3R5C3ASelectionReport({ evidence: clone(evidence), inputSummaryPath: "synthetic-summary.json", inputHashes: INPUT_HASHES, gateApplicationSourceSha: "a".repeat(40) });
+    expect(serializeM3R5C3ASelectionReport(firstReport)).toBe(serializeM3R5C3ASelectionReport(secondReport));
     const source = readFileSync(resolve("src/lib/research/m3-r5-c3-selection.ts"), "utf8");
     expect(source).not.toContain("fetch(");
     expect(source).not.toContain("fapi.binance.com");
