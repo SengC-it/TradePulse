@@ -18,6 +18,7 @@ import { deduplicateIntrabarSettlementIdentities } from "../intrabar.ts";
 import type {
   HistoricalCandleDataset,
   HistoricalFundingDataset,
+  HistoricalFundingPagination,
   HistoricalFundingRecord,
   HistoricalMarkPriceCandle,
   HistoricalMarkPriceDataset,
@@ -268,6 +269,9 @@ export class BinanceHistoricalDataLoader {
     }
     const records: HistoricalFundingRecord[] = [];
     let cursor = request.range.startTime;
+    let pageCount = 0;
+    let paginationComplete = false;
+    let terminationReason: HistoricalFundingPagination["terminationReason"] = "END_TIME_REACHED";
 
     while (cursor <= request.range.endTime) {
       let payload: unknown;
@@ -285,7 +289,11 @@ export class BinanceHistoricalDataLoader {
       }
 
       const page = parseBinanceFundingRateHistory(payload, request.symbol);
-      if (page.length === 0) break;
+      pageCount += 1;
+      if (page.length === 0) {
+        terminationReason = "EMPTY_PAGE";
+        break;
+      }
       validateFundingRecords(page, {
         symbol: request.symbol,
         startTime: request.range.startTime,
@@ -312,7 +320,10 @@ export class BinanceHistoricalDataLoader {
         });
       }
       cursor = nextCursor;
-      if (page.length < this.fundingLimit) break;
+      if (page.length < this.fundingLimit) {
+        terminationReason = "SHORT_PAGE";
+        break;
+      }
     }
 
     const normalized = validateFundingRecords(records, {
@@ -321,6 +332,7 @@ export class BinanceHistoricalDataLoader {
       endTime: request.range.endTime,
       policy,
     });
+    paginationComplete = true;
     const retrievedAt = this.now();
     return Object.freeze({
       symbol: request.symbol,
@@ -330,6 +342,16 @@ export class BinanceHistoricalDataLoader {
         range: request.range,
         records: normalized,
         retrievedAt,
+      }),
+      pagination: Object.freeze({
+        pageCount,
+        paginationComplete,
+        terminationReason,
+        requestedStartTime: request.range.startTime,
+        requestedEndTime: request.range.endTime,
+        firstReturnedFundingTime: normalized[0]?.fundingTime ?? null,
+        lastReturnedFundingTime: normalized[normalized.length - 1]?.fundingTime ?? null,
+        finalCursor: cursor,
       }),
     });
   }

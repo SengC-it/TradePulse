@@ -4,6 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../src/lib/config/constants.ts";
+import { checksumFunding } from "../src/lib/historical-data/checksum.ts";
+import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/loader.ts";
 import {
   M3_R5_DATA_CLASSIFICATION,
   M3_R5_PERFORMANCE_LOCK,
@@ -17,6 +19,7 @@ import {
   canonicalFundingSlots,
   calculateR5RiskPlan,
   evaluateR5H15,
+  evaluateR5H16,
   evaluateR5H17,
   evaluateR5H18,
   h15BreakoutDirection,
@@ -28,6 +31,7 @@ import {
   h18CompressionPass,
   h18ExpansionPass,
   makeR5CandidateIdentity,
+  resolveR5Entry,
   type R5Candle,
 } from "../src/lib/research/m3-r5-round-005-protocol.ts";
 import {
@@ -74,26 +78,52 @@ function makeCandle(
   };
 }
 
-function makeH17Manifest(startTime: number, endTime: number, rowCount: number) {
+function makeH17Manifest(symbol: ResearchSymbol, startTime: number, endTime: number, records: readonly { readonly symbol: ResearchSymbol; readonly fundingTime: number; readonly fundingRate: number; readonly directMarkPrice: number | null }[]) {
+  let sha256: string;
+  try {
+    sha256 = checksumFunding(records);
+  } catch {
+    sha256 = "a".repeat(64);
+  }
   return {
+    kind: "funding" as const,
     provider: "binance-usdm-public" as const,
     source: "/fapi/v1/fundingRate" as const,
+    symbol,
     requestedStartTime: startTime,
     requestedEndTime: endTime,
-    actualStartTime: rowCount > 0 ? startTime : null,
-    actualEndTime: rowCount > 0 ? endTime : null,
-    rowCount,
-    sha256: "a".repeat(64),
+    actualStartTime: records[0]?.fundingTime ?? null,
+    actualEndTime: records[records.length - 1]?.fundingTime ?? null,
+    rowCount: records.length,
+    sha256,
   };
 }
 
-function makeH17Input(symbol: ResearchSymbol, slots: readonly number[], records = slots.map((fundingTime) => ({ symbol, fundingTime, fundingRate: 0.0001 })), paginationComplete = true, requestedStartTime = slots[0] ?? 0, requestedEndTime = slots[slots.length - 1] ?? 0): H17QualificationInput {
+function makeH17Input(
+  symbol: ResearchSymbol,
+  slots: readonly number[],
+  records: readonly { readonly symbol: ResearchSymbol; readonly fundingTime: number; readonly fundingRate: number; readonly directMarkPrice?: number | null }[] = slots.map((fundingTime) => ({ symbol, fundingTime, fundingRate: 0.0001, directMarkPrice: null })),
+  paginationComplete = true,
+  requestedStartTime = slots[0] ?? 0,
+  requestedEndTime = slots[slots.length - 1] ?? 0,
+): H17QualificationInput {
+  const normalizedRecords = records.map((record) => ({ ...record, directMarkPrice: record.directMarkPrice ?? null }));
+  const firstReturnedFundingTime = normalizedRecords[0]?.fundingTime ?? null;
+  const lastReturnedFundingTime = normalizedRecords[normalizedRecords.length - 1]?.fundingTime ?? null;
   return {
     symbol,
-    records,
-    paginationComplete,
-    pageCount: 1,
-    manifest: makeH17Manifest(requestedStartTime, requestedEndTime, records.length),
+    records: normalizedRecords,
+    pagination: {
+      pageCount: 1,
+      paginationComplete,
+      terminationReason: "SHORT_PAGE",
+      requestedStartTime,
+      requestedEndTime,
+      firstReturnedFundingTime,
+      lastReturnedFundingTime,
+      finalCursor: lastReturnedFundingTime === null ? requestedStartTime : lastReturnedFundingTime + 1,
+    },
+    manifest: makeH17Manifest(symbol, requestedStartTime, requestedEndTime, normalizedRecords),
   };
 }
 
@@ -147,19 +177,31 @@ describe("M3-R5-B.1A protocol freeze", () => {
 });
 
 describe("H15 HTF trend", () => {
-  it("uses the prior 20 4H candles, strict breakout, 4H signal time, and next-open entry", () => {
+  it("uses only decision-time data and does not require a future entry candle", () => {
     const candles4h = Array.from({ length: 70 }, (_, index) =>
       makeCandle("4h", index, index === 60 ? { close: 200, high: 201, low: 199 } : undefined),
     );
     const signalCandle = candles4h[60]!;
-    const candles1h = [makeCandle("1h", 0, { open: 1 })];
-    candles1h[0] = { ...candles1h[0]!, openTime: signalCandle.closeTime + 1, closeTime: signalCandle.closeTime + HOUR };
-    const result = evaluateR5H15({ symbol: "BTCUSDT", candles4h, candles1h, currentIndex: 60 });
+    const result = evaluateR5H15({ symbol: "BTCUSDT", candles4h, candles1h: [], currentIndex: 60 });
+    const withFuture = evaluateR5H15({
+      symbol: "BTCUSDT",
+      candles4h,
+      candles1h: [makeCandle("1h", 100, { open: 1, close: 1 })],
+      currentIndex: 60,
+    });
+    const withFutureModified = evaluateR5H15({
+      symbol: "BTCUSDT",
+      candles4h,
+      candles1h: [makeCandle("1h", 100, { open: 10_000, close: 10_500 })],
+      currentIndex: 60,
+    });
     expect(result.status).toBe("SIGNAL");
+    expect(withFuture).toEqual(result);
+    expect(withFutureModified).toEqual(result);
     if (result.status !== "SIGNAL") return;
     expect(result.signal.direction).toBe("LONG");
     expect(result.signal.signalTime).toBe(signalCandle.closeTime);
-    expect(result.signal.entryOpenTime).toBe(signalCandle.closeTime + 1);
+    expect(Object.hasOwn(result.signal, "entryOpenTime")).toBe(false);
     expect(result.signal.stopAtrMultiple).toBe(2);
     expect(result.signal.takeProfitR).toBe(3);
     expect(result.signal.maxHeldCandles).toBe(48);
@@ -172,10 +214,11 @@ describe("H15 HTF trend", () => {
     expect(h15BreakoutDirection({ ema20: 9, ema50: 10, currentClose: -0.0001, priorHigh: 20, priorLow: 0 })).toBe("SHORT");
   });
 
-  it("fails closed when no strictly later entry candle exists", () => {
-    const candles4h = Array.from({ length: 60 }, (_, index) => makeCandle("4h", index));
-    const result = evaluateR5H15({ symbol: "BTCUSDT", candles4h, candles1h: [makeCandle("1h", 0)], currentIndex: 59 });
-    expect(result.status).toBe("NO_SIGNAL");
+  it("keeps the formal signal present when execution data is not yet available", () => {
+    const candles4h = Array.from({ length: 70 }, (_, index) =>
+      makeCandle("4h", index, index === 60 ? { close: 200, high: 201, low: 199 } : undefined),
+    );
+    expect(evaluateR5H15({ symbol: "BTCUSDT", candles4h, candles1h: [], currentIndex: 60 }).status).toBe("SIGNAL");
   });
 
   it("uses actual entry fill for the fixed 2 ATR / 3R contract", () => {
@@ -204,9 +247,44 @@ describe("H16 neutral mean reversion", () => {
     expect(h16TargetGeometry("SHORT", 100, 100)).toBe(false);
   });
 
+  it("does not let future 1H candles change the formal H16 decision", () => {
+    const candles4h = Array.from({ length: 60 }, (_, index) => makeCandle("4h", index, { open: 100, high: 101, low: 99, close: 100 }));
+    const decisionCandles = Array.from({ length: 240 }, (_, index) => makeCandle("1h", index, { open: 100, high: 101, low: 99, close: 100 }));
+    decisionCandles[239] = makeCandle("1h", 239, { open: 100, high: 100, low: 95, close: 95 });
+    const withFuture = [...decisionCandles, makeCandle("1h", 240, { open: 1, high: 2, low: 0.5, close: 1 })];
+    const withFutureModified = [...decisionCandles, makeCandle("1h", 240, { open: 10_000, high: 11_000, low: 9_000, close: 10_500 })];
+    const withoutFuture = evaluateR5H16({ symbol: "BTCUSDT", candles4h, candles1h: decisionCandles, currentIndex: 239 });
+    const normalFuture = evaluateR5H16({ symbol: "BTCUSDT", candles4h, candles1h: withFuture, currentIndex: 239 });
+    const modifiedFuture = evaluateR5H16({ symbol: "BTCUSDT", candles4h, candles1h: withFutureModified, currentIndex: 239 });
+    expect(withoutFuture).toEqual(normalFuture);
+    expect(withoutFuture).toEqual(modifiedFuture);
+    expect(withoutFuture.status).toBe("SIGNAL");
+  });
+
   it("freezes the 12-held-candle contract and actual-entry risk geometry", () => {
     const plan = calculateR5RiskPlan({ direction: "SHORT", entryFill: 100, atr: 2, stopAtrMultiple: 1.5, takeProfitR: 3, maxHeldCandles: 12 });
     expect(plan).toMatchObject({ stopPrice: 103, stopDistance: 3, takeProfitPrice: 91, maxHeldCandles: 12 });
+  });
+
+  it("keeps the formal signal when adverse entry slippage crosses the fixed target", () => {
+    const signal = {
+      candidateId: "R5-H16-NEUTRAL-MEAN-REVERSION" as const,
+      hypothesisId: "H16_NEUTRAL_REGIME_MEAN_REVERSION" as const,
+      symbol: "BTCUSDT" as const,
+      direction: "LONG" as const,
+      signalTime: 0,
+      decisionAtr: 2,
+      stopAtrMultiple: 1.5,
+      takeProfitR: "FIXED_DECISION_EMA20" as const,
+      maxHeldCandles: 12,
+      fixedTargetPrice: 100,
+    };
+    const crossing = resolveR5Entry({ signal, candles1h: [makeCandle("1h", 1, { open: 99.99 })] });
+    expect(crossing.status).toBe("INVALID_TARGET_GEOMETRY");
+    expect(crossing.signal).toEqual(signal);
+    const safe = resolveR5Entry({ signal, candles1h: [makeCandle("1h", 1, { open: 99 })] });
+    expect(safe.status).toBe("EXECUTION_READY");
+    if (safe.status === "EXECUTION_READY") expect(safe.riskPlan.takeProfitPrice).toBe(100);
   });
 });
 
@@ -229,13 +307,24 @@ describe("H17 funding qualification and reversal", () => {
     expect(report.symbols).toHaveLength(5);
     const serialized = serializeH17QualificationReport(report);
     expect(serialized).not.toContain("fundingRate");
-    expect(serialized).not.toMatch(/min|max|mean|median|quantile|distribution|threshold-hit|signal count|performance/iu);
+    for (const forbiddenField of [
+      '"fundingRate"',
+      '"fundingMin"',
+      '"fundingMax"',
+      '"fundingMean"',
+      '"fundingMedian"',
+      '"fundingQuantile"',
+      '"distribution"',
+      '"thresholdHitCount"',
+      '"signalCount"',
+      '"performance"',
+    ]) expect(serialized).not.toContain(forbiddenField);
     expect(serializeH17QualificationReport(report)).toBe(serialized);
   });
 
   it("classifies a missing canonical slot as DATA_NOT_AVAILABLE", () => {
     const inputs = makeSmallH17Inputs();
-    inputs[0] = makeH17Input("BTCUSDT", [0, 8 * HOUR]);
+    inputs[0] = makeH17Input("BTCUSDT", [0, 8 * HOUR], undefined, true, 0, 16 * HOUR);
     const result = qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: inputs });
     expect(result[0]!.qualificationStatus).toBe("DATA_NOT_AVAILABLE");
     expect(result[0]!.missingCanonicalSlotCount).toBe(1);
@@ -275,6 +364,27 @@ describe("H17 funding qualification and reversal", () => {
     expect(invalidManifestResult[0]!.qualificationStatus).toBe("DATA_NOT_AVAILABLE");
   });
 
+  it("requires the exact full-record funding checksum and manifest provenance", () => {
+    const cases: readonly [string, (manifest: H17QualificationInput["manifest"]) => H17QualificationInput["manifest"]][] = [
+      ["forged checksum", (manifest) => ({ ...manifest, sha256: "f".repeat(64) })],
+      ["wrong symbol", (manifest) => ({ ...manifest, symbol: "ETHUSDT" })],
+      ["wrong provider", (manifest) => ({ ...manifest, provider: "other-provider" as never })],
+      ["wrong source", (manifest) => ({ ...manifest, source: "/wrong" as never })],
+      ["wrong requested range", (manifest) => ({ ...manifest, requestedStartTime: 1 })],
+      ["wrong row count", (manifest) => ({ ...manifest, rowCount: manifest.rowCount + 1 })],
+    ];
+    for (const [label, mutate] of cases) {
+      const inputs = makeSmallH17Inputs();
+      inputs[0] = { ...inputs[0]!, manifest: mutate(inputs[0]!.manifest) };
+      const result = qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: inputs });
+      expect(result[0]!.qualificationStatus, label).toBe("DATA_NOT_AVAILABLE");
+    }
+    const valid = makeSmallH17Inputs()[0]!;
+    const validResult = qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: makeSmallH17Inputs() });
+    expect(validResult[0]!.manifestChecksumVerified).toBe(true);
+    expect(valid.manifest.sha256).toHaveLength(64);
+  });
+
   it("allows extra noncanonical records without allowing them to create alpha", () => {
     const slots = canonicalFundingSlots(0, 16 * HOUR);
     const records = [
@@ -296,12 +406,34 @@ describe("H17 funding qualification and reversal", () => {
   it("requires completed pagination and valid manifest provenance", () => {
     const inputs = makeSmallH17Inputs();
     inputs[0] = makeH17Input("BTCUSDT", canonicalFundingSlots(0, 16 * HOUR), undefined, false);
-    const result = qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: inputs });
-    expect(result[0]!.paginationComplete).toBe(false);
-    expect(result[0]!.qualificationStatus).toBe("DATA_NOT_AVAILABLE");
+    expect(() => qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: inputs })).toThrow("RETRIEVAL_ABORT");
+    const inconsistent = makeSmallH17Inputs();
+    inconsistent[0] = {
+      ...inconsistent[0]!,
+      pagination: { ...inconsistent[0]!.pagination, finalCursor: 0 },
+    };
+    expect(() => qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: inconsistent })).toThrow("RETRIEVAL_ABORT");
   });
 
-  it("uses the first 1H open strictly after funding time and preserves 1.5 ATR/3R/24h", () => {
+  it("classifies an API failure on page N as retrieval abort before any artifact", async () => {
+    let calls = 0;
+    const loader = new BinanceHistoricalDataLoader({
+      fundingLimit: 1,
+      clientOptions: {
+        fetchImpl: async () => {
+          calls += 1;
+          if (calls === 1) return new Response(JSON.stringify([{ symbol: "BTCUSDT", fundingTime: 0, fundingRate: "0.001" }]), { status: 200 });
+          throw new Error("page N failed");
+        },
+      },
+    });
+    await expect(loader.loadFunding({ symbol: "BTCUSDT", range: { startTime: 0, endTime: HOUR }, policy: "bt-policy-003" })).rejects.toMatchObject({ code: "DATA_INCOMPLETE" });
+    expect(calls).toBeGreaterThan(1);
+    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.json)).toBe(false);
+    expect(existsSync(M3_R5_H17_OUTPUT_PATHS.markdown)).toBe(false);
+  });
+
+  it("freezes the formal signal before resolving the first 1H open", () => {
     const candles = Array.from({ length: 22 }, (_, index) => makeCandle("1h", index));
     const fundingTime = 20 * HOUR;
     const result = evaluateR5H17({
@@ -312,10 +444,23 @@ describe("H17 funding qualification and reversal", () => {
     expect(result.status).toBe("SIGNAL");
     if (result.status !== "SIGNAL") return;
     expect(result.signal.direction).toBe("SHORT");
-    expect(result.signal.entryOpenTime).toBe(21 * HOUR);
+    expect(Object.hasOwn(result.signal, "entryOpenTime")).toBe(false);
     expect(result.signal.stopAtrMultiple).toBe(1.5);
     expect(result.signal.takeProfitR).toBe(3);
     expect(result.signal.maxHeldCandles).toBe(24);
+    const execution = resolveR5Entry({ signal: result.signal, candles1h: candles });
+    expect(execution.status).toBe("EXECUTION_READY");
+    if (execution.status === "EXECUTION_READY") expect(execution.entryOpenTime).toBe(21 * HOUR);
+    expect(evaluateR5H17({
+      record: { symbol: "BTCUSDT", fundingTime, fundingRate: 0.0002 },
+      h17DataQualification: "PASS",
+      candles1h: candles.slice(0, 21),
+    })).toEqual(result);
+    expect(evaluateR5H17({
+      record: { symbol: "BTCUSDT", fundingTime, fundingRate: 0.0002 },
+      h17DataQualification: "PASS",
+      candles1h: [...candles.slice(0, 21), makeCandle("1h", 21, { open: 10_000, close: 10_500 })],
+    })).toEqual(result);
   });
 
   it("blocks H17 when qualification is not PASS", () => {
@@ -345,9 +490,17 @@ describe("H18 compression to expansion", () => {
       return makeCandle("1h", index, { close: 100 + index, high: 102 + index, low: 98 + index });
     });
     const result = evaluateR5H18({ symbol: "BTCUSDT", candles1h: candles, currentIndex: 46 });
+    const withoutFuture = evaluateR5H18({ symbol: "BTCUSDT", candles1h: candles.slice(0, 47), currentIndex: 46 });
+    const modifiedFuture = evaluateR5H18({
+      symbol: "BTCUSDT",
+      candles1h: [...candles.slice(0, 47), makeCandle("1h", 47, { open: 10_000, high: 11_000, low: 9_000, close: 10_500 })],
+      currentIndex: 46,
+    });
     expect(result.status).toBe("SIGNAL");
+    expect(withoutFuture).toEqual(result);
+    expect(modifiedFuture).toEqual(result);
     if (result.status !== "SIGNAL") return;
-    expect(result.signal.entryOpenTime).toBe(candles[47]!.openTime);
+    expect(Object.hasOwn(result.signal, "entryOpenTime")).toBe(false);
     expect(result.signal.stopAtrMultiple).toBe(1.5);
     expect(result.signal.takeProfitR).toBe(3);
     expect(result.signal.maxHeldCandles).toBe(24);

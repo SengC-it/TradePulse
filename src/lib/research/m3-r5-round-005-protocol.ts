@@ -1,4 +1,5 @@
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
+import { BACKTEST_POLICY } from "../backtest/constants.ts";
 import { calculateAtr14 } from "../indicators/atr.ts";
 import { calculateEma20, calculateEma50 } from "../indicators/ema.ts";
 import { calculateRsi14 } from "../indicators/rsi.ts";
@@ -116,7 +117,7 @@ export type R5RiskPlan = Readonly<{
   stopDistance: number;
   takeProfitPrice: number;
   stopAtrMultiple: number;
-  takeProfitR: number;
+  takeProfitR: number | "FIXED_DECISION_EMA20";
   maxHeldCandles: number;
 }>;
 
@@ -126,7 +127,6 @@ export type R5CandidateSignal = Readonly<{
   symbol: ResearchSymbol;
   direction: R5Direction;
   signalTime: number;
-  entryOpenTime: number;
   decisionAtr: number;
   stopAtrMultiple: number;
   takeProfitR: number | "FIXED_DECISION_EMA20";
@@ -136,11 +136,33 @@ export type R5CandidateSignal = Readonly<{
 
 export type R5DecisionResult =
   | Readonly<{ status: "NO_SIGNAL"; reason: string }>
-  | Readonly<{ status: "SIGNAL"; signal: R5CandidateSignal }>
+  | Readonly<{ status: "SIGNAL"; signal: R5CandidateSignal }>;
+
+export type R5ExecutionResult =
   | Readonly<{
-      status: "SIGNAL_EXECUTION_INELIGIBLE";
-      reason: "INVALID_TARGET_GEOMETRY";
+      status: "EXECUTION_READY";
       signal: R5CandidateSignal;
+      entryOpenTime: number;
+      rawEntryPrice: number;
+      entryFill: number;
+      riskPlan: R5RiskPlan;
+    }>
+  | Readonly<{
+      status: "INVALID_TARGET_GEOMETRY";
+      signal: R5CandidateSignal;
+      entryOpenTime: number;
+      rawEntryPrice: number;
+      entryFill: number;
+      riskPlan: R5RiskPlan;
+    }>
+  | Readonly<{
+      status: "ENTRY_UNAVAILABLE" | "PERIOD_END_CENSORED" | "DATA_INCOMPLETE";
+      signal: R5CandidateSignal;
+      reason: string;
+      entryOpenTime?: number;
+      rawEntryPrice?: number;
+      entryFill?: number;
+      riskPlan?: R5RiskPlan;
     }>;
 
 function noSignal(reason: string): R5DecisionResult {
@@ -162,13 +184,6 @@ function indicatorAt(series: readonly (number | null)[], index: number): number 
 
 function candleIsClosedAt(candle: Candle | undefined, time: number): candle is Candle {
   return Boolean(candle && Number.isInteger(candle.closeTime) && candle.closeTime <= time);
-}
-
-function firstEntryOpenAfter(candles: readonly Candle[], signalTime: number): Candle | null {
-  for (const candle of candles) {
-    if (candle.timeframe === "1h" && candle.openTime > signalTime && finitePositive(candle.open)) return candle;
-  }
-  return null;
 }
 
 function maxFinite(values: readonly number[]): number | null {
@@ -240,7 +255,7 @@ export function h18BreakoutDirection(currentClose: number, priorHigh: number, pr
   return null;
 }
 
-function buildSignal(input: Omit<R5CandidateSignal, "entryOpenTime"> & { entryOpenTime: number }): R5DecisionResult {
+function buildSignal(input: R5CandidateSignal): R5DecisionResult {
   return Object.freeze({ status: "SIGNAL", signal: Object.freeze(input) });
 }
 
@@ -286,33 +301,87 @@ export function calculateR5RiskPlan(input: Readonly<{
   });
 }
 
+function calculateSignalRiskPlan(signal: R5CandidateSignal, entryFill: number): R5RiskPlan | null {
+  if (signal.takeProfitR !== "FIXED_DECISION_EMA20") {
+    return calculateR5RiskPlan({
+      direction: signal.direction,
+      entryFill,
+      atr: signal.decisionAtr,
+      stopAtrMultiple: signal.stopAtrMultiple,
+      takeProfitR: signal.takeProfitR,
+      maxHeldCandles: signal.maxHeldCandles,
+    });
+  }
+
+  const stopDistance = signal.decisionAtr * signal.stopAtrMultiple;
+  const fixedTargetPrice = signal.fixedTargetPrice;
+  if (!finitePositive(entryFill) || !finitePositive(signal.decisionAtr) || !finitePositive(stopDistance) || !finite(fixedTargetPrice)) return null;
+  const stopPrice = signal.direction === "LONG" ? entryFill - stopDistance : entryFill + stopDistance;
+  if (!finitePositive(stopPrice) || !finitePositive(fixedTargetPrice)) return null;
+  return Object.freeze({
+    entryFill,
+    stopPrice,
+    stopDistance,
+    takeProfitPrice: fixedTargetPrice,
+    stopAtrMultiple: signal.stopAtrMultiple,
+    takeProfitR: "FIXED_DECISION_EMA20" as const,
+    maxHeldCandles: signal.maxHeldCandles,
+  });
+}
+
+export function resolveR5Entry(input: Readonly<{
+  signal: R5CandidateSignal;
+  candles1h: readonly Candle[];
+  periodEndTime?: number;
+}>): R5ExecutionResult {
+  const entry = input.candles1h.find(
+    (candle) => candle.timeframe === "1h" && candle.openTime > input.signal.signalTime && finitePositive(candle.open),
+  );
+  if (!entry) return Object.freeze({ status: "ENTRY_UNAVAILABLE", signal: input.signal, reason: "NEXT_1H_OPEN_UNAVAILABLE" });
+  if (input.periodEndTime !== undefined && entry.openTime > input.periodEndTime) {
+    return Object.freeze({ status: "PERIOD_END_CENSORED", signal: input.signal, reason: "NEXT_1H_OPEN_AFTER_PERIOD_END", entryOpenTime: entry.openTime });
+  }
+
+  const rawEntryPrice = entry.open;
+  const entryFill = input.signal.direction === "LONG"
+    ? rawEntryPrice * (1 + BACKTEST_POLICY.slippageRate)
+    : rawEntryPrice * (1 - BACKTEST_POLICY.slippageRate);
+  const riskPlan = calculateSignalRiskPlan(input.signal, entryFill);
+  if (!finitePositive(rawEntryPrice) || !finitePositive(entryFill) || !riskPlan) {
+    return Object.freeze({ status: "DATA_INCOMPLETE", signal: input.signal, reason: "INVALID_NEXT_OPEN_ENTRY_OR_RISK_PLAN", entryOpenTime: entry.openTime, rawEntryPrice, entryFill });
+  }
+  if (input.signal.takeProfitR === "FIXED_DECISION_EMA20" && !h16TargetGeometry(input.signal.direction, riskPlan.takeProfitPrice, entryFill)) {
+    return Object.freeze({ status: "INVALID_TARGET_GEOMETRY", signal: input.signal, entryOpenTime: entry.openTime, rawEntryPrice, entryFill, riskPlan });
+  }
+  return Object.freeze({ status: "EXECUTION_READY", signal: input.signal, entryOpenTime: entry.openTime, rawEntryPrice, entryFill, riskPlan });
+}
+
 export function evaluateR5H15(input: Readonly<{
   symbol: ResearchSymbol;
   candles4h: readonly Candle[];
   candles1h: readonly Candle[];
   currentIndex: number;
 }>): R5DecisionResult {
-  const current = input.candles4h[input.currentIndex];
-  const prior = input.candles4h.slice(input.currentIndex - 20, input.currentIndex);
+  const decisionCandles = input.candles4h.slice(0, input.currentIndex + 1);
+  const current = decisionCandles.at(-1);
+  const prior = decisionCandles.slice(-21, -1);
   if (!current || current.timeframe !== "4h" || !candleIsClosedAt(current, current.closeTime) || prior.length !== 20) return noSignal("WARMUP_OR_INVALID_4H_WINDOW");
-  const closes = input.candles4h.map((candle) => candle.close);
-  const ema20 = indicatorAt(calculateEma20(closes), input.currentIndex);
-  const ema50 = indicatorAt(calculateEma50(closes), input.currentIndex);
-  const atr = indicatorAt(calculateAtr14(input.candles4h), input.currentIndex);
+  const decisionIndex = decisionCandles.length - 1;
+  const closes = decisionCandles.map((candle) => candle.close);
+  const ema20 = indicatorAt(calculateEma20(closes), decisionIndex);
+  const ema50 = indicatorAt(calculateEma50(closes), decisionIndex);
+  const atr = indicatorAt(calculateAtr14(decisionCandles), decisionIndex);
   const priorHigh = maxFinite(prior.map((candle) => candle.high));
   const priorLow = minFinite(prior.map((candle) => candle.low));
   if (ema20 === null || ema50 === null || !finitePositive(atr) || priorHigh === null || priorLow === null) return noSignal("INDICATOR_UNAVAILABLE");
   const direction = h15BreakoutDirection({ ema20, ema50, currentClose: current.close, priorHigh, priorLow });
   if (!direction) return noSignal("H15_RULES_NOT_SATISFIED");
-  const entry = firstEntryOpenAfter(input.candles1h, current.closeTime);
-  if (!entry) return noSignal("ENTRY_OPEN_UNAVAILABLE");
   return buildSignal({
     candidateId: "R5-H15-HTF-TREND",
     hypothesisId: "H15_HTF_LOW_FREQUENCY_TREND",
     symbol: input.symbol,
     direction,
     signalTime: current.closeTime,
-    entryOpenTime: entry.openTime,
     decisionAtr: atr,
     stopAtrMultiple: 2,
     takeProfitR: 3,
@@ -328,41 +397,34 @@ export function evaluateR5H16(input: Readonly<{
 }>): R5DecisionResult {
   const current = input.candles1h[input.currentIndex];
   if (!current || current.timeframe !== "1h" || !candleIsClosedAt(current, current.closeTime)) return noSignal("INVALID_1H_DECISION_CANDLE");
-  let contextIndex = -1;
-  for (let index = 0; index < input.candles4h.length; index += 1) {
-    if (candleIsClosedAt(input.candles4h[index], current.closeTime)) contextIndex = index;
-  }
+  const decisionCandles1h = input.candles1h.slice(0, input.currentIndex + 1);
+  const decisionCandles4h = input.candles4h.filter((candle) => candleIsClosedAt(candle, current.closeTime));
+  const contextIndex = decisionCandles4h.length - 1;
   if (contextIndex < 0) return noSignal("HTF_CONTEXT_UNAVAILABLE");
-  const ema20_4h = indicatorAt(calculateEma20(input.candles4h.map((candle) => candle.close)), contextIndex);
-  const ema50_4h = indicatorAt(calculateEma50(input.candles4h.map((candle) => candle.close)), contextIndex);
-  const atr4h = indicatorAt(calculateAtr14(input.candles4h), contextIndex);
-  const ema20_1h = indicatorAt(calculateEma20(input.candles1h.map((candle) => candle.close)), input.currentIndex);
-  const atr1h = indicatorAt(calculateAtr14(input.candles1h), input.currentIndex);
-  const rsi1h = indicatorAt(calculateRsi14(input.candles1h.map((candle) => candle.close)), input.currentIndex);
+  const decisionIndex1h = decisionCandles1h.length - 1;
+  const ema20_4h = indicatorAt(calculateEma20(decisionCandles4h.map((candle) => candle.close)), contextIndex);
+  const ema50_4h = indicatorAt(calculateEma50(decisionCandles4h.map((candle) => candle.close)), contextIndex);
+  const atr4h = indicatorAt(calculateAtr14(decisionCandles4h), contextIndex);
+  const ema20_1h = indicatorAt(calculateEma20(decisionCandles1h.map((candle) => candle.close)), decisionIndex1h);
+  const atr1h = indicatorAt(calculateAtr14(decisionCandles1h), decisionIndex1h);
+  const rsi1h = indicatorAt(calculateRsi14(decisionCandles1h.map((candle) => candle.close)), decisionIndex1h);
   if (ema20_4h === null || ema50_4h === null || !finitePositive(atr4h) || ema20_1h === null || !finitePositive(atr1h) || rsi1h === null) return noSignal("INDICATOR_UNAVAILABLE");
   const neutral = h16NeutralRegime(ema20_4h, ema50_4h, atr4h);
   if (!neutral) return noSignal("NOT_NEUTRAL");
   const direction = h16MeanReversionDirection({ neutral, currentClose: current.close, ema20: ema20_1h, atr14: atr1h, rsi14: rsi1h });
   if (!direction) return noSignal("H16_RULES_NOT_SATISFIED");
-  const entry = firstEntryOpenAfter(input.candles1h, current.closeTime);
-  if (!entry) return noSignal("ENTRY_OPEN_UNAVAILABLE");
-  const signal = Object.freeze({
+  return buildSignal({
     candidateId: "R5-H16-NEUTRAL-MEAN-REVERSION" as const,
     hypothesisId: "H16_NEUTRAL_REGIME_MEAN_REVERSION" as const,
     symbol: input.symbol,
     direction,
     signalTime: current.closeTime,
-    entryOpenTime: entry.openTime,
     decisionAtr: atr1h,
     stopAtrMultiple: 1.5,
     takeProfitR: "FIXED_DECISION_EMA20" as const,
     maxHeldCandles: 12,
     fixedTargetPrice: ema20_1h,
   });
-  const invalidGeometry = !h16TargetGeometry(direction, ema20_1h, entry.open);
-  return invalidGeometry
-    ? Object.freeze({ status: "SIGNAL_EXECUTION_INELIGIBLE", reason: "INVALID_TARGET_GEOMETRY", signal })
-    : Object.freeze({ status: "SIGNAL", signal });
 }
 
 export function evaluateR5H17(input: Readonly<{
@@ -375,22 +437,17 @@ export function evaluateR5H17(input: Readonly<{
   if (!Number.isInteger(record.fundingTime) || !finite(record.fundingRate)) return noSignal("INVALID_FUNDING_RECORD");
   const direction = h17FundingDirection(record.fundingRate);
   if (!direction) return noSignal("FUNDING_THRESHOLD_NOT_REACHED");
-  let atrIndex = -1;
-  for (let index = 0; index < input.candles1h.length; index += 1) {
-    if (input.candles1h[index]!.closeTime < record.fundingTime) atrIndex = index;
-  }
+  const decisionCandles = input.candles1h.filter((candle) => candle.closeTime < record.fundingTime);
+  const atrIndex = decisionCandles.length - 1;
   if (atrIndex < 0) return noSignal("ATR_PRECEDING_FUNDING_UNAVAILABLE");
-  const atr = indicatorAt(calculateAtr14(input.candles1h), atrIndex);
+  const atr = indicatorAt(calculateAtr14(decisionCandles), atrIndex);
   if (!finitePositive(atr)) return noSignal("ATR_PRECEDING_FUNDING_UNAVAILABLE");
-  const entry = firstEntryOpenAfter(input.candles1h, record.fundingTime);
-  if (!entry) return noSignal("ENTRY_OPEN_UNAVAILABLE");
   return buildSignal({
     candidateId: "R5-H17-FUNDING-REVERSAL",
     hypothesisId: "H17_FUNDING_CROWDING_REVERSAL",
     symbol: record.symbol,
     direction,
     signalTime: record.fundingTime,
-    entryOpenTime: entry.openTime,
     decisionAtr: atr,
     stopAtrMultiple: 1.5,
     takeProfitR: 3,
@@ -403,22 +460,24 @@ export function evaluateR5H18(input: Readonly<{
   candles1h: readonly Candle[];
   currentIndex: number;
 }>): R5DecisionResult {
-  const current = input.candles1h[input.currentIndex];
-  const previous = input.candles1h[input.currentIndex - 1];
+  const decisionCandles = input.candles1h.slice(0, input.currentIndex + 1);
+  const current = decisionCandles.at(-1);
+  const previous = decisionCandles.at(-2);
   if (!current || !previous || current.timeframe !== "1h" || previous.timeframe !== "1h" || !candleIsClosedAt(current, current.closeTime)) return noSignal("INVALID_1H_DECISION_CANDLE");
-  const atrSeries = calculateAtr14(input.candles1h);
-  const currentAtr = indicatorAt(atrSeries, input.currentIndex);
-  const previousAtr = indicatorAt(atrSeries, input.currentIndex - 1);
+  const decisionIndex = decisionCandles.length - 1;
+  const atrSeries = calculateAtr14(decisionCandles);
+  const currentAtr = indicatorAt(atrSeries, decisionIndex);
+  const previousAtr = indicatorAt(atrSeries, decisionIndex - 1);
   if (!finitePositive(currentAtr) || !finitePositive(previousAtr)) return noSignal("INDICATOR_UNAVAILABLE");
-  const compression = input.candles1h.slice(input.currentIndex - 6, input.currentIndex);
-  const priorDirection = input.candles1h.slice(input.currentIndex - 12, input.currentIndex);
+  const compression = decisionCandles.slice(-7, -1);
+  const priorDirection = decisionCandles.slice(-13, -1);
   if (compression.length !== 6 || priorDirection.length !== 12) return noSignal("WARMUP_OR_INVALID_1H_WINDOW");
   const compressionRanges: number[] = [];
   const compressionAtrs: number[] = [];
   for (const [offset, candle] of compression.entries()) {
-    const index = input.currentIndex - 6 + offset;
+    const index = decisionIndex - 6 + offset;
     const candleAtr = indicatorAt(atrSeries, index);
-    const priorClose = input.candles1h[index - 1]?.close;
+    const priorClose = decisionCandles[index - 1]?.close;
     const range = finite(priorClose) ? trueRange(candle, priorClose) : null;
     if (range !== null && candleAtr !== null) {
       compressionRanges.push(range);
@@ -433,15 +492,12 @@ export function evaluateR5H18(input: Readonly<{
   if (!compressionPass || !expansionPass || priorHigh === null || priorLow === null) return noSignal("H18_RULES_NOT_SATISFIED");
   const direction = h18BreakoutDirection(current.close, priorHigh, priorLow);
   if (!direction) return noSignal("H18_BREAKOUT_NOT_SATISFIED");
-  const entry = firstEntryOpenAfter(input.candles1h, current.closeTime);
-  if (!entry) return noSignal("ENTRY_OPEN_UNAVAILABLE");
   return buildSignal({
     candidateId: "R5-H18-COMPRESSION-EXPANSION",
     hypothesisId: "H18_VOLATILITY_COMPRESSION_EXPANSION",
     symbol: input.symbol,
     direction,
     signalTime: current.closeTime,
-    entryOpenTime: entry.openTime,
     decisionAtr: currentAtr,
     stopAtrMultiple: 1.5,
     takeProfitR: 3,

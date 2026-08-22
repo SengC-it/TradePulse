@@ -25,6 +25,12 @@ Exactly one provisional variant per hypothesis is frozen in B.1A. The final
 Round-005 registry, Gate SHA, and Plan SHA remain deferred to B.1B, after the
 conditional H17 qualification boundary is resolved.
 
+The B.1A registry is provisional for all four hypotheses. H15, H16, and H18
+do not have an H17-style external data-qualification boundary. Only H17 is
+conditional on the authoritative funding qualification; if complete
+decision-time funding cannot be reproduced, H17 is `DATA_NOT_AVAILABLE` and
+must not enter performance.
+
 ## H15 — HTF low-frequency trend architecture
 
 - **Hypothesis ID:** `H15_HTF_LOW_FREQUENCY_TREND`
@@ -56,8 +62,12 @@ until B.1B finalizes the registry.
 
 H16 must not become another baseline filter, RSI threshold sweep,
 EMA-distance grid, Bollinger grid, or parameter optimization. Exactly one H16
-variant is frozen provisionally in B.1A; B.1B may include it only if its
-qualification boundary is satisfied.
+variant is frozen provisionally in B.1A; final registry inclusion remains a
+B.1B decision, but H16 has no separate external data-qualification gate.
+
+H16 has no H17-style funding-qualification prerequisite. Its formal decision
+uses only decision-time candles and freezes the decision-time EMA20 target;
+future entry data is resolved separately under `bt-policy-003`.
 
 ## H17 — Funding crowding reversal
 

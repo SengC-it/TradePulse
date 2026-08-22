@@ -20,7 +20,9 @@ Every candidate is standalone. A signal identity is exactly
 `symbol|direction|signalTime`. Features must be knowable at `signalTime`;
 the future entry candle is never used to create a signal. There are no
 combinations, parameter sweeps, optimizers, random search, or post-result
-candidate choices. Each hypothesis has exactly one provisional variant.
+candidate choices. Each hypothesis has exactly one provisional variant. The
+B.1A registry is provisional; the final Round-005 registry remains a B.1B
+decision.
 
 ## Common entry and settlement contract
 
@@ -28,6 +30,12 @@ For every candidate, `signalTime` is the close time of the decision candle or
 the canonical funding time defined below. Entry is the first 1H candle whose
 `openTime` is strictly greater than `signalTime`; its open is the raw entry
 reference and the actual fill is governed by `bt-policy-003`.
+
+Decision-stage evaluators return a formal signal without inspecting the future
+entry candle, held candles, future funding, or exit data. A separate execution
+resolver consumes that formal signal and future execution data. Removing or
+changing candles after `signalTime` may change execution resolution, but must
+not change the formal signal.
 
 Stops use the decision-time ATR and the actual entry fill. Take profit is
 exactly `3R` unless H16's fixed decision-time EMA20 target is specified.
@@ -76,9 +84,11 @@ RSI14 values:
   `current.close >= EMA20_1H + 1.50 * ATR14_1H` and `RSI14 >= 70`.
 
 The target is the fixed decision-time `EMA20_1H`; it is never recalculated.
-The stop is `1.50 ATR14`. If a LONG target is `<= entryFill`, or a SHORT
-target is `>= entryFill`, the signal remains auditable but execution is
-ineligible. The maximum holding period is 12 fully closed 1H candles.
+The stop is `1.50 ATR14` from the actual `bt-policy-003` entry fill. After
+adverse entry slippage is applied, if a LONG target is `<= entryFill`, or a
+SHORT target is `>= entryFill`, the formal signal remains auditable but
+execution is `INVALID_TARGET_GEOMETRY`. The maximum holding period is 12
+fully closed 1H candles. H16 has no H17-style data-qualification boundary.
 
 ## H17 — `R5-H17-FUNDING-REVERSAL`
 
@@ -100,7 +110,8 @@ authoritative qualification must prove, for every one of the five symbols:
 - timestamps, symbols, and funding rates are valid;
 - retrieval is complete, including pagination;
 - the official funding manifest has the exact requested range and a valid
-  SHA-256 provenance value.
+  SHA-256 provenance value matching the canonical checksum of the full
+  retrieved records.
 
 The qualification report contains only symbol, requested range, expected and
 observed slot counts, missing and duplicate lists/counts, extra noncanonical

@@ -3,13 +3,14 @@ import { existsSync, mkdtempSync, mkdirSync, renameSync, rmSync, writeFileSync }
 import path from "node:path";
 
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
+import { checksumFunding } from "../historical-data/checksum.ts";
+import type { HistoricalFundingPagination, HistoricalFundingRecord } from "../historical-data/types.ts";
 import {
   M3_R5_RESEARCH_END_ISO,
   M3_R5_RESEARCH_ROUND_ID,
   M3_R5_RESEARCH_RANGE,
   M3_R5_RESEARCH_START_ISO,
   canonicalFundingSlots,
-  type R5FundingDecisionRecord,
 } from "./m3-r5-round-005-protocol.ts";
 
 export const M3_R5_H17_QUALIFICATION_SCHEMA_VERSION = "m3-r5-h17-data-qualification-001" as const;
@@ -22,8 +23,10 @@ export const M3_R5_H17_STAGING_PREFIX = ".tradepulse-m3-r5-h17-";
 export type H17QualificationStatus = "COMPLETE" | "DATA_NOT_AVAILABLE";
 
 export type H17FundingManifestProvenance = Readonly<{
+  kind: "funding";
   provider: "binance-usdm-public";
   source: "/fapi/v1/fundingRate";
+  symbol: ResearchSymbol;
   requestedStartTime: number;
   requestedEndTime: number;
   actualStartTime: number | null;
@@ -34,9 +37,8 @@ export type H17FundingManifestProvenance = Readonly<{
 
 export type H17QualificationInput = Readonly<{
   symbol: ResearchSymbol;
-  records: readonly R5FundingDecisionRecord[];
-  paginationComplete: boolean;
-  pageCount: number | null;
+  records: readonly HistoricalFundingRecord[];
+  pagination: HistoricalFundingPagination;
   manifest: H17FundingManifestProvenance;
 }>;
 
@@ -55,7 +57,9 @@ export type H17SymbolQualification = Readonly<{
   lastObservedFundingTime: number | null;
   sourceChronological: boolean;
   paginationComplete: boolean;
-  pageCount: number | null;
+  pageCount: number;
+  terminationReason: HistoricalFundingPagination["terminationReason"];
+  manifestChecksumVerified: boolean;
   manifestSha256: string;
   qualificationStatus: "PASS" | "DATA_NOT_AVAILABLE";
 }>;
@@ -77,17 +81,54 @@ function isSha256(value: string): boolean {
   return /^[0-9a-f]{64}$/u.test(value);
 }
 
+function manifestChecksumVerified(input: H17QualificationInput): boolean {
+  try {
+    return checksumFunding(input.records) === input.manifest.sha256;
+  } catch {
+    return false;
+  }
+}
+
 function manifestIsValid(input: H17QualificationInput, startTime: number, endTime: number): boolean {
   const manifest = input.manifest;
   return (
+    manifest.kind === "funding" &&
     manifest.provider === "binance-usdm-public" &&
     manifest.source === "/fapi/v1/fundingRate" &&
+    manifest.symbol === input.symbol &&
     manifest.requestedStartTime === startTime &&
     manifest.requestedEndTime === endTime &&
     Number.isInteger(manifest.rowCount) &&
     manifest.rowCount === input.records.length &&
-    isSha256(manifest.sha256)
+    isSha256(manifest.sha256) &&
+    manifestChecksumVerified(input)
   );
+}
+
+function assertPaginationComplete(input: H17QualificationInput, startTime: number, endTime: number): void {
+  const pagination = input.pagination;
+  const firstRecord = input.records[0]?.fundingTime ?? null;
+  const lastRecord = input.records[input.records.length - 1]?.fundingTime ?? null;
+  const validTerminationReason = ["EMPTY_PAGE", "SHORT_PAGE", "END_TIME_REACHED"].includes(pagination.terminationReason);
+  const validCursor = Number.isInteger(pagination.finalCursor) && pagination.finalCursor >= startTime;
+  const recordTimesAreWellFormed = input.records.every((record) => Number.isInteger(record.fundingTime) && record.fundingTime >= 0);
+  const recordsMatchProvenance = !recordTimesAreWellFormed || (
+    pagination.firstReturnedFundingTime === firstRecord &&
+    pagination.lastReturnedFundingTime === lastRecord &&
+    (lastRecord === null || pagination.finalCursor > lastRecord)
+  );
+  if (
+    pagination.paginationComplete !== true ||
+    !Number.isInteger(pagination.pageCount) ||
+    pagination.pageCount < 1 ||
+    pagination.requestedStartTime !== startTime ||
+    pagination.requestedEndTime !== endTime ||
+    !validTerminationReason ||
+    !validCursor ||
+    !recordsMatchProvenance
+  ) {
+    throw new Error(`RETRIEVAL_ABORT: H17 funding pagination provenance is incomplete or inconsistent for ${input.symbol}.`);
+  }
 }
 
 function symbolQualification(input: H17QualificationInput, startTime: number, endTime: number): H17SymbolQualification {
@@ -124,7 +165,6 @@ function symbolQualification(input: H17QualificationInput, startTime: number, en
   const status =
     !malformed &&
     sourceChronological &&
-    input.paginationComplete &&
     manifestIsValid(input, startTime, endTime) &&
     missingCanonicalSlots.length === 0 &&
     duplicateSlots.size === 0
@@ -145,8 +185,10 @@ function symbolQualification(input: H17QualificationInput, startTime: number, en
     firstObservedFundingTime,
     lastObservedFundingTime,
     sourceChronological,
-    paginationComplete: input.paginationComplete,
-    pageCount: input.pageCount,
+    paginationComplete: input.pagination.paginationComplete,
+    pageCount: input.pagination.pageCount,
+    terminationReason: input.pagination.terminationReason,
+    manifestChecksumVerified: manifestChecksumVerified(input),
     manifestSha256: input.manifest.sha256,
     qualificationStatus: status,
   });
@@ -162,6 +204,7 @@ export function qualifyH17FundingUniverse(input: Readonly<{
   const result = input.symbols.map((symbolInput) => {
     if (seen.has(symbolInput.symbol)) throw new Error(`H17 qualification duplicated symbol: ${symbolInput.symbol}`);
     seen.add(symbolInput.symbol);
+    assertPaginationComplete(symbolInput, input.startTime, input.endTime);
     return symbolQualification(symbolInput, input.startTime, input.endTime);
   });
   if (seen.size !== RESEARCH_SYMBOLS.length || RESEARCH_SYMBOLS.some((symbol) => !seen.has(symbol))) {

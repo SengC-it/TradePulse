@@ -74,16 +74,13 @@ async function loadQualificationInputs(loader: BinanceHistoricalDataLoader): Pro
     });
     inputs.push({
       symbol,
-      records: dataset.records.map((record) => ({
-        symbol: record.symbol,
-        fundingTime: record.fundingTime,
-        fundingRate: record.fundingRate,
-      })),
-      paginationComplete: true,
-      pageCount: null,
+      records: dataset.records,
+      pagination: dataset.pagination,
       manifest: {
+        kind: dataset.manifest.kind,
         provider: dataset.manifest.provider,
         source: dataset.manifest.source,
+        symbol: dataset.manifest.symbol,
         requestedStartTime: dataset.manifest.requestedStartTime,
         requestedEndTime: dataset.manifest.requestedEndTime,
         actualStartTime: dataset.manifest.actualStartTime,

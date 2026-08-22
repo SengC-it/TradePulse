@@ -50,6 +50,17 @@ export type HistoricalFundingManifest = Readonly<{
   markPriceField: "markPrice";
 }>;
 
+export type HistoricalFundingPagination = Readonly<{
+  pageCount: number;
+  paginationComplete: boolean;
+  terminationReason: "EMPTY_PAGE" | "SHORT_PAGE" | "END_TIME_REACHED";
+  requestedStartTime: number;
+  requestedEndTime: number;
+  firstReturnedFundingTime: number | null;
+  lastReturnedFundingTime: number | null;
+  finalCursor: number;
+}>;
+
 export type HistoricalMarkPriceCandle = Readonly<{
   symbol: ResearchSymbol;
   openTime: number;
@@ -148,6 +159,7 @@ export type HistoricalFundingDataset = Readonly<{
   symbol: ResearchSymbol;
   records: readonly HistoricalFundingRecord[];
   manifest: HistoricalFundingManifest;
+  pagination: HistoricalFundingPagination;
 }>;
 
 export type HistoricalSymbolDataset = Readonly<{

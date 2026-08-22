@@ -484,6 +484,16 @@ describe("M3 historical data validation and pagination", () => {
     const dataset = await loader.loadFunding({ symbol: "BTCUSDT", range: { startTime: 0, endTime: 2 } });
     expect(calls).toEqual([0, 2]);
     expect(dataset.records.map((record) => record.fundingTime)).toEqual([0, 1, 2]);
+    expect(dataset.pagination).toEqual({
+      pageCount: 2,
+      paginationComplete: true,
+      terminationReason: "SHORT_PAGE",
+      requestedStartTime: 0,
+      requestedEndTime: 2,
+      firstReturnedFundingTime: 0,
+      lastReturnedFundingTime: 2,
+      finalCursor: 3,
+    });
 
     const duplicateLoader = new BinanceHistoricalDataLoader({
       clientOptions: {
