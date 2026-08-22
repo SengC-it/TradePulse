@@ -555,6 +555,33 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED`.
 
+## ADR-036 — Freeze the Round-006 final registry, Gate, and Plan
+
+- Decision: Freeze baseline-002-research-round-006 from the accepted B.1A
+  post-merge source b8e03e34360ceaaf515882226940eba99bf89b1c. The four
+  standalone candidates are H19, H20, H21, and H22 exactly as recorded by
+  the B.1A protocol, with one variant each and unchanged complexity tuples.
+- Gate: Round-005 numeric values, comparison directions, fold-improvement
+  semantics, catastrophic-fold semantics, sample floors, concentration,
+  profit-factor, and fee-burden definitions are inherited without weakening.
+  Round-006 has exactly ten applicable gates because redundancy is
+  NOT_APPLICABLE for every candidate. The canonical Gate SHA is
+  06fab55be0957b9b84c5c8cb7491e0d2cb4cdae5ec95260cc946eebe954bf95e.
+- Plan: The canonical Plan binds the five-symbol universe, F1–F6 folds,
+  seen-data boundary, baseline-001, bt-policy-003, R6 protocol identity,
+  Gate SHA, settlement/economics, deterministic selection, and runtime
+  provenance checks. Its canonical SHA is
+  86dc1b341c7f34fed8f80dc54b54741b19576bbc5d898b2a0e95884b19184fa6.
+- Constraint: The future performance execution SHA is not predeclared; it
+  must be supplied only by a later authorized runtime from the exact
+  post-B.1B merged main source. No performance, selection, Binance access,
+  historical exploration, optimizer, sweep, or evidence generation occurs
+  in B.1B.
+- Consequence: Performance remains NOT_AUTHORIZED / NOT_GENERATED,
+  baseline-002 remains NOT_FROZEN, M3-J remains BLOCKED, and M4 remains
+  NOT_STARTED. After FIRST_M3_R6_PERFORMANCE_RESULT_GENERATED,
+  result-affecting changes require ROUND_006_INVALIDATION_REQUIRED.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
