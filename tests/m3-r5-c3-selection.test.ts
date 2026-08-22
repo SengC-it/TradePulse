@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -35,6 +35,8 @@ import { getResearchFoldRoleRange } from "../src/lib/research/folds.ts";
 import {
   parseM3R5C3ASelectionArguments,
   assertM3R5C3AAuthorization,
+  M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH,
+  M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH,
   readM3R5C3ACommittedBlob,
   validateM3R5C3AAuthoritativeSource,
   validateM3R5C3ACommittedBlobHash,
@@ -398,12 +400,12 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     expect(result.integrityErrors).toContain("input summary SHA-256 mismatch.");
   });
 
-  it("rejects H17 entering the candidate registry and preserves the reserved output boundary", () => {
+  it("rejects H17 entering the candidate registry and preserves the reserved output-path contract", () => {
     const evidence = makeEvidence();
     evidence.candidateRegistry = [...M3_R5_ROUND_005_CANDIDATE_IDS, "R5-H17-FUNDING-REVERSAL"];
     expect(evaluateM3R5C3ASelection(evidence, INPUT_HASHES).integrityStatus).toBe("INCOMPLETE_EVIDENCE");
-    expect(existsSync(resolve("docs/evidence/M3_R5_C3_SELECTION.json"))).toBe(false);
-    expect(existsSync(resolve("docs/M3_R5_C3_SELECTION.md"))).toBe(false);
+    expect(M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH).toBe("docs/evidence/M3_R5_C3_SELECTION.json");
+    expect(M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH).toBe("docs/M3_R5_C3_SELECTION.md");
   });
 
   it("parses every required authorization flag and validates the source SHA", () => {
@@ -451,24 +453,52 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     };
   }
 
-  it("runs the real authorization preflight and refuses every provenance mismatch", () => {
-    const valid = currentAuthorizationArguments();
-    expect(() => assertM3R5C3AAuthorization(valid)).not.toThrow();
-    expect(() => assertM3R5C3AAuthorization({ ...valid, sourceSha: "0".repeat(40) })).toThrow("source SHA mismatch");
-    expect(() => assertM3R5C3AAuthorization({ ...valid, gateSha: "0".repeat(64) })).toThrow("Gate SHA mismatch");
-    expect(() => assertM3R5C3AAuthorization({ ...valid, planSha: "0".repeat(64) })).toThrow("Plan SHA mismatch");
-    expect(() => assertM3R5C3AAuthorization({ ...valid, inputSummarySha: "0".repeat(64) })).toThrow("summary SHA mismatch");
-    expect(() => assertM3R5C3AAuthorization({ ...valid, inputAuditSha: "0".repeat(64) })).toThrow("audit SHA mismatch");
-    expect(() => assertM3R5C3AAuthorization({ ...valid, inputResultsSha: "0".repeat(64) })).toThrow("results SHA mismatch");
-
-    const dirtyPath = resolve(".m3-r5-c3a-preflight-dirty-test.tmp");
+  function withIsolatedAuthorizationFixture<T>(callback: (fixturePath: string) => T): T {
+    const parentPath = mkdtempSync(join(tmpdir(), "m3-r5-c3a-auth-"));
+    const fixturePath = join(parentPath, "repo");
+    const repositoryRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+    const previousWorkingDirectory = process.cwd();
     try {
-      writeFileSync(dirtyPath, "temporary dirty marker", "utf8");
-      expect(() => assertM3R5C3AAuthorization(valid)).toThrow("worktree is not clean");
+      execFileSync("git", ["clone", "--no-local", "--quiet", repositoryRoot, fixturePath], { encoding: "utf8" });
+      process.chdir(fixturePath);
+      return callback(fixturePath);
     } finally {
-      if (existsSync(dirtyPath)) unlinkSync(dirtyPath);
+      process.chdir(previousWorkingDirectory);
+      rmSync(parentPath, { recursive: true, force: true });
     }
-  });
+  }
+
+  it("runs the real authorization preflight in an isolated fixture and refuses every provenance mismatch", () => {
+    withIsolatedAuthorizationFixture((fixturePath) => {
+      const valid = currentAuthorizationArguments();
+      expect(() => assertM3R5C3AAuthorization(valid)).not.toThrow();
+      expect(() => assertM3R5C3AAuthorization({ ...valid, sourceSha: "0".repeat(40) })).toThrow("source SHA mismatch");
+      expect(() => assertM3R5C3AAuthorization({ ...valid, gateSha: "0".repeat(64) })).toThrow("Gate SHA mismatch");
+      expect(() => assertM3R5C3AAuthorization({ ...valid, planSha: "0".repeat(64) })).toThrow("Plan SHA mismatch");
+      expect(() => assertM3R5C3AAuthorization({ ...valid, inputSummarySha: "0".repeat(64) })).toThrow("summary SHA mismatch");
+      expect(() => assertM3R5C3AAuthorization({ ...valid, inputAuditSha: "0".repeat(64) })).toThrow("audit SHA mismatch");
+      expect(() => assertM3R5C3AAuthorization({ ...valid, inputResultsSha: "0".repeat(64) })).toThrow("results SHA mismatch");
+
+      const dirtyPath = resolve(".m3-r5-c3a-preflight-dirty-test.tmp");
+      try {
+        writeFileSync(dirtyPath, "temporary dirty marker", "utf8");
+        expect(() => assertM3R5C3AAuthorization(valid)).toThrow("worktree is not clean");
+      } finally {
+        if (existsSync(dirtyPath)) unlinkSync(dirtyPath);
+      }
+
+      appendFileSync(join(fixturePath, ".git", "info", "exclude"), `\n/${M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH}\n/${M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH}\n`, "utf8");
+      for (const outputPath of [M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH, M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH]) {
+        const absoluteOutputPath = resolve(outputPath);
+        writeFileSync(absoluteOutputPath, "reserved output", "utf8");
+        try {
+          expect(() => assertM3R5C3AAuthorization(valid)).toThrow("selection output already exists");
+        } finally {
+          unlinkSync(absoluteOutputPath);
+        }
+      }
+    });
+  }, 60_000);
 
   it("hashes the committed RESULTS Git blob rather than a CRLF working-tree representation", () => {
     const committed = readM3R5C3ACommittedBlob("docs/M3_R5_ROUND_005_RESULTS.md");
