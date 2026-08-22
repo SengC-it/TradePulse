@@ -42,7 +42,7 @@ The canonical Gate is serialized by
 src/lib/research/selection-gates-round-006.ts.
 
 - Gate SHA-256:
-  06fab55be0957b9b84c5c8cb7491e0d2cb4cdae5ec95260cc946eebe954bf95e
+  ff51cdc587f5a79cc9dd8d449202e481f4d2eed23e7f843797b8348b8cebe1f6
 - inherited Round-005 Gate SHA-256:
   e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5
 - inherited Round-004 Gate SHA-256:
@@ -83,7 +83,7 @@ profit-factor, concentration, and fee-burden definitions are preserved.
 The immutable Plan is serialized by src/lib/research/m3-r6-round-006-plan.ts.
 
 - Plan SHA-256:
-  86dc1b341c7f34fed8f80dc54b54741b19576bbc5d898b2a0e95884b19184fa6
+  0e9521e373764c8e9389326f84d25172693b3e3a0894e9829183bb0c7a96a591
 - research round:
   baseline-002-research-round-006
 - data classification:
@@ -105,6 +105,20 @@ TIME_EXIT at held candle #24 close, exact 2R, immediate canonical next-open
 entry, invalid stop-geometry handling, formal identity
 symbol|direction|signalTime, and deterministic output serialization.
 
+The machine-readable metric/status contract binds the formal population and
+the meaning of EXECUTED, DATA_INCOMPLETE, ENTRY_UNAVAILABLE,
+INVALID_STOP_GEOMETRY, and PERIOD_END_CENSORED. Only formal evaluator signals
+create records; NO_SIGNAL creates no formal record. It freezes formal signal
+counts, executed-trade counts, net expectancy, PF status (including
+NO_TRADES/NO_LOSSES and no Infinity encoding), fee burden, positive-net-R
+concentration, aggregate improvement versus CONTROL, improved validation-fold
+count, catastrophic-fold count, and the minimum executed-trade floor across
+F1–F6. Finite-number rejection, negative-zero normalization, 12-decimal
+metric rounding, null missing values, fold/symbol/direction ordering, and
+UTF-8 `stableStringify` serialization without a trailing newline are all
+explicit. The diagnostics and serializer implementation identities are bound
+to their accepted-base Git blobs in the Plan.
+
 ## Selection and authorization
 
 Eligibility is evaluated first and all applicable gates must pass. With zero
@@ -113,16 +127,26 @@ eligible candidate it is selected. With multiple eligible candidates the
 predeclared hierarchy is:
 
 1. more improved validation folds;
-2. higher aggregate validation expectancy only when the absolute difference is
-   greater than 0.01 R/executed-trade;
+2. retain only candidates whose aggregate validation expectancy is within the
+   inclusive 0.01 R/executed-trade band below the cohort maximum;
 3. lexicographically smaller complexity tuple;
 4. higher aggregate validation profit factor, with finite values before null;
 5. ascending candidate ID.
 
+The eligible-candidate list is serialized separately in ascending candidate-ID
+order. The staged procedure is eligibility filter, maximum improved folds,
+maximum-expectancy inclusive tie-band filter, complexity tuple, PF, and final
+candidate-ID order; it is not a pairwise comparator. The machine record keeps
+the accepted Round-005 Gate SHA `e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5`
+separate from the inherited Round-004 ancestry SHA
+`c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`.
+
 The future execution source SHA is deliberately NOT predeclared. The later
-authorized runtime must supply a post-B.1B merged main SHA and verify the B.1A
-protocol identity, registry, Gate SHA, Plan SHA, universe, folds, policy, and
-research boundary before any network access.
+authorized runtime must separately provide and cross-check
+`executionSourceSha === authorizedExecutionSourceSha === git HEAD`, a clean
+worktree, passing required-manifest validation, absence of all authoritative
+outputs, and the B.1A protocol identity, registry, Gate SHA, Plan SHA, universe,
+folds, policy, and research boundary before any network access.
 
 The performance lock is
 FIRST_M3_R6_PERFORMANCE_RESULT_GENERATED. After the first result, any

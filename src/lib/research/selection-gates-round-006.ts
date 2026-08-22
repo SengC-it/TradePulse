@@ -6,6 +6,7 @@ import {
   M3_R5_ROUND_005_DEFINITIONS,
   M3_R5_ROUND_005_HARD_GATE_IDENTITIES,
   M3_R5_ROUND_005_INHERITED_SELECTION_GATE_SHA256,
+  M3_R5_ROUND_005_SELECTION_GATE_SHA256,
   M3_R5_ROUND_005_SELECTION_GATES,
 } from "./selection-gates-round-005.ts";
 import {
@@ -29,8 +30,12 @@ export const M3_R6_ROUND_006_POST_LOCK_INVALIDATION =
   "ROUND_006_INVALIDATION_REQUIRED" as const;
 export const M3_R6_ROUND_006_NO_CANDIDATE_OUTCOME =
   "NO ROUND-006 CANDIDATE" as const;
-export const M3_R6_ROUND_006_INHERITED_GATE_SHA256 =
+export const M3_R6_ROUND_006_INHERITED_ROUND_005_SELECTION_GATE_SHA256 =
+  M3_R5_ROUND_005_SELECTION_GATE_SHA256;
+export const M3_R6_ROUND_006_INHERITED_ROUND_004_SELECTION_GATE_SHA256 =
   M3_R5_ROUND_005_INHERITED_SELECTION_GATE_SHA256;
+export const M3_R6_ROUND_006_INHERITED_GATE_SHA256 =
+  M3_R6_ROUND_006_INHERITED_ROUND_005_SELECTION_GATE_SHA256;
 
 export const M3_R6_B1A_PROTOCOL_SOURCE_IDENTITY = deepFreeze({
   sourceSha: M3_R6_ROUND_006_FREEZE_SOURCE_SHA,
@@ -221,17 +226,28 @@ export const M3_R6_ROUND_006_DEFINITIONS = deepFreeze({
     zeroEligible: M3_R6_ROUND_006_NO_CANDIDATE_OUTCOME,
     oneEligible: "SELECT_ONLY_ELIGIBLE_CANDIDATE",
     multipleEligible: "APPLY_PREDECLARED_TIE_BREAK_HIERARCHY",
+    stages: [
+      "ELIGIBILITY_FILTER",
+      "MAX_IMPROVED_VALIDATION_FOLDS",
+      "MAX_EXPECTANCY_TIE_BAND_FILTER",
+      "COMPLEXITY_TUPLE_LEXICOGRAPHIC_ASCENDING",
+      "PROFIT_FACTOR_DESCENDING_NULL_AFTER_FINITE",
+      "CANDIDATE_ID_LEXICOGRAPHIC_ASCENDING",
+    ],
     orderedCriteria: [
       { criterion: "improvedValidationFolds", direction: "DESCENDING" },
       {
         criterion: "aggregateValidationExpectancyR",
-        direction: "DESCENDING_IF_ABSOLUTE_DIFFERENCE_GT_0.01",
+        direction: "MAXIMUM_THEN_KEEP_WITHIN_0.01_INCLUSIVE_TIE_BAND",
       },
       { criterion: "complexityTuple", direction: "LEXICOGRAPHIC_ASCENDING" },
       { criterion: "aggregateValidationProfitFactor", direction: "DESCENDING" },
       { criterion: "candidateId", direction: "LEXICOGRAPHIC_ASCENDING" },
     ],
     complexityTieThresholdR: 0.01,
+    expectancyTieBandRule:
+      "KEEP_WHEN_MAX_EXPECTANCY_MINUS_CANDIDATE_EXPECTANCY_IS_LESS_THAN_OR_EQUAL_TO_0.01",
+    eligibleCandidateIdsOrder: "CANDIDATE_ID_ASCENDING",
     nullProfitFactorOrder: "NULL_AFTER_FINITE_VALUES",
   },
   h22RouteMap: R6_H22_ROUTE_MAP,
@@ -255,7 +271,11 @@ export const M3_R6_ROUND_006_MACHINE_RECORD = deepFreeze({
   freezeSourceSha: M3_R6_ROUND_006_FREEZE_SOURCE_SHA,
   performanceExecutionSourceSha: null,
   performanceExecutionSourceRule:
-    "SUPPLY_ONLY_AT_AUTHORIZED_RUNTIME; MUST_BE_THE_POST_B1B_MERGED_MAIN_SHA; NEVER_PREDECLARE_IN_B1B",
+    "SUPPLY_ONLY_AT_AUTHORIZED_RUNTIME; SEPARATELY_AUTHORIZED_EXECUTION_SOURCE_AFTER_PERFORMANCE_TOOLING_ACCEPTANCE; NEVER_PREDECLARE_IN_B1B",
+  inheritedRound005SelectionGateSha256:
+    M3_R6_ROUND_006_INHERITED_ROUND_005_SELECTION_GATE_SHA256,
+  inheritedRound004SelectionGateSha256:
+    M3_R6_ROUND_006_INHERITED_ROUND_004_SELECTION_GATE_SHA256,
   performanceLock: M3_R6_ROUND_006_PERFORMANCE_LOCK,
   controlId: M3_R6_ROUND_006_CONTROL_ID,
   symbolUniverse: R6_SYMBOLS,
@@ -279,7 +299,7 @@ export const M3_R6_ROUND_006_CANONICAL_JSON = stableStringify(
 );
 
 export const M3_R6_ROUND_006_SELECTION_GATE_SHA256 =
-  "06fab55be0957b9b84c5c8cb7491e0d2cb4cdae5ec95260cc946eebe954bf95e" as const;
+  "ff51cdc587f5a79cc9dd8d449202e481f4d2eed23e7f843797b8348b8cebe1f6" as const;
 
 export function validateM3R6Round006MachineRecord(
   record: typeof M3_R6_ROUND_006_MACHINE_RECORD = M3_R6_ROUND_006_MACHINE_RECORD,
@@ -295,6 +315,18 @@ export function validateM3R6Round006MachineRecord(
   }
   if (record.performanceExecutionSourceSha !== null) {
     throw new Error("M3-R6-B.1B must not predeclare a performance execution SHA.");
+  }
+  if (
+    record.inheritedRound005SelectionGateSha256 !==
+    M3_R6_ROUND_006_INHERITED_ROUND_005_SELECTION_GATE_SHA256
+  ) {
+    throw new Error("M3-R6-B.1B accepted Round-005 Gate SHA mismatch.");
+  }
+  if (
+    record.inheritedRound004SelectionGateSha256 !==
+    M3_R6_ROUND_006_INHERITED_ROUND_004_SELECTION_GATE_SHA256
+  ) {
+    throw new Error("M3-R6-B.1B inherited Round-004 Gate SHA mismatch.");
   }
   if (record.controlId !== M3_R6_ROUND_006_CONTROL_ID) {
     throw new Error("M3-R6-B.1B CONTROL identity mismatch.");
@@ -513,18 +545,10 @@ function compareComplexity(
   return 0;
 }
 
-function compareCandidate(
+function compareFinalSelectionOrder(
   left: M3R6SelectionCandidate,
   right: M3R6SelectionCandidate,
 ): number {
-  if (left.improvedValidationFolds !== right.improvedValidationFolds) {
-    return right.improvedValidationFolds - left.improvedValidationFolds;
-  }
-  const expectancyDifference =
-    left.aggregateValidationExpectancyR - right.aggregateValidationExpectancyR;
-  if (Math.abs(expectancyDifference) > 0.01) {
-    return expectancyDifference > 0 ? -1 : 1;
-  }
   const complexityOrder = compareComplexity(
     left.complexityTuple,
     right.complexityTuple,
@@ -542,6 +566,24 @@ function compareCandidate(
   return 0;
 }
 
+function selectEligibleCandidatesByFrozenStages(
+  eligible: readonly M3R6SelectionCandidate[],
+): readonly M3R6SelectionCandidate[] {
+  const maxImprovedValidationFolds = Math.max(
+    ...eligible.map((candidate) => candidate.improvedValidationFolds),
+  );
+  const foldCohort = eligible.filter(
+    (candidate) => candidate.improvedValidationFolds === maxImprovedValidationFolds,
+  );
+  const maxExpectancy = Math.max(
+    ...foldCohort.map((candidate) => candidate.aggregateValidationExpectancyR),
+  );
+  const expectancyCohort = foldCohort.filter(
+    (candidate) => maxExpectancy - candidate.aggregateValidationExpectancyR <= 0.01,
+  );
+  return [...expectancyCohort].sort(compareFinalSelectionOrder);
+}
+
 export function selectM3R6Candidate(
   candidates: readonly M3R6SelectionCandidate[],
 ): M3R6SelectionResult {
@@ -554,11 +596,13 @@ export function selectM3R6Candidate(
       finalDecision: M3_R6_ROUND_006_NO_CANDIDATE_OUTCOME,
     });
   }
-  const ordered = [...eligible].sort(compareCandidate);
+  const ordered = selectEligibleCandidatesByFrozenStages(eligible);
   return Object.freeze({
     selectionAlgorithmApplied: true,
     eligibleCandidateIds: Object.freeze(
-      ordered.map((candidate) => candidate.candidateId),
+      [...eligible]
+        .map((candidate) => candidate.candidateId)
+        .sort(),
     ),
     selectedCandidateId: ordered[0]!.candidateId,
     finalDecision: "SELECTED_ROUND_006_CANDIDATE",
