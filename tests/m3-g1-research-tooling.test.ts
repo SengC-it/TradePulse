@@ -177,10 +177,14 @@ function sourceText(): string {
     // execution boundary and is covered by its own source-freeze suite.
     // Round-005 H17 qualification is an explicit data-qualification boundary,
     // not generic offline diagnostics tooling, and has its own B.1A suite.
+    // Round-005 B.2 performance machinery is a future execution boundary,
+    // covered by its dedicated offline implementation suite.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
-      name !== "m3-r5-h17-funding-qualification.ts",
+      name !== "m3-r5-h17-funding-qualification.ts" &&
+      name !== "m3-r5-round-005-performance.ts" &&
+      name !== "m3-r5-round-005-settlement.ts",
     )
     .sort()
     .map((name) => readFileSync(resolve(root, name), "utf8"))
