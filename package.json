@@ -23,6 +23,7 @@
     "research:m3r3:select": "node --experimental-strip-types --no-warnings scripts/m3-r3-c-select.ts",
     "research:m3r4:performance": "node --experimental-strip-types --no-warnings scripts/m3-r4-performance.ts",
     "research:m3r4:select": "node --experimental-strip-types --no-warnings scripts/m3-r4-d-select.ts",
+    "research:m3r5:h17-qualify": "node --experimental-strip-types --no-warnings scripts/m3-r5-h17-qualify.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {

@@ -495,6 +495,31 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   M4 remains `NOT_STARTED`. R5-B must be independently accepted and merged
   before any historical performance command.
 
+## ADR-033 — Freeze Round-005 B.1A protocol and H17 data qualification
+
+- **Decision:** Freeze the exact standalone H15–H18 candidate formulas,
+  decision-time/next-open contracts, `bt-policy-003` settlement boundary,
+  complexity tuples, and the H17 canonical UTC 8-hour data-qualification
+  contract for `baseline-002-research-round-005`.
+- **H17 availability:** H17 is conditional. All five symbols must contain
+  every canonical `00:00`, `08:00`, and `16:00` UTC slot in the frozen
+  2023-01-01 through 2026-08-15 range, with valid timestamps, strict source
+  order, no duplicates, complete pagination, and auditable official manifest
+  provenance. Noncanonical records may remain for settlement but cannot
+  create H17 decisions. A complete retrieval with missing/invalid canonical
+  data is `DATA_NOT_AVAILABLE`; a retrieval/runtime abort before complete
+  qualification is `RETRIEVAL_ABORT` and produces no artifacts.
+- **Report privacy:** H17 qualification artifacts contain coverage and
+  provenance only. They must not expose funding-rate distributions,
+  threshold-hit counts, H17 signal counts, outcomes, or performance metrics.
+- **Deferred:** The final Round-005 registry, Gate SHA, and Plan SHA remain
+  deferred until B.1B and a complete H17 qualification. B.1A does not access
+  Binance, load historical data, run a backtest/performance command, generate
+  evidence, freeze `baseline-002`, start M3-J, or start M4.
+- **Lock:** The future lock is
+  `FIRST_M3_R5_PERFORMANCE_RESULT_GENERATED`; after it, result-affecting
+  changes require `ROUND_005_INVALIDATION_REQUIRED`.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

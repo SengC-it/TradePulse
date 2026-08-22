@@ -2,7 +2,7 @@
 
 TradePulse is a private research system for multi-symbol cryptocurrency market analysis, candidate signal generation, email notification, forward tracking, and strategy-performance analysis.
 
-Current milestone: **M3-R4-C — Round-004 performance implementation source freeze under review**.
+Current milestone: **M3-R5-B.1A — Round-005 protocol and H17 data-qualification tooling freeze under review**.
 
 ## Boundary
 
@@ -45,7 +45,12 @@ is closed/merged. M3-R4-B freezes the exact pre-performance machine protocol
 for four standalone hypotheses. M3-R4-C freezes only the executable source
 for the later performance run; no Round-004 performance is authorized,
 baseline-002 remains unfrozen, M3-J is blocked/not started, and M4 remains
-not started.
+not started. M3-R5-A then froze four qualitative standalone hypotheses.
+M3-R5-B.1A freezes their exact provisional formulas, decision-time contracts,
+synthetic tests, and conditional H17 canonical funding qualification tooling;
+it does not access Binance, run historical data, generate evidence, create a
+final Gate/Plan SHA, freeze baseline-002, start M3-J, or start M4. See
+`docs/M3_R5_B1A_PROTOCOL.md`.
 
 ## Architecture
 
