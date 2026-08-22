@@ -182,6 +182,8 @@ export type Round005ExecutionArtifacts = Readonly<{
   resultsMarkdown: string;
 }>;
 
+export type Round005PerformanceResultListener = (result: BacktestSignalResult | R5SettlementResult) => void;
+
 export type Round005Preflight = Readonly<{
   confirmAuthoritativePerformance: boolean;
   sourceSha: string;
@@ -381,6 +383,7 @@ export function buildRound005CandidateRecords(input: Readonly<{
   data: BacktestData;
   candidateId: R5CandidateId;
   intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
+  onPerformanceResultGenerated?: Round005PerformanceResultListener;
 }>): readonly Round005ResearchRecord[] {
   const records: Round005ResearchRecord[] = [];
   const authorizedSettlementEndTime = round005AuthorizedSettlementEndTime();
@@ -396,13 +399,17 @@ export function buildRound005CandidateRecords(input: Readonly<{
       serverTime: input.data.serverTime,
       settlementEndTime: authorizedSettlementEndTime,
     });
+    input.onPerformanceResultGenerated?.(result);
     records.push(Object.freeze({ candidateId: input.candidateId, signal: normalizeR5Result(result), raw: result }));
   }
   return Object.freeze(records.sort(recordSort));
 }
 
-export function buildRound005ControlRecords(data: BacktestData): Readonly<{ report: BacktestReport; records: readonly Round005ResearchRecord[] }> {
-  const report = runBacktest({ period: "COMBINED", policy: "bt-policy-003", data });
+export function buildRound005ControlRecords(
+  data: BacktestData,
+  onPerformanceResultGenerated?: Round005PerformanceResultListener,
+): Readonly<{ report: BacktestReport; records: readonly Round005ResearchRecord[] }> {
+  const report = runBacktest({ period: "COMBINED", policy: "bt-policy-003", data, onPerformanceResultGenerated });
   return Object.freeze({ report, records: Object.freeze(report.signalResults.map(controlRecord)) });
 }
 
@@ -729,6 +736,9 @@ export function existingRound005OutputArtifacts(): readonly string[] {
 
 export async function executeRound005Authoritative(input: Readonly<{ loader?: Round005HistoricalLoader; executionSourceSha: string }>): Promise<Round005ExecutionArtifacts> {
   let performanceLockTriggered = false;
+  const onPerformanceResultGenerated: Round005PerformanceResultListener = () => {
+    performanceLockTriggered = true;
+  };
   try {
     const loader = input.loader ?? new BinanceHistoricalDataLoader();
     const ranges = buildRound005HistoricalLoadRanges();
@@ -737,9 +747,8 @@ export async function executeRound005Authoritative(input: Readonly<{ loader?: Ro
     const requirements = discoverRound005IntrabarRequirements({ data: initialData });
     const windows = await loader.loadIntrabarSettlementWindows(requirements, study.serverTime);
     const data = appendRound005IntrabarWindows(initialData, windows, requirements);
-    const control = buildRound005ControlRecords(data);
-    performanceLockTriggered = true;
-    const candidateRecords = M3_R5_ROUND_005_CANDIDATE_IDS.flatMap((candidateId) => buildRound005CandidateRecords({ data, candidateId }));
+    const control = buildRound005ControlRecords(data, onPerformanceResultGenerated);
+    const candidateRecords = M3_R5_ROUND_005_CANDIDATE_IDS.flatMap((candidateId) => buildRound005CandidateRecords({ data, candidateId, onPerformanceResultGenerated }));
     const report = buildRound005PerformanceReport({ data, executionSourceSha: input.executionSourceSha, controlReport: control.report, controlRecords: control.records, candidateRecords, performanceLockTriggered });
     return buildRound005ExecutionArtifacts({ report, records: [...control.records, ...candidateRecords] });
   } catch (error) {

@@ -276,6 +276,8 @@ export type BacktestRunInput = Readonly<{
   data: BacktestData;
   /** Library callers retain legacy compatibility; the formal CLI requires it. */
   policy?: BacktestPolicyVersion;
+  /** Called at the instant a signal-level performance result is produced. */
+  onPerformanceResultGenerated?: (result: BacktestSignalResult) => void;
 }>;
 
 export type SettlementInput = Readonly<{
