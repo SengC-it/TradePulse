@@ -222,6 +222,14 @@ export const M3_R6_ROUND_006_PLAN = deepFreeze({
     orderedCriteria:
       M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.orderedCriteria,
     stages: M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.stages,
+    expectancyTieBandThresholdR:
+      M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.expectancyTieBandThresholdR,
+    expectancyTieBandBoundary:
+      M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.expectancyTieBandBoundary,
+    expectancyTieBandFloatingComparison:
+      M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.expectancyTieBandFloatingComparison,
+    expectancyTieBandFloatingToleranceFormula:
+      M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.expectancyTieBandFloatingToleranceFormula,
     expectancyTieBandRule:
       M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.expectancyTieBandRule,
     complexityTieThresholdR:
@@ -293,7 +301,7 @@ export const M3_R6_ROUND_006_PLAN_CANONICAL_JSON = stableStringify(
 );
 
 export const M3_R6_ROUND_006_PLAN_SHA256 =
-  "0e9521e373764c8e9389326f84d25172693b3e3a0894e9829183bb0c7a96a591" as const;
+  "195ba66a3b6bf920a1d3418a26e72037c817c1a713b888c1179047b85f9fc005" as const;
 
 export function validateM3R6Round006Plan(
   plan: typeof M3_R6_ROUND_006_PLAN = M3_R6_ROUND_006_PLAN,

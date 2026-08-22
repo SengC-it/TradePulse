@@ -42,7 +42,7 @@ The canonical Gate is serialized by
 src/lib/research/selection-gates-round-006.ts.
 
 - Gate SHA-256:
-  ff51cdc587f5a79cc9dd8d449202e481f4d2eed23e7f843797b8348b8cebe1f6
+  404e532d1594d708995de2f6b7573f386ea9270ff5386d5591948e002a4ef1fd
 - inherited Round-005 Gate SHA-256:
   e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5
 - inherited Round-004 Gate SHA-256:
@@ -83,7 +83,7 @@ profit-factor, concentration, and fee-burden definitions are preserved.
 The immutable Plan is serialized by src/lib/research/m3-r6-round-006-plan.ts.
 
 - Plan SHA-256:
-  0e9521e373764c8e9389326f84d25172693b3e3a0894e9829183bb0c7a96a591
+  195ba66a3b6bf920a1d3418a26e72037c817c1a713b888c1179047b85f9fc005
 - research round:
   baseline-002-research-round-006
 - data classification:
@@ -140,6 +140,12 @@ candidate-ID order; it is not a pairwise comparator. The machine record keeps
 the accepted Round-005 Gate SHA `e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5`
 separate from the inherited Round-004 ancestry SHA
 `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`.
+
+The expectancy tie band is an inclusive `0.01` R threshold. Its machine rule
+is `SCALE_AWARE_NUMBER_EPSILON`, using:
+`difference - threshold <= Number.EPSILON * Math.max(1, Math.abs(maxExpectancy), Math.abs(candidateExpectancy), Math.abs(threshold))`.
+This tolerance compensates only for IEEE-754 representation error and does
+not widen the economic threshold.
 
 The future execution source SHA is deliberately NOT predeclared. The later
 authorized runtime must separately provide and cross-check

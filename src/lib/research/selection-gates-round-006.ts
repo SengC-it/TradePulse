@@ -245,6 +245,11 @@ export const M3_R6_ROUND_006_DEFINITIONS = deepFreeze({
       { criterion: "candidateId", direction: "LEXICOGRAPHIC_ASCENDING" },
     ],
     complexityTieThresholdR: 0.01,
+    expectancyTieBandThresholdR: 0.01,
+    expectancyTieBandBoundary: "INCLUSIVE",
+    expectancyTieBandFloatingComparison: "SCALE_AWARE_NUMBER_EPSILON",
+    expectancyTieBandFloatingToleranceFormula:
+      "difference - threshold <= Number.EPSILON * Math.max(1, Math.abs(maxExpectancy), Math.abs(candidateExpectancy), Math.abs(threshold))",
     expectancyTieBandRule:
       "KEEP_WHEN_MAX_EXPECTANCY_MINUS_CANDIDATE_EXPECTANCY_IS_LESS_THAN_OR_EQUAL_TO_0.01",
     eligibleCandidateIdsOrder: "CANDIDATE_ID_ASCENDING",
@@ -299,7 +304,7 @@ export const M3_R6_ROUND_006_CANONICAL_JSON = stableStringify(
 );
 
 export const M3_R6_ROUND_006_SELECTION_GATE_SHA256 =
-  "ff51cdc587f5a79cc9dd8d449202e481f4d2eed23e7f843797b8348b8cebe1f6" as const;
+  "404e532d1594d708995de2f6b7573f386ea9270ff5386d5591948e002a4ef1fd" as const;
 
 export function validateM3R6Round006MachineRecord(
   record: typeof M3_R6_ROUND_006_MACHINE_RECORD = M3_R6_ROUND_006_MACHINE_RECORD,
@@ -566,6 +571,23 @@ function compareFinalSelectionOrder(
   return 0;
 }
 
+function isWithinInclusiveExpectancyTieBand(
+  maxExpectancy: number,
+  candidateExpectancy: number,
+  threshold: number,
+): boolean {
+  const difference = maxExpectancy - candidateExpectancy;
+  const tolerance =
+    Number.EPSILON *
+    Math.max(
+      1,
+      Math.abs(maxExpectancy),
+      Math.abs(candidateExpectancy),
+      Math.abs(threshold),
+    );
+  return difference - threshold <= tolerance;
+}
+
 function selectEligibleCandidatesByFrozenStages(
   eligible: readonly M3R6SelectionCandidate[],
 ): readonly M3R6SelectionCandidate[] {
@@ -579,7 +601,12 @@ function selectEligibleCandidatesByFrozenStages(
     ...foldCohort.map((candidate) => candidate.aggregateValidationExpectancyR),
   );
   const expectancyCohort = foldCohort.filter(
-    (candidate) => maxExpectancy - candidate.aggregateValidationExpectancyR <= 0.01,
+    (candidate) =>
+      isWithinInclusiveExpectancyTieBand(
+        maxExpectancy,
+        candidate.aggregateValidationExpectancyR,
+        M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm.expectancyTieBandThresholdR,
+      ),
   );
   return [...expectancyCohort].sort(compareFinalSelectionOrder);
 }

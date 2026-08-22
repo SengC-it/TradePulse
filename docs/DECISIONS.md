@@ -570,13 +570,13 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   inherited Round-004 ancestry SHA remains
   c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54. The
   corrected Round-006 canonical Gate SHA is
-  ff51cdc587f5a79cc9dd8d449202e481f4d2eed23e7f843797b8348b8cebe1f6.
+  404e532d1594d708995de2f6b7573f386ea9270ff5386d5591948e002a4ef1fd.
 - Plan: The canonical Plan binds the five-symbol universe, F1–F6 folds,
   seen-data boundary, baseline-001, bt-policy-003, R6 protocol identity,
   Gate SHA, settlement/economics, deterministic staged selection, the complete
   metric/status/output contract, and runtime provenance checks. Its corrected
   canonical SHA is
-  0e9521e373764c8e9389326f84d25172693b3e3a0894e9829183bb0c7a96a591.
+  195ba66a3b6bf920a1d3418a26e72037c817c1a713b888c1179047b85f9fc005.
 - Constraint: The future performance execution SHA is not predeclared; it
   must be supplied only by a separately authorized runtime and must equal the
   authorized source SHA and the clean-worktree Git HEAD. Required manifests
@@ -594,9 +594,12 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   The machine Gate now records the accepted Round-005 Gate independently from
   the inherited Round-004 ancestry Gate. The selector is a staged algorithm:
   eligibility, maximum improved folds, an inclusive 0.01 expectancy tie band,
-  complexity tuple, PF with null after finite, then candidate ID. This avoids
-  the non-transitive behavior of a pairwise comparator and freezes eligible-ID
-  serialization in ascending order.
+  complexity tuple, PF with null after finite, then candidate ID. The tie band
+  is `SCALE_AWARE_NUMBER_EPSILON` with
+  `difference - threshold <= Number.EPSILON * Math.max(1, Math.abs(maxExpectancy), Math.abs(candidateExpectancy), Math.abs(threshold))`;
+  the threshold remains exactly 0.01 and the boundary is inclusive. This
+  avoids the non-transitive behavior of a pairwise comparator and freezes
+  eligible-ID serialization in ascending order.
 - **Metric contract:** Only formal evaluator signals create records. The Plan
   explicitly defines the status semantics, formal/executed counts, PF
   NO_TRADES/NO_LOSSES behavior, fee burden, concentration, fold improvement,

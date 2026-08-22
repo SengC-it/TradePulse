@@ -289,6 +289,48 @@ describe("M3-R6-B.1B final registry, Gate, and Plan freeze", () => {
     );
   });
 
+  it("keeps mathematical 0.01 expectancy boundaries inside the tie band", () => {
+    for (const { maximum, candidate } of [
+      { maximum: 0.060, candidate: 0.050 },
+      { maximum: 0.070, candidate: 0.060 },
+      { maximum: 0.130, candidate: 0.120 },
+    ]) {
+      expect(
+        selectM3R6Candidate([
+          selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[1], {
+            aggregateValidationExpectancyR: maximum,
+          }),
+          selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[0], {
+            aggregateValidationExpectancyR: candidate,
+          }),
+        ]).selectedCandidateId,
+      ).toBe("R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH");
+    }
+  });
+
+  it("keeps a genuinely greater-than-0.01 expectancy difference outside the tie band", () => {
+    expect(
+      selectM3R6Candidate([
+        selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[1], {
+          aggregateValidationExpectancyR: 0.070000000001,
+        }),
+        selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[0], {
+          aggregateValidationExpectancyR: 0.060,
+        }),
+      ]).selectedCandidateId,
+    ).toBe("R6-H20-STRUCTURAL-TREND-CONTINUATION");
+    expect(
+      selectM3R6Candidate([
+        selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[1], {
+          aggregateValidationExpectancyR: 0.061,
+        }),
+        selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[0], {
+          aggregateValidationExpectancyR: 0.050,
+        }),
+      ]).selectedCandidateId,
+    ).toBe("R6-H20-STRUCTURAL-TREND-CONTINUATION");
+  });
+
   it("selects the same candidate for every permutation of the frozen four-candidate cohort", () => {
     const candidates = [
       selectionCandidate(M3_R6_ROUND_006_CANDIDATE_IDS[0], {
@@ -340,6 +382,7 @@ describe("M3-R6-B.1B final registry, Gate, and Plan freeze", () => {
       .update(stableStringify(M3_R6_ROUND_006_MACHINE_RECORD), "utf8")
       .digest("hex");
     expect(gateHash).toBe(M3_R6_ROUND_006_SELECTION_GATE_SHA256);
+    expect(M3_R6_ROUND_006_SELECTION_GATE_SHA256).toBe("404e532d1594d708995de2f6b7573f386ea9270ff5386d5591948e002a4ef1fd");
     expect(validateM3R6Round006MachineRecord()).toBe(M3_R6_ROUND_006_MACHINE_RECORD);
     expect(validateM3R6Round006Plan()).toBe(M3_R6_ROUND_006_PLAN);
     const planHash = createHash("sha256")
@@ -347,10 +390,22 @@ describe("M3-R6-B.1B final registry, Gate, and Plan freeze", () => {
       .digest("hex");
     expect(planHash).toBe(M3_R6_ROUND_006_PLAN_SHA256);
     expect(M3_R6_ROUND_006_PLAN_SCHEMA_VERSION).toBe("m3-r6-round-006-plan-001");
-    expect(M3_R6_ROUND_006_PLAN_SHA256).toBe("0e9521e373764c8e9389326f84d25172693b3e3a0894e9829183bb0c7a96a591");
+    expect(M3_R6_ROUND_006_PLAN_SHA256).toBe("195ba66a3b6bf920a1d3418a26e72037c817c1a713b888c1179047b85f9fc005");
   });
 
   it("freezes metric status, formulas, normalization, and output ordering", () => {
+    expect(M3_R6_ROUND_006_DEFINITIONS.selectionAlgorithm).toMatchObject({
+      expectancyTieBandThresholdR: 0.01,
+      expectancyTieBandBoundary: "INCLUSIVE",
+      expectancyTieBandFloatingComparison: "SCALE_AWARE_NUMBER_EPSILON",
+      expectancyTieBandFloatingToleranceFormula:
+        "difference - threshold <= Number.EPSILON * Math.max(1, Math.abs(maxExpectancy), Math.abs(candidateExpectancy), Math.abs(threshold))",
+    });
+    expect(M3_R6_ROUND_006_PLAN.selection).toMatchObject({
+      expectancyTieBandThresholdR: 0.01,
+      expectancyTieBandBoundary: "INCLUSIVE",
+      expectancyTieBandFloatingComparison: "SCALE_AWARE_NUMBER_EPSILON",
+    });
     expect(M3_R6_ROUND_006_METRIC_STATUS_CONTRACT.formalPopulation).toMatchObject({
       identity: "symbol|direction|signalTime",
       noSignalHandling: expect.stringContaining("NO_SIGNAL"),
