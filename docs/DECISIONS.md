@@ -520,6 +520,27 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   `FIRST_M3_R5_PERFORMANCE_RESULT_GENERATED`; after it, result-affecting
   changes require `ROUND_005_INVALIDATION_REQUIRED`.
 
+## ADR-034 — Freeze the Round-005 B.1B final registry, Gate, and Plan
+
+- **Decision:** The sole H17 qualification from source
+  `b59b9e86a8b1070275c157f571901a6165114670` is `DATA_NOT_AVAILABLE`.
+  H17 is excluded mechanically with no retry, replacement, or reinterpretation.
+  The final performance registry contains `R5-CONTROL-BASELINE-001` and the
+  standalone candidates `R5-H15-HTF-TREND`, `R5-H16-NEUTRAL-MEAN-REVERSION`,
+  and `R5-H18-COMPRESSION-EXPANSION`; no combinations are declared.
+- **Provenance:** The H17 JSON and Markdown qualification artifacts remain
+  byte-for-byte authoritative. The inherited Round-004 Gate SHA is
+  `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`;
+  the frozen Round-005 Gate SHA is
+  `e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5`, and
+  the frozen Round-005 Plan SHA is
+  `ab16a63462825441e00682f2b2bcbe04cb249e469843ce7f9a097017d992b6d1`.
+- **Consequence:** Performance remains unauthorized and no future execution
+  source SHA is predeclared. `baseline-002` remains `NOT_FROZEN`, M3-J remains
+  `BLOCKED`, and M4 remains `NOT_STARTED`. No qualification rerun, Binance
+  access, performance, Gate/Plan mutation, or candidate-definition change is
+  permitted by this freeze.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for
