@@ -453,13 +453,52 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
     };
   }
 
-  function withIsolatedAuthorizationFixture<T>(callback: (fixturePath: string) => T): T {
+  type IsolatedAuthorizationFixtureOptions = Readonly<{
+    seedSelectionOutputs?: boolean;
+    beforeNormalization?: (fixturePath: string) => void;
+  }>;
+
+  const selectionOutputPaths = [M3_R5_C3A_SELECTION_OUTPUT_JSON_PATH, M3_R5_C3A_SELECTION_OUTPUT_MARKDOWN_PATH] as const;
+
+  function fixtureOutputPath(fixturePath: string, outputPath: string): string {
+    return join(fixturePath, outputPath);
+  }
+
+  function commitFixtureChanges(fixturePath: string, message: string): void {
+    execFileSync("git", ["add", "--all", "--", ...selectionOutputPaths], { cwd: fixturePath, encoding: "utf8" });
+    execFileSync("git", [
+      "-c", "user.name=TradePulse C.3C fixture",
+      "-c", "user.email=tradepulse-c3c-fixture@example.invalid",
+      "commit", "--quiet", "-m", message,
+    ], { cwd: fixturePath, encoding: "utf8" });
+  }
+
+  function seedSelectionOutputs(fixturePath: string): void {
+    for (const outputPath of selectionOutputPaths) {
+      const absolutePath = fixtureOutputPath(fixturePath, outputPath);
+      mkdirSync(dirname(absolutePath), { recursive: true });
+      writeFileSync(absolutePath, `fixture output: ${outputPath}\n`, "utf8");
+    }
+    commitFixtureChanges(fixturePath, "test fixture: seed published selection outputs");
+  }
+
+  function normalizeSelectionOutputsAbsent(fixturePath: string): void {
+    const present = selectionOutputPaths.filter((outputPath) => existsSync(fixtureOutputPath(fixturePath, outputPath)));
+    if (present.length === 0) return;
+    for (const outputPath of present) unlinkSync(fixtureOutputPath(fixturePath, outputPath));
+    commitFixtureChanges(fixturePath, "test fixture: normalize selection outputs absent");
+  }
+
+  function withIsolatedAuthorizationFixture<T>(callback: (fixturePath: string) => T, options: IsolatedAuthorizationFixtureOptions = {}): T {
     const parentPath = mkdtempSync(join(tmpdir(), "m3-r5-c3a-auth-"));
     const fixturePath = join(parentPath, "repo");
     const repositoryRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
     const previousWorkingDirectory = process.cwd();
     try {
       execFileSync("git", ["clone", "--no-local", "--quiet", repositoryRoot, fixturePath], { encoding: "utf8" });
+      if (options.seedSelectionOutputs) seedSelectionOutputs(fixturePath);
+      options.beforeNormalization?.(fixturePath);
+      normalizeSelectionOutputsAbsent(fixturePath);
       process.chdir(fixturePath);
       return callback(fixturePath);
     } finally {
@@ -497,6 +536,26 @@ describe("M3-R5-C.3A frozen selection implementation", () => {
           unlinkSync(absoluteOutputPath);
         }
       }
+    });
+  }, 60_000);
+
+  it("normalizes a post-publication fixture before the positive authorization path", () => {
+    let sawCommittedSelectionOutputs = false;
+    withIsolatedAuthorizationFixture((fixturePath) => {
+      expect(sawCommittedSelectionOutputs).toBe(true);
+      for (const outputPath of selectionOutputPaths) expect(existsSync(fixtureOutputPath(fixturePath, outputPath))).toBe(false);
+      expect(execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" })).toBe("");
+      const valid = currentAuthorizationArguments();
+      expect(() => assertM3R5C3AAuthorization(valid)).not.toThrow();
+    }, {
+      seedSelectionOutputs: true,
+      beforeNormalization: (fixturePath) => {
+        sawCommittedSelectionOutputs = true;
+        for (const outputPath of selectionOutputPaths) {
+          expect(existsSync(fixtureOutputPath(fixturePath, outputPath))).toBe(true);
+          expect(execFileSync("git", ["ls-files", "--error-unmatch", outputPath], { cwd: fixturePath, encoding: "utf8" }).trim()).toBe(outputPath);
+        }
+      },
     });
   }, 60_000);
 
