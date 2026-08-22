@@ -33,7 +33,7 @@ Data after this boundary is reserved for future forward evaluation.
 | --- | --- | --- |
 | R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH | CROSS_SECTIONAL_RELATIVE_STRENGTH | Synchronized leader/laggard relative-strength signal |
 | R6-H20-STRUCTURAL-TREND-CONTINUATION | STRUCTURAL_TREND_CONTINUATION | Independent trend, controlled retracement, structural continuation signal |
-| R6-H21-ECONOMIC-VOLATILITY-EXPANSION | ECONOMIC_VOLATILITY_EXPANSION | Event-driven compression-to-expansion architecture with predeclared move-to-cost economics |
+| R6-H21-ECONOMIC-RANGE-IMPULSE | ECONOMIC_RANGE_IMPULSE | Independently generated price-range/impulse event with predeclared move-to-cost economics |
 | R6-H22-PREDECLARED-REGIME-ROUTING | PREDECLARED_REGIME_ROUTING | Deterministic decision-time regime routing frozen before performance |
 
 These are hypotheses, not executable candidates. R6-B may reject a hypothesis
@@ -107,36 +107,44 @@ its performance.
   risk and settlement semantics, manifests, no-future-data tests,
   falsification rules, and Gate/Plan records.
 
-## R6-H21 — Economic volatility expansion
+## R6-H21 — Economic range impulse
 
-- Mechanism family: ECONOMIC_VOLATILITY_EXPANSION.
-- Economic thesis: a predeclared transition from a compressed state to a
-  directional expansion may target sufficiently large gross movement to
-  survive the existing conservative fee, slippage, and settlement economics.
-- Structural difference: this is a new volatility architecture with
-  predeclared move-to-cost economics. It must not tune, relax, or sweep H18
-  thresholds and must not copy H18's candidate identity.
-- Required data: fully closed OHLC-derived volatility state and directional
-  expansion data from the approved universe, with existing frozen economics
-  retained. No new market data is authorized in R6-A.
-- Decision-time availability: compression and expansion state must be
-  computable using only closed decision-time candles; all move-to-cost
-  requirements must be frozen before performance.
-- Leakage risks: selecting a volatility threshold from H18 outcomes,
-  calculating compression with future bars, using post-entry movement to
-  define the signal, or changing the cost model to rescue a result.
-- Expected turnover behavior: research inference is event-driven and
-  potentially low-frequency, with trades concentrated around state
-  transitions rather than continuous trend filtering.
-- Expected gross-edge-per-trade mechanism: seek larger movement per qualified
-  event so fixed costs consume a smaller predeclared share of gross edge.
-- Falsification criteria: reject if the state transition is not reproducible
-  at decision time, is only an H18 threshold variant, or cannot meet the
+- Mechanism family: ECONOMIC_RANGE_IMPULSE.
+- Economic thesis: an independently generated decision-time price-range or
+  directional-impulse event may identify sufficiently large displacement
+  relative to predeclared transaction economics.
+- Structural difference: the signal identity is a price-range/impulse event,
+  not a prior compression state, not a compression-to-expansion transition,
+  not an H18 predicate, not a tuned H18 threshold, and not an H18 signal
+  combined with a cost or economic filter. Move-to-cost economics are part of
+  the pre-performance thesis and cannot be used as an after-the-fact rescue
+  filter.
+- Required data: fully closed OHLC-derived range and directional-impulse
+  observations from the approved universe, with the existing frozen fee,
+  slippage, and settlement economics retained. No new market data is
+  authorized in R6-A.
+- Decision-time availability: the range/impulse state must be computable
+  only from closed candles available at the decision timestamp; its exact
+  event identity and economic contract must be frozen before performance.
+- Leakage risks: selecting a range or impulse definition from H18 outcomes,
+  using future bars to define the event, copying H18 breakout predicates,
+  using post-entry displacement to define the signal, or changing the cost
+  model to rescue a result.
+- Expected turnover behavior: research inference is event-driven and may be
+  lower-frequency than continuous trend filtering, but its cadence must be
+  measured only after R6-B freezes it.
+- Expected gross-edge-per-trade mechanism: seek sufficiently large
+  pre-entry directional displacement per qualified event so fixed costs
+  consume a smaller predeclared share of gross edge.
+- Falsification criteria: reject if the event is not reproducible at decision
+  time, collapses into H18 compression-to-expansion logic or an H18 predicate
+  variant, depends on an after-the-fact economic filter, or cannot meet the
   predeclared economic and non-weakened Gate requirements.
 - Current committed data sufficiency: committed OHLC and settlement evidence
-  is sufficient to define an offline data contract; R6-A does not claim that
-  the exact executable feature or performance sample is sufficient.
-- R6-B must freeze: volatility-state semantics, expansion confirmation,
+  is sufficient to define an offline range/impulse data contract; R6-A does
+  not claim that the exact executable feature or performance sample is
+  sufficient.
+- R6-B must freeze: range/impulse event semantics, direction confirmation,
   move-to-cost rule, one variant, data manifests, no-future-data tests,
   falsification rules, and Gate/Plan records.
 

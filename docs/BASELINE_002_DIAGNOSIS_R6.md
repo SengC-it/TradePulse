@@ -128,10 +128,12 @@ the frozen requirement, only 68 formal signals, and a minimum fold sample of
 four executed trades.
 
 RESEARCH INFERENCE: The result suggests that large-move or volatility
-architectures may deserve structural research, but it does not justify
-tuning H18 thresholds, expanding its sample after seeing the result, or
-reusing its predicate. R6-H21 is an independent qualitative volatility
-architecture, not an H18 threshold revision.
+economics may deserve structural research, but it does not justify tuning
+H18 thresholds, expanding its sample after seeing the result, or reusing its
+predicate. H18's compression-to-expansion predicate family is retired as a
+direct Round-006 first-stage signal identity. Round-006 may research
+volatility economics only through R6-H21's structurally different
+range-impulse signal-generation mechanism.
 
 ## Retired and rejected mechanism families
 
@@ -149,10 +151,13 @@ The following remain retired from the first-stage research set:
 - C1-C4 combinations
 - first-stage tuning of H11-H14
 - tuning or threshold changes to H15, H16, or H18 from Round-005 outcomes
+- H18 compression-to-expansion predicate family as a direct Round-006
+  first-stage signal identity
 
 R6-A introduces no combinations and does not revive a retired family under a
 new name. In particular, R6-H20 must not become a recreation of H8, and
-R6-H21 must not become a tuning of H18.
+R6-H21 must not become H18 compression-to-expansion logic, an H18 predicate
+copy, or an H18 signal plus an economic filter.
 
 ## R6-A research conclusion
 
