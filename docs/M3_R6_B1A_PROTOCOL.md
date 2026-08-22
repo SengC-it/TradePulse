@@ -49,19 +49,21 @@ performance and cannot be adjusted after it.
 
 ## H19 — cross-sectional relative strength
 
-At each 4H UTC block boundary (`current 1H openTime mod 4h == 0`), require one
-valid, synchronized, fully closed 1H decision candle for every approved
-symbol. For each symbol `s`, compute:
+At each UTC 4H block, use the first fully closed 1H candle whose `openTime`
+belongs to that block (`current 1H openTime mod 4h == 0`). Require one valid,
+synchronized, fully closed 1H decision candle for every approved symbol. For
+each symbol `s`, compute:
 
 ```text
 return_s = close_s(t) / close_s(t - 24 closed 1H candles) - 1
 ```
 
-Rank the five values descending by return and then ascending by symbol. The
-first symbol is the long leader; the last symbol is the short laggard. This
-tie rule always produces a deterministic distinct pair. Exactly two signals
-may be emitted at a timestamp: one long leader and one short laggard. Missing
-or unsynchronized symbols are `DATA_INCOMPLETE`.
+The leader is `argmax(return_s, tie=symbol_ASC)`. The laggard is
+`argmin(return_s, tie=symbol_DESC)`. Thus the lexicographically smallest
+symbol wins a tied maximum and the lexicographically largest symbol wins a
+tied minimum. Exactly two signals may be emitted at a timestamp: one long
+leader and one short laggard. Missing or unsynchronized symbols are
+`DATA_INCOMPLETE`.
 
 This is a cross-sectional signal, not baseline-001 Top-N, not BTC alignment,
 not a single-symbol filter, and not a combination. Stop is the signal candle
@@ -70,7 +72,15 @@ opposite extreme; TP is exactly 2R; maximum holding is 24 held candles.
 ## H20 — structural trend continuation
 
 Use exactly the latest three fully closed 4H candles for structure and the
-latest four fully closed 1H candles for the continuation event. A long trend
+latest four fully closed 1H candles for the continuation event. The latest
+structural 4H candle must be fully closed before the first 1H event candle
+begins:
+
+```text
+latestStructural4h.closeTime < h20EventWindowFirst1h.openTime
+```
+
+A long trend
 requires strictly increasing highs and lows across all three 4H candles. A
 short trend requires strictly decreasing highs and lows. For long, the two
 middle 1H candles must have non-increasing closes and lows above the oldest
@@ -79,8 +89,10 @@ below the oldest 4H structural high. The current 1H candle confirms long by
 closing above both retracement highs while bullish, or confirms short by
 closing below both retracement lows while bearish.
 
-The stop is the corresponding two-candle retracement extreme; TP is exactly
-2R; maximum holding is 24 held candles.
+If the structural/event non-overlap invariant fails, H20 returns the frozen
+non-signal status `NO_SIGNAL` with reason `H20_STRUCTURAL_EVENT_OVERLAP`. The
+stop is the corresponding two-candle retracement extreme; TP is exactly 2R;
+maximum holding is 24 held candles.
 
 This is materially different from retired H8: it does not use EMA20/EMA50
 touches, a t-1/t-2 pullback filter, baseline-001 predicates, or an H8 buffer.
@@ -140,15 +152,57 @@ route map without becoming a meta-selector, H22 must be
 Every required candle has the existing `Candle` fields: symbol, timeframe,
 openTime, closeTime, open, high, low, close, volume, quoteVolume, tradeCount,
 takerBuyBaseVolume, and takerBuyQuoteVolume. Timestamps are UTC milliseconds.
-The required input is limited to the approved 1H/4H closed-candle datasets and
-existing settlement data; no new market data is fetched in B.1A.
+For 1H candles, `closeTime = openTime + 1h - 1ms` and `openTime` is aligned to
+the UTC hour. For 4H candles, `closeTime = openTime + 4h - 1ms` and `openTime`
+is aligned to the UTC 4H grid. Every declared field is validated: prices are
+finite and positive, volume-like fields are finite and non-negative,
+`tradeCount` is a finite non-negative integer, and OHLC relationships are
+valid. Required windows are strictly contiguous, with no duplicate or
+irregular timestamps. H19 additionally requires identical 25-candle
+open/close timestamp windows for all five symbols. The required input is
+limited to the approved 1H/4H closed-candle datasets and existing settlement
+data; no new market data is fetched in B.1A.
 
 The evaluator first limits its view to candles with `closeTime <= signalTime`,
-requires chronological order and valid OHLC relationships, and fails closed
-when a required window is absent or invalid. It never reads the future entry
-candle, held candles, exit candle, future funding, or outcome data while
-forming a signal. The entry resolver is a separate operation and only finds
-the first legal 1H open strictly after the already-formed signal.
+requires canonical timestamps, contiguous windows, synchronized H19 windows,
+and valid declared fields, and fails closed when a required window is absent
+or invalid. It never reads the future entry candle, held candles, exit candle,
+future funding, or outcome data while forming a signal. The entry resolver is
+a separate operation and only finds the first legal 1H open strictly after the
+already-formed signal.
+
+## Entry, stop, and target geometry
+
+After the first legal 1H open, `bt-policy-003` applies adverse slippage to
+produce `actualEntryFill`:
+
+```text
+LONG:  actualEntryFill = rawEntryPrice * (1 + slippageRate)
+SHORT: actualEntryFill = rawEntryPrice * (1 - slippageRate)
+```
+
+The stop reference is never moved or clamped. It must remain protective after
+the actual fill:
+
+```text
+LONG:  stopReferencePrice < actualEntryFill
+SHORT: stopReferencePrice > actualEntryFill
+```
+
+If equality or a gap violates this invariant, the formal signal remains
+available for audit but execution is not performed and returns
+`INVALID_STOP_GEOMETRY` with reason `STOP_NOT_PROTECTIVE_AFTER_SLIPPAGE`.
+There is no stop rescue and no zero/negative-R trade. For valid geometry:
+
+```text
+LONG:  R = actualEntryFill - stopReferencePrice
+       TP = actualEntryFill + 2 * R
+SHORT: R = stopReferencePrice - actualEntryFill
+       TP = actualEntryFill - 2 * R
+```
+
+`R` must be strictly positive. Invalid numeric input fails closed as
+`DATA_INCOMPLETE`.
 
 ## Gate inheritance and performance lock
 
@@ -178,4 +232,3 @@ patch-and-rerun.
 `M3-R6-B.1B = NOT_STARTED / PENDING_ACCEPTANCE`  
 `M3-J = BLOCKED`  
 `M4 = NOT_STARTED`
-

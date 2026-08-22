@@ -72,12 +72,19 @@ export type R6EntryResolution =
       signal: R6CandidateSignal;
       entryOpenTime: number;
       rawEntryPrice: number;
+      actualEntryFill: number;
+      stopReferencePrice: number;
+      riskDistance: number;
+      takeProfitPrice: number;
     }>
   | Readonly<{
-      status: "ENTRY_UNAVAILABLE" | "PERIOD_END_CENSORED";
+      status: "ENTRY_UNAVAILABLE" | "PERIOD_END_CENSORED" | "DATA_INCOMPLETE" | "INVALID_STOP_GEOMETRY";
       signal: R6CandidateSignal;
       reason: string;
       entryOpenTime?: number;
+      rawEntryPrice?: number;
+      actualEntryFill?: number;
+      stopReferencePrice?: number;
     }>;
 
 export type R6SymbolCandleInput = Readonly<{
@@ -86,11 +93,11 @@ export type R6SymbolCandleInput = Readonly<{
 }>;
 
 export const R6_H19_PARAMETERS = Object.freeze({
-  decisionCadence: "ONE_DECISION_PER_4H_UTC_BLOCK",
+  decisionCadence: "FIRST_CLOSED_1H_CANDLE_OPENING_AT_EACH_UTC_4H_BLOCK",
   returnLookbackClosed1hCandles: 24,
   leaderSelection: "MAX_RETURN_THEN_SYMBOL_ASCENDING",
   laggardSelection: "MIN_RETURN_THEN_SYMBOL_DESCENDING",
-  tieHandling: "LEADER_IS_FIRST_ASCENDING_SYMBOL;LAGGARD_IS_LAST_ASCENDING_SYMBOL",
+  tieHandling: "LEADER_MAX_RETURN_SYMBOL_ASC;LAGGARD_MIN_RETURN_SYMBOL_DESC",
   missingSymbolBehavior: "DATA_INCOMPLETE",
   signalMultiplicity: "ONE_LONG_LEADER_AND_ONE_SHORT_LAGGARD_PER_TIMESTAMP",
 } as const);
@@ -141,6 +148,10 @@ export const R6_EXECUTION_CONTRACTS = Object.freeze({
     settlement: "SL_FIRST_INTRABAR_ORDERING",
     timeExit: "CLOSE_OF_HELD_CANDLE_24",
     heldCandleCount: BACKTEST_POLICY.heldCandleCount,
+    entryFill: "LONG rawEntryPrice*(1+slippageRate);SHORT rawEntryPrice*(1-slippageRate)",
+    invalidStopGeometry: "INVALID_STOP_GEOMETRY;FORMAL_SIGNAL_PRESERVED_NON_EXECUTED",
+    riskDistance: "LONG actualEntryFill-stopReferencePrice;SHORT stopReferencePrice-actualEntryFill",
+    takeProfit: "LONG actualEntryFill+2*riskDistance;SHORT actualEntryFill-2*riskDistance",
   }),
   "R6-H19-CROSS-SECTIONAL-RELATIVE-STRENGTH": Object.freeze({
     stop: "SIGNAL_CANDLE_OPPOSITE_EXTREME",
@@ -186,7 +197,9 @@ export const R6_REQUIRED_CANDLE_FIELDS = Object.freeze([
 export const R6_DATA_CONTRACT = Object.freeze({
   common: Object.freeze({
     fields: R6_REQUIRED_CANDLE_FIELDS,
-    timestamp: "UTC_MILLISECONDS;signalTime_IS_CLOSED_CANDLE_CLOSE_TIME",
+    timestamp: "UTC_MILLISECONDS;1H_OPEN_ALIGNED_TO_UTC_HOUR;4H_OPEN_ALIGNED_TO_UTC_4H;CLOSE_EQUALS_OPEN_PLUS_INTERVAL_MINUS_1MS;signalTime_IS_CLOSED_CANDLE_CLOSE_TIME",
+    fieldValidation: "ALL_DECLARED_FIELDS_FINITE;VOLUME_FIELDS_NON_NEGATIVE;tradeCount_NON_NEGATIVE_INTEGER;VALID_OHLC",
+    continuity: "REQUIRED_WINDOWS_STRICTLY_CONTIGUOUS_WITH_NO_DUPLICATE_OR_IRREGULAR_INTERVAL",
     missingData: "DATA_INCOMPLETE",
     futureData: "IGNORED_BEYOND_DECISION_TIME_AND_NEVER_USED_FOR_SIGNAL_FORMATION",
   }),
@@ -200,8 +213,8 @@ export const R6_FORMULA_DEFINITIONS = Object.freeze({
   h19: Object.freeze({
     return: "return_s = close_s(t) / close_s(t-24_closed_1h) - 1",
     leader: "argmax(return_s, tie=symbol_ASC)",
-    laggard: "last(argmax(return_s, tie=symbol_ASC))",
-    cadence: "current_1h.openTime mod 4h == 0",
+    laggard: "argmin(return_s, tie=symbol_DESC)",
+    cadence: "first_closed_1h_candle_opening_at_each_utc_4h_block; current_1h.openTime mod 4h == 0",
   }),
   h20: Object.freeze({
     longTrend: "h[-3].high < h[-2].high < h[-1].high AND h[-3].low < h[-2].low < h[-1].low",
@@ -271,6 +284,10 @@ function finitePositive(value: number): boolean {
   return finite(value) && value > 0;
 }
 
+function finiteNonNegative(value: number): boolean {
+  return finite(value) && value >= 0;
+}
+
 function safeTimestamp(value: number): boolean {
   return Number.isSafeInteger(value);
 }
@@ -282,15 +299,26 @@ function validDecisionTime(decisionTime: number): boolean {
 }
 
 function validCandle(candle: Candle, symbol: ResearchSymbol, timeframe: "1h" | "4h"): boolean {
+  const intervalMs = timeframe === "1h" ? HOUR_MS : FOUR_HOUR_MS;
+  const expectedCloseTime = candle.openTime + intervalMs - 1;
   return candle.symbol === symbol
     && candle.timeframe === timeframe
     && safeTimestamp(candle.openTime)
+    && candle.openTime >= 0
+    && candle.openTime % intervalMs === 0
     && safeTimestamp(candle.closeTime)
-    && candle.closeTime >= candle.openTime
+    && safeTimestamp(expectedCloseTime)
+    && candle.closeTime === expectedCloseTime
     && finitePositive(candle.open)
     && finitePositive(candle.high)
     && finitePositive(candle.low)
     && finitePositive(candle.close)
+    && finiteNonNegative(candle.volume)
+    && finiteNonNegative(candle.quoteVolume)
+    && finiteNonNegative(candle.tradeCount)
+    && Number.isInteger(candle.tradeCount)
+    && finiteNonNegative(candle.takerBuyBaseVolume)
+    && finiteNonNegative(candle.takerBuyQuoteVolume)
     && candle.high >= Math.max(candle.open, candle.close)
     && candle.low <= Math.min(candle.open, candle.close)
     && candle.high >= candle.low;
@@ -304,9 +332,18 @@ function closedSeries(
 ): readonly Candle[] | null {
   const closed = candles.filter((candle) => candle.symbol === symbol && candle.timeframe === timeframe && candle.closeTime <= decisionTime);
   if (closed.length === 0 || !closed.every((candle) => validCandle(candle, symbol, timeframe))) return null;
+  const intervalMs = timeframe === "1h" ? HOUR_MS : FOUR_HOUR_MS;
+  const seenOpenTimes = new Set<number>();
   for (let index = 1; index < closed.length; index += 1) {
-    if (closed[index - 1]!.openTime >= closed[index]!.openTime || closed[index - 1]!.closeTime >= closed[index]!.closeTime) return null;
+    const previous = closed[index - 1]!;
+    const current = closed[index]!;
+    if (seenOpenTimes.has(current.openTime)
+      || previous.openTime >= current.openTime
+      || previous.closeTime >= current.closeTime
+      || current.openTime - previous.openTime !== intervalMs) return null;
+    seenOpenTimes.add(previous.openTime);
   }
+  if (seenOpenTimes.has(closed.at(-1)!.openTime)) return null;
   return closed;
 }
 
@@ -352,9 +389,17 @@ export function evaluateR6H19(input: Readonly<{
 }>): R6CandidateEvaluation {
   if (!validDecisionTime(input.decisionTime) || !fullUniverse(input.snapshots)) return incomplete("SYNCHRONIZED_FIVE_SYMBOL_INPUT_REQUIRED");
   const observations: Array<{ symbol: ResearchSymbol; returnValue: number; current: Candle }> = [];
+  let referenceWindow: readonly Candle[] | null = null;
   for (const snapshot of input.snapshots) {
     const currentInput = current1h({ ...snapshot, decisionTime: input.decisionTime });
     if (!currentInput || currentInput.series.length < R6_H19_PARAMETERS.returnLookbackClosed1hCandles + 1) return incomplete("H19_RETURN_LOOKBACK_UNAVAILABLE");
+    const decisionWindow = currentInput.series.slice(-(R6_H19_PARAMETERS.returnLookbackClosed1hCandles + 1));
+    if (referenceWindow === null) {
+      referenceWindow = decisionWindow;
+    } else if (decisionWindow.length !== referenceWindow.length || decisionWindow.some((candle, index) =>
+      candle.openTime !== referenceWindow![index]!.openTime || candle.closeTime !== referenceWindow![index]!.closeTime)) {
+      return incomplete("H19_SYMBOL_TIMESTAMP_WINDOW_MISMATCH");
+    }
     const lookback = currentInput.series.at(-(R6_H19_PARAMETERS.returnLookbackClosed1hCandles + 1));
     if (!lookback || !finitePositive(lookback.close) || !finitePositive(currentInput.current.close)) return incomplete("H19_RETURN_INPUT_INVALID");
     const returnValue = currentInput.current.close / lookback.close - 1;
@@ -413,6 +458,8 @@ export function evaluateR6H20(input: Readonly<{
   const direction = h20TrendDirection(higherTimeframe);
   if (!direction) return noSignal("H20_STRUCTURAL_TREND_NOT_SATISFIED");
   const window = currentInput.series.slice(-4);
+  const latestStructuralCandle = higherTimeframe.at(-1)!;
+  if (latestStructuralCandle.closeTime >= window[0]!.openTime) return noSignal("H20_STRUCTURAL_EVENT_OVERLAP");
   const leg = window[0]!;
   const retracementOne = window[1]!;
   const retracementTwo = window[2]!;
@@ -524,12 +571,67 @@ export function resolveR6NextOpenEntry(input: Readonly<{
     candle.symbol === input.signal.symbol
     && candle.timeframe === "1h"
     && candle.openTime > input.signal.signalTime
-    && finitePositive(candle.open)
-    && safeTimestamp(candle.openTime),
+    && validCandle(candle, input.signal.symbol, "1h"),
   );
   if (!entry) return Object.freeze({ status: "ENTRY_UNAVAILABLE", signal: input.signal, reason: "NEXT_1H_OPEN_UNAVAILABLE" });
   if (input.periodEndTime !== undefined && entry.openTime > input.periodEndTime) {
     return Object.freeze({ status: "PERIOD_END_CENSORED", signal: input.signal, reason: "NEXT_1H_OPEN_AFTER_PERIOD_END", entryOpenTime: entry.openTime });
   }
-  return Object.freeze({ status: "READY", signal: input.signal, entryOpenTime: entry.openTime, rawEntryPrice: entry.open });
+  const rawEntryPrice = entry.open;
+  const actualEntryFill = input.signal.direction === "LONG"
+    ? rawEntryPrice * (1 + BACKTEST_POLICY.slippageRate)
+    : rawEntryPrice * (1 - BACKTEST_POLICY.slippageRate);
+  const stopReferencePrice = input.signal.stopReferencePrice;
+  if (!finitePositive(rawEntryPrice) || !finitePositive(actualEntryFill) || !finitePositive(stopReferencePrice)) {
+    return Object.freeze({
+      status: "DATA_INCOMPLETE",
+      signal: input.signal,
+      entryOpenTime: entry.openTime,
+      rawEntryPrice,
+      actualEntryFill,
+      stopReferencePrice,
+      reason: "INVALID_ENTRY_OR_STOP_PRICE",
+    });
+  }
+  const validStopGeometry = input.signal.direction === "LONG"
+    ? stopReferencePrice < actualEntryFill
+    : stopReferencePrice > actualEntryFill;
+  if (!validStopGeometry) {
+    return Object.freeze({
+      status: "INVALID_STOP_GEOMETRY",
+      signal: input.signal,
+      entryOpenTime: entry.openTime,
+      rawEntryPrice,
+      actualEntryFill,
+      stopReferencePrice,
+      reason: "STOP_NOT_PROTECTIVE_AFTER_SLIPPAGE",
+    });
+  }
+  const riskDistance = input.signal.direction === "LONG"
+    ? actualEntryFill - stopReferencePrice
+    : stopReferencePrice - actualEntryFill;
+  const takeProfitPrice = input.signal.direction === "LONG"
+    ? actualEntryFill + 2 * riskDistance
+    : actualEntryFill - 2 * riskDistance;
+  if (!finitePositive(riskDistance) || !finitePositive(takeProfitPrice)) {
+    return Object.freeze({
+      status: "DATA_INCOMPLETE",
+      signal: input.signal,
+      entryOpenTime: entry.openTime,
+      rawEntryPrice,
+      actualEntryFill,
+      stopReferencePrice,
+      reason: "INVALID_RISK_OR_TARGET_GEOMETRY",
+    });
+  }
+  return Object.freeze({
+    status: "READY",
+    signal: input.signal,
+    entryOpenTime: entry.openTime,
+    rawEntryPrice,
+    actualEntryFill,
+    stopReferencePrice,
+    riskDistance,
+    takeProfitPrice,
+  });
 }

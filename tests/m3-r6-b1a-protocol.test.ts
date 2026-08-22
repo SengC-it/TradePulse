@@ -93,7 +93,7 @@ function h20Input() {
     makeCandle({ timeframe: "4h", openTime: BASE + FOUR_HOURS, open: 110, high: 115, low: 105, close: 111 }),
     makeCandle({ timeframe: "4h", openTime: BASE + 2 * FOUR_HOURS, open: 120, high: 125, low: 115, close: 121 }),
   ];
-  const startTime = BASE + 9 * HOUR;
+  const startTime = BASE + 13 * HOUR;
   const candles1h = [
     makeCandle({ openTime: startTime, open: 130, high: 136, low: 129, close: 135 }),
     makeCandle({ openTime: startTime + HOUR, open: 135, high: 136, low: 132, close: 134 }),
@@ -173,7 +173,10 @@ describe("M3-R6-B.1A machine-readable protocol", () => {
     ]);
     expect(R6_DATA_CONTRACT.common.missingData).toBe("DATA_INCOMPLETE");
     expect(R6_DATA_CONTRACT.common.futureData).toContain("NEVER_USED_FOR_SIGNAL_FORMATION");
-    expect(R6_FORMULA_DEFINITIONS.h19.cadence).toBe("current_1h.openTime mod 4h == 0");
+    expect(R6_FORMULA_DEFINITIONS.h19.cadence).toContain("first_closed_1h_candle_opening_at_each_utc_4h_block");
+    expect(R6_DATA_CONTRACT.common.fieldValidation).toContain("tradeCount_NON_NEGATIVE_INTEGER");
+    expect(R6_DATA_CONTRACT.common.continuity).toContain("STRICTLY_CONTIGUOUS");
+    expect(R6_FORMULA_DEFINITIONS.h19.laggard).toBe("argmin(return_s, tie=symbol_DESC)");
     expect(R6_FORMULA_DEFINITIONS.h21.event).toContain("8 * (2*feeRate + 2*slippageRate)");
   });
 });
@@ -182,7 +185,11 @@ describe("R6-H19 cross-sectional relative strength", () => {
   it("ranks the synchronized five-symbol universe and handles ties deterministically", () => {
     const snapshots = RESEARCH_SYMBOLS.map((symbol) => ({
       symbol,
-      candles1h: h19Snapshot(symbol, symbol === "BNBUSDT" ? 120 : symbol === "BTCUSDT" ? 110 : 100),
+      candles1h: h19Snapshot(symbol,
+        symbol === "BNBUSDT" ? 120
+          : symbol === "BTCUSDT" ? 110
+            : symbol === "SOLUSDT" || symbol === "XRPUSDT" ? 80
+              : 100),
     }));
     const result = evaluateR6H19({ decisionTime: snapshots[0]!.candles1h.at(-1)!.closeTime, snapshots });
     expect(result.status).toBe("SIGNALS");
@@ -202,6 +209,38 @@ describe("R6-H19 cross-sectional relative strength", () => {
       decisionTime,
       snapshots: complete.map((snapshot, index) => index === 0 ? { ...snapshot, candles1h: snapshot.candles1h.slice(1) } : snapshot),
     }).status).toBe("DATA_INCOMPLETE");
+  });
+
+  it("rejects internal gaps, duplicates, malformed duration, and timestamp-window mismatch", () => {
+    const complete = RESEARCH_SYMBOLS.map((symbol) => ({ symbol, candles1h: h19Snapshot(symbol, 100) }));
+    const decisionTime = complete[0]!.candles1h.at(-1)!.closeTime;
+    const gap = complete.map((snapshot, snapshotIndex) => snapshotIndex === 0
+      ? { ...snapshot, candles1h: snapshot.candles1h.filter((_candle, index) => index !== 12) }
+      : snapshot);
+    expect(evaluateR6H19({ decisionTime, snapshots: gap }).status).toBe("DATA_INCOMPLETE");
+
+    const duplicate = complete.map((snapshot, snapshotIndex) => snapshotIndex === 0
+      ? { ...snapshot, candles1h: [...snapshot.candles1h.slice(0, 12), snapshot.candles1h[11]!, ...snapshot.candles1h.slice(12)] }
+      : snapshot);
+    expect(evaluateR6H19({ decisionTime, snapshots: duplicate }).status).toBe("DATA_INCOMPLETE");
+
+    const malformedDuration = complete.map((snapshot, snapshotIndex) => snapshotIndex === 0
+      ? { ...snapshot, candles1h: snapshot.candles1h.map((candle, index) => index === 12 ? { ...candle, closeTime: candle.closeTime - 1 } : candle) }
+      : snapshot);
+    expect(evaluateR6H19({ decisionTime, snapshots: malformedDuration }).status).toBe("DATA_INCOMPLETE");
+
+    const timestampMismatch = complete.map((snapshot, snapshotIndex) => snapshotIndex === 0
+      ? { ...snapshot, candles1h: snapshot.candles1h.map((candle, index) => index === 0 ? { ...candle, openTime: candle.openTime + HOUR, closeTime: candle.closeTime + HOUR } : candle) }
+      : snapshot);
+    expect(evaluateR6H19({ decisionTime, snapshots: timestampMismatch }).status).toBe("DATA_INCOMPLETE");
+  });
+
+  it("fails closed when a declared Candle field is invalid", () => {
+    const snapshots = RESEARCH_SYMBOLS.map((symbol) => ({ symbol, candles1h: h19Snapshot(symbol, 100) }));
+    const invalid = snapshots.map((snapshot, index) => index === 0
+      ? { ...snapshot, candles1h: snapshot.candles1h.map((candle, candleIndex) => candleIndex === 12 ? { ...candle, volume: Number.NaN } : candle) }
+      : snapshot);
+    expect(evaluateR6H19({ decisionTime: snapshots[0]!.candles1h.at(-1)!.closeTime, snapshots: invalid }).status).toBe("DATA_INCOMPLETE");
   });
 
   it("does not change when future candle values are mutated and separates next-open entry", () => {
@@ -242,6 +281,20 @@ describe("R6-H20 structural trend continuation", () => {
     expect(evaluateR6H20({ ...input, candles1h: input.candles1h.slice(0, 3) }).status).toBe("DATA_INCOMPLETE");
   });
 
+  it("rejects a structural 4H candle that overlaps the H20 event window", () => {
+    const input = h20Input();
+    const overlapStart = BASE + 9 * HOUR;
+    const overlapCandles = input.candles1h.map((candle, index) => makeCandle({
+      openTime: overlapStart + index * HOUR,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }));
+    const result = evaluateR6H20({ ...input, candles1h: overlapCandles, decisionTime: overlapCandles.at(-1)!.closeTime });
+    expect(result).toMatchObject({ status: "NO_SIGNAL", reason: "H20_STRUCTURAL_EVENT_OVERLAP" });
+  });
+
   it("proves H20 is not the retired EMA/pullback or H15 breakout family", () => {
     const protocol = readFileSync("docs/M3_R6_B1A_PROTOCOL.md", "utf8");
     const h20Section = protocol.slice(protocol.indexOf("## H20"), protocol.indexOf("## H21"));
@@ -266,6 +319,48 @@ describe("R6-H21 economic range impulse", () => {
       direction: "LONG",
       stopReferencePrice: 990,
     });
+  });
+
+  it("freezes actual-fill stop and 2R geometry for valid LONG and SHORT entries", () => {
+    const longSignalResult = evaluateR6H21(h21Input(0.02, 0.8));
+    expect(longSignalResult.status).toBe("SIGNALS");
+    if (longSignalResult.status !== "SIGNALS") return;
+    const longSignal = longSignalResult.signals[0]!;
+    const longEntry = makeCandle({ symbol: "BTCUSDT", openTime: longSignal.signalTime + 1, open: 1_000, high: 1_002, low: 998, close: 1_000 });
+    const longExecution = resolveR6NextOpenEntry({ signal: longSignal, candles1h: [...h21Input(0.02, 0.8).candles1h, longEntry] });
+    expect(longExecution).toMatchObject({ status: "READY", rawEntryPrice: 1_000, actualEntryFill: 1_000.5, stopReferencePrice: 990, riskDistance: 10.5, takeProfitPrice: 1_021.5 });
+
+    const shortCandle = makeCandle({ openTime: BASE, open: 1_000, high: 1_010, low: 990, close: 994 });
+    const shortSignalResult = evaluateR6H21({ symbol: "BTCUSDT", candles1h: [shortCandle], decisionTime: shortCandle.closeTime });
+    expect(shortSignalResult.status).toBe("SIGNALS");
+    if (shortSignalResult.status !== "SIGNALS") return;
+    const shortSignal = shortSignalResult.signals[0]!;
+    const shortEntry = makeCandle({ symbol: "BTCUSDT", openTime: shortSignal.signalTime + 1, open: 1_000, high: 1_002, low: 998, close: 1_000 });
+    const shortExecution = resolveR6NextOpenEntry({ signal: shortSignal, candles1h: [shortCandle, shortEntry] });
+    expect(shortExecution).toMatchObject({ status: "READY", actualEntryFill: 999.5, stopReferencePrice: 1_010, riskDistance: 10.5, takeProfitPrice: 978.5 });
+  });
+
+  it.each([
+    ["LONG fill equals stop", "LONG", 1_000.5],
+    ["LONG fill below stop", "LONG", 1_001],
+    ["SHORT fill equals stop", "SHORT", 999.5],
+    ["SHORT fill above stop", "SHORT", 999],
+  ] as const)("returns INVALID_STOP_GEOMETRY for %s", (_label, direction, stopReferencePrice) => {
+    const candle = makeCandle({ openTime: BASE, open: 1_000, high: 1_010, low: 990, close: direction === "LONG" ? 1_006 : 994 });
+    const baseSignal = {
+      candidateId: "R6-H21-ECONOMIC-RANGE-IMPULSE" as const,
+      hypothesisId: "R6-H21-ECONOMIC-RANGE-IMPULSE" as const,
+      mechanismFamily: "ECONOMIC_RANGE_IMPULSE" as const,
+      symbol: "BTCUSDT" as const,
+      direction,
+      signalTime: candle.closeTime,
+      stopReference: "SIGNAL_CANDLE_OPPOSITE_EXTREME" as const,
+      stopReferencePrice,
+      takeProfitR: 2 as const,
+      maxHeldCandles: 24 as const,
+    };
+    const entry = makeCandle({ symbol: "BTCUSDT", openTime: candle.closeTime + 1, open: 1_000, high: 1_002, low: 998, close: 1_000 });
+    expect(resolveR6NextOpenEntry({ signal: baseSignal, candles1h: [candle, entry] })).toMatchObject({ status: "INVALID_STOP_GEOMETRY", reason: "STOP_NOT_PROTECTIVE_AFTER_SLIPPAGE" });
   });
 
   it("rejects a sub-cost range, weak close location, and equal open/close", () => {
