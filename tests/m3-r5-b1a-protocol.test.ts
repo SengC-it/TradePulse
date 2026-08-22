@@ -30,6 +30,7 @@ import {
   h18BreakoutDirection,
   h18CompressionPass,
   h18ExpansionPass,
+  isR5H17CanonicalFundingTime,
   makeR5CandidateIdentity,
   resolveR5Entry,
   type R5Candle,
@@ -54,9 +55,10 @@ function makeCandle(
   timeframe: "1h" | "4h",
   index: number,
   overrides: Partial<Pick<R5Candle, "open" | "high" | "low" | "close">> = {},
+  baseTime = 0,
 ): R5Candle {
   const interval = timeframe === "1h" ? HOUR : FOUR_HOURS;
-  const openTime = index * interval;
+  const openTime = baseTime + index * interval;
   const close = overrides.close ?? 100 + index;
   const open = overrides.open ?? close;
   const high = overrides.high ?? Math.max(open, close) + 1;
@@ -294,6 +296,20 @@ describe("H17 funding qualification and reversal", () => {
     expect(() => canonicalFundingSlots(HOUR, 16 * HOUR)).toThrow();
   });
 
+  it("defines canonical H17 funding times on the frozen UTC grid only", () => {
+    const anchor = M3_R5_RESEARCH_RANGE.startTime;
+    const lastCanonical = canonicalFundingSlots(M3_R5_RESEARCH_RANGE.startTime, M3_R5_RESEARCH_RANGE.endTime).at(-1)!;
+    expect(isR5H17CanonicalFundingTime(anchor)).toBe(true);
+    expect(isR5H17CanonicalFundingTime(anchor + 8 * HOUR)).toBe(true);
+    expect(isR5H17CanonicalFundingTime(anchor + 16 * HOUR)).toBe(true);
+    expect(isR5H17CanonicalFundingTime(anchor + 4 * HOUR)).toBe(false);
+    expect(isR5H17CanonicalFundingTime(anchor + 12 * HOUR)).toBe(false);
+    expect(isR5H17CanonicalFundingTime(anchor + 20 * HOUR)).toBe(false);
+    expect(isR5H17CanonicalFundingTime(anchor - 8 * HOUR)).toBe(false);
+    expect(isR5H17CanonicalFundingTime(lastCanonical + 8 * HOUR)).toBe(false);
+    expect(isR5H17CanonicalFundingTime(Number.NaN)).toBe(false);
+  });
+
   it("requires all five symbols and proves complete canonical coverage without rate statistics", () => {
     const report = createH17QualificationReport({
       sourceSha: "b".repeat(40),
@@ -398,6 +414,11 @@ describe("H17 funding qualification and reversal", () => {
     const result = qualifyH17FundingUniverse({ startTime: 0, endTime: 16 * HOUR, symbols: inputs });
     expect(result[0]!.qualificationStatus).toBe("PASS");
     expect(result[0]!.extraNonCanonicalCount).toBe(1);
+    expect(evaluateR5H17({
+      record: records[1]!,
+      h17DataQualification: "PASS",
+      candles1h: [],
+    })).toEqual({ status: "NO_SIGNAL", reason: "NONCANONICAL_FUNDING_TIME" });
     expect(h17FundingDirection(0.0001999)).toBeNull();
     expect(h17FundingDirection(0.0002)).toBe("SHORT");
     expect(h17FundingDirection(-0.0002)).toBe("LONG");
@@ -434,8 +455,8 @@ describe("H17 funding qualification and reversal", () => {
   });
 
   it("freezes the formal signal before resolving the first 1H open", () => {
-    const candles = Array.from({ length: 22 }, (_, index) => makeCandle("1h", index));
-    const fundingTime = 20 * HOUR;
+    const candles = Array.from({ length: 22 }, (_, index) => makeCandle("1h", index, {}, M3_R5_RESEARCH_RANGE.startTime));
+    const fundingTime = M3_R5_RESEARCH_RANGE.startTime + 16 * HOUR;
     const result = evaluateR5H17({
       record: { symbol: "BTCUSDT", fundingTime, fundingRate: 0.0002 },
       h17DataQualification: "PASS",
@@ -450,7 +471,7 @@ describe("H17 funding qualification and reversal", () => {
     expect(result.signal.maxHeldCandles).toBe(24);
     const execution = resolveR5Entry({ signal: result.signal, candles1h: candles });
     expect(execution.status).toBe("EXECUTION_READY");
-    if (execution.status === "EXECUTION_READY") expect(execution.entryOpenTime).toBe(21 * HOUR);
+    if (execution.status === "EXECUTION_READY") expect(execution.entryOpenTime).toBe(M3_R5_RESEARCH_RANGE.startTime + 17 * HOUR);
     expect(evaluateR5H17({
       record: { symbol: "BTCUSDT", fundingTime, fundingRate: 0.0002 },
       h17DataQualification: "PASS",
@@ -459,8 +480,35 @@ describe("H17 funding qualification and reversal", () => {
     expect(evaluateR5H17({
       record: { symbol: "BTCUSDT", fundingTime, fundingRate: 0.0002 },
       h17DataQualification: "PASS",
-      candles1h: [...candles.slice(0, 21), makeCandle("1h", 21, { open: 10_000, close: 10_500 })],
+      candles1h: [...candles.slice(0, 21), makeCandle("1h", 21, { open: 10_000, close: 10_500 }, M3_R5_RESEARCH_RANGE.startTime)],
     })).toEqual(result);
+  });
+
+  it.each([
+    ["canonical positive", M3_R5_RESEARCH_RANGE.startTime + 16 * HOUR, 0.0002, "SHORT"],
+    ["canonical negative", M3_R5_RESEARCH_RANGE.startTime + 24 * HOUR, -0.0002, "LONG"],
+  ] as const)("forms a signal for %s funding", (_label, fundingTime, fundingRate, direction) => {
+    const result = evaluateR5H17({
+      record: { symbol: "BTCUSDT", fundingTime, fundingRate },
+      h17DataQualification: "PASS",
+      candles1h: Array.from({ length: 30 }, (_, index) => makeCandle("1h", index, {}, M3_R5_RESEARCH_RANGE.startTime)),
+    });
+    expect(result.status).toBe("SIGNAL");
+    if (result.status === "SIGNAL") expect(result.signal.direction).toBe(direction);
+  });
+
+  it.each([
+    ["04:00 UTC", M3_R5_RESEARCH_RANGE.startTime + 4 * HOUR, 1],
+    ["12:00 UTC", M3_R5_RESEARCH_RANGE.startTime + 12 * HOUR, -1],
+    ["20:00 UTC", M3_R5_RESEARCH_RANGE.startTime + 20 * HOUR, 1],
+    ["before frozen start", M3_R5_RESEARCH_RANGE.startTime - 8 * HOUR, 1],
+    ["after last canonical slot", canonicalFundingSlots(M3_R5_RESEARCH_RANGE.startTime, M3_R5_RESEARCH_RANGE.endTime).at(-1)! + 8 * HOUR, 1],
+  ] as const)("rejects %s before H17 threshold evaluation", (_label, fundingTime, fundingRate) => {
+    expect(evaluateR5H17({
+      record: { symbol: "BTCUSDT", fundingTime, fundingRate },
+      h17DataQualification: "PASS",
+      candles1h: [],
+    })).toEqual({ status: "NO_SIGNAL", reason: "NONCANONICAL_FUNDING_TIME" });
   });
 
   it("blocks H17 when qualification is not PASS", () => {

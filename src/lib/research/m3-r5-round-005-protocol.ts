@@ -17,6 +17,9 @@ export const M3_R5_RESEARCH_RANGE = Object.freeze({
 } as const);
 export const M3_R5_DATA_CLASSIFICATION = "RESEARCH_AVAILABLE_SEEN_DATA" as const;
 export const M3_R5_PROTOCOL_VERSION = "m3-r5-b1a-protocol-001" as const;
+export const M3_R5_H17_CANONICAL_SLOT_MS = 8 * 60 * 60 * 1000;
+const M3_R5_H17_LAST_CANONICAL_TIME = M3_R5_RESEARCH_RANGE.startTime
+  + Math.floor((M3_R5_RESEARCH_RANGE.endTime - M3_R5_RESEARCH_RANGE.startTime) / M3_R5_H17_CANONICAL_SLOT_MS) * M3_R5_H17_CANONICAL_SLOT_MS;
 
 export const R5_SYMBOLS = RESEARCH_SYMBOLS;
 export type R5Direction = "LONG" | "SHORT";
@@ -435,6 +438,7 @@ export function evaluateR5H17(input: Readonly<{
   if (input.h17DataQualification !== "PASS") return noSignal("H17_DATA_NOT_AVAILABLE");
   const { record } = input;
   if (!Number.isInteger(record.fundingTime) || !finite(record.fundingRate)) return noSignal("INVALID_FUNDING_RECORD");
+  if (!isR5H17CanonicalFundingTime(record.fundingTime)) return noSignal("NONCANONICAL_FUNDING_TIME");
   const direction = h17FundingDirection(record.fundingRate);
   if (!direction) return noSignal("FUNDING_THRESHOLD_NOT_REACHED");
   const decisionCandles = input.candles1h.filter((candle) => candle.closeTime < record.fundingTime);
@@ -506,11 +510,17 @@ export function evaluateR5H18(input: Readonly<{
 }
 
 export function canonicalFundingSlots(startTime: number, endTime: number): readonly number[] {
-  const slotMs = 8 * 60 * 60 * 1000;
-  if (!Number.isInteger(startTime) || !Number.isInteger(endTime) || startTime < 0 || endTime < startTime || startTime % slotMs !== 0) {
+  if (!Number.isInteger(startTime) || !Number.isInteger(endTime) || startTime < 0 || endTime < startTime || startTime % M3_R5_H17_CANONICAL_SLOT_MS !== 0) {
     throw new Error("H17 canonical funding range must use an ordered UTC 8-hour grid.");
   }
   const slots: number[] = [];
-  for (let timestamp = startTime; timestamp <= endTime; timestamp += slotMs) slots.push(timestamp);
+  for (let timestamp = startTime; timestamp <= endTime; timestamp += M3_R5_H17_CANONICAL_SLOT_MS) slots.push(timestamp);
   return Object.freeze(slots);
+}
+
+export function isR5H17CanonicalFundingTime(fundingTime: number): boolean {
+  return Number.isSafeInteger(fundingTime)
+    && fundingTime >= M3_R5_RESEARCH_RANGE.startTime
+    && fundingTime <= M3_R5_H17_LAST_CANONICAL_TIME
+    && (fundingTime - M3_R5_RESEARCH_RANGE.startTime) % M3_R5_H17_CANONICAL_SLOT_MS === 0;
 }
