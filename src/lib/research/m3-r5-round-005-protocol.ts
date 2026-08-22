@@ -364,11 +364,12 @@ export function evaluateR5H15(input: Readonly<{
   candles4h: readonly Candle[];
   candles1h: readonly Candle[];
   currentIndex: number;
+  serverTime?: number;
 }>): R5DecisionResult {
   const decisionCandles = input.candles4h.slice(0, input.currentIndex + 1);
   const current = decisionCandles.at(-1);
   const prior = decisionCandles.slice(-21, -1);
-  if (!current || current.timeframe !== "4h" || !candleIsClosedAt(current, current.closeTime) || prior.length !== 20) return noSignal("WARMUP_OR_INVALID_4H_WINDOW");
+  if (!current || current.timeframe !== "4h" || !candleIsClosedAt(current, input.serverTime ?? current.closeTime) || prior.length !== 20) return noSignal("WARMUP_OR_INVALID_4H_WINDOW");
   const decisionIndex = decisionCandles.length - 1;
   const closes = decisionCandles.map((candle) => candle.close);
   const ema20 = indicatorAt(calculateEma20(closes), decisionIndex);
@@ -397,9 +398,10 @@ export function evaluateR5H16(input: Readonly<{
   candles4h: readonly Candle[];
   candles1h: readonly Candle[];
   currentIndex: number;
+  serverTime?: number;
 }>): R5DecisionResult {
   const current = input.candles1h[input.currentIndex];
-  if (!current || current.timeframe !== "1h" || !candleIsClosedAt(current, current.closeTime)) return noSignal("INVALID_1H_DECISION_CANDLE");
+  if (!current || current.timeframe !== "1h" || !candleIsClosedAt(current, input.serverTime ?? current.closeTime)) return noSignal("INVALID_1H_DECISION_CANDLE");
   const decisionCandles1h = input.candles1h.slice(0, input.currentIndex + 1);
   const decisionCandles4h = input.candles4h.filter((candle) => candleIsClosedAt(candle, current.closeTime));
   const contextIndex = decisionCandles4h.length - 1;
@@ -463,11 +465,12 @@ export function evaluateR5H18(input: Readonly<{
   symbol: ResearchSymbol;
   candles1h: readonly Candle[];
   currentIndex: number;
+  serverTime?: number;
 }>): R5DecisionResult {
   const decisionCandles = input.candles1h.slice(0, input.currentIndex + 1);
   const current = decisionCandles.at(-1);
   const previous = decisionCandles.at(-2);
-  if (!current || !previous || current.timeframe !== "1h" || previous.timeframe !== "1h" || !candleIsClosedAt(current, current.closeTime)) return noSignal("INVALID_1H_DECISION_CANDLE");
+  if (!current || !previous || current.timeframe !== "1h" || previous.timeframe !== "1h" || !candleIsClosedAt(current, input.serverTime ?? current.closeTime)) return noSignal("INVALID_1H_DECISION_CANDLE");
   const decisionIndex = decisionCandles.length - 1;
   const atrSeries = calculateAtr14(decisionCandles);
   const currentAtr = indicatorAt(atrSeries, decisionIndex);

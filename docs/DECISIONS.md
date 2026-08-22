@@ -541,6 +541,20 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   access, performance, Gate/Plan mutation, or candidate-definition change is
   permitted by this freeze.
 
+## ADR-035 — Implement the Round-005 B.2 future performance machinery
+
+- **Decision:** Implement native-data H15/H16/H18 formal-signal generation,
+  bt-policy-003 execution/settlement parity, phase-A intrabar requirement
+  discovery, F1–F6 evidence construction, strict CLI preflight, and
+  destination-local atomic publication for the future Round-005 run.
+- **Boundary:** This implementation does not run performance, access Binance,
+  rerun H17 qualification, apply gates, select a candidate, or freeze
+  baseline-002. The future execution source SHA is supplied at runtime and is
+  intentionally not predeclared in the frozen Plan.
+- **Status:** Performance remains `NOT_AUTHORIZED` / `NOT_GENERATED`;
+  baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
+  `NOT_STARTED`.
+
 ## Deferred decisions
 
 The following decisions remain explicitly marked `DEFERRED_TO_M6` for

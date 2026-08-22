@@ -140,7 +140,12 @@ function validateRequiredMarkPriceManifest(
       candidate.timeframe === "1h" &&
       candidate.symbol === requirement.symbol &&
       candidate.requestedStartTime === expectedRange.startTime &&
-      candidate.requestedEndTime === expectedRange.endTime &&
+      // A future candidate may require a longer settlement-only tail than the
+      // legacy 24-candle policy. Extra coverage is safe; the base range stays
+      // exact so fallback provenance cannot silently widen the study window.
+      (expectedSettlementOnly
+        ? candidate.requestedEndTime >= expectedRange.endTime
+        : candidate.requestedEndTime === expectedRange.endTime) &&
       candidate.settlementOnly === expectedSettlementOnly,
   );
 
@@ -268,7 +273,7 @@ export function validateRequiredManifestCoverage(
         true,
         "settlement-only 1H candle",
       );
-      if (tailCandles && tailCandles.requestedEndTime !== tailCandleEnd) {
+      if (tailCandles && tailCandles.requestedEndTime < tailCandleEnd) {
         diagnostics.push(`Settlement-only 1H coverage does not reach held candle #24 for ${symbol}.`);
       }
       const tailFunding = requireManifest(

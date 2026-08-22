@@ -165,6 +165,7 @@ function runSinglePeriod(
   indexes: HistoricalIndexes,
   period: Exclude<BacktestPeriod, "COMBINED">,
   policy: BacktestPolicyVersion,
+  onPerformanceResultGenerated?: BacktestRunInput["onPerformanceResultGenerated"],
 ): SinglePeriodResult {
   const evaluations: BacktestEvaluation[] = [];
   const signalResults: BacktestSignalResult[] = [];
@@ -206,7 +207,9 @@ function runSinglePeriod(
       }),
     );
     for (const candidate of formalCandidates) {
-      signalResults.push(candidateResults(data, indexes, candidate, evaluationTime, period, policy));
+      const result = candidateResults(data, indexes, candidate, evaluationTime, period, policy);
+      onPerformanceResultGenerated?.(result);
+      signalResults.push(result);
     }
   }
 
@@ -580,7 +583,9 @@ export function runBacktest(input: BacktestRunInput): BacktestReport {
   }
 
   const runFor = (period: Exclude<BacktestPeriod, "COMBINED">): SinglePeriodResult =>
-    indexes ? runSinglePeriod(input.data, indexes, period, policy) : incompletePeriodResult(preparationDiagnostics);
+    indexes
+      ? runSinglePeriod(input.data, indexes, period, policy, input.onPerformanceResultGenerated)
+      : incompletePeriodResult(preparationDiagnostics);
   let devRun = input.period === "OOS" ? null : runFor("DEV");
   let oosRun = input.period === "DEV" ? null : runFor("OOS");
   const initialRuns = [devRun, oosRun].filter((run): run is SinglePeriodResult => run !== null);
