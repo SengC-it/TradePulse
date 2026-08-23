@@ -7,7 +7,7 @@ export default async function DashboardPage() {
   const statusTone = overview.systemStatus === "正常" ? "success" : overview.systemStatus === "需关注" ? "warning" : "neutral";
   return (
     <>
-      <PageHeader eyebrow="TradePulse / Dashboard" title="总览" description="以已闭合K线为基础，查看信号检测、发送与复盘状态。" />
+      <PageHeader eyebrow="TradePulse / 总览" title="总览" description="以已闭合K线为基础，查看信号检测、发送与复盘状态。" />
 
       <section className="status-strip" aria-label="系统状态">
         <div><span className="section-kicker">系统状态</span><StatusBadge tone={statusTone}>{overview.systemStatus}</StatusBadge></div>
@@ -23,12 +23,12 @@ export default async function DashboardPage() {
           <MetricCard label="今日检测次数" value={String(overview.todayEvaluations)} />
           <MetricCard label="今日正式信号" value={String(overview.todayFormalSignals)} tone={overview.todayFormalSignals > 0 ? "positive" : "neutral"} />
           <MetricCard label="今日发送邮件" value={String(overview.todaySentEmails)} tone={overview.todaySentEmails > 0 ? "positive" : "neutral"} />
-          <MetricCard label="待复盘信号" value={String(overview.pendingReviews)} tone={overview.pendingReviews > 0 ? "warning" : "neutral"} />
+          <MetricCard label="待复盘信号" value={String(overview.pendingReviews)} detail="已发送信号均计入待复盘" tone={overview.pendingReviews > 0 ? "warning" : "neutral"} />
         </div>
       </section>
 
       <section className="dashboard-section" aria-labelledby="performance-title">
-        <div className="section-heading"><div><p className="eyebrow">只读统计</p><h2 id="performance-title">策略表现</h2></div><span className="section-note">只展示 authoritative resolved result</span></div>
+        <div className="section-heading"><div><p className="eyebrow">只读统计</p><h2 id="performance-title">策略表现</h2></div><span className="section-note">生产提醒尚未建立有效复盘样本</span></div>
         <ReviewMetricGrid metrics={overview.reviewMetrics} />
       </section>
 

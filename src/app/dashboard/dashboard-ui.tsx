@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { directionLabel, formatDateTime, formatNumber, formatPercent, formatR, formatScore, reasonLabel } from "@/lib/dashboard/presenters";
+import { directionLabel, evaluationStatusLabel, formatDateTime, formatNumber, formatPercent, formatR, formatScore, reasonLabel, regimeLabel } from "@/lib/dashboard/presenters";
 
 export function MetricCard(props: Readonly<{ label: string; value: string; detail?: string; tone?: "neutral" | "positive" | "warning" }>) {
   return (
@@ -51,7 +51,8 @@ export function EvaluationTable(props: Readonly<{ rows: readonly import("@/lib/d
             <th>检测结果</th>
             <th>评分</th>
             <th>等级</th>
-            <th>市场方向</th>
+            <th>交易方向</th>
+            <th>BTC环境</th>
             <th>未通过原因</th>
             <th>参考进场</th>
             <th>止损</th>
@@ -64,10 +65,11 @@ export function EvaluationTable(props: Readonly<{ rows: readonly import("@/lib/d
               <td>{formatDateTime(row.evaluatedAt)}</td>
               <td className="strong-cell">{row.symbol}</td>
               <td><DirectionBadge direction={row.direction} /></td>
-              <td>{row.status === "FORMAL_SIGNAL" ? <StatusBadge tone="success">正式信号</StatusBadge> : row.status === "INVALID" ? <StatusBadge tone="danger">数据无效</StatusBadge> : <StatusBadge>候选观察</StatusBadge>}</td>
+              <td><StatusBadge tone={row.status === "FORMAL_SIGNAL" ? "success" : row.status === "INVALID" ? "danger" : "neutral"}>{evaluationStatusLabel(row.status)}</StatusBadge></td>
               <td>{formatScore(row.score)}</td>
               <td>{row.grade ?? "—"}</td>
-              <td>{row.symbolRegime ?? "—"}</td>
+              <td>{regimeLabel(row.symbolRegime)}</td>
+              <td>{regimeLabel(row.btcRegime)}</td>
               <td title={row.reasonCode ?? undefined}>{reasonLabel(row.reasonCode)}</td>
               <td>{formatNumber(row.entryReference, 8)}</td>
               <td>{formatNumber(row.stopReference, 8)}</td>

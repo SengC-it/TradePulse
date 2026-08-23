@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
+import { dashboardAccessDecision, isSafeLoginNext } from "@/lib/dashboard/access";
 import { calculateReviewMetrics } from "@/lib/dashboard/metrics";
-import { formatR, maskRecipient, reasonLabel } from "@/lib/dashboard/presenters";
+import { evaluationStatusLabel, formatR, maskRecipient, reasonLabel, regimeLabel } from "@/lib/dashboard/presenters";
 import { mapStrategyEvaluations } from "@/lib/signal-advisory/evaluations";
 
 describe("Dashboard V1 presentation and observability", () => {
@@ -65,6 +68,53 @@ describe("Dashboard V1 presentation and observability", () => {
     expect(reasonLabel("UNKNOWN_INTERNAL_REASON")).toBe("未满足信号条件");
     expect(maskRecipient("sheng.chi@qq.com")).toBe("s***@qq.com");
     expect(maskRecipient("not-an-email")).toBe("—");
+  });
+
+  it("maps authentication states to the login, denied, and dashboard boundaries", () => {
+    expect(dashboardAccessDecision({ authenticated: false, authorized: false })).toBe("LOGIN");
+    expect(dashboardAccessDecision({ authenticated: true, authorized: false })).toBe("DENIED");
+    expect(dashboardAccessDecision({ authenticated: true, authorized: true })).toBe("AUTHORIZED");
+    expect(isSafeLoginNext("/dashboard")).toBe(true);
+    expect(isSafeLoginNext("//external.example")).toBe(false);
+  });
+
+  it("keeps the login flow closed to public signup and keeps logout available", () => {
+    const loginPage = readFileSync("src/app/login/page.tsx", "utf8");
+    const loginActions = readFileSync("src/app/login/actions.ts", "utf8");
+    const layout = readFileSync("src/app/dashboard/layout.tsx", "utf8");
+    const queries = readFileSync("src/lib/dashboard/queries.ts", "utf8");
+    expect(loginPage).toContain("当前不开放公开注册");
+    expect(loginPage).not.toContain("signUp");
+    expect(loginActions).toContain("signOut");
+    expect(layout).toContain("账号未获得 TradePulse Dashboard 权限");
+    expect(layout).toContain("redirect(\"/login?next=%2Fdashboard\")");
+    expect(layout).toContain("退出登录");
+    expect(queries.indexOf("await hasDashboardAccess()")).toBeLessThan(queries.indexOf("createSupabaseAdminClient());"));
+  });
+
+  it("uses the explicit Chinese status and market-regime labels", () => {
+    expect(evaluationStatusLabel("FORMAL_SIGNAL")).toBe("正式信号");
+    expect(evaluationStatusLabel("CANDIDATE_BELOW_THRESHOLD")).toBe("候选未达阈值");
+    expect(evaluationStatusLabel("NO_ELIGIBLE_CANDIDATE")).toBe("无合格候选");
+    expect(evaluationStatusLabel("INVALID")).toBe("数据无效");
+    expect(regimeLabel("LONG_ONLY")).toBe("只做多");
+    expect(regimeLabel("SHORT_ONLY")).toBe("只做空");
+    expect(regimeLabel("NO_TRADE")).toBe("不交易");
+    expect(regimeLabel("BTC_STRONG_BULL")).toBe("BTC 强势上涨");
+    expect(regimeLabel("BTC_NEUTRAL")).toBe("BTC 中性");
+    expect(regimeLabel("BTC_STRONG_BEAR")).toBe("BTC 强势下跌");
+  });
+
+  it("keeps production advisory performance independent from tp_signal_results", () => {
+    const queries = readFileSync("src/lib/dashboard/queries.ts", "utf8");
+    const performancePage = readFileSync("src/app/dashboard/performance/page.tsx", "utf8");
+    const dashboardUi = readFileSync("src/app/dashboard/dashboard-ui.tsx", "utf8");
+    expect(queries).not.toContain("tp_signal_results");
+    expect(queries).toContain("reviewMetrics: calculateReviewMetrics([])");
+    expect(queries).toContain('.filter((advisory) => advisory.deliveryStatus === "SENT")');
+    expect(performancePage).not.toContain("tp_signal_results");
+    expect(dashboardUi).toContain("暂无有效样本");
+    expect(dashboardUi).toContain("策略盈利能力尚未验证");
   });
 
   it("does not infer PnL when there are no authoritative resolved results", () => {

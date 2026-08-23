@@ -35,6 +35,18 @@ export const evaluationStatusLabel = (status: DashboardEvaluationStatus): string
   }
 };
 
+const REGIME_LABELS: Readonly<Record<string, string>> = {
+  LONG_ONLY: "只做多",
+  SHORT_ONLY: "只做空",
+  NO_TRADE: "不交易",
+  BTC_STRONG_BULL: "BTC 强势上涨",
+  BTC_NEUTRAL: "BTC 中性",
+  BTC_STRONG_BEAR: "BTC 强势下跌",
+};
+
+export const regimeLabel = (regime: string | null | undefined): string =>
+  regime ? REGIME_LABELS[regime] ?? regime : "—";
+
 export const deliveryStatusLabel = (status: "PENDING" | "SENT" | "FAILED"): string => {
   switch (status) {
     case "PENDING":
