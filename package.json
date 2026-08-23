@@ -26,7 +26,8 @@
     "research:m3r5:h17-qualify": "node --experimental-strip-types --no-warnings scripts/m3-r5-h17-qualify.ts",
     "research:m3r5:performance": "node --experimental-strip-types --no-warnings scripts/m3-r5-performance.ts",
     "research:m3r5:select": "node --experimental-strip-types --no-warnings scripts/m3-r5-c3-select.ts",
-    "verify": "npm run typecheck && npm run lint && npm test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
+    "check": "npm run verify"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",
