@@ -43,34 +43,79 @@ function getSmtpConfiguration(): SmtpConfiguration {
   };
 }
 
-function display(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+function displayPrice(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    useGrouping: true,
+    maximumFractionDigits: 8,
+  }).format(value);
+}
+
+function displayScore(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function displayDirection(direction: SignalAdvisory["direction"]): string {
+  return direction === "LONG" ? "看涨（做多）" : "看跌（做空）";
+}
+
+function displaySymbol(symbol: SignalAdvisory["symbol"]): string {
+  const names: Partial<Record<SignalAdvisory["symbol"], string>> = {
+    BTCUSDT: "比特币",
+    ETHUSDT: "以太坊",
+  };
+  const name = names[symbol];
+  return name ? `${symbol}（${name}）` : symbol;
+}
+
+function displayTime(value: string): string {
+  const timeZone = process.env.APP_TIMEZONE || "Asia/Shanghai";
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+      minute: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Shanghai",
+      hour: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+      minute: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  }
+
+  const parts = Object.fromEntries(formatter.formatToParts(new Date(value)).map((part) => [part.type, part.value]));
+  return `${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
 export function renderSignalAdvisoryEmail(advisory: SignalAdvisory): RenderedSignalEmail {
+  const direction = displayDirection(advisory.direction);
+
   return {
-    subject: `[TradePulse] ${advisory.symbol} ${advisory.direction} signal advisory`,
+    subject: `【Trade Pulse】${advisory.symbol} ${direction}｜${displayScore(advisory.score)}分`,
     text: [
-      "SIGNAL ADVISORY ONLY",
-      "MANUAL TRADING DECISION REQUIRED",
+      "Trade Pulse 信号提醒",
       "",
-      `Symbol: ${advisory.symbol}`,
-      `Direction: ${advisory.direction}`,
-      `Signal Time: ${advisory.signalTime}`,
-      `Signal Valid Until: ${advisory.signalValidUntil}`,
-      `Current / Reference Price: ${display(advisory.currentReferencePrice)}`,
-      `Suggested Entry Reference: ${display(advisory.suggestedEntryReference)}`,
-      `Stop Loss: ${display(advisory.stopLoss)}`,
-      `Take Profit: ${display(advisory.takeProfit)}`,
-      `Risk / Reward: ${display(advisory.riskReward)}R`,
-      `Strategy ID: ${advisory.strategyId}`,
-      `Strategy Version: ${advisory.strategyVersion}`,
-      `Signal ID: ${advisory.signalId}`,
-      `Market Regime: BTC=${advisory.marketRegime.btcRegime}; Symbol=${advisory.marketRegime.symbolRegime}`,
-      `Data freshness: ${advisory.dataFreshness.status}; age=${advisory.dataFreshness.ageMs}ms; sourceServerTime=${advisory.dataFreshness.sourceServerTime}`,
-      `Score: ${display(advisory.score)}; Grade: ${advisory.grade}`,
+      `币种：${displaySymbol(advisory.symbol)}`,
+      `方向：${direction}`,
+      `信号时间：${displayTime(advisory.signalTime)}`,
+      `当前价格：${displayPrice(advisory.currentReferencePrice)}`,
+      `参考进场：${displayPrice(advisory.suggestedEntryReference)}`,
+      `止损：${displayPrice(advisory.stopLoss)}`,
+      `止盈：${displayPrice(advisory.takeProfit)}`,
+      `信号强度：${displayScore(advisory.score)}分`,
+      `有效至：${displayTime(advisory.signalValidUntil)}`,
       "",
-      "TradePulse does not place orders, manage positions, or make trading decisions.",
+      "仅供参考，请自行决定是否交易。",
+      "系统不会自动下单或替你做交易决定。",
     ].join("\n"),
   };
 }

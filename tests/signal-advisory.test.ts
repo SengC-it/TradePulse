@@ -306,20 +306,64 @@ describe("signal advisory identity and email", () => {
     );
   });
 
-  it("renders required LONG and SHORT advisory fields and safety language", () => {
+  it("renders the concise Chinese LONG and SHORT advisory template", () => {
     for (const direction of ["LONG", "SHORT"] as const) {
       const rendered = renderSignalAdvisoryEmail(exampleAdvisory(direction));
-      expect(rendered.text).toContain(`Direction: ${direction}`);
-      expect(rendered.text).toContain("Signal Time:");
-      expect(rendered.text).toContain("Suggested Entry Reference:");
-      expect(rendered.text).toContain("Stop Loss:");
-      expect(rendered.text).toContain("Take Profit:");
-      expect(rendered.text).toContain("Risk / Reward:");
-      expect(rendered.text).toContain("Strategy ID:");
-      expect(rendered.text).toContain("Signal ID:");
-      expect(rendered.text).toContain("SIGNAL ADVISORY ONLY");
-      expect(rendered.text).toContain("MANUAL TRADING DECISION REQUIRED");
+      const expectedDirection = direction === "LONG" ? "看涨（做多）" : "看跌（做空）";
+      expect(rendered.subject).toBe(`【Trade Pulse】BTCUSDT ${expectedDirection}｜85分`);
+      expect(rendered.text).toContain("Trade Pulse 信号提醒");
+      expect(rendered.text).toContain("币种：BTCUSDT（比特币）");
+      expect(rendered.text).toContain(`方向：${expectedDirection}`);
+      expect(rendered.text).toContain("信号时间：08-23 08:00");
+      expect(rendered.text).toContain("有效至：08-23 09:00");
+      expect(rendered.text).toContain("止损：98");
+      expect(rendered.text).toContain("止盈：104");
+      expect(rendered.text).toContain("信号强度：85分");
+      expect(rendered.text).toContain("仅供参考，请自行决定是否交易。");
+      expect(rendered.text).toContain("系统不会自动下单或替你做交易决定。");
+      for (const internalField of [
+        "Strategy ID",
+        "Strategy Version",
+        "Signal ID",
+        "Market Regime",
+        "Data freshness",
+        "Risk / Reward",
+        "SIGNAL ADVISORY ONLY",
+        "MANUAL TRADING DECISION REQUIRED",
+      ]) {
+        expect(rendered.text).not.toContain(internalField);
+      }
     }
+  });
+
+  it("uses Chinese symbol names with a safe fallback", () => {
+    const symbols = [
+      ["BTCUSDT", "BTCUSDT（比特币）"],
+      ["ETHUSDT", "ETHUSDT（以太坊）"],
+      ["SOLUSDT", "SOLUSDT"],
+      ["XRPUSDT", "XRPUSDT"],
+      ["BNBUSDT", "BNBUSDT"],
+    ] as const;
+
+    for (const [symbol, expected] of symbols) {
+      const rendered = renderSignalAdvisoryEmail({ ...exampleAdvisory("LONG"), symbol });
+      expect(rendered.text).toContain(`币种：${expected}`);
+    }
+  });
+
+  it("groups large prices without losing small-decimal precision", () => {
+    const rendered = renderSignalAdvisoryEmail({
+      ...exampleAdvisory("LONG"),
+      currentReferencePrice: 116_200,
+      suggestedEntryReference: 4_280.5,
+      stopLoss: 0.005161,
+      takeProfit: 119_600,
+    });
+
+    expect(rendered.text).toContain("当前价格：116,200");
+    expect(rendered.text).toContain("参考进场：4,280.5");
+    expect(rendered.text).toContain("止损：0.005161");
+    expect(rendered.text).toContain("止盈：119,600");
   });
 
   it("reports SMTP success and never sends real mail in the test", async () => {
@@ -342,7 +386,11 @@ describe("signal advisory identity and email", () => {
       },
     });
     expect(result).toEqual({ emailMessageId: "<smtp-test-id>" });
-    expect(mail?.text).toContain("SIGNAL ADVISORY ONLY");
+    expect(mail?.text).toContain("仅供参考，请自行决定是否交易。");
+    expect(mail?.headers).toMatchObject({
+      "X-TradePulse-Signal-ID": exampleAdvisory("LONG").signalId,
+      "X-TradePulse-Advisory": "true",
+    });
   });
 });
 
