@@ -11,7 +11,12 @@ position, or execution API.
 
 - Scan and scheduler: `GET /api/cron/signal-advisory`
 - Authentication: `Authorization: Bearer ${CRON_SECRET}`
-- Vercel schedule: `5 * * * *` in `vercel.json`
+- Production scheduler: Cloudflare Workers Cron (Free)
+  - Schedules: `5 * * * *` and `10 * * * *`
+  - Target: `GET https://<production-domain>/api/cron/signal-advisory`
+  - Header: `Authorization: Bearer <CRON_SECRET>`
+  - Configure the same `CRON_SECRET` in the Vercel Production environment and
+    the Cloudflare Worker secret; never commit the secret.
 - Email function: `sendSignalEmail()` in `src/lib/signal-advisory/email.ts`
 - Pipeline: `runSignalAdvisoryScan()` in `src/lib/signal-advisory/scan.ts`
 

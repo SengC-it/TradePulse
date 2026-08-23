@@ -95,12 +95,15 @@ function alignCandles(candles: readonly Candle[], targetCloseTime: number): Cand
   }));
 }
 
-function makeSnapshot(options: Readonly<{ status?: "VALID" | "PARTIAL"; stale?: boolean }> = {}): MarketSnapshot {
+function makeSnapshot(
+  options: Readonly<{ status?: "VALID" | "PARTIAL"; stale?: boolean; evaluationTime?: number }> = {},
+): MarketSnapshot {
+  const evaluationTime = options.evaluationTime ?? EVALUATION_TIME;
   const symbols = Object.fromEntries(
     RESEARCH_SYMBOLS.map((symbol) => {
-      const candles1h = alignCandles(makeSignalCandles(symbol), EVALUATION_TIME - 1_000);
-      const candles4h = alignCandles(makeTrendCandles(symbol), EVALUATION_TIME - 1_000);
-      const serverTime = EVALUATION_TIME + (options.stale ? HOUR_MS : 0);
+      const candles1h = alignCandles(makeSignalCandles(symbol), evaluationTime - 1_000);
+      const candles4h = alignCandles(makeTrendCandles(symbol), evaluationTime - 1_000);
+      const serverTime = evaluationTime + (options.stale ? HOUR_MS : 0);
       return [
         symbol,
         {
@@ -130,19 +133,19 @@ function makeSnapshot(options: Readonly<{ status?: "VALID" | "PARTIAL"; stale?: 
   return {
     status: options.status ?? "VALID",
     provider: "binance-usdm-public",
-    generatedAt: EVALUATION_TIME,
+    generatedAt: evaluationTime,
     serverTime: {
-      serverTime: EVALUATION_TIME + (options.stale ? HOUR_MS : 0),
-      operationStartedAt: EVALUATION_TIME,
-      attemptStartedAt: EVALUATION_TIME,
-      attemptCompletedAt: EVALUATION_TIME + 10,
+      serverTime: evaluationTime + (options.stale ? HOUR_MS : 0),
+      operationStartedAt: evaluationTime,
+      attemptStartedAt: evaluationTime,
+      attemptCompletedAt: evaluationTime + 10,
       roundTripMs: 10,
       estimatedClockOffsetMs: 0,
     },
     symbols: symbols as unknown as MarketSnapshot["symbols"],
     diagnostics: {
-      operationStartedAt: EVALUATION_TIME,
-      operationCompletedAt: EVALUATION_TIME + 10,
+      operationStartedAt: evaluationTime,
+      operationCompletedAt: evaluationTime + 10,
       roundTripMs: 10,
       requestCount: 12,
       requestWeightHeaders: [],
@@ -243,6 +246,7 @@ function dependencies(input: {
   store: MemoryStore;
   snapshot?: MarketSnapshot;
   send?: (advisory: SignalAdvisory) => Promise<{ emailMessageId: string }>;
+  now?: () => number;
 }) {
   return {
     marketData: {
@@ -250,7 +254,7 @@ function dependencies(input: {
     },
     store: input.store,
     sendSignalEmail: input.send ?? (async () => ({ emailMessageId: "<test-message-id>" })),
-    now: () => EVALUATION_TIME,
+    now: input.now ?? (() => EVALUATION_TIME),
     recipient: "owner@example.test",
   };
 }
@@ -444,6 +448,84 @@ describe("signal advisory scan", () => {
     expect(sendCount).toBe(result.signalsGenerated * 2);
     expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
     expect([...store.advisories.values()].every((advisory) => advisory.attemptCount === 2)).toBe(true);
+  });
+
+  it("retries a failed HH:05 advisory at HH:10 using an advancing clock", async () => {
+    const store = new MemoryStore();
+    const snapshotTime = Date.parse("2026-08-23T00:00:05.000Z");
+    const firstNow = Date.parse("2026-08-23T00:05:00.000Z");
+    let currentNow = firstNow;
+    let sendCount = 0;
+    const snapshot = makeSnapshot({ evaluationTime: snapshotTime });
+    const send = async () => {
+      sendCount += 1;
+      if (currentNow === firstNow) {
+        throw new Error("SMTP test failure at HH:05");
+      }
+      return { emailMessageId: "<same-hour-retry-message-id>" };
+    };
+
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({ store, snapshot, send, now: () => currentNow }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+    const firstSignal = [...store.advisories.values()][0];
+    expect(first.outcome).toBe("PARTIAL");
+    expect(firstSignal).toBeDefined();
+    expect(Date.parse(firstSignal!.signalValidUntil)).toBeGreaterThan(firstNow);
+    expect(firstSignal!.deliveryStatus).toBe("FAILED");
+
+    currentNow = Date.parse("2026-08-23T00:10:00.000Z");
+    const retry = await runSignalAdvisoryScan({
+      dependencies: dependencies({ store, snapshot, send, now: () => currentNow }),
+      scheduledFor: "2026-08-23T00:10:00.000Z",
+    });
+
+    expect(retry.outcome).toBe("SUCCESS");
+    expect(retry.signalsSent).toBe(first.signalsGenerated);
+    expect(retry.signalsSkipped).toBe(0);
+    expect(sendCount).toBe(first.signalsGenerated * 2);
+    expect([...store.advisories.values()]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ deliveryStatus: "SENT", attemptCount: 2 })]),
+    );
+  });
+
+  it("skips the same hourly cycle at HH:10 after a successful HH:05 run", async () => {
+    const store = new MemoryStore();
+    const snapshot = makeSnapshot({ evaluationTime: Date.parse("2026-08-23T00:00:05.000Z") });
+    let currentNow = Date.parse("2026-08-23T00:05:00.000Z");
+    let sendCount = 0;
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        snapshot,
+        now: () => currentNow,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<same-hour-success-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    currentNow = Date.parse("2026-08-23T00:10:00.000Z");
+    const repeated = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        snapshot,
+        now: () => currentNow,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: "must-not-send" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:10:00.000Z",
+    });
+
+    expect(first.outcome).toBe("SUCCESS");
+    expect(repeated.outcome).toBe("SKIPPED");
+    expect(repeated.signalsGenerated).toBe(0);
+    expect(sendCount).toBe(first.signalsSent);
   });
 
   it("does not retry an expired FAILED signal", async () => {
