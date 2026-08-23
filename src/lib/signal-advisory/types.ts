@@ -1,5 +1,8 @@
 import type { ResearchSymbol } from "../config/constants.ts";
 import type { MarketSnapshot } from "../market-data/types.ts";
+import type { SignalEvaluationRecord } from "./evaluations.ts";
+
+export type { SignalEvaluationRecord } from "./evaluations.ts";
 
 export const SIGNAL_ADVISORY_STRATEGY_ID = "baseline-001" as const;
 
@@ -98,6 +101,7 @@ export type SignalAdvisoryStore = Readonly<{
     failedAt: string;
     failureReason: string;
   }): Promise<void>;
+  recordStrategyEvaluations(rows: readonly SignalEvaluationRecord[]): Promise<void>;
   recordSystemEvent(input: SystemEventInput): Promise<void>;
   getHealth(): Promise<AdvisoryHealth>;
 }>;

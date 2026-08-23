@@ -6,6 +6,7 @@ const migrationFiles = [
   "supabase/migrations/20260816000000_initial_schema.sql",
   "supabase/migrations/20260816010000_m0_review_remediation.sql",
   "supabase/migrations/20260823000000_signal_advisory.sql",
+  "supabase/migrations/20260823010000_signal_evaluations.sql",
 ] as const;
 
 const migrationSql = migrationFiles
@@ -26,6 +27,7 @@ const expectedTables = [
   "tp_backtest_signals",
   "tp_authorized_users",
   "tp_signal_advisories",
+  "tp_signal_evaluations",
 ] as const;
 
 const legacyTables = [
@@ -71,12 +73,14 @@ describe("TradePulse Supabase namespace collision guard", () => {
   });
 
   it("keeps runtime relations and the retry RPC in the tp namespace", () => {
-    for (const table of ["tp_scan_runs", "tp_signal_advisories", "tp_system_events"]) {
+    for (const table of ["tp_scan_runs", "tp_signal_advisories", "tp_signal_evaluations", "tp_system_events"]) {
       expect(runtimeStore).toContain(`.from("${table}")`);
     }
     expect(runtimeStore).toContain('.rpc("tp_retry_signal_advisory"');
     expect(migrationSql).toContain("public.tp_retry_signal_advisory");
     expect(migrationSql).toContain("revoke all on table public.tp_signal_advisories from anon, authenticated");
     expect(migrationSql).toContain("grant select, insert, update, delete on table public.tp_signal_advisories to service_role");
+    expect(migrationSql).toContain("revoke all on table public.tp_signal_evaluations from anon, authenticated");
+    expect(migrationSql).toContain("grant select, insert, update, delete on table public.tp_signal_evaluations to service_role");
   });
 });
