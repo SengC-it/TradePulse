@@ -25,6 +25,8 @@ export * from "./m3-r4-round-004-plan.ts";
 export * from "./m3-r5-round-005-plan.ts";
 export * from "./m3-r5-round-005-settlement.ts";
 export * from "./m3-r5-round-005-performance.ts";
+export * from "./selection-gates-round-006.ts";
+export * from "./m3-r6-round-006-plan.ts";
 export * from "./m3-r4-round-004-protocol.ts";
 export * from "./m3-r4-round-004-loader.ts";
 export * from "./m3-r4-round-004-settlement.ts";
