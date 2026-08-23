@@ -1,3 +1,7 @@
+import { STRATEGY_VERSION } from "./config/constants.ts";
+
+import type { AdvisoryHealth } from "./signal-advisory/types.ts";
+
 export type HealthPayload = {
   status: "ok";
   service: "tradepulse";
@@ -10,12 +14,14 @@ export type HealthPayload = {
   trading: {
     enabled: false;
   };
+  advisory: AdvisoryHealth;
 };
 
 export function createHealthPayload(input: {
   environment: string;
   version: string;
   databaseConfigured: boolean;
+  advisory?: AdvisoryHealth;
 }): HealthPayload {
   return {
     status: "ok",
@@ -28,6 +34,12 @@ export function createHealthPayload(input: {
     },
     trading: {
       enabled: false,
+    },
+    advisory: input.advisory ?? {
+      lastSuccessfulScan: null,
+      lastEmailSent: null,
+      lastError: null,
+      strategyVersion: STRATEGY_VERSION,
     },
   };
 }
