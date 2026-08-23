@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/signal-advisory",
+      "schedule": "5 * * * *"
+    }
+  ]
+}
