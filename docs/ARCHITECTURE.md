@@ -23,8 +23,8 @@ flowchart TD
     persist --> tracker[Forward Tracker]
     tracker --> analytics[Analytics]
     analytics --> dashboard[Private Dashboard<br/>Supabase Auth + RLS]
-    run --> events[scan_runs + system_events]
-    notify --> notifications[notifications]
+    run --> events[tp_scan_runs + tp_system_events]
+    notify --> notifications[tp_notifications]
 ```
 
 ## Responsibility split
@@ -54,7 +54,7 @@ flowchart TD
 
 - Is a notification transport only.
 - The later implementation uses `smtp.gmail.com`, port `587`, STARTTLS, and a Google App Password.
-- SMTP credentials are read only by a server function and delivery state is persisted in `notifications`.
+- SMTP credentials are read only by a server function and delivery state is persisted in `tp_notifications`.
 
 ## Code boundaries
 
@@ -318,7 +318,7 @@ evidence record.
 The future M4 request is finite and ordered:
 
 1. Verify `Authorization: Bearer <CRON_SECRET>` before doing work.
-2. Create a `scan_runs` row with a unique scheduled run identity.
+2. Create a `tp_scan_runs` row with a unique scheduled run identity.
 3. Request public candles for the five approved symbols and required 1H/4H history.
 4. Reject missing, stale, out-of-order, malformed, or incomplete data; record `DATA_ERROR` or `SCAN_FAILED` and create no formal signal.
 5. Calculate indicators and regimes in pure domain code.
@@ -362,7 +362,7 @@ An environment name is never inferred to mean a production database. Remote migr
 
 ## Failure and observability
 
-The system follows **No Data > Bad Signal**. Every future scan must make it possible to answer whether Cron ran, the endpoint authenticated, data arrived, data was rejected, a candidate existed, a score was filtered, a signal was persisted, and an email was sent. `scan_runs`, `system_events`, `signals`, and `notifications` form the durable audit trail; Vercel runtime logs and Supabase Cron history provide transport-level evidence.
+The system follows **No Data > Bad Signal**. Every future scan must make it possible to answer whether Cron ran, the endpoint authenticated, data arrived, data was rejected, a candidate existed, a score was filtered, a signal was persisted, and an email was sent. `tp_scan_runs`, `tp_system_events`, `tp_signals`, and `tp_notifications` form the durable audit trail; Vercel runtime logs and Supabase Cron history provide transport-level evidence.
 
 ## M1, M2-B, and M3-B non-goals
 
