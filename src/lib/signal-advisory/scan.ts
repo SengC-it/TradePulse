@@ -303,8 +303,8 @@ export async function runSignalAdvisoryScan(input: Readonly<{
 
   for (const advisory of advisories) {
     try {
-      const claim = await dependencies.store.claimSignal(advisory, begin.scanId);
-      if (claim === "SKIPPED_DUPLICATE") {
+      const claim = await dependencies.store.claimSignal(advisory, begin.scanId, nowIso);
+      if (claim === "SKIPPED_DUPLICATE" || claim === "SKIPPED_EXPIRED") {
         signalsSkipped += 1;
         continue;
       }

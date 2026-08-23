@@ -7,6 +7,12 @@ export type AdvisoryDirection = "LONG" | "SHORT";
 
 export type DeliveryStatus = "PENDING" | "SENT" | "FAILED";
 
+export type SignalClaimResult =
+  | "CLAIMED"
+  | "RETRY_CLAIMED"
+  | "SKIPPED_DUPLICATE"
+  | "SKIPPED_EXPIRED";
+
 export type SignalAdvisory = Readonly<{
   signalId: string;
   symbol: ResearchSymbol;
@@ -81,7 +87,7 @@ export type SignalAdvisoryStore = Readonly<{
     now: string;
   }): Promise<ScanRunBeginResult>;
   completeScanRun(input: ScanRunCompletion): Promise<void>;
-  claimSignal(advisory: SignalAdvisory, scanId: string): Promise<"CLAIMED" | "SKIPPED_DUPLICATE">;
+  claimSignal(advisory: SignalAdvisory, scanId: string, now: string): Promise<SignalClaimResult>;
   markSignalSent(input: {
     signalId: string;
     sentAt: string;

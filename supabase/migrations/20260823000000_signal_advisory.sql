@@ -29,6 +29,9 @@ create table public.signal_advisories (
   scan_run_id uuid not null references public.scan_runs(id) on delete restrict,
   delivery_status text not null default 'PENDING'
     check (delivery_status in ('PENDING', 'SENT', 'FAILED')),
+  attempt_count integer not null default 0
+    check (attempt_count >= 0),
+  last_attempt_at timestamptz,
   email_message_id text,
   failure_reason text,
   created_at timestamptz not null default now(),
@@ -44,6 +47,59 @@ create index signal_advisories_sent_at_idx
   on public.signal_advisories (sent_at desc)
   where sent_at is not null;
 
+-- The retry transition is a database-side compare-and-set so concurrent scans
+-- cannot both claim the single permitted retry attempt.
+create or replace function public.retry_signal_advisory(
+  p_signal_id text,
+  p_scan_id uuid,
+  p_now timestamptz
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_status text;
+  existing_valid_until timestamptz;
+begin
+  update public.signal_advisories
+  set delivery_status = 'PENDING',
+      attempt_count = attempt_count + 1,
+      last_attempt_at = p_now,
+      scan_run_id = p_scan_id,
+      email_message_id = null,
+      failure_reason = null,
+      sent_at = null
+  where signal_id = p_signal_id
+    and delivery_status = 'FAILED'
+    and p_now < signal_valid_until
+    and attempt_count < 2
+  returning delivery_status into existing_status;
+
+  if found then
+    return 'RETRY_CLAIMED';
+  end if;
+
+  select delivery_status, signal_valid_until
+    into existing_status, existing_valid_until
+    from public.signal_advisories
+   where signal_id = p_signal_id;
+
+  if found
+     and existing_status = 'FAILED'
+     and p_now >= existing_valid_until then
+    return 'SKIPPED_EXPIRED';
+  end if;
+
+  return 'SKIPPED_DUPLICATE';
+end;
+$$;
+
 alter table public.signal_advisories enable row level security;
 revoke all on table public.signal_advisories from anon, authenticated;
 grant select, insert, update, delete on table public.signal_advisories to service_role;
+revoke all on function public.retry_signal_advisory(text, uuid, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.retry_signal_advisory(text, uuid, timestamptz)
+  to service_role;

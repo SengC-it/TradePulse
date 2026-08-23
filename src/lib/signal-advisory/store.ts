@@ -6,6 +6,7 @@ import type {
   ScanRunCompletion,
   SignalAdvisory,
   SignalAdvisoryStore,
+  SignalClaimResult,
   SystemEventInput,
 } from "./types.ts";
 
@@ -17,7 +18,7 @@ function persistenceError(operation: string, error: { code?: string | null }): E
   return new Error(`Signal advisory persistence failed during ${operation}${error.code ? ` (${error.code})` : ""}.`);
 }
 
-function advisoryRow(advisory: SignalAdvisory, scanId: string) {
+function advisoryRow(advisory: SignalAdvisory, scanId: string, now: string) {
   return {
     signal_id: advisory.signalId,
     symbol: advisory.symbol,
@@ -38,6 +39,8 @@ function advisoryRow(advisory: SignalAdvisory, scanId: string) {
     recipient: advisory.recipient,
     scan_run_id: scanId,
     delivery_status: "PENDING",
+    attempt_count: 1,
+    last_attempt_at: now,
   };
 }
 
@@ -137,15 +140,33 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
     }
   }
 
-  async claimSignal(advisory: SignalAdvisory, scanId: string): Promise<"CLAIMED" | "SKIPPED_DUPLICATE"> {
-    const result = await this.client.from("signal_advisories").insert(advisoryRow(advisory, scanId));
+  async claimSignal(advisory: SignalAdvisory, scanId: string, now: string): Promise<SignalClaimResult> {
+    const result = await this.client.from("signal_advisories").insert(advisoryRow(advisory, scanId, now));
     if (!result.error) {
       return "CLAIMED";
     }
-    if (result.error.code === "23505") {
-      return "SKIPPED_DUPLICATE";
+    if (result.error.code !== "23505") {
+      throw persistenceError("claimSignal", result.error);
     }
-    throw persistenceError("claimSignal", result.error);
+
+    const retry = await this.client.rpc("retry_signal_advisory", {
+      p_signal_id: advisory.signalId,
+      p_scan_id: scanId,
+      p_now: now,
+    });
+    if (retry.error) {
+      throw persistenceError("retrySignal", retry.error);
+    }
+
+    const claim = retry.data as SignalClaimResult | null;
+    if (
+      claim === "RETRY_CLAIMED" ||
+      claim === "SKIPPED_DUPLICATE" ||
+      claim === "SKIPPED_EXPIRED"
+    ) {
+      return claim;
+    }
+    throw persistenceError("retrySignal", { code: "UNKNOWN_CLAIM_RESULT" });
   }
 
   async markSignalSent(input: {
@@ -180,7 +201,8 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
         failure_reason: input.failureReason,
         last_failure_at: input.failedAt,
       })
-      .eq("signal_id", input.signalId);
+      .eq("signal_id", input.signalId)
+      .neq("delivery_status", "SENT");
 
     if (result.error) {
       throw persistenceError("markSignalFailed", result.error);

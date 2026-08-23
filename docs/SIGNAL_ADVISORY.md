@@ -21,10 +21,13 @@ succeeded. A deterministic SHA-256 `signal_id` is derived only from:
 
 `symbol + direction + signalTime + strategyVersion`
 
-An atomic insert into `signal_advisories` claims delivery. Any existing row,
-including a previous `FAILED` row, is treated as a duplicate and is not sent
-again. This fail-closed rule prevents an SMTP timeout from creating a send
-loop or an accidental duplicate advisory.
+An atomic insert into `signal_advisories` claims the first delivery attempt.
+`SENT` and `PENDING` rows always return `SKIPPED_DUPLICATE`. A `FAILED` row can
+be claimed once more only while the signal is still valid and its
+`attempt_count` is below two; the database compare-and-set transition moves it
+back to `PENDING` and increments the attempt count. An expired or exhausted
+`FAILED` row is not sent again, so SMTP recovery can repair one transient
+failure without creating an unlimited retry loop.
 
 ## Safety behavior
 
@@ -32,7 +35,7 @@ loop or an accidental duplicate advisory.
 - Missing, malformed, partial, or stale snapshot data produces `NO_SIGNAL`.
 - Only `LONG` and `SHORT` formal candidates can reach email delivery.
 - SMTP failures are persisted as `FAILED` and returned as a partial scan result;
-  they are never reported as successful sends.
+  one later invocation may retry the same valid signal at most once.
 - Every scan writes counts, freshness, and errors to `scan_runs` and
   `system_events`.
 - `/api/health` exposes `lastSuccessfulScan`, `lastEmailSent`, `lastError`,
@@ -46,8 +49,8 @@ The migration `20260823000000_signal_advisory.sql` adds:
 - `scan_runs.signals_sent` and `scan_runs.signals_skipped` counters.
 
 `signal_advisories` is service-role-only and stores the advisory values,
-delivery status, SMTP message ID, and failure reason. It is not an execution
-ledger.
+delivery status, attempt timestamps/count, SMTP message ID, and failure reason.
+It is not an execution ledger.
 
 ## Required server environment
 

@@ -14,6 +14,7 @@ import type {
   ScanRunCompletion,
   SignalAdvisory,
   SignalAdvisoryStore,
+  SignalClaimResult,
   SystemEventInput,
 } from "@/lib/signal-advisory/types";
 import type { Candle, MarketSnapshot } from "@/lib/market-data/types";
@@ -151,7 +152,10 @@ function makeSnapshot(options: Readonly<{ status?: "VALID" | "PARTIAL"; stale?: 
 
 class MemoryStore implements SignalAdvisoryStore {
   readonly runs = new Map<string, { id: string; status: string }>();
-  readonly advisories = new Map<string, SignalAdvisory & { deliveryStatus: string }>();
+  readonly advisories = new Map<
+    string,
+    SignalAdvisory & { deliveryStatus: string; attemptCount: number; lastAttemptAt: string }
+  >();
   readonly completions: ScanRunCompletion[] = [];
   readonly events: SystemEventInput[] = [];
   private nextId = 1;
@@ -177,12 +181,34 @@ class MemoryStore implements SignalAdvisoryStore {
     this.completions.push(input);
   }
 
-  async claimSignal(advisory: SignalAdvisory): Promise<"CLAIMED" | "SKIPPED_DUPLICATE"> {
-    if (this.advisories.has(advisory.signalId)) {
-      return "SKIPPED_DUPLICATE";
+  async claimSignal(advisory: SignalAdvisory, _scanId: string, now: string): Promise<SignalClaimResult> {
+    const existing = this.advisories.get(advisory.signalId);
+    if (!existing) {
+      this.advisories.set(advisory.signalId, {
+        ...advisory,
+        deliveryStatus: "PENDING",
+        attemptCount: 1,
+        lastAttemptAt: now,
+      });
+      return "CLAIMED";
     }
-    this.advisories.set(advisory.signalId, { ...advisory, deliveryStatus: "PENDING" });
-    return "CLAIMED";
+
+    if (
+      existing.deliveryStatus === "FAILED" &&
+      Date.parse(now) < Date.parse(existing.signalValidUntil) &&
+      existing.attemptCount < 2
+    ) {
+      existing.deliveryStatus = "PENDING";
+      existing.attemptCount += 1;
+      existing.lastAttemptAt = now;
+      return "RETRY_CLAIMED";
+    }
+
+    if (existing.deliveryStatus === "FAILED" && Date.parse(now) >= Date.parse(existing.signalValidUntil)) {
+      return "SKIPPED_EXPIRED";
+    }
+
+    return "SKIPPED_DUPLICATE";
   }
 
   async markSignalSent(input: { signalId: string; sentAt: string; emailMessageId: string }): Promise<void> {
@@ -194,7 +220,7 @@ class MemoryStore implements SignalAdvisoryStore {
 
   async markSignalFailed(input: { signalId: string; failedAt: string; failureReason: string }): Promise<void> {
     const advisory = this.advisories.get(input.signalId);
-    if (advisory) {
+    if (advisory && advisory.deliveryStatus !== "SENT") {
       advisory.deliveryStatus = "FAILED";
     }
   }
@@ -385,7 +411,7 @@ describe("signal advisory scan", () => {
     expect(sendCount).toBe(first.signalsSent);
   });
 
-  it("records SMTP failure and never loops into repeated delivery", async () => {
+  it("retries one failed valid signal after SMTP recovery", async () => {
     const store = new MemoryStore();
     let sendCount = 0;
     const result = await runSignalAdvisoryScan({
@@ -398,12 +424,13 @@ describe("signal advisory scan", () => {
       }),
       scheduledFor: "2026-08-23T00:05:00.000Z",
     });
+    expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "FAILED")).toBe(true);
     const retry = await runSignalAdvisoryScan({
       dependencies: dependencies({
         store,
         send: async () => {
           sendCount += 1;
-          return { emailMessageId: "must-not-send" };
+          return { emailMessageId: "<retry-message-id>" };
         },
       }),
       scheduledFor: "2026-08-23T01:05:00.000Z",
@@ -411,8 +438,70 @@ describe("signal advisory scan", () => {
 
     expect(result.outcome).toBe("PARTIAL");
     expect(result.errors).toContain("SMTP_DELIVERY_FAILED");
-    expect(retry.signalsSkipped).toBeGreaterThan(0);
-    expect(sendCount).toBe(result.signalsGenerated);
-    expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "FAILED")).toBe(true);
+    expect(retry.outcome).toBe("SUCCESS");
+    expect(retry.signalsSent).toBe(result.signalsGenerated);
+    expect(retry.signalsSkipped).toBe(0);
+    expect(sendCount).toBe(result.signalsGenerated * 2);
+    expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    expect([...store.advisories.values()].every((advisory) => advisory.attemptCount === 2)).toBe(true);
+  });
+
+  it("does not retry an expired FAILED signal", async () => {
+    const store = new MemoryStore();
+    const advisory = exampleAdvisory("LONG");
+
+    expect(await store.claimSignal(advisory, "scan-1", "2026-08-23T00:05:00.000Z")).toBe("CLAIMED");
+    await store.markSignalFailed({
+      signalId: advisory.signalId,
+      failedAt: "2026-08-23T00:05:01.000Z",
+      failureReason: "SMTP_DELIVERY_FAILED",
+    });
+
+    expect(await store.claimSignal(advisory, "scan-2", "2026-08-23T01:00:00.000Z")).toBe("SKIPPED_EXPIRED");
+    expect(store.advisories.get(advisory.signalId)?.attemptCount).toBe(1);
+  });
+
+  it("does not retry a FAILED signal after the second attempt", async () => {
+    const store = new MemoryStore();
+    const advisory = exampleAdvisory("SHORT");
+
+    expect(await store.claimSignal(advisory, "scan-1", "2026-08-23T00:05:00.000Z")).toBe("CLAIMED");
+    await store.markSignalFailed({
+      signalId: advisory.signalId,
+      failedAt: "2026-08-23T00:05:01.000Z",
+      failureReason: "SMTP_DELIVERY_FAILED",
+    });
+    expect(await store.claimSignal(advisory, "scan-2", "2026-08-23T00:10:00.000Z")).toBe("RETRY_CLAIMED");
+    await store.markSignalFailed({
+      signalId: advisory.signalId,
+      failedAt: "2026-08-23T00:10:01.000Z",
+      failureReason: "SMTP_DELIVERY_FAILED",
+    });
+
+    expect(await store.claimSignal(advisory, "scan-3", "2026-08-23T00:15:00.000Z")).toBe("SKIPPED_DUPLICATE");
+    expect(store.advisories.get(advisory.signalId)?.attemptCount).toBe(2);
+  });
+
+  it("allows only one concurrent retry claim", async () => {
+    const store = new MemoryStore();
+    const advisory = exampleAdvisory("LONG");
+
+    expect(await store.claimSignal(advisory, "scan-1", "2026-08-23T00:05:00.000Z")).toBe("CLAIMED");
+    await store.markSignalFailed({
+      signalId: advisory.signalId,
+      failedAt: "2026-08-23T00:05:01.000Z",
+      failureReason: "SMTP_DELIVERY_FAILED",
+    });
+
+    const claims = await Promise.all([
+      store.claimSignal(advisory, "scan-2", "2026-08-23T00:10:00.000Z"),
+      store.claimSignal(advisory, "scan-3", "2026-08-23T00:10:00.000Z"),
+    ]);
+    expect(claims.filter((claim) => claim === "RETRY_CLAIMED")).toHaveLength(1);
+    expect(claims.filter((claim) => claim === "SKIPPED_DUPLICATE")).toHaveLength(1);
+    expect(store.advisories.get(advisory.signalId)).toMatchObject({
+      deliveryStatus: "PENDING",
+      attemptCount: 2,
+    });
   });
 });
