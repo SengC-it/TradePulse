@@ -6,6 +6,7 @@ import { dashboardAccessDecision, isSafeLoginNext } from "@/lib/dashboard/access
 import { calculateReviewMetrics } from "@/lib/dashboard/metrics";
 import { evaluationStatusLabel, formatR, maskRecipient, reasonLabel, regimeLabel } from "@/lib/dashboard/presenters";
 import { mapStrategyEvaluations } from "@/lib/signal-advisory/evaluations";
+import { config as proxyConfig } from "@/proxy";
 
 describe("Dashboard V1 presentation and observability", () => {
   it("maps all evaluation outcomes without changing Strategy Engine meaning", () => {
@@ -75,7 +76,30 @@ describe("Dashboard V1 presentation and observability", () => {
     expect(dashboardAccessDecision({ authenticated: true, authorized: false })).toBe("DENIED");
     expect(dashboardAccessDecision({ authenticated: true, authorized: true })).toBe("AUTHORIZED");
     expect(isSafeLoginNext("/dashboard")).toBe(true);
+    expect(isSafeLoginNext("/dashboard/detections")).toBe(true);
     expect(isSafeLoginNext("//external.example")).toBe(false);
+    expect(isSafeLoginNext("/\\evil.com")).toBe(false);
+    expect(isSafeLoginNext("/settings")).toBe(false);
+    expect(isSafeLoginNext("/")).toBe(false);
+  });
+
+  it("refreshes sessions through the page-only Supabase proxy", () => {
+    const matcherPattern = proxyConfig.matcher[0];
+    const matcher = new RegExp(`^${matcherPattern}$`);
+    const proxySource = readFileSync("src/proxy.ts", "utf8");
+    const helperSource = readFileSync("src/lib/supabase/proxy.ts", "utf8");
+
+    expect(proxySource).toContain("export async function proxy");
+    expect(matcher.test("/dashboard")).toBe(true);
+    expect(matcher.test("/api/cron/signal-advisory")).toBe(false);
+    expect(matcher.test("/api/health")).toBe(false);
+    expect(matcher.test("/api/diagnostics/market-smoke")).toBe(false);
+    expect(matcher.test("/_next/static/chunk.js")).toBe(false);
+    expect(helperSource).toContain("createServerClient");
+    expect(helperSource).toContain("supabase.auth.getClaims()");
+    expect(helperSource).not.toContain("getSession()");
+    expect(helperSource).toContain("request.cookies.set");
+    expect(helperSource).toContain("supabaseResponse.cookies.set");
   });
 
   it("keeps the login flow closed to public signup and keeps logout available", () => {

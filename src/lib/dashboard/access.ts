@@ -16,7 +16,7 @@ export function dashboardAccessDecision(access: Pick<DashboardAccess, "authentic
 }
 
 export function isSafeLoginNext(value: string | null | undefined): boolean {
-  return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
+  return Boolean(value === "/dashboard" || value?.startsWith("/dashboard/"));
 }
 
 export async function getDashboardAccess(): Promise<DashboardAccess> {
