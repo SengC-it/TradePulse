@@ -34,6 +34,12 @@ back to `PENDING` and increments the attempt count. An expired or exhausted
 `FAILED` row is not sent again, so SMTP recovery can repair one transient
 failure without creating an unlimited retry loop.
 
+After `evaluateStrategy()` returns, every symbol/direction evaluation is also
+written to `tp_signal_evaluations` as an observability read model. The unique
+key `(scan_run_id, symbol, direction)` makes the write idempotent. Evaluation
+logging failure is recorded as a system event and makes the scan `PARTIAL`, but
+does not alter Strategy Engine eligibility or suppress an otherwise valid email.
+
 ## Safety behavior
 
 - Only fully closed candles from the existing market-data validator are used.
@@ -51,6 +57,8 @@ failure without creating an unlimited retry loop.
 The migration `20260823000000_signal_advisory.sql` adds:
 
 - `tp_signal_advisories`: signal log and persistent delivery registry.
+- `tp_signal_evaluations`: one server-side evaluation record for each scanned
+  symbol/direction pair.
 - `tp_scan_runs.signals_sent` and `tp_scan_runs.signals_skipped` counters.
 
 `tp_signal_advisories` is service-role-only and stores the advisory values,

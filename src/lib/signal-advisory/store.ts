@@ -5,6 +5,7 @@ import type {
   ScanRunBeginResult,
   ScanRunCompletion,
   SignalAdvisory,
+  SignalEvaluationRecord,
   SignalAdvisoryStore,
   SignalClaimResult,
   SystemEventInput,
@@ -206,6 +207,40 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
 
     if (result.error) {
       throw persistenceError("markSignalFailed", result.error);
+    }
+  }
+
+  async recordStrategyEvaluations(rows: readonly SignalEvaluationRecord[]): Promise<void> {
+    if (rows.length === 0) {
+      return;
+    }
+
+    const result = await this.client
+      .from("tp_signal_evaluations")
+      .upsert(
+        rows.map((row) => ({
+          scan_run_id: row.scanRunId,
+          strategy_version: row.strategyVersion,
+          evaluated_at: row.evaluatedAt,
+          symbol: row.symbol,
+          direction: row.direction,
+          status: row.status,
+          reason_code: row.reasonCode,
+          symbol_regime: row.symbolRegime,
+          btc_regime: row.btcRegime,
+          score: row.score,
+          grade: row.grade,
+          formal_signal: row.formalSignal,
+          entry_reference: row.entryReference,
+          stop_reference: row.stopReference,
+          take_profit_reference: row.takeProfitReference,
+          score_breakdown: row.scoreBreakdown,
+        })),
+        { onConflict: "scan_run_id,symbol,direction" },
+      );
+
+    if (result.error) {
+      throw persistenceError("recordStrategyEvaluations", result.error);
     }
   }
 

@@ -7,6 +7,7 @@ import type { StrategyCandidate } from "../strategy/types.ts";
 import { buildHourlyScanRunKey } from "../scanning/run-idempotency.ts";
 import { sendSignalEmail } from "./email.ts";
 import { buildDeterministicSignalId } from "./identity.ts";
+import { mapStrategyEvaluations } from "./evaluations.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
 import type {
   SignalAdvisory,
@@ -290,6 +291,29 @@ export async function runSignalAdvisoryScan(input: Readonly<{
     }),
   ) as Parameters<typeof evaluateStrategy>[0]["datasets"];
   const strategyResult = evaluateStrategy({ evaluationTime, datasets });
+  try {
+    await dependencies.store.recordStrategyEvaluations(
+      mapStrategyEvaluations({
+        scanRunId: begin.scanId,
+        evaluatedAt: new Date(evaluationTime).toISOString(),
+        evaluations: strategyResult.evaluations,
+      }),
+    );
+  } catch {
+    errors.push("EVALUATION_PERSISTENCE_FAILED");
+    await recordEvent(
+      dependencies,
+      {
+        level: "ERROR",
+        operation: "signal-advisory-evaluation-persistence",
+        status: "FAILED",
+        errorCode: "EVALUATION_PERSISTENCE_FAILED",
+        scanId: begin.scanId,
+        metadata: { evaluationCount: strategyResult.evaluations.length },
+      },
+      errors,
+    );
+  }
   const advisories = strategyResult.rankedCandidates.flatMap((candidate) => {
     const advisory = buildAdvisory({
       snapshot,

@@ -13,6 +13,7 @@ import type {
   ScanRunBeginResult,
   ScanRunCompletion,
   SignalAdvisory,
+  SignalEvaluationRecord,
   SignalAdvisoryStore,
   SignalClaimResult,
   SystemEventInput,
@@ -161,6 +162,8 @@ class MemoryStore implements SignalAdvisoryStore {
   >();
   readonly completions: ScanRunCompletion[] = [];
   readonly events: SystemEventInput[] = [];
+  readonly evaluations: SignalEvaluationRecord[] = [];
+  evaluationPersistenceFailure = false;
   private nextId = 1;
 
   async beginScanRun(input: { runKey: string; scheduledFor: string; now: string }): Promise<ScanRunBeginResult> {
@@ -226,6 +229,13 @@ class MemoryStore implements SignalAdvisoryStore {
     if (advisory && advisory.deliveryStatus !== "SENT") {
       advisory.deliveryStatus = "FAILED";
     }
+  }
+
+  async recordStrategyEvaluations(rows: readonly SignalEvaluationRecord[]): Promise<void> {
+    if (this.evaluationPersistenceFailure) {
+      throw new Error("evaluation persistence unavailable");
+    }
+    this.evaluations.push(...rows);
   }
 
   async recordSystemEvent(input: SystemEventInput): Promise<void> {
@@ -413,7 +423,31 @@ describe("signal advisory scan", () => {
     expect(result.signalsGenerated).toBeGreaterThan(0);
     expect(result.signalsSent).toBe(sent.length);
     expect(store.advisories.size).toBe(sent.length);
+    expect(store.evaluations).toHaveLength(RESEARCH_SYMBOLS.length * 2);
+    expect(store.evaluations.every((evaluation) => evaluation.scanRunId === result.scanId)).toBe(true);
+    expect(store.evaluations.some((evaluation) => evaluation.status === "FORMAL_SIGNAL")).toBe(true);
     expect(store.events.at(-1)?.metadata).toMatchObject({ dataFreshness: "FRESH" });
+  });
+
+  it("keeps signal eligibility and email delivery unchanged when evaluation logging fails", async () => {
+    const store = new MemoryStore();
+    store.evaluationPersistenceFailure = true;
+    let sendCount = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: "<evaluation-log-failure-email>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.errors).toContain("EVALUATION_PERSISTENCE_FAILED");
+    expect(sendCount).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
   it("returns NO_SIGNAL and sends nothing for missing or stale data", async () => {
