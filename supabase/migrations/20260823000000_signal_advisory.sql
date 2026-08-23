@@ -2,18 +2,18 @@
 -- This table is service-side only. It is not an order, fill, position, or
 -- account-execution table.
 
-alter table public.scan_runs
+alter table public.tp_scan_runs
   add column signals_sent integer not null default 0
     check (signals_sent >= 0),
   add column signals_skipped integer not null default 0
     check (signals_skipped >= 0);
 
-create table public.signal_advisories (
+create table public.tp_signal_advisories (
   signal_id text primary key,
   symbol text not null check (symbol in ('BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT')),
   direction text not null check (direction in ('LONG', 'SHORT')),
   strategy_id text not null,
-  strategy_version text not null references public.strategy_versions(version),
+  strategy_version text not null references public.tp_strategy_versions(version),
   signal_time timestamptz not null,
   signal_valid_until timestamptz not null check (signal_valid_until > signal_time),
   current_reference_price numeric(30, 12) not null check (current_reference_price > 0),
@@ -26,7 +26,7 @@ create table public.signal_advisories (
   market_regime jsonb not null default '{}'::jsonb check (jsonb_typeof(market_regime) = 'object'),
   data_freshness jsonb not null default '{}'::jsonb check (jsonb_typeof(data_freshness) = 'object'),
   recipient text not null,
-  scan_run_id uuid not null references public.scan_runs(id) on delete restrict,
+  scan_run_id uuid not null references public.tp_scan_runs(id) on delete restrict,
   delivery_status text not null default 'PENDING'
     check (delivery_status in ('PENDING', 'SENT', 'FAILED')),
   attempt_count integer not null default 0
@@ -39,17 +39,17 @@ create table public.signal_advisories (
   last_failure_at timestamptz
 );
 
-create index signal_advisories_signal_time_idx
-  on public.signal_advisories (signal_time desc);
-create index signal_advisories_delivery_status_idx
-  on public.signal_advisories (delivery_status, created_at desc);
-create index signal_advisories_sent_at_idx
-  on public.signal_advisories (sent_at desc)
+create index tp_signal_advisories_signal_time_idx
+  on public.tp_signal_advisories (signal_time desc);
+create index tp_signal_advisories_delivery_status_idx
+  on public.tp_signal_advisories (delivery_status, created_at desc);
+create index tp_signal_advisories_sent_at_idx
+  on public.tp_signal_advisories (sent_at desc)
   where sent_at is not null;
 
 -- The retry transition is a database-side compare-and-set so concurrent scans
 -- cannot both claim the single permitted retry attempt.
-create or replace function public.retry_signal_advisory(
+create or replace function public.tp_retry_signal_advisory(
   p_signal_id text,
   p_scan_id uuid,
   p_now timestamptz
@@ -63,7 +63,7 @@ declare
   existing_status text;
   existing_valid_until timestamptz;
 begin
-  update public.signal_advisories
+  update public.tp_signal_advisories
   set delivery_status = 'PENDING',
       attempt_count = attempt_count + 1,
       last_attempt_at = p_now,
@@ -83,7 +83,7 @@ begin
 
   select delivery_status, signal_valid_until
     into existing_status, existing_valid_until
-    from public.signal_advisories
+    from public.tp_signal_advisories
    where signal_id = p_signal_id;
 
   if found
@@ -96,10 +96,10 @@ begin
 end;
 $$;
 
-alter table public.signal_advisories enable row level security;
-revoke all on table public.signal_advisories from anon, authenticated;
-grant select, insert, update, delete on table public.signal_advisories to service_role;
-revoke all on function public.retry_signal_advisory(text, uuid, timestamptz)
+alter table public.tp_signal_advisories enable row level security;
+revoke all on table public.tp_signal_advisories from anon, authenticated;
+grant select, insert, update, delete on table public.tp_signal_advisories to service_role;
+revoke all on function public.tp_retry_signal_advisory(text, uuid, timestamptz)
   from public, anon, authenticated;
-grant execute on function public.retry_signal_advisory(text, uuid, timestamptz)
+grant execute on function public.tp_retry_signal_advisory(text, uuid, timestamptz)
   to service_role;

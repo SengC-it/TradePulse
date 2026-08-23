@@ -20,13 +20,13 @@ position, or execution API.
 - Email function: `sendSignalEmail()` in `src/lib/signal-advisory/email.ts`
 - Pipeline: `runSignalAdvisoryScan()` in `src/lib/signal-advisory/scan.ts`
 
-The scan is safe to retry at the run level. `scan_runs.run_key` prevents the
+The scan is safe to retry at the run level. `tp_scan_runs.run_key` prevents the
 same hourly cycle from running twice while its lease is active or after it has
 succeeded. A deterministic SHA-256 `signal_id` is derived only from:
 
 `symbol + direction + signalTime + strategyVersion`
 
-An atomic insert into `signal_advisories` claims the first delivery attempt.
+An atomic insert into `tp_signal_advisories` claims the first delivery attempt.
 `SENT` and `PENDING` rows always return `SKIPPED_DUPLICATE`. A `FAILED` row can
 be claimed once more only while the signal is still valid and its
 `attempt_count` is below two; the database compare-and-set transition moves it
@@ -41,8 +41,8 @@ failure without creating an unlimited retry loop.
 - Only `LONG` and `SHORT` formal candidates can reach email delivery.
 - SMTP failures are persisted as `FAILED` and returned as a partial scan result;
   one later invocation may retry the same valid signal at most once.
-- Every scan writes counts, freshness, and errors to `scan_runs` and
-  `system_events`.
+- Every scan writes counts, freshness, and errors to `tp_scan_runs` and
+  `tp_system_events`.
 - `/api/health` exposes `lastSuccessfulScan`, `lastEmailSent`, `lastError`,
   and the strategy version without returning secrets.
 
@@ -50,10 +50,10 @@ failure without creating an unlimited retry loop.
 
 The migration `20260823000000_signal_advisory.sql` adds:
 
-- `signal_advisories`: signal log and persistent delivery registry.
-- `scan_runs.signals_sent` and `scan_runs.signals_skipped` counters.
+- `tp_signal_advisories`: signal log and persistent delivery registry.
+- `tp_scan_runs.signals_sent` and `tp_scan_runs.signals_skipped` counters.
 
-`signal_advisories` is service-role-only and stores the advisory values,
+`tp_signal_advisories` is service-role-only and stores the advisory values,
 delivery status, attempt timestamps/count, SMTP message ID, and failure reason.
 It is not an execution ledger.
 
@@ -61,9 +61,12 @@ It is not an execution ledger.
 
 Existing Supabase and scheduler variables:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL=https://jfvbikivtpfjgfsnggiz.supabase.co`
 - `SUPABASE_SECRET_KEY` (server-only)
 - `CRON_SECRET` (server-only)
+
+The Supabase secret key and all scheduler secrets remain server-only. This PR
+does not apply the namespace migrations to the remote project.
 
 Gmail SMTP variables:
 

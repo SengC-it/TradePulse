@@ -55,7 +55,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
     const nowMs = new Date(input.now).getTime();
     const leaseExpiresAt = new Date(nowMs + SCAN_LEASE_MS).toISOString();
     const inserted = await this.client
-      .from("scan_runs")
+      .from("tp_scan_runs")
       .insert({
         run_key: input.runKey,
         scheduled_for: input.scheduledFor,
@@ -77,7 +77,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
     }
 
     const existing = await this.client
-      .from("scan_runs")
+      .from("tp_scan_runs")
       .select("id,status,lease_expires_at,attempt_count")
       .eq("run_key", input.runKey)
       .maybeSingle();
@@ -97,7 +97,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
     }
 
     const retry = await this.client
-      .from("scan_runs")
+      .from("tp_scan_runs")
       .update({
         status: "RUNNING",
         started_at: input.now,
@@ -120,7 +120,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
 
   async completeScanRun(input: ScanRunCompletion): Promise<void> {
     const result = await this.client
-      .from("scan_runs")
+      .from("tp_scan_runs")
       .update({
         status: input.status,
         symbols_requested: input.symbolsRequested,
@@ -141,7 +141,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
   }
 
   async claimSignal(advisory: SignalAdvisory, scanId: string, now: string): Promise<SignalClaimResult> {
-    const result = await this.client.from("signal_advisories").insert(advisoryRow(advisory, scanId, now));
+    const result = await this.client.from("tp_signal_advisories").insert(advisoryRow(advisory, scanId, now));
     if (!result.error) {
       return "CLAIMED";
     }
@@ -149,7 +149,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
       throw persistenceError("claimSignal", result.error);
     }
 
-    const retry = await this.client.rpc("retry_signal_advisory", {
+    const retry = await this.client.rpc("tp_retry_signal_advisory", {
       p_signal_id: advisory.signalId,
       p_scan_id: scanId,
       p_now: now,
@@ -175,7 +175,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
     emailMessageId: string;
   }): Promise<void> {
     const result = await this.client
-      .from("signal_advisories")
+      .from("tp_signal_advisories")
       .update({
         delivery_status: "SENT",
         sent_at: input.sentAt,
@@ -195,7 +195,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
     failureReason: string;
   }): Promise<void> {
     const result = await this.client
-      .from("signal_advisories")
+      .from("tp_signal_advisories")
       .update({
         delivery_status: "FAILED",
         failure_reason: input.failureReason,
@@ -210,7 +210,7 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
   }
 
   async recordSystemEvent(input: SystemEventInput): Promise<void> {
-    const result = await this.client.from("system_events").insert({
+    const result = await this.client.from("tp_system_events").insert({
       level: input.level,
       operation: input.operation,
       status: input.status,
@@ -229,21 +229,21 @@ export class SupabaseSignalAdvisoryStore implements SignalAdvisoryStore {
   async getHealth(): Promise<AdvisoryHealth> {
     const [scan, sent, error] = await Promise.all([
       this.client
-        .from("scan_runs")
+        .from("tp_scan_runs")
         .select("completed_at")
         .eq("status", "SUCCEEDED")
         .order("completed_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
       this.client
-        .from("signal_advisories")
+        .from("tp_signal_advisories")
         .select("sent_at")
         .eq("delivery_status", "SENT")
         .order("sent_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
       this.client
-        .from("system_events")
+        .from("tp_system_events")
         .select("message,error_code")
         .eq("level", "ERROR")
         .order("event_time", { ascending: false })

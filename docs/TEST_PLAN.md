@@ -65,7 +65,7 @@ and M4 is not started.
   score calculation, and invalid evaluation time never falls back to the wall
   clock.
 - Signal fingerprints and notification policy are deterministic.
-- Score consistency tests prove the five components sum to `total_score` and that `signals.score` cannot differ from it in the persistence contract.
+- Score consistency tests prove the five components sum to `total_score` and that `tp_signals.score` cannot differ from it in the persistence contract.
 - Scan idempotency tests prove one stable run key per planned UTC cycle, duplicate-cycle skip behavior, and retry of the same row after failure or lease expiry.
 - Email templates contain every required field and the no-trading disclaimer.
 
@@ -106,7 +106,7 @@ expected business result. Tests must prove that:
 - Database migration applies to a disposable development database and RLS policies behave as designed.
 - RLS isolation test design below proves an authenticated user without an authorization row cannot read global TradePulse tables, while an enabled authorized user can read them.
 - Signal insertion is idempotent for the same version/symbol/direction/candle tuple.
-- A duplicate planned scan cycle conflicts on `scan_runs.run_key` and does not create a second run row.
+- A duplicate planned scan cycle conflicts on `tp_scan_runs.run_key` and does not create a second run row.
 - Notification records transition PENDING → SENT or PENDING → FAILED.
 - Forward tracker creates one terminal result and does not mutate the signal snapshot.
 
@@ -133,14 +133,14 @@ These cases are intended to run against an explicitly selected disposable Supaba
 | Case | Session/role | Expected result |
 | --- | --- | --- |
 | Anonymous read of each global table | `anon` | Denied by grant and/or RLS |
-| Authenticated user absent from `tradepulse_authorized_users` reads `signals`, `signal_scores`, `signal_results`, `notifications`, `scan_runs`, `system_events`, `strategy_versions`, `backtest_runs`, or `backtest_signals` | `authenticated`, `auth.uid() = user_a` | Empty result / denied; no global rows visible |
+| Authenticated user absent from `tp_authorized_users` reads `tp_signals`, `tp_signal_scores`, `tp_signal_results`, `tp_notifications`, `tp_scan_runs`, `tp_system_events`, `tp_strategy_versions`, `tp_backtest_runs`, or `tp_backtest_signals` | `authenticated`, `auth.uid() = user_a` | Empty result / denied; no global rows visible |
 | Enabled owner reads global tables | `authenticated`, `auth.uid() = owner_id`, matching enabled row | Rows visible |
 | Disabled owner reads global tables | `authenticated`, matching row with `enabled = false` | No global rows visible |
 | Authorized user reads authorization table | `authenticated` | Only that user's authorization row visible |
 | User decision read/write for own row | Authorized `user_a` | Own row allowed |
 | User decision read/write for another user's row | Authorized `user_a`, row `user_b` | Denied by `auth.uid()` ownership predicate |
 | Non-authorized user decision read/write | Authenticated `user_b` without allowlist row | Denied even when `user_id = user_b` |
-| Score total mismatch | Database transaction | Component `CHECK` rejects a non-sum; deferred trigger rejects a mismatch with `signals.score` |
+| Score total mismatch | Database transaction | Component `CHECK` rejects a non-sum; deferred trigger rejects a mismatch with `tp_signals.score` |
 | Signal without score row | Database transaction commit | Deferred trigger rejects the incomplete signal snapshot |
 | Duplicate scan claim | Two workers, same `run_key` | One unique row; second worker skips or retries the locked existing row according to lease/status |
 
