@@ -5,6 +5,10 @@ import type { SignalAdvisory } from "./types.ts";
 
 export type SignalEmailTransport = Pick<Transporter, "sendMail">;
 
+export const TRADEPULSE_SMTP_USER = "zunxian.chi@gmail.com";
+export const TRADEPULSE_ALERT_EMAIL_TO = "sheng.chi@qq.com";
+export const TRADEPULSE_EMAIL_FROM_NAME = "Trade Pulse";
+
 export type RenderedSignalEmail = Readonly<{
   subject: string;
   text: string;
@@ -27,13 +31,52 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
+function extractEmailAddress(value: string): string | null {
+  const angleAddress = value.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/u)?.[1];
+  if (angleAddress) {
+    return angleAddress;
+  }
+
+  return value.match(/[^\s<>]+@[^\s<>]+/u)?.[0] ?? null;
+}
+
+function isValidEmailAddress(value: string): boolean {
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/u.test(value);
+}
+
+export function validateSmtpConfiguration(configuration: SmtpConfiguration): void {
+  if (!isValidEmailAddress(configuration.user)) {
+    throw new Error("SMTP_USER must be a valid email address.");
+  }
+
+  if (configuration.user !== TRADEPULSE_SMTP_USER) {
+    throw new Error(`SMTP_USER must be ${TRADEPULSE_SMTP_USER}.`);
+  }
+
+  if (extractEmailAddress(configuration.from) !== configuration.user) {
+    throw new Error("ALERT_EMAIL_FROM email address must match SMTP_USER.");
+  }
+
+  if (configuration.to !== TRADEPULSE_ALERT_EMAIL_TO) {
+    throw new Error(`ALERT_EMAIL_TO must be ${TRADEPULSE_ALERT_EMAIL_TO}.`);
+  }
+}
+
+export function getTradePulseFrom(configuration: SmtpConfiguration): { name: string; address: string } {
+  validateSmtpConfiguration(configuration);
+  return {
+    name: TRADEPULSE_EMAIL_FROM_NAME,
+    address: configuration.user,
+  };
+}
+
 export function getSmtpConfiguration(): SmtpConfiguration {
   const port = Number(process.env.SMTP_PORT ?? "587");
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error("SMTP_PORT must be a valid TCP port.");
   }
 
-  return {
+  const configuration = {
     host: requiredEnvironment("SMTP_HOST"),
     port,
     user: requiredEnvironment("SMTP_USER"),
@@ -41,6 +84,9 @@ export function getSmtpConfiguration(): SmtpConfiguration {
     from: requiredEnvironment("ALERT_EMAIL_FROM"),
     to: requiredEnvironment("ALERT_EMAIL_TO"),
   };
+
+  validateSmtpConfiguration(configuration);
+  return configuration;
 }
 
 function displayPrice(value: number): string {
@@ -141,10 +187,11 @@ export async function sendSignalEmail(
   }> = {},
 ): Promise<{ emailMessageId: string }> {
   const configuration = options.configuration ?? getSmtpConfiguration();
+  const from = getTradePulseFrom(configuration);
   const transport = options.transport ?? createDefaultTransport(configuration);
   const rendered = renderSignalAdvisoryEmail(advisory);
   const mail: SendMailOptions = {
-    from: configuration.from,
+    from,
     to: configuration.to,
     subject: rendered.subject,
     text: rendered.text,
