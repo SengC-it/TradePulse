@@ -27,7 +27,7 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-function getSmtpConfiguration(): SmtpConfiguration {
+export function getSmtpConfiguration(): SmtpConfiguration {
   const port = Number(process.env.SMTP_PORT ?? "587");
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error("SMTP_PORT must be a valid TCP port.");
@@ -120,7 +120,7 @@ export function renderSignalAdvisoryEmail(advisory: SignalAdvisory): RenderedSig
   };
 }
 
-function createDefaultTransport(configuration: SmtpConfiguration): SignalEmailTransport {
+export function createDefaultTransport(configuration: SmtpConfiguration): SignalEmailTransport {
   return nodemailer.createTransport({
     host: configuration.host,
     port: configuration.port,
