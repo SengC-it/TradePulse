@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "@/lib/config/constants";
 import {
@@ -381,10 +381,10 @@ describe("signal advisory identity and email", () => {
     const configuration: SmtpConfiguration = {
       host: "smtp.gmail.com",
       port: 587,
-      user: "alerts@example.test",
+      user: "zunxian.chi@gmail.com",
       appPassword: "test-only-not-real",
-      from: "TradePulse <alerts@example.test>",
-      to: "owner@example.test",
+      from: "zunxian.chi zunxian.chi@gmail.com",
+      to: "sheng.chi@qq.com",
     };
     const result = await sendSignalEmail(exampleAdvisory("LONG"), {
       configuration,
@@ -396,11 +396,35 @@ describe("signal advisory identity and email", () => {
       },
     });
     expect(result).toEqual({ emailMessageId: "<smtp-test-id>" });
+    expect(mail?.from).toEqual({
+      name: "Trade Pulse",
+      address: "zunxian.chi@gmail.com",
+    });
     expect(mail?.text).toContain("仅供参考，请自行决定是否交易。");
     expect(mail?.headers).toMatchObject({
       "X-TradePulse-Signal-ID": exampleAdvisory("LONG").signalId,
       "X-TradePulse-Advisory": "true",
     });
+  });
+
+  it("fails closed for an invalid SMTP user before sending", async () => {
+    const sendMail = vi.fn();
+
+    await expect(
+      sendSignalEmail(exampleAdvisory("LONG"), {
+        configuration: {
+          host: "smtp.gmail.com",
+          port: 587,
+          user: "not-an-email",
+          appPassword: "test-only-not-real",
+          from: "Trade Pulse <not-an-email>",
+          to: "sheng.chi@qq.com",
+        },
+        transport: { sendMail },
+      }),
+    ).rejects.toThrow("SMTP_USER must be a valid email address.");
+
+    expect(sendMail).not.toHaveBeenCalled();
   });
 });
 

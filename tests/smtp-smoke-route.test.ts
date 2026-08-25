@@ -58,7 +58,10 @@ describe("SMTP smoke sender", () => {
 
     expect(sendMail).toHaveBeenCalledOnce();
     expect(sendMail.mock.calls[0]?.[0]).toMatchObject({
-      from: "Trade Pulse <zunxian.chi@gmail.com>",
+      from: {
+        name: "Trade Pulse",
+        address: "zunxian.chi@gmail.com",
+      },
       to: SMTP_SMOKE_RECIPIENT,
       subject: "【模拟测试】TradePulse Production SMTP 验证",
       text: expect.stringContaining("这是一封系统邮件发送验证，不是真实交易信号。"),
@@ -77,6 +80,23 @@ describe("SMTP smoke sender", () => {
     ).rejects.toMatchObject({ code: SMTP_SMOKE_RECIPIENT_MISMATCH });
 
     expect(sendMail).not.toHaveBeenCalled();
+  });
+
+  it("keeps the fixed sender name when ALERT_EMAIL_FROM has a wrong display name", async () => {
+    const sendMail = vi.fn().mockResolvedValue({ messageId: "<smtp-smoke-message-id>" });
+
+    await sendSmtpSmokeEmail({
+      configuration: {
+        ...SMTP_CONFIGURATION,
+        from: "zunxian.chi zunxian.chi@gmail.com",
+      },
+      transport: { sendMail },
+    });
+
+    expect(sendMail.mock.calls[0]?.[0].from).toEqual({
+      name: "Trade Pulse",
+      address: "zunxian.chi@gmail.com",
+    });
   });
 });
 

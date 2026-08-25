@@ -2,6 +2,7 @@ import type { SendMailOptions } from "nodemailer";
 
 import {
   createDefaultTransport,
+  getTradePulseFrom,
   getSmtpConfiguration,
   type SignalEmailTransport,
   type SmtpConfiguration,
@@ -31,9 +32,10 @@ export async function sendSmtpSmokeEmail(
   }
 
   const configuration = options.configuration ?? getSmtpConfiguration();
+  const from = getTradePulseFrom(configuration);
   const transport = options.transport ?? createDefaultTransport(configuration);
   const mail: SendMailOptions = {
-    from: configuration.from,
+    from,
     to: configuration.to,
     subject: "【模拟测试】TradePulse Production SMTP 验证",
     text: [
