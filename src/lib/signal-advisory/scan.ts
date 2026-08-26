@@ -5,7 +5,7 @@ import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "../conf
 import { evaluateStrategy } from "../strategy/engine.ts";
 import type { StrategyCandidate } from "../strategy/types.ts";
 import { buildHourlyScanRunKey } from "../scanning/run-idempotency.ts";
-import { sendSignalEmail } from "./email.ts";
+import { sendSignalEmail, SmtpConfigurationError } from "./email.ts";
 import { buildDeterministicSignalId } from "./identity.ts";
 import { mapStrategyEvaluations } from "./evaluations.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
@@ -134,7 +134,37 @@ function snapshotIsFresh(snapshot: MarketSnapshot): boolean {
   });
 }
 
+function errorProperty(error: unknown, property: string): unknown {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  return property in error ? (error as Record<string, unknown>)[property] : undefined;
+}
+
+type SmtpFailureClass = "EMAIL_CONFIGURATION_INVALID" | "SMTP_AUTH_FAILED" | "SMTP_DELIVERY_FAILED";
+
+function classifySmtpFailure(error: unknown): SmtpFailureClass {
+  if (error instanceof SmtpConfigurationError) {
+    return "EMAIL_CONFIGURATION_INVALID";
+  }
+
+  if (errorProperty(error, "code") === "EAUTH" || errorProperty(error, "responseCode") === 535) {
+    return "SMTP_AUTH_FAILED";
+  }
+
+  return "SMTP_DELIVERY_FAILED";
+}
+
 function errorCode(error: unknown): string {
+  if (error instanceof SmtpConfigurationError) {
+    return "EMAIL_CONFIGURATION_INVALID";
+  }
+
+  if (errorProperty(error, "code") === "EAUTH" || errorProperty(error, "responseCode") === 535) {
+    return "SMTP_AUTH_FAILED";
+  }
+
   return error instanceof Error && error.message.includes("SMTP")
     ? "SMTP_DELIVERY_FAILED"
     : "SIGNAL_ADVISORY_SCAN_FAILED";
@@ -341,12 +371,13 @@ export async function runSignalAdvisoryScan(input: Readonly<{
           emailMessageId: delivery.emailMessageId,
         });
         signalsSent += 1;
-      } catch {
-        errors.push("SMTP_DELIVERY_FAILED");
+      } catch (error) {
+        const failureClass = classifySmtpFailure(error);
+        errors.push(failureClass);
         await dependencies.store.markSignalFailed({
           signalId: advisory.signalId,
           failedAt: new Date(now()).toISOString(),
-          failureReason: "SMTP_DELIVERY_FAILED",
+          failureReason: failureClass,
         });
         await recordEvent(
           dependencies,
@@ -354,10 +385,10 @@ export async function runSignalAdvisoryScan(input: Readonly<{
             level: "ERROR",
             operation: "signal-advisory-email",
             status: "FAILED",
-            errorCode: "SMTP_DELIVERY_FAILED",
+            errorCode: failureClass,
             scanId: begin.scanId,
             symbol: advisory.symbol,
-            metadata: { signalId: advisory.signalId },
+            metadata: { signalId: advisory.signalId, failureClass },
           },
           errors,
         );

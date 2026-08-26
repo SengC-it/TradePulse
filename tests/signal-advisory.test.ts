@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "@/lib/config/constants";
 import {
+  getSmtpConfiguration,
   renderSignalAdvisoryEmail,
   sendSignalEmail,
+  SmtpConfigurationError,
   type SmtpConfiguration,
 } from "@/lib/signal-advisory/email";
 import { buildDeterministicSignalId } from "@/lib/signal-advisory/identity";
@@ -23,6 +25,36 @@ import type { Candle, MarketSnapshot } from "@/lib/market-data/types";
 const HOUR_MS = 3_600_000;
 const FOUR_HOUR_MS = 14_400_000;
 const EVALUATION_TIME = 4_000_000_000;
+
+async function withSmtpEnvironment<T>(
+  alertEmailFrom: string | undefined,
+  callback: () => Promise<T>,
+): Promise<T> {
+  const names = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_APP_PASSWORD", "ALERT_EMAIL_TO", "ALERT_EMAIL_FROM"];
+  const original = new Map(names.map((name) => [name, process.env[name]]));
+  process.env.SMTP_HOST = "smtp.gmail.com";
+  process.env.SMTP_PORT = "587";
+  process.env.SMTP_USER = "zunxian.chi@gmail.com";
+  process.env.SMTP_APP_PASSWORD = "test-only-not-real";
+  process.env.ALERT_EMAIL_TO = "sheng.chi@qq.com";
+  if (alertEmailFrom === undefined) {
+    delete process.env.ALERT_EMAIL_FROM;
+  } else {
+    process.env.ALERT_EMAIL_FROM = alertEmailFrom;
+  }
+
+  try {
+    return await callback();
+  } finally {
+    for (const [name, value] of original) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+}
 
 function makeCandle(
   symbol: ResearchSymbol,
@@ -383,7 +415,6 @@ describe("signal advisory identity and email", () => {
       port: 587,
       user: "zunxian.chi@gmail.com",
       appPassword: "test-only-not-real",
-      from: "zunxian.chi zunxian.chi@gmail.com",
       to: "sheng.chi@qq.com",
     };
     const result = await sendSignalEmail(exampleAdvisory("LONG"), {
@@ -400,6 +431,8 @@ describe("signal advisory identity and email", () => {
       name: "Trade Pulse",
       address: "zunxian.chi@gmail.com",
     });
+    expect(mail?.to).toBe("sheng.chi@qq.com");
+    expect(mail?.subject).toBe("【Trade Pulse】BTCUSDT 看涨（做多）｜85分");
     expect(mail?.text).toContain("仅供参考，请自行决定是否交易。");
     expect(mail?.headers).toMatchObject({
       "X-TradePulse-Signal-ID": exampleAdvisory("LONG").signalId,
@@ -417,7 +450,6 @@ describe("signal advisory identity and email", () => {
           port: 587,
           user: "not-an-email",
           appPassword: "test-only-not-real",
-          from: "Trade Pulse <not-an-email>",
           to: "sheng.chi@qq.com",
         },
         transport: { sendMail },
@@ -426,6 +458,29 @@ describe("signal advisory identity and email", () => {
 
     expect(sendMail).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, "zunxian.chi", "Wrong Name <wrong@example.com>"])(
+    "does not require or trust ALERT_EMAIL_FROM (%s)",
+    async (alertEmailFrom) => {
+      await withSmtpEnvironment(alertEmailFrom, async () => {
+        const configuration = getSmtpConfiguration();
+        let mail: Record<string, unknown> | undefined;
+
+        await sendSignalEmail(exampleAdvisory("SHORT"), {
+          configuration,
+          transport: {
+            sendMail: async (input) => {
+              mail = input as Record<string, unknown>;
+              return { messageId: "<malformed-from-test-id>" };
+            },
+          },
+        });
+
+        expect(mail?.from).toEqual({ name: "Trade Pulse", address: "zunxian.chi@gmail.com" });
+        expect(mail?.to).toBe("sheng.chi@qq.com");
+      });
+    },
+  );
 });
 
 describe("signal advisory scan", () => {
@@ -472,6 +527,58 @@ describe("signal advisory scan", () => {
     expect(result.errors).toContain("EVALUATION_PERSISTENCE_FAILED");
     expect(sendCount).toBe(result.signalsGenerated);
     expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("classifies invalid SMTP configuration as a safe failure class", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        send: async () => {
+          throw new SmtpConfigurationError("SMTP_APP_PASSWORD is missing and must not be logged.");
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.errors).toContain("EMAIL_CONFIGURATION_INVALID");
+    expect(store.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: "signal-advisory-email",
+          errorCode: "EMAIL_CONFIGURATION_INVALID",
+          metadata: expect.objectContaining({
+            failureClass: "EMAIL_CONFIGURATION_INVALID",
+          }),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(store.events)).not.toContain("SMTP_APP_PASSWORD");
+  });
+
+  it("classifies SMTP authentication failures without storing raw errors", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        send: async () => {
+          throw { code: "EAUTH", responseCode: 535, message: "password must not be logged" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.errors).toContain("SMTP_AUTH_FAILED");
+    expect(store.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: "signal-advisory-email",
+          errorCode: "SMTP_AUTH_FAILED",
+          metadata: expect.objectContaining({ failureClass: "SMTP_AUTH_FAILED" }),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(store.events)).not.toContain("password must not be logged");
   });
 
   it("returns NO_SIGNAL and sends nothing for missing or stale data", async () => {
