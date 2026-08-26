@@ -9,7 +9,12 @@ import {
 const TERMINAL_STATUSES = new Set(["TP", "SL", "NO_ENTRY", "AMBIGUOUS"]);
 
 export class ReviewEngineError extends Error {
-  readonly code: "INVALID_REVIEW_INPUT" | "MALFORMED_CANDLE" | "UNORDERED_CANDLES" | "DUPLICATE_CANDLE";
+  readonly code:
+    | "INVALID_REVIEW_INPUT"
+    | "MALFORMED_CANDLE"
+    | "UNORDERED_CANDLES"
+    | "DUPLICATE_CANDLE"
+    | "MISSING_CANDLE";
 
   constructor(
     code: ReviewEngineError["code"],
@@ -43,6 +48,14 @@ function timestamp(value: string, label: string): number {
 
 function ceilToMinute(value: number): number {
   return Math.ceil(value / REVIEW_ONE_MINUTE_MS) * REVIEW_ONE_MINUTE_MS;
+}
+
+function floorToMinute(value: number): number {
+  return Math.floor(value / REVIEW_ONE_MINUTE_MS) * REVIEW_ONE_MINUTE_MS;
+}
+
+function latestClosedOpenTime(now: number): number {
+  return floorToMinute(now - REVIEW_ONE_MINUTE_MS);
 }
 
 function assertCandle(candle: ReviewCandle): void {
@@ -96,6 +109,16 @@ function assertOrderedCandles(candles: readonly ReviewCandle[], expectedSymbol: 
         throw new ReviewEngineError("UNORDERED_CANDLES", "Review candles contain a gap.");
       }
     }
+  }
+}
+
+function assertIncrementalCoverage(candles: readonly ReviewCandle[], expectedStart: number): void {
+  const firstRelevant = candles.find((candle) => candle.openTime >= expectedStart);
+  if (firstRelevant && firstRelevant.openTime !== expectedStart) {
+    throw new ReviewEngineError(
+      "MISSING_CANDLE",
+      "Review candles do not begin at the required contiguous boundary.",
+    );
   }
 }
 
@@ -191,9 +214,19 @@ function evaluateWaitingEntry(
   const afterLast = state.lastEvaluatedCandleTime
     ? timestamp(state.lastEvaluatedCandleTime, "lastEvaluatedCandleTime") + REVIEW_ONE_MINUTE_MS
     : trackingStart;
+  const entryStart = Math.max(trackingStart, afterLast);
+  const entryWindowEnd = floorToMinute(validUntil);
+  const latestClosed = latestClosedOpenTime(now);
+  const alreadyCoveredThroughEntryWindow = state.lastEvaluatedCandleTime !== null && (
+    timestamp(state.lastEvaluatedCandleTime, "lastEvaluatedCandleTime") >= entryWindowEnd
+  );
+
+  if (!alreadyCoveredThroughEntryWindow && entryStart <= entryWindowEnd) {
+    assertIncrementalCoverage(candles, entryStart);
+  }
 
   for (const candle of candles) {
-    if (candle.closeTime >= now || candle.openTime < afterLast || candle.openTime > validUntil) {
+    if (candle.closeTime >= now || candle.openTime < entryStart || candle.openTime > entryWindowEnd) {
       continue;
     }
 
@@ -211,7 +244,7 @@ function evaluateWaitingEntry(
         if (
           laterCandle.closeTime < now &&
           laterCandle.openTime > candle.openTime &&
-          laterCandle.openTime <= validUntil
+          laterCandle.openTime <= latestClosed
         ) {
           const resolution = resolutionForCandle(advisory, laterCandle);
           next = stateWith(next, { lastEvaluatedCandleTime: isoAt(laterCandle.openTime) });
@@ -224,7 +257,12 @@ function evaluateWaitingEntry(
     }
   }
 
-  if (next.status === "WAITING_ENTRY" && now > validUntil && next.lastEvaluatedCandleTime) {
+  const entryWindowIsEmpty = entryStart > entryWindowEnd;
+  const entryWindowFullyCovered = entryWindowIsEmpty || (
+    next.lastEvaluatedCandleTime !== null &&
+    timestamp(next.lastEvaluatedCandleTime, "lastEvaluatedCandleTime") >= entryWindowEnd
+  );
+  if (next.status === "WAITING_ENTRY" && now > validUntil && entryWindowFullyCovered) {
     return stateWith(next, {
       status: "NO_ENTRY",
       resultR: null,
@@ -248,6 +286,8 @@ function evaluateOpen(
     ? timestamp(state.lastEvaluatedCandleTime, "lastEvaluatedCandleTime") + REVIEW_ONE_MINUTE_MS
     : entryTime + REVIEW_ONE_MINUTE_MS;
   let next = state;
+
+  assertIncrementalCoverage(candles, afterLast);
 
   for (const candle of candles) {
     if (candle.closeTime >= now || candle.openTime < afterLast) {

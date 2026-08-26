@@ -142,7 +142,7 @@ export function Pagination(props: Readonly<{ page: number; pageCount: number; qu
 export function ReviewMetricGrid(props: Readonly<{ metrics: import("@/lib/dashboard/types").ReviewMetrics }>) {
   const metrics = props.metrics;
   if (!metrics.hasValidSample) {
-    return <EmptyState title="暂无有效样本" detail="策略盈利能力尚未验证，不根据信号数量推算收益。" />;
+    return <EmptyState title="暂无已结算 TP / SL 复盘样本" detail="策略盈利能力尚未验证，不根据信号数量推算收益。" />;
   }
   return (
     <div className="metric-grid compact-grid">

@@ -116,6 +116,82 @@ function combineRanges(
   return combined;
 }
 
+type ReviewCandles = Awaited<ReturnType<SignalReviewRunDependencies["marketData"]["getClosedCandles"]>>;
+
+function addRange(
+  ranges: Map<ResearchSymbol, ReviewRange>,
+  symbol: ResearchSymbol,
+  range: ReviewRange,
+): void {
+  const current = ranges.get(symbol);
+  ranges.set(symbol, current
+    ? {
+        startTime: Math.min(current.startTime, range.startTime),
+        endTime: Math.max(current.endTime, range.endTime),
+      }
+    : range);
+}
+
+function incompleteRangeError(): Error {
+  return Object.assign(
+    new Error("Review market data did not return the required candle range."),
+    { code: "REVIEW_DATA_INCOMPLETE" },
+  );
+}
+
+function gapRangeError(): Error {
+  return Object.assign(
+    new Error("Review market data contains a continuity gap."),
+    { code: "REVIEW_DATA_GAP" },
+  );
+}
+
+async function fetchRanges(
+  dependencies: SignalReviewRunDependencies,
+  ranges: ReadonlyMap<ResearchSymbol, ReviewRange>,
+  serverTime: number,
+  errors: string[],
+): Promise<Readonly<{ candlesBySymbol: ReadonlyMap<ResearchSymbol, ReviewCandles>; failedSymbols: ReadonlySet<ResearchSymbol> }>> {
+  const candlesBySymbol = new Map<ResearchSymbol, ReviewCandles>();
+  const failedSymbols = new Set<ResearchSymbol>();
+  const latestClosedOpenTime = Math.floor((serverTime - REVIEW_ONE_MINUTE_MS) / REVIEW_ONE_MINUTE_MS) * REVIEW_ONE_MINUTE_MS;
+
+  for (const [symbol, range] of ranges) {
+    try {
+      const candles = await dependencies.marketData.getClosedCandles(
+        symbol,
+        range.startTime,
+        range.endTime,
+        serverTime,
+      );
+      const expectedLastOpenTime = Math.min(
+        Math.floor(range.endTime / REVIEW_ONE_MINUTE_MS) * REVIEW_ONE_MINUTE_MS,
+        latestClosedOpenTime,
+      );
+      if (expectedLastOpenTime >= range.startTime) {
+        if (
+          candles.length === 0 ||
+          candles[0]?.openTime !== range.startTime ||
+          candles[candles.length - 1]?.openTime !== expectedLastOpenTime
+        ) {
+          throw incompleteRangeError();
+        }
+        for (let index = 1; index < candles.length; index += 1) {
+          if (candles[index]!.openTime - candles[index - 1]!.openTime !== REVIEW_ONE_MINUTE_MS) {
+            throw gapRangeError();
+          }
+        }
+      }
+      candlesBySymbol.set(symbol, candles);
+    } catch (error) {
+      failedSymbols.add(symbol);
+      errors.push(errorCode(error));
+    }
+  }
+
+  return { candlesBySymbol, failedSymbols };
+}
+
 export async function runDailySignalReview(input: Readonly<{
   dependencies: SignalReviewRunDependencies;
   scheduledFor?: Date | string;
@@ -170,7 +246,8 @@ export async function runDailySignalReview(input: Readonly<{
     const serverTime = activeReviews.length > 0
       ? await dependencies.marketData.getServerTime()
       : nowMs;
-    const requestedRanges = new Map<ResearchSymbol, ReviewRange>();
+    const waitingRanges = new Map<ResearchSymbol, ReviewRange>();
+    const openRanges = new Map<ResearchSymbol, ReviewRange>();
 
     for (const state of activeReviews) {
       const advisory = advisoriesById.get(state.signalId);
@@ -184,46 +261,90 @@ export async function runDailySignalReview(input: Readonly<{
           errors.push("REVIEW_SYMBOL_NOT_APPROVED");
           continue;
         }
-        const current = requestedRanges.get(advisory.symbol);
-        requestedRanges.set(advisory.symbol, current
-          ? {
-              startTime: Math.min(current.startTime, range.startTime),
-              endTime: Math.max(current.endTime, range.endTime),
-            }
-          : range);
+        if (state.status === "WAITING_ENTRY") {
+          addRange(waitingRanges, advisory.symbol, range);
+        } else {
+          addRange(openRanges, advisory.symbol, range);
+        }
       }
     }
 
-    const ranges = combineRanges(requestedRanges);
-    const candlesBySymbol = new Map<ResearchSymbol, Awaited<ReturnType<SignalReviewRunDependencies["marketData"]["getClosedCandles"]>>>();
-    for (const [symbol, range] of ranges) {
-      try {
-        candlesBySymbol.set(
-          symbol,
-          await dependencies.marketData.getClosedCandles(symbol, range.startTime, range.endTime, serverTime),
-        );
-      } catch (error) {
-        errors.push(errorCode(error));
-      }
-    }
+    const waitingFetch = await fetchRanges(dependencies, combineRanges(waitingRanges), serverTime, errors);
+    const openFetch = await fetchRanges(dependencies, combineRanges(openRanges), serverTime, errors);
+    const originalStateById = new Map(activeReviews.map((state) => [state.signalId, state]));
+    const finalStates = new Map(activeReviews.map((state) => [state.signalId, state]));
+    const continuationCandidates: Array<Readonly<{
+      advisory: ReviewAdvisory;
+      state: ReviewState;
+    }>> = [];
 
     for (const state of activeReviews) {
       const advisory = advisoriesById.get(state.signalId);
       if (!advisory) {
         continue;
       }
-      const candles = candlesBySymbol.get(advisory.symbol) ?? [];
+      const phaseFetch = state.status === "WAITING_ENTRY" ? waitingFetch : openFetch;
+      if (phaseFetch.failedSymbols.has(advisory.symbol)) {
+        continue;
+      }
+      const candles = phaseFetch.candlesBySymbol.get(advisory.symbol) ?? [];
       try {
         const next = evaluateReview({ advisory, state, candles, now: serverTime });
-        if (stateChanged(state, next)) {
-          await dependencies.store.saveReviewState(next, isoAt(serverTime));
-          updated += 1;
-          if (next.status !== "WAITING_ENTRY" && next.status !== "OPEN") {
-            resolved += 1;
-          }
+        finalStates.set(state.signalId, next);
+        if (state.status === "WAITING_ENTRY" && next.status === "OPEN") {
+          continuationCandidates.push({ advisory, state: next });
         }
       } catch (error) {
         errors.push(errorCode(error));
+      }
+    }
+
+    const continuationRanges = new Map<ResearchSymbol, ReviewRange>();
+    const continuationRangeBySignal = new Map<string, ReviewRange | null>();
+    for (const candidate of continuationCandidates) {
+      const range = reviewRange(candidate.advisory, candidate.state, serverTime);
+      continuationRangeBySignal.set(candidate.state.signalId, range);
+      if (range) {
+        addRange(continuationRanges, candidate.advisory.symbol, range);
+      }
+    }
+    const continuationFetch = await fetchRanges(
+      dependencies,
+      combineRanges(continuationRanges),
+      serverTime,
+      errors,
+    );
+
+    for (const candidate of continuationCandidates) {
+      const range = continuationRangeBySignal.get(candidate.state.signalId) ?? null;
+      if (!range) {
+        continue;
+      }
+      if (continuationFetch.failedSymbols.has(candidate.advisory.symbol)) {
+        finalStates.set(candidate.state.signalId, originalStateById.get(candidate.state.signalId)!);
+        continue;
+      }
+      try {
+        finalStates.set(candidate.state.signalId, evaluateReview({
+          advisory: candidate.advisory,
+          state: candidate.state,
+          candles: continuationFetch.candlesBySymbol.get(candidate.advisory.symbol) ?? [],
+          now: serverTime,
+        }));
+      } catch (error) {
+        errors.push(errorCode(error));
+        finalStates.set(candidate.state.signalId, originalStateById.get(candidate.state.signalId)!);
+      }
+    }
+
+    for (const state of activeReviews) {
+      const next = finalStates.get(state.signalId) ?? state;
+      if (stateChanged(state, next)) {
+        await dependencies.store.saveReviewState(next, isoAt(serverTime));
+        updated += 1;
+        if (next.status !== "WAITING_ENTRY" && next.status !== "OPEN") {
+          resolved += 1;
+        }
       }
     }
 

@@ -21,7 +21,9 @@ legacy tp_signal_results / tp_signals result path.
 3. tracking_start is the first 1m candle with
    open_time >= ceil(sent_at to the next minute).
 4. The entry window is
-   tracking_start <= candle.open_time <= signal_valid_until.
+   tracking_start <= candle.open_time <= signal_valid_until. `signal_valid_until`
+   limits only the first entry; once entry is recorded, it does not limit holding
+   or TP/SL continuation.
 5. Entry occurs when low <= suggested_entry_reference <= high.
 6. A LONG resolves to TP when high >= take_profit and to SL when
    low <= stop_loss. A SHORT uses the mirrored conditions.
@@ -31,9 +33,13 @@ legacy tp_signal_results / tp_signals result path.
    AMBIGUOUS; intraminute ordering is never inferred.
 9. If no entry occurs by signal_valid_until, the terminal state is NO_ENTRY
    with result_r = null.
-10. OPEN remains open across daily runs. V1 deliberately has no TIME_EXIT.
-11. Gaps, malformed data, forming candles, unordered candles, and duplicate
-    candles fail closed. The affected review is not advanced.
+10. OPEN remains open across daily runs. A daily run first evaluates the entry
+    window, then continues any newly entered or already OPEN review through the
+    latest closed 1m candle available at Binance server time. V1 deliberately has
+    no TIME_EXIT.
+11. Gaps, malformed data, forming candles, unordered candles, duplicate candles,
+    or a missing range boundary fail closed. If required market data is unavailable,
+    the affected review is not advanced and the run is PARTIAL.
 
 ## Storage and idempotency
 
@@ -59,8 +65,10 @@ The Reviews page reads the advisory ledger and the new review ledger
 independently. It shows 待首次复盘, 待入场, 观察中, 止盈, 止损, 未入场失效,
 and 结果不确定 without inventing values.
 
-Performance uses only TP and SL rows from public.tp_advisory_reviews. It
-excludes WAITING_ENTRY, OPEN, NO_ENTRY, and AMBIGUOUS from win rate, profit
+Performance uses only TP and SL rows from public.tp_advisory_reviews. Pending
+review counts include SENT advisories with no review row yet, plus
+WAITING_ENTRY and OPEN rows; TP, SL, NO_ENTRY, and AMBIGUOUS are complete.
+It excludes WAITING_ENTRY, OPEN, NO_ENTRY, and AMBIGUOUS from win rate, profit
 factor, average R, cumulative R, and drawdown. Resolved rows are ordered by
 exit candle time before maximum drawdown is calculated. R remains theoretical
 signal performance; it is never converted to USD/USDT and does not claim

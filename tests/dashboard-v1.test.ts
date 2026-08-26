@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { dashboardAccessDecision, isSafeLoginNext } from "@/lib/dashboard/access";
-import { calculateReviewMetrics } from "@/lib/dashboard/metrics";
+import { calculateReviewMetrics, countPendingReviews } from "@/lib/dashboard/metrics";
 import { evaluationStatusLabel, formatR, maskRecipient, reasonLabel, regimeLabel, reviewStatusLabel } from "@/lib/dashboard/presenters";
 import { mapStrategyEvaluations } from "@/lib/signal-advisory/evaluations";
 import { config as proxyConfig } from "@/proxy";
@@ -144,8 +144,22 @@ describe("Dashboard V1 presentation and observability", () => {
     expect(queries).toContain("reviewMetrics: calculateReviewMetrics([])");
     expect(queries).toContain('.filter((advisory) => advisory.deliveryStatus === "SENT")');
     expect(performancePage).not.toContain("tp_signal_results");
-    expect(dashboardUi).toContain("暂无有效样本");
+    expect(dashboardUi).toContain("暂无已结算 TP / SL 复盘样本");
     expect(dashboardUi).toContain("策略盈利能力尚未验证");
+  });
+
+  it("counts only missing or active review states as pending", () => {
+    expect(countPendingReviews(
+      ["waiting", "open", "tp", "sl", "no-entry", "ambiguous", "missing"],
+      [
+        { signalId: "waiting", status: "WAITING_ENTRY" },
+        { signalId: "open", status: "OPEN" },
+        { signalId: "tp", status: "TP" },
+        { signalId: "sl", status: "SL" },
+        { signalId: "no-entry", status: "NO_ENTRY" },
+        { signalId: "ambiguous", status: "AMBIGUOUS" },
+      ],
+    )).toBe(3);
   });
 
   it("does not infer PnL when there are no authoritative resolved results", () => {

@@ -156,10 +156,112 @@ describe("M6 daily signal review engine", () => {
     const expired = evaluateReview({
       advisory: advisory({ signalValidUntil: new Date(baseTime + 2 * minute).toISOString() }),
       state: initial,
-      candles: [candle(baseTime + minute, { open: 101, high: 101.5, low: 100.5, close: 101 })],
+      candles: [
+        candle(baseTime + minute, { open: 101, high: 101.5, low: 100.5, close: 101 }),
+        candle(baseTime + 2 * minute, { open: 101, high: 101.5, low: 100.5, close: 101 }),
+      ],
       now: baseTime + 4 * minute,
     });
     expect(expired).toMatchObject({ status: "NO_ENTRY", resultR: null, reason: "ENTRY_NOT_TRIGGERED_BEFORE_EXPIRY" });
+  });
+
+  it("continues a newly entered review past entry expiry in the same daily run", async () => {
+    const sent = advisory({ signalValidUntil: new Date(baseTime + 3 * minute).toISOString() });
+    const state = createInitialReviewState(sent.signalId);
+    const store = baseStore({
+      loadSentAdvisories: vi.fn().mockResolvedValue([sent]),
+      loadActiveReviews: vi.fn().mockResolvedValue([state]),
+    });
+    const marketData = {
+      getServerTime: vi.fn().mockResolvedValue(baseTime + 6 * minute),
+      getClosedCandles: vi.fn().mockImplementation(async (_symbol: string, startTime: number) => {
+        if (startTime === baseTime + minute) {
+          return [candle(baseTime + minute), candle(baseTime + 2 * minute), candle(baseTime + 3 * minute)];
+        }
+        if (startTime === baseTime + 4 * minute) {
+          return [candle(baseTime + 4 * minute, { high: 102.1 }), candle(baseTime + 5 * minute)];
+        }
+        throw new Error("unexpected review range");
+      }),
+    };
+
+    const result = await runDailySignalReview({
+      dependencies: { store, marketData, now: () => baseTime + 6 * minute },
+    });
+
+    expect(result).toMatchObject({ outcome: "SUCCEEDED", updated: 1, resolved: 1 });
+    expect(marketData.getClosedCandles).toHaveBeenCalledTimes(2);
+    expect(store.saveReviewState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "TP", resultR: 2, exitCandleTime: new Date(baseTime + 4 * minute).toISOString() }),
+      new Date(baseTime + 6 * minute).toISOString(),
+    );
+  });
+
+  it("continues a newly entered review past entry expiry and keeps it OPEN when unresolved", async () => {
+    const sent = advisory({ signalValidUntil: new Date(baseTime + 3 * minute).toISOString() });
+    const state = createInitialReviewState(sent.signalId);
+    const store = baseStore({
+      loadSentAdvisories: vi.fn().mockResolvedValue([sent]),
+      loadActiveReviews: vi.fn().mockResolvedValue([state]),
+    });
+    const marketData = {
+      getServerTime: vi.fn().mockResolvedValue(baseTime + 6 * minute),
+      getClosedCandles: vi.fn().mockImplementation(async (_symbol: string, startTime: number) => {
+        if (startTime === baseTime + minute) {
+          return [candle(baseTime + minute), candle(baseTime + 2 * minute), candle(baseTime + 3 * minute)];
+        }
+        if (startTime === baseTime + 4 * minute) {
+          return [candle(baseTime + 4 * minute), candle(baseTime + 5 * minute)];
+        }
+        throw new Error("unexpected review range");
+      }),
+    };
+
+    const result = await runDailySignalReview({
+      dependencies: { store, marketData, now: () => baseTime + 6 * minute },
+    });
+
+    expect(result).toMatchObject({ outcome: "SUCCEEDED", updated: 1, resolved: 0 });
+    expect(store.saveReviewState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "OPEN", lastEvaluatedCandleTime: new Date(baseTime + 5 * minute).toISOString() }),
+      new Date(baseTime + 6 * minute).toISOString(),
+    );
+  });
+
+  it("continues a newly entered SHORT review past entry expiry to SL in the same run", async () => {
+    const sent = advisory({
+      direction: "SHORT",
+      stopLoss: 101,
+      takeProfit: 98,
+      signalValidUntil: new Date(baseTime + 3 * minute).toISOString(),
+    });
+    const state = createInitialReviewState(sent.signalId);
+    const store = baseStore({
+      loadSentAdvisories: vi.fn().mockResolvedValue([sent]),
+      loadActiveReviews: vi.fn().mockResolvedValue([state]),
+    });
+    const marketData = {
+      getServerTime: vi.fn().mockResolvedValue(baseTime + 6 * minute),
+      getClosedCandles: vi.fn().mockImplementation(async (_symbol: string, startTime: number) => {
+        if (startTime === baseTime + minute) {
+          return [candle(baseTime + minute), candle(baseTime + 2 * minute), candle(baseTime + 3 * minute)];
+        }
+        if (startTime === baseTime + 4 * minute) {
+          return [candle(baseTime + 4 * minute, { high: 101.1 }), candle(baseTime + 5 * minute)];
+        }
+        throw new Error("unexpected review range");
+      }),
+    };
+
+    const result = await runDailySignalReview({
+      dependencies: { store, marketData, now: () => baseTime + 6 * minute },
+    });
+
+    expect(result).toMatchObject({ outcome: "SUCCEEDED", updated: 1, resolved: 1 });
+    expect(store.saveReviewState).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "SL", resultR: -1, exitCandleTime: new Date(baseTime + 4 * minute).toISOString() }),
+      new Date(baseTime + 6 * minute).toISOString(),
+    );
   });
 
   it("rejects malformed, unordered, and duplicate candles", () => {
@@ -258,6 +360,56 @@ describe("M6 daily signal review engine", () => {
     );
   });
 
+  it("leaves the affected review unchanged when its market provider fails", async () => {
+    const sent = advisory();
+    const state = createInitialReviewState(sent.signalId);
+    const store = baseStore({
+      loadSentAdvisories: vi.fn().mockResolvedValue([sent]),
+      loadActiveReviews: vi.fn().mockResolvedValue([state]),
+    });
+    const marketData = {
+      getServerTime: vi.fn().mockResolvedValue(baseTime + 4 * minute),
+      getClosedCandles: vi.fn().mockRejectedValue(Object.assign(new Error("upstream unavailable"), { code: "REVIEW_DATA_INCOMPLETE" })),
+    };
+
+    const result = await runDailySignalReview({
+      dependencies: { store, marketData, now: () => baseTime + 4 * minute },
+    });
+
+    expect(result).toMatchObject({ outcome: "PARTIAL", ok: false });
+    expect(store.saveReviewState).not.toHaveBeenCalled();
+    expect(store.completeDailyReviewRun).toHaveBeenCalledWith(expect.objectContaining({ status: "PARTIAL" }));
+  });
+
+  it("does not turn stale incomplete entry coverage into NO_ENTRY", () => {
+    const stale = {
+      ...createInitialReviewState("signal-1"),
+      lastEvaluatedCandleTime: new Date(baseTime + minute).toISOString(),
+    };
+    expect(evaluateReview({
+      advisory: advisory({ signalValidUntil: new Date(baseTime + 2 * minute).toISOString() }),
+      state: stale,
+      candles: [],
+      now: baseTime + 4 * minute,
+    })).toBe(stale);
+  });
+
+  it("fails closed when an incremental range is missing its first required candle", () => {
+    const open: ReviewState = {
+      ...createInitialReviewState("signal-1"),
+      status: "OPEN",
+      entryCandleTime: new Date(baseTime + minute).toISOString(),
+      lastEvaluatedCandleTime: new Date(baseTime + minute).toISOString(),
+      reason: "ENTRY_TRIGGERED",
+    };
+    expect(() => evaluateReview({
+      advisory: advisory(),
+      state: open,
+      candles: [candle(baseTime + 3 * minute)],
+      now: baseTime + 5 * minute,
+    })).toThrowError(expect.objectContaining<Partial<ReviewEngineError>>({ code: "MISSING_CANDLE" }));
+  });
+
   it("fetches an OPEN review incrementally after its last evaluated candle", async () => {
     const sent = advisory();
     const state: ReviewState = {
@@ -273,7 +425,7 @@ describe("M6 daily signal review engine", () => {
     });
     const marketData = {
       getServerTime: vi.fn().mockResolvedValue(baseTime + 5 * minute),
-      getClosedCandles: vi.fn().mockResolvedValue([candle(baseTime + 3 * minute)]),
+      getClosedCandles: vi.fn().mockResolvedValue([candle(baseTime + 3 * minute), candle(baseTime + 4 * minute)]),
     };
     const result = await runDailySignalReview({
       dependencies: { store, marketData, now: () => baseTime + 5 * minute },
@@ -289,7 +441,7 @@ describe("M6 daily signal review engine", () => {
     expect(store.saveReviewState).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "OPEN",
-        lastEvaluatedCandleTime: new Date(baseTime + 3 * minute).toISOString(),
+        lastEvaluatedCandleTime: new Date(baseTime + 4 * minute).toISOString(),
       }),
       new Date(baseTime + 5 * minute).toISOString(),
     );

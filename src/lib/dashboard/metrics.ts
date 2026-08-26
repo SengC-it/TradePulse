@@ -1,9 +1,19 @@
 import type { ReviewMetrics } from "./types.ts";
 
+const COMPLETED_REVIEW_STATUSES = new Set(["TP", "SL", "NO_ENTRY", "AMBIGUOUS"]);
+
 type ResolvedResult = Readonly<{
   resultR: number | null;
   exitCandleTime?: string | null;
 }>;
+
+export function countPendingReviews(
+  sentSignalIds: readonly string[],
+  reviews: readonly Readonly<{ signalId: string; status: string }>[],
+): number {
+  const statusBySignalId = new Map(reviews.map((review) => [review.signalId, review.status]));
+  return sentSignalIds.filter((signalId) => !COMPLETED_REVIEW_STATUSES.has(statusBySignalId.get(signalId) ?? "")).length;
+}
 
 export function calculateReviewMetrics(rows: readonly ResolvedResult[]): ReviewMetrics {
   const values = rows

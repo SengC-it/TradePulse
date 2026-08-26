@@ -2,7 +2,7 @@
 import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "../config/constants.ts";
 import { createSupabaseAdminClient } from "../supabase/admin.ts";
 import { hasDashboardAccess } from "./access.ts";
-import { calculateReviewMetrics } from "./metrics.ts";
+import { calculateReviewMetrics, countPendingReviews } from "./metrics.ts";
 import type {
   DashboardAdvisory,
   DashboardBacktestSummary,
@@ -237,12 +237,13 @@ export async function getOverview(): Promise<DashboardOverview> {
 
   return withDashboardClient(fallback, async (client) => {
     const day = localDayBounds();
-    const [scans, evaluations, formalSignals, sentEmails, pendingReviews, resolvedReviews, latestRun, latestEvent, backtestRuns, backtestSignals] = await Promise.all([
+    const [scans, evaluations, formalSignals, sentEmails, sentAdvisoriesForPending, pendingReviewRows, resolvedReviews, latestRun, latestEvent, backtestRuns, backtestSignals] = await Promise.all([
       client.from("tp_scan_runs").select("id", { count: "exact", head: true }).gte("scheduled_for", day.start).lt("scheduled_for", day.end),
       client.from("tp_signal_evaluations").select("id", { count: "exact", head: true }).gte("evaluated_at", day.start).lt("evaluated_at", day.end),
       client.from("tp_signal_evaluations").select("id", { count: "exact", head: true }).eq("status", "FORMAL_SIGNAL").gte("evaluated_at", day.start).lt("evaluated_at", day.end),
       client.from("tp_signal_advisories").select("signal_id", { count: "exact", head: true }).eq("delivery_status", "SENT").gte("sent_at", day.start).lt("sent_at", day.end),
-      client.from("tp_signal_advisories").select("signal_id", { count: "exact", head: true }).eq("delivery_status", "SENT"),
+      client.from("tp_signal_advisories").select("signal_id").eq("delivery_status", "SENT"),
+      client.from("tp_advisory_reviews").select("signal_id,status"),
       client.from("tp_advisory_reviews").select("result_r,exit_candle_time").in("status", ["TP", "SL"]),
       client.from("tp_scan_runs").select("status,completed_at,started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
       client.from("tp_system_events").select("event_time,level,status,error_code").order("event_time", { ascending: false }).limit(1).maybeSingle(),
@@ -250,7 +251,7 @@ export async function getOverview(): Promise<DashboardOverview> {
       client.from("tp_backtest_signals").select("id", { count: "exact", head: true }),
     ]);
 
-    const queryError = [scans, evaluations, formalSignals, sentEmails, pendingReviews, resolvedReviews, latestRun, latestEvent, backtestRuns, backtestSignals].find((result) => result.error);
+    const queryError = [scans, evaluations, formalSignals, sentEmails, sentAdvisoriesForPending, pendingReviewRows, resolvedReviews, latestRun, latestEvent, backtestRuns, backtestSignals].find((result) => result.error);
     if (queryError?.error) throw queryError.error;
 
     const status = latestRun.data?.status as string | undefined;
@@ -268,7 +269,10 @@ export async function getOverview(): Promise<DashboardOverview> {
       todayEvaluations: evaluations.count ?? 0,
       todayFormalSignals: formalSignals.count ?? 0,
       todaySentEmails: sentEmails.count ?? 0,
-      pendingReviews: pendingReviews.count ?? 0,
+      pendingReviews: countPendingReviews(
+        (sentAdvisoriesForPending.data ?? []).map((row) => String(row.signal_id)),
+        (pendingReviewRows.data ?? []).map((row) => ({ signalId: String(row.signal_id), status: String(row.status) })),
+      ),
       reviewMetrics: calculateReviewMetrics((resolvedReviews.data ?? []).map((row) => ({
         resultR: finiteNumber(row.result_r),
         exitCandleTime: stringValue(row.exit_candle_time),
