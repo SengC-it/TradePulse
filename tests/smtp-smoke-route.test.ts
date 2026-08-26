@@ -7,6 +7,7 @@ import {
   SMTP_SMOKE_RECIPIENT_MISMATCH,
   sendSmtpSmokeEmail,
 } from "@/lib/signal-advisory/smtp-smoke";
+import { getSmtpConfiguration } from "@/lib/signal-advisory/email";
 import { GET, handlePost } from "@/app/api/diagnostics/smtp-smoke/route";
 
 const SECRET = "smtp-smoke-test-secret";
@@ -15,7 +16,6 @@ const SMTP_CONFIGURATION = {
   port: 587,
   user: "zunxian.chi@gmail.com",
   appPassword: "never-return-this",
-  from: "Trade Pulse <zunxian.chi@gmail.com>",
   to: SMTP_SMOKE_RECIPIENT,
 };
 
@@ -82,22 +82,52 @@ describe("SMTP smoke sender", () => {
     expect(sendMail).not.toHaveBeenCalled();
   });
 
-  it("keeps the fixed sender name when ALERT_EMAIL_FROM has a wrong display name", async () => {
-    const sendMail = vi.fn().mockResolvedValue({ messageId: "<smtp-smoke-message-id>" });
+  it.each([undefined, "zunxian.chi", "Wrong Name <wrong@example.com>"])(
+    "keeps the fixed sender when ALERT_EMAIL_FROM is %s",
+    async (alertEmailFrom) => {
+      const original = process.env.ALERT_EMAIL_FROM;
+      const names = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_APP_PASSWORD", "ALERT_EMAIL_TO"];
+      const values = new Map(names.map((name) => [name, process.env[name]]));
+      process.env.SMTP_HOST = SMTP_CONFIGURATION.host;
+      process.env.SMTP_PORT = String(SMTP_CONFIGURATION.port);
+      process.env.SMTP_USER = SMTP_CONFIGURATION.user;
+      process.env.SMTP_APP_PASSWORD = SMTP_CONFIGURATION.appPassword;
+      process.env.ALERT_EMAIL_TO = SMTP_CONFIGURATION.to;
+      if (alertEmailFrom === undefined) {
+        delete process.env.ALERT_EMAIL_FROM;
+      } else {
+        process.env.ALERT_EMAIL_FROM = alertEmailFrom;
+      }
 
-    await sendSmtpSmokeEmail({
-      configuration: {
-        ...SMTP_CONFIGURATION,
-        from: "zunxian.chi zunxian.chi@gmail.com",
-      },
-      transport: { sendMail },
-    });
+      try {
+        const sendMail = vi.fn().mockResolvedValue({ messageId: "<smtp-smoke-message-id>" });
+        const sendConfiguration = getSmtpConfiguration();
 
-    expect(sendMail.mock.calls[0]?.[0].from).toEqual({
-      name: "Trade Pulse",
-      address: "zunxian.chi@gmail.com",
-    });
-  });
+        await sendSmtpSmokeEmail({
+          configuration: sendConfiguration,
+          transport: { sendMail },
+        });
+
+        expect(sendMail.mock.calls[0]?.[0].from).toEqual({
+          name: "Trade Pulse",
+          address: "zunxian.chi@gmail.com",
+        });
+      } finally {
+        if (original === undefined) {
+          delete process.env.ALERT_EMAIL_FROM;
+        } else {
+          process.env.ALERT_EMAIL_FROM = original;
+        }
+        for (const [name, value] of values) {
+          if (value === undefined) {
+            delete process.env[name];
+          } else {
+            process.env[name] = value;
+          }
+        }
+      }
+    },
+  );
 });
 
 describe("SMTP smoke route", () => {

@@ -19,25 +19,22 @@ export type SmtpConfiguration = Readonly<{
   port: number;
   user: string;
   appPassword: string;
-  from: string;
   to: string;
 }>;
+
+export class SmtpConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SmtpConfigurationError";
+  }
+}
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`Missing required email environment variable: ${name}`);
+    throw new SmtpConfigurationError(`Missing required email environment variable: ${name}`);
   }
   return value;
-}
-
-function extractEmailAddress(value: string): string | null {
-  const angleAddress = value.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/u)?.[1];
-  if (angleAddress) {
-    return angleAddress;
-  }
-
-  return value.match(/[^\s<>]+@[^\s<>]+/u)?.[0] ?? null;
 }
 
 function isValidEmailAddress(value: string): boolean {
@@ -46,19 +43,15 @@ function isValidEmailAddress(value: string): boolean {
 
 export function validateSmtpConfiguration(configuration: SmtpConfiguration): void {
   if (!isValidEmailAddress(configuration.user)) {
-    throw new Error("SMTP_USER must be a valid email address.");
+    throw new SmtpConfigurationError("SMTP_USER must be a valid email address.");
   }
 
   if (configuration.user !== TRADEPULSE_SMTP_USER) {
-    throw new Error(`SMTP_USER must be ${TRADEPULSE_SMTP_USER}.`);
-  }
-
-  if (extractEmailAddress(configuration.from) !== configuration.user) {
-    throw new Error("ALERT_EMAIL_FROM email address must match SMTP_USER.");
+    throw new SmtpConfigurationError(`SMTP_USER must be ${TRADEPULSE_SMTP_USER}.`);
   }
 
   if (configuration.to !== TRADEPULSE_ALERT_EMAIL_TO) {
-    throw new Error(`ALERT_EMAIL_TO must be ${TRADEPULSE_ALERT_EMAIL_TO}.`);
+    throw new SmtpConfigurationError(`ALERT_EMAIL_TO must be ${TRADEPULSE_ALERT_EMAIL_TO}.`);
   }
 }
 
@@ -73,7 +66,7 @@ export function getTradePulseFrom(configuration: SmtpConfiguration): { name: str
 export function getSmtpConfiguration(): SmtpConfiguration {
   const port = Number(process.env.SMTP_PORT ?? "587");
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-    throw new Error("SMTP_PORT must be a valid TCP port.");
+    throw new SmtpConfigurationError("SMTP_PORT must be a valid TCP port.");
   }
 
   const configuration = {
@@ -81,7 +74,6 @@ export function getSmtpConfiguration(): SmtpConfiguration {
     port,
     user: requiredEnvironment("SMTP_USER"),
     appPassword: requiredEnvironment("SMTP_APP_PASSWORD"),
-    from: requiredEnvironment("ALERT_EMAIL_FROM"),
     to: requiredEnvironment("ALERT_EMAIL_TO"),
   };
 
