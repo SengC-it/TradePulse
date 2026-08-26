@@ -1,13 +1,40 @@
 import type { ReviewMetrics } from "./types.ts";
 
+const COMPLETED_REVIEW_STATUSES = new Set(["TP", "SL", "NO_ENTRY", "AMBIGUOUS"]);
+
 type ResolvedResult = Readonly<{
   resultR: number | null;
+  exitCandleTime?: string | null;
 }>;
+
+export function countPendingReviews(
+  sentSignalIds: readonly string[],
+  reviews: readonly Readonly<{ signalId: string; status: string }>[],
+): number {
+  const statusBySignalId = new Map(reviews.map((review) => [review.signalId, review.status]));
+  return sentSignalIds.filter((signalId) => !COMPLETED_REVIEW_STATUSES.has(statusBySignalId.get(signalId) ?? "")).length;
+}
 
 export function calculateReviewMetrics(rows: readonly ResolvedResult[]): ReviewMetrics {
   const values = rows
-    .map((row) => row.resultR)
-    .filter((value): value is number => value !== null && Number.isFinite(value));
+    .map((row, index) => ({
+      index,
+      value: row.resultR,
+      exitTime: row.exitCandleTime ? Date.parse(row.exitCandleTime) : Number.NaN,
+    }))
+    .filter((row): row is typeof row & { value: number } => row.value !== null && Number.isFinite(row.value))
+    .sort((left, right) => {
+      const leftHasTime = Number.isFinite(left.exitTime);
+      const rightHasTime = Number.isFinite(right.exitTime);
+      if (leftHasTime && rightHasTime && left.exitTime !== right.exitTime) {
+        return left.exitTime - right.exitTime;
+      }
+      if (leftHasTime !== rightHasTime) {
+        return leftHasTime ? -1 : 1;
+      }
+      return left.index - right.index;
+    })
+    .map((row) => row.value);
 
   if (values.length === 0) {
     return {

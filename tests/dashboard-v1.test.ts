@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { dashboardAccessDecision, isSafeLoginNext } from "@/lib/dashboard/access";
-import { calculateReviewMetrics } from "@/lib/dashboard/metrics";
-import { evaluationStatusLabel, formatR, maskRecipient, reasonLabel, regimeLabel } from "@/lib/dashboard/presenters";
+import { calculateReviewMetrics, countPendingReviews } from "@/lib/dashboard/metrics";
+import { evaluationStatusLabel, formatR, maskRecipient, reasonLabel, regimeLabel, reviewStatusLabel } from "@/lib/dashboard/presenters";
 import { mapStrategyEvaluations } from "@/lib/signal-advisory/evaluations";
 import { config as proxyConfig } from "@/proxy";
 
@@ -127,6 +127,13 @@ describe("Dashboard V1 presentation and observability", () => {
     expect(regimeLabel("BTC_STRONG_BULL")).toBe("BTC 强势上涨");
     expect(regimeLabel("BTC_NEUTRAL")).toBe("BTC 中性");
     expect(regimeLabel("BTC_STRONG_BEAR")).toBe("BTC 强势下跌");
+    expect(reviewStatusLabel("NO_REVIEW")).toBe("待首次复盘");
+    expect(reviewStatusLabel("WAITING_ENTRY")).toBe("待入场");
+    expect(reviewStatusLabel("OPEN")).toBe("观察中");
+    expect(reviewStatusLabel("TP")).toBe("止盈");
+    expect(reviewStatusLabel("SL")).toBe("止损");
+    expect(reviewStatusLabel("NO_ENTRY")).toBe("未入场失效");
+    expect(reviewStatusLabel("AMBIGUOUS")).toBe("结果不确定");
   });
 
   it("keeps production advisory performance independent from tp_signal_results", () => {
@@ -137,8 +144,22 @@ describe("Dashboard V1 presentation and observability", () => {
     expect(queries).toContain("reviewMetrics: calculateReviewMetrics([])");
     expect(queries).toContain('.filter((advisory) => advisory.deliveryStatus === "SENT")');
     expect(performancePage).not.toContain("tp_signal_results");
-    expect(dashboardUi).toContain("暂无有效样本");
+    expect(dashboardUi).toContain("暂无已结算 TP / SL 复盘样本");
     expect(dashboardUi).toContain("策略盈利能力尚未验证");
+  });
+
+  it("counts only missing or active review states as pending", () => {
+    expect(countPendingReviews(
+      ["waiting", "open", "tp", "sl", "no-entry", "ambiguous", "missing"],
+      [
+        { signalId: "waiting", status: "WAITING_ENTRY" },
+        { signalId: "open", status: "OPEN" },
+        { signalId: "tp", status: "TP" },
+        { signalId: "sl", status: "SL" },
+        { signalId: "no-entry", status: "NO_ENTRY" },
+        { signalId: "ambiguous", status: "AMBIGUOUS" },
+      ],
+    )).toBe(3);
   });
 
   it("does not infer PnL when there are no authoritative resolved results", () => {
@@ -152,5 +173,14 @@ describe("Dashboard V1 presentation and observability", () => {
   it("calculates R metrics only from finite resolved values", () => {
     const metrics = calculateReviewMetrics([{ resultR: 2 }, { resultR: -1 }, { resultR: 0 }, { resultR: null }]);
     expect(metrics).toMatchObject({ hasValidSample: true, reviewedSignals: 3, wins: 1, losses: 1, winRate: 1 / 3, cumulativeR: 1, averageR: 1 / 3, profitFactor: 2, maxDrawdownR: -1 });
+  });
+
+  it("orders resolved R metrics by exit candle time for drawdown", () => {
+    const metrics = calculateReviewMetrics([
+      { resultR: 2, exitCandleTime: "2026-08-26T02:00:00.000Z" },
+      { resultR: -1, exitCandleTime: "2026-08-26T01:00:00.000Z" },
+    ]);
+    expect(metrics.cumulativeR).toBe(1);
+    expect(metrics.maxDrawdownR).toBe(-1);
   });
 });

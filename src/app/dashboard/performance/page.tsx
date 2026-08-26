@@ -4,9 +4,10 @@ import { EmptyState, MetricCard, PageHeader, ReviewMetricGrid } from "../dashboa
 
 export default async function PerformancePage() {
   const [overview, backtest] = await Promise.all([getOverview(), getBacktestSummary()]);
+  const hasReviewSample = overview.reviewMetrics.hasValidSample;
   return (
     <>
-      <PageHeader eyebrow="TradePulse / 表现" title="策略表现" description="生产提醒暂未建立有效复盘样本，不从信号数量推算收益。" />
+      <PageHeader eyebrow="TradePulse / 表现" title="策略表现" description={hasReviewSample ? "基于已结算正式信号的理论 R 表现。" : "暂无已结算 TP / SL 复盘样本。"} />
       <section className="dashboard-section">
         <div className="section-heading"><div><p className="eyebrow">生产复盘</p><h2>正式信号表现</h2></div></div>
         <ReviewMetricGrid metrics={overview.reviewMetrics} />

@@ -2,11 +2,11 @@
 
 Dashboard V1 是中文、服务端读取的信号监控后台，入口为 `/dashboard`，包含：
 
-- 总览：扫描、检测、正式信号、邮件发送与待复盘计数；
+- 总览：扫描、检测、正式信号、邮件发送与未完成复盘计数；
 - 信号检测：分页查看 `tp_signal_evaluations`；
 - 信号发送：查看 `tp_signal_advisories` 的脱敏发送状态；
-- 信号复盘：展示正式信号，但在没有 authoritative resolved result 时保持“待复盘”；
-- 策略表现：生产提醒显示“暂无有效样本”，不读取 `tp_signal_results` 推算生产盈亏；研究 / 回测记录单独展示。
+- 信号复盘：展示已发送正式信号及 `tp_advisory_reviews` 的真实复盘状态；
+- 策略表现：生产提醒只使用 `tp_advisory_reviews` 的 TP / SL 复盘结果；没有已结算样本时显示“暂无已结算 TP / SL 复盘样本”，不读取 `tp_signal_results` 推算生产盈亏；研究 / 回测记录单独展示。
 
 所有 Dashboard 页面先检查 Supabase 当前用户是否存在于启用的
 `tp_authorized_users`。未登录请求会跳转 `/login`；已登录但未授权会显示权限提示。
@@ -24,11 +24,11 @@ scan 标记为 `PARTIAL` 并写入系统事件，不会改变 Strategy Engine �
 
 ## 生产提醒复盘边界
 
-Production advisory review/result identity 尚未建立。当前 `/dashboard/reviews`
-只展示 `tp_signal_advisories`，所有已发送提醒计入“待复盘”，但不会推算结果 R；
-`/dashboard/performance` 的生产部分保持“暂无有效样本 / 策略盈利能力尚未验证”。
-后续 PR #51 / Review Engine 必须正式定义：advisory/result linkage、`TIME_EXIT`、
-同一根 K 线 TP/SL 顺序、invalidation ordering 和 authoritative result calculation。
+Production advisory review/result identity 使用 `tp_advisory_reviews` 的文本
+`signal_id`；不复用 `tp_signal_results`。`/dashboard/reviews` 只展示已发送
+提醒及其复盘状态。首页“未完成复盘”包括没有复盘行、`WAITING_ENTRY` 和 `OPEN`；
+`TP`、`SL`、`NO_ENTRY`、`AMBIGUOUS` 不计入未完成数量。`/dashboard/performance`
+只从 TP / SL 终态计算理论 R，未结算时显示“暂无已结算 TP / SL 复盘样本”。
 
 ## 当前边界
 
