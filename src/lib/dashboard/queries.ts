@@ -11,6 +11,7 @@ import type {
   DashboardOverview,
   DashboardPage,
   DashboardReview,
+  DashboardReviewStatus,
 } from "./types.ts";
 
 type DashboardClient = ReturnType<typeof createSupabaseAdminClient>;
@@ -156,6 +157,7 @@ export async function getDetectionPage(filters: DashboardFilters = {}): Promise<
 }
 
 const advisorySelect = "signal_id,symbol,direction,strategy_version,signal_time,signal_valid_until,score,grade,current_reference_price,suggested_entry_reference,stop_loss,take_profit,risk_reward,delivery_status,sent_at,data_freshness";
+const reviewSelect = "signal_id,status,entry_candle_time,exit_candle_time,exit_reference,result_r,last_evaluated_candle_time,reason";
 
 export async function getSignalAdvisories(): Promise<readonly DashboardAdvisory[]> {
   return withDashboardClient<readonly DashboardAdvisory[]>([], async (client) => {
@@ -170,10 +172,50 @@ export async function getSignalAdvisories(): Promise<readonly DashboardAdvisory[
 }
 
 export async function getReviews(): Promise<readonly DashboardReview[]> {
-  const advisories = await getSignalAdvisories();
-  return advisories
-    .filter((advisory) => advisory.deliveryStatus === "SENT")
-    .map((advisory) => ({ ...advisory, reviewStatus: "待复盘", resultR: null }));
+  return withDashboardClient<readonly DashboardReview[]>([], async (client) => {
+    const [advisories, reviews] = await Promise.all([
+      client
+        .from("tp_signal_advisories")
+        .select(advisorySelect)
+        .order("signal_time", { ascending: false })
+        .limit(ADVISORY_LIMIT),
+      client
+        .from("tp_advisory_reviews")
+        .select(reviewSelect),
+    ]);
+    const queryError = [advisories, reviews].find((result) => result.error);
+    if (queryError?.error) throw queryError.error;
+
+    const reviewBySignalId = new Map(
+      (reviews.data ?? []).map((row) => [String(row.signal_id), row as Record<string, unknown>]),
+    );
+    return (advisories.data ?? [])
+      .map((row) => toAdvisory(row as Record<string, unknown>))
+      .filter((advisory) => advisory.deliveryStatus === "SENT")
+      .map((advisory) => {
+        const review = reviewBySignalId.get(advisory.signalId);
+        const status = review?.status;
+        const reviewStatus: DashboardReviewStatus =
+          status === "WAITING_ENTRY" ||
+          status === "OPEN" ||
+          status === "TP" ||
+          status === "SL" ||
+          status === "NO_ENTRY" ||
+          status === "AMBIGUOUS"
+            ? status
+            : "NO_REVIEW";
+        return {
+          ...advisory,
+          reviewStatus,
+          resultR: reviewStatus === "TP" || reviewStatus === "SL" ? finiteNumber(review?.result_r) : null,
+          entryCandleTime: stringValue(review?.entry_candle_time),
+          exitCandleTime: stringValue(review?.exit_candle_time),
+          exitReference: finiteNumber(review?.exit_reference),
+          lastEvaluatedCandleTime: stringValue(review?.last_evaluated_candle_time),
+          reviewReason: stringValue(review?.reason),
+        };
+      });
+  });
 }
 
 export async function getOverview(): Promise<DashboardOverview> {
@@ -195,19 +237,20 @@ export async function getOverview(): Promise<DashboardOverview> {
 
   return withDashboardClient(fallback, async (client) => {
     const day = localDayBounds();
-    const [scans, evaluations, formalSignals, sentEmails, pendingReviews, latestRun, latestEvent, backtestRuns, backtestSignals] = await Promise.all([
+    const [scans, evaluations, formalSignals, sentEmails, pendingReviews, resolvedReviews, latestRun, latestEvent, backtestRuns, backtestSignals] = await Promise.all([
       client.from("tp_scan_runs").select("id", { count: "exact", head: true }).gte("scheduled_for", day.start).lt("scheduled_for", day.end),
       client.from("tp_signal_evaluations").select("id", { count: "exact", head: true }).gte("evaluated_at", day.start).lt("evaluated_at", day.end),
       client.from("tp_signal_evaluations").select("id", { count: "exact", head: true }).eq("status", "FORMAL_SIGNAL").gte("evaluated_at", day.start).lt("evaluated_at", day.end),
       client.from("tp_signal_advisories").select("signal_id", { count: "exact", head: true }).eq("delivery_status", "SENT").gte("sent_at", day.start).lt("sent_at", day.end),
       client.from("tp_signal_advisories").select("signal_id", { count: "exact", head: true }).eq("delivery_status", "SENT"),
+      client.from("tp_advisory_reviews").select("result_r,exit_candle_time").in("status", ["TP", "SL"]),
       client.from("tp_scan_runs").select("status,completed_at,started_at").order("started_at", { ascending: false }).limit(1).maybeSingle(),
       client.from("tp_system_events").select("event_time,level,status,error_code").order("event_time", { ascending: false }).limit(1).maybeSingle(),
       client.from("tp_backtest_runs").select("id", { count: "exact", head: true }),
       client.from("tp_backtest_signals").select("id", { count: "exact", head: true }),
     ]);
 
-    const queryError = [scans, evaluations, formalSignals, sentEmails, pendingReviews, latestRun, latestEvent, backtestRuns, backtestSignals].find((result) => result.error);
+    const queryError = [scans, evaluations, formalSignals, sentEmails, pendingReviews, resolvedReviews, latestRun, latestEvent, backtestRuns, backtestSignals].find((result) => result.error);
     if (queryError?.error) throw queryError.error;
 
     const status = latestRun.data?.status as string | undefined;
@@ -226,7 +269,10 @@ export async function getOverview(): Promise<DashboardOverview> {
       todayFormalSignals: formalSignals.count ?? 0,
       todaySentEmails: sentEmails.count ?? 0,
       pendingReviews: pendingReviews.count ?? 0,
-      reviewMetrics: calculateReviewMetrics([]),
+      reviewMetrics: calculateReviewMetrics((resolvedReviews.data ?? []).map((row) => ({
+        resultR: finiteNumber(row.result_r),
+        exitCandleTime: stringValue(row.exit_candle_time),
+      }))),
       latestEvent: latestEvent.data
         ? {
             eventTime: String(latestEvent.data.event_time ?? ""),

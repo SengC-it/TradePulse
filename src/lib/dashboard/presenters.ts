@@ -1,4 +1,4 @@
-import type { DashboardEvaluationStatus } from "./types.ts";
+import type { DashboardEvaluationStatus, DashboardReviewStatus } from "./types.ts";
 
 const REASON_LABELS: Readonly<Record<string, string>> = {
   INSUFFICIENT_HISTORY: "历史数据不足",
@@ -32,6 +32,25 @@ export const evaluationStatusLabel = (status: DashboardEvaluationStatus): string
       return "无合格候选";
     case "INVALID":
       return "数据无效";
+  }
+};
+
+export const reviewStatusLabel = (status: DashboardReviewStatus): string => {
+  switch (status) {
+    case "NO_REVIEW":
+      return "待首次复盘";
+    case "WAITING_ENTRY":
+      return "待入场";
+    case "OPEN":
+      return "观察中";
+    case "TP":
+      return "止盈";
+    case "SL":
+      return "止损";
+    case "NO_ENTRY":
+      return "未入场失效";
+    case "AMBIGUOUS":
+      return "结果不确定";
   }
 };
 

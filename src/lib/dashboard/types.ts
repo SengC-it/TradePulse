@@ -43,10 +43,24 @@ export type DashboardAdvisory = Readonly<{
   dataFreshness: Record<string, unknown> | null;
 }>;
 
+export type DashboardReviewStatus =
+  | "NO_REVIEW"
+  | "WAITING_ENTRY"
+  | "OPEN"
+  | "TP"
+  | "SL"
+  | "NO_ENTRY"
+  | "AMBIGUOUS";
+
 export type DashboardReview = DashboardAdvisory &
   Readonly<{
-    reviewStatus: "待复盘";
+    reviewStatus: DashboardReviewStatus;
     resultR: number | null;
+    entryCandleTime: string | null;
+    exitCandleTime: string | null;
+    exitReference: number | null;
+    lastEvaluatedCandleTime: string | null;
+    reviewReason: string | null;
   }>;
 
 export type DashboardPage<T> = Readonly<{

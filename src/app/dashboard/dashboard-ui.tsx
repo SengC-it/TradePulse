@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { directionLabel, evaluationStatusLabel, formatDateTime, formatNumber, formatPercent, formatR, formatScore, reasonLabel, regimeLabel } from "@/lib/dashboard/presenters";
+import { directionLabel, evaluationStatusLabel, formatDateTime, formatNumber, formatPercent, formatR, formatScore, reasonLabel, regimeLabel, reviewStatusLabel } from "@/lib/dashboard/presenters";
 
 export function MetricCard(props: Readonly<{ label: string; value: string; detail?: string; tone?: "neutral" | "positive" | "warning" }>) {
   return (
@@ -12,8 +12,8 @@ export function MetricCard(props: Readonly<{ label: string; value: string; detai
   );
 }
 
-export function StatusBadge(props: Readonly<{ children: React.ReactNode; tone?: "success" | "warning" | "danger" | "neutral" }>) {
-  return <span className={`status-badge status-${props.tone ?? "neutral"}`}>{props.children}</span>;
+export function StatusBadge(props: Readonly<{ children: React.ReactNode; tone?: "success" | "warning" | "danger" | "neutral"; title?: string }>) {
+  return <span className={`status-badge status-${props.tone ?? "neutral"}`} title={props.title}>{props.children}</span>;
 }
 
 export function EmptyState(props: Readonly<{ title: string; detail?: string }>) {
@@ -82,7 +82,7 @@ export function EvaluationTable(props: Readonly<{ rows: readonly import("@/lib/d
   );
 }
 
-export function AdvisoryTable(props: Readonly<{ rows: readonly import("@/lib/dashboard/types").DashboardAdvisory[]; review?: boolean }>) {
+export function AdvisoryTable(props: Readonly<{ rows: readonly (import("@/lib/dashboard/types").DashboardAdvisory | import("@/lib/dashboard/types").DashboardReview)[]; review?: boolean }>) {
   return (
     <div className="table-wrap">
       <table className="data-table">
@@ -97,7 +97,7 @@ export function AdvisoryTable(props: Readonly<{ rows: readonly import("@/lib/das
             <th>止损</th>
             <th>止盈</th>
             <th>{props.review ? "复盘状态" : "邮件状态"}</th>
-            <th>{props.review ? "结果 R" : "发送时间"}</th>
+            {props.review ? <><th>入场时间</th><th>退出时间</th><th>退出参考</th><th>最近检查</th><th>结果 R</th><th>复盘说明</th></> : <th>发送时间</th>}
           </tr>
         </thead>
         <tbody>
@@ -111,8 +111,8 @@ export function AdvisoryTable(props: Readonly<{ rows: readonly import("@/lib/das
               <td>{formatNumber(row.suggestedEntryReference, 8)}</td>
               <td>{formatNumber(row.stopLoss, 8)}</td>
               <td>{formatNumber(row.takeProfit, 8)}</td>
-              <td>{props.review ? "待复盘" : row.deliveryStatus === "SENT" ? <StatusBadge tone="success">已发送</StatusBadge> : row.deliveryStatus === "FAILED" ? <StatusBadge tone="danger">发送失败</StatusBadge> : <StatusBadge tone="warning">待发送</StatusBadge>}</td>
-              <td>{props.review ? "—" : formatDateTime(row.sentAt)}</td>
+              <td>{props.review && "reviewStatus" in row ? <StatusBadge title={row.reviewReason ?? undefined} tone={row.reviewStatus === "TP" ? "success" : row.reviewStatus === "SL" || row.reviewStatus === "AMBIGUOUS" ? "danger" : "neutral"}>{reviewStatusLabel(row.reviewStatus)}</StatusBadge> : row.deliveryStatus === "SENT" ? <StatusBadge tone="success">已发送</StatusBadge> : row.deliveryStatus === "FAILED" ? <StatusBadge tone="danger">发送失败</StatusBadge> : <StatusBadge tone="warning">待发送</StatusBadge>}</td>
+              {props.review && "reviewStatus" in row ? <><td>{formatDateTime(row.entryCandleTime)}</td><td>{formatDateTime(row.exitCandleTime)}</td><td>{formatNumber(row.exitReference, 8)}</td><td>{formatDateTime(row.lastEvaluatedCandleTime)}</td><td>{formatR(row.resultR)}</td><td>{row.reviewReason ?? "—"}</td></> : <td>{formatDateTime(row.sentAt)}</td>}
             </tr>
           ))}
         </tbody>

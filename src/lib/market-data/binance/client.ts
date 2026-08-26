@@ -258,6 +258,53 @@ export class BinancePublicClient {
     });
   }
 
+  async getOneMinuteKlinesRange(
+    symbol: ResearchSymbol,
+    startTime: number,
+    endTime: number,
+    limit = BINANCE_HISTORICAL_KLINE_MAX_LIMIT,
+  ): Promise<BinanceResponse<unknown>> {
+    if (!isResearchSymbol(symbol)) {
+      throw new MarketDataError({
+        code: "INVALID_SYMBOL",
+        message: "Requested symbol is outside the approved research universe.",
+        retryable: false,
+      });
+    }
+
+    if (
+      !Number.isSafeInteger(startTime) ||
+      startTime < 0 ||
+      !Number.isSafeInteger(endTime) ||
+      endTime < startTime ||
+      startTime % 60_000 !== 0
+    ) {
+      throw new MarketDataError({
+        code: "INVALID_TIMESTAMP",
+        message: "Review 1m Kline range must use an ordered aligned UTC epoch interval.",
+        symbol,
+        retryable: false,
+      });
+    }
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > BINANCE_HISTORICAL_KLINE_MAX_LIMIT) {
+      throw new MarketDataError({
+        code: "INVALID_RESPONSE",
+        message: "Review 1m Kline limit must be between 1 and Binance's public maximum of 1500.",
+        symbol,
+        retryable: false,
+      });
+    }
+
+    return this.getJson<unknown>("/fapi/v1/klines", {
+      symbol,
+      interval: "1m",
+      startTime: String(startTime),
+      endTime: String(endTime),
+      limit: String(limit),
+    });
+  }
+
   async getIntrabarKlinesRange(
     symbol: ResearchSymbol,
     startTime: number,
