@@ -640,7 +640,7 @@ export function sha256R9Bytes(bytes: Uint8Array): string {
 export function publishR9ArtifactsAtomically(input: Readonly<{ artifacts: R9ExecutionArtifacts; root?: string }>): void {
   const root = path.resolve(input.root ?? process.cwd());
   const targets = r9OutputPaths(root);
-  const payloads = [input.artifacts.auditJson, input.artifacts.resultsMarkdown, input.artifacts.selectionMarkdown, input.artifacts.selectionJson, input.artifacts.summaryJson];
+  const payloads = [input.artifacts.summaryJson, input.artifacts.auditJson, input.artifacts.resultsMarkdown, input.artifacts.selectionJson, input.artifacts.selectionMarkdown];
   const existing = targets.filter((target) => existsSync(target));
   if (existing.length > 0) throw new Error(`R9 output already exists: ${existing.join(", ")}`);
   const stagingDirectory = path.join(path.dirname(targets[0]!), `.m3-r9-round-009-staging-${process.pid}-${Date.now()}`);
