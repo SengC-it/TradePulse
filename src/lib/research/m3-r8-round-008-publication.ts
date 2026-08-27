@@ -1,5 +1,15 @@
-import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
+export const M3_R8_OUTPUT_PATHS = Object.freeze({
+  summary: "docs/evidence/M3_R8_ROUND_008_SUMMARY.json",
+  audit: "docs/evidence/M3_R8_ROUND_008_AUDIT.json",
+  results: "docs/M3_R8_ROUND_008_RESULTS.md",
+  selectionJson: "docs/evidence/M3_R8_ROUND_008_SELECTION.json",
+  selectionMarkdown: "docs/evidence/M3_R8_ROUND_008_SELECTION.md",
+} as const);
+
+export const M3_R8_OUTPUT_PATH_LIST = Object.freeze(Object.values(M3_R8_OUTPUT_PATHS));
 
 export type R8PublicationInput = Readonly<{
   root?: string;
@@ -11,6 +21,19 @@ export type R8PublicationInput = Readonly<{
   rename?: typeof renameSync;
   onStagingDirectory?: (stagingDirectory: string) => void;
 }>;
+
+export function r8OutputPaths(root = process.cwd()): readonly string[] {
+  return M3_R8_OUTPUT_PATH_LIST.map((relative) => path.join(root, relative));
+}
+
+export type R8OutputStat = Readonly<{ filePath: string; bytes: number }>;
+
+export function readR8OutputStats(root = process.cwd()): readonly R8OutputStat[] {
+  return Object.freeze(r8OutputPaths(root).map((filePath) => {
+    if (!existsSync(filePath)) throw new Error(`R8 published output is missing: ${filePath}`);
+    return Object.freeze({ filePath, bytes: statSync(filePath).size });
+  }));
+}
 
 function writeStaged(stagingDirectory: string, target: string, payload: string): void {
   writeFileSync(path.join(stagingDirectory, path.basename(target)), Buffer.from(payload, "utf8"));
@@ -26,11 +49,11 @@ function publicationFailureWithRollbackErrors(publicationError: unknown, rollbac
 export function publishR8ArtifactsAtomically(input: R8PublicationInput): void {
   const root = input.root ?? process.cwd();
   const targets = Object.freeze({
-    audit: path.join(root, "docs", "evidence", "M3_R8_ROUND_008_AUDIT.json"),
-    results: path.join(root, "docs", "M3_R8_ROUND_008_RESULTS.md"),
-    selectionMarkdown: path.join(root, "docs", "evidence", "M3_R8_ROUND_008_SELECTION.md"),
-    selectionJson: path.join(root, "docs", "evidence", "M3_R8_ROUND_008_SELECTION.json"),
-    summary: path.join(root, "docs", "evidence", "M3_R8_ROUND_008_SUMMARY.json"),
+    audit: path.join(root, M3_R8_OUTPUT_PATHS.audit),
+    results: path.join(root, M3_R8_OUTPUT_PATHS.results),
+    selectionMarkdown: path.join(root, M3_R8_OUTPUT_PATHS.selectionMarkdown),
+    selectionJson: path.join(root, M3_R8_OUTPUT_PATHS.selectionJson),
+    summary: path.join(root, M3_R8_OUTPUT_PATHS.summary),
   });
   const targetList = Object.values(targets);
   if (targetList.some((target) => existsSync(target))) throw new Error("R8 output already exists; refusing overwrite.");

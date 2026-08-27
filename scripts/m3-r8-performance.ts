@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -16,14 +16,12 @@ import {
 import { R8_PLAN_SHA256, validateR8Plan } from "../src/lib/research/m3-r8-round-008-plan.ts";
 import { runR8SyntheticLifecycleContract } from "../src/lib/research/m3-r8-round-008-evidence.ts";
 import {
-  M3_R8_OUTPUT_PATHS,
   executeR8Authoritative,
   existingR8OutputArtifacts,
-  r8OutputPaths,
   sha256R8Bytes,
   validateR8AuthoritativeReport,
 } from "../src/lib/research/m3-r8-round-008-performance.ts";
-import { publishR8ArtifactsAtomically } from "../src/lib/research/m3-r8-round-008-publication.ts";
+import { M3_R8_OUTPUT_PATH_LIST, publishR8ArtifactsAtomically, readR8OutputStats } from "../src/lib/research/m3-r8-round-008-publication.ts";
 
 type ParsedArgs = Readonly<{ confirm: boolean; sourceSha: string; cacheDirectory: string; acceptedServerTime?: number }>;
 
@@ -107,7 +105,7 @@ async function main(): Promise<void> {
   const artifacts = await executeR8Authoritative({ cacheDirectory: args.cacheDirectory, executionSourceSha: args.sourceSha, acceptedServerTime: args.acceptedServerTime });
   validateR8AuthoritativeReport(artifacts.report);
   publishArtifacts(artifacts);
-  const outputSizes = r8OutputPaths().map((filePath) => ({ filePath, bytes: statSync(filePath).size, sha256: sha256R8Bytes(readFileSync(filePath)) }));
+  const outputSizes = readR8OutputStats().map(({ filePath, bytes }) => ({ filePath, bytes, sha256: sha256R8Bytes(readFileSync(filePath)) }));
   if (outputSizes.some(({ bytes }) => bytes >= 100 * 1024 * 1024)) throw new Error(`R8 evidence exceeds normal Git size policy: ${JSON.stringify(outputSizes)}`);
   console.log(JSON.stringify({
     head: git(["rev-parse", "HEAD"]),
@@ -122,7 +120,7 @@ async function main(): Promise<void> {
     controlReportStatus: artifacts.report.controlReport.status,
     selection: artifacts.report.selection,
     outputSizes,
-    outputs: M3_R8_OUTPUT_PATHS,
+    outputs: M3_R8_OUTPUT_PATH_LIST,
   }, null, 2));
 }
 

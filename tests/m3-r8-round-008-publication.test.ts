@@ -1,10 +1,11 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { publishR8ArtifactsAtomically } from "../src/lib/research/m3-r8-round-008-publication.ts";
+import { readR8OutputStats, M3_R8_OUTPUT_PATH_LIST, r8OutputPaths, publishR8ArtifactsAtomically } from "../src/lib/research/m3-r8-round-008-publication.ts";
 
 const payload = {
   audit: "audit-\u{1F4CA}",
@@ -29,6 +30,49 @@ function publish(root: string, options: Partial<Parameters<typeof publishR8Artif
 }
 
 describe("M3-R8 destination-local publication", () => {
+  it("uses one canonical output path registry for publication and reporting", () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-r8-reporting-"));
+    try {
+      const canonicalPaths = r8OutputPaths(root);
+      expect(canonicalPaths).toEqual(M3_R8_OUTPUT_PATH_LIST.map((relative) => path.join(root, relative)));
+      expect(() => readR8OutputStats(root)).toThrow("R8 published output is missing");
+      publish(root);
+      expect(readR8OutputStats(root).map(({ filePath }) => filePath)).toEqual(canonicalPaths);
+      expect(readR8OutputStats(root).map(({ bytes }) => bytes)).toEqual([
+        Buffer.byteLength(payload.summary, "utf8"),
+        Buffer.byteLength(payload.audit, "utf8"),
+        Buffer.byteLength(payload.results, "utf8"),
+        Buffer.byteLength(payload.selectionJson, "utf8"),
+        Buffer.byteLength(payload.selectionMarkdown, "utf8"),
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reads frozen evidence through the reporting path without rewriting it", () => {
+    const runner = readFileSync(path.resolve("scripts/m3-r8-performance.ts"), "utf8");
+    expect(runner).toContain("readR8OutputStats");
+    expect(runner).not.toContain("docs/M3_R8_ROUND_008_SELECTION.md");
+    const expected = new Map([
+      ["docs/evidence/M3_R8_ROUND_008_SUMMARY.json", "2d788c09b447384a1d4daef0a94535b7cd1430468bf8b42e45f9069d065598a4"],
+      ["docs/evidence/M3_R8_ROUND_008_AUDIT.json", "63bd7bad3a208ff55c9c63f740235221bf328f6728a83a1779cfb556ee7969bf"],
+      ["docs/M3_R8_ROUND_008_RESULTS.md", "bccf4628d18c4b621930b3931a9bd6785aef87c31d02412e275843abfab09581"],
+      ["docs/evidence/M3_R8_ROUND_008_SELECTION.json", "2d21df16c8dae8401ea6303ca686c988109d31360d58c04f166a6e58abc406ca"],
+      ["docs/evidence/M3_R8_ROUND_008_SELECTION.md", "d8bd37c462543be0873ab54573e79aebaf28d55586052d1a102291d92070f5f8"],
+    ]);
+    const before = new Map([...expected.keys()].map((relative) => {
+      const bytes = readFileSync(relative);
+      return [relative, { length: bytes.length, hash: createHash("sha256").update(bytes).digest("hex") }] as const;
+    }));
+    expect(readR8OutputStats().map(({ filePath }) => path.relative(process.cwd(), filePath).replaceAll("\\", "/"))).toEqual([...expected.keys()]);
+    for (const [relative, hash] of expected) {
+      const after = readFileSync(relative);
+      expect(before.get(relative)).toEqual({ length: after.length, hash });
+      expect(createHash("sha256").update(after).digest("hex")).toBe(hash);
+    }
+  });
+
   it("stages on the destination filesystem, preserves exact bytes, and publishes SUMMARY last", () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "tradepulse-r8-publication-"));
     try {

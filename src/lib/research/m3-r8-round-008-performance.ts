@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import path from "node:path";
 
 import {
   executeR7Authoritative,
@@ -22,6 +21,7 @@ import {
   validateR8ProtocolMachineRecord,
 } from "./m3-r8-round-008-protocol.ts";
 import { R8_PLAN_SHA256, validateR8Plan } from "./m3-r8-round-008-plan.ts";
+import { r8OutputPaths } from "./m3-r8-round-008-publication.ts";
 import { deepFreeze, stableStringify } from "./utils.ts";
 
 export const M3_R8_REPORT_SCHEMA_VERSION = "m3-r8-round-008-report-001" as const;
@@ -29,13 +29,6 @@ export const M3_R8_AUDIT_SCHEMA_VERSION = "m3-r8-round-008-audit-001" as const;
 export const M3_R8_SELECTION_SCHEMA_VERSION = "m3-r8-round-008-selection-001" as const;
 export const M3_R8_DATASET_FREEZE_SCHEMA_VERSION = "m3-r8-round-008-dataset-freeze-001" as const;
 export const M3_R8_INTRABAR_PLAN_VERSION = "m3-r8-round-008-intrabar-plan-001" as const;
-export const M3_R8_OUTPUT_PATHS = Object.freeze([
-  "docs/evidence/M3_R8_ROUND_008_SUMMARY.json",
-  "docs/evidence/M3_R8_ROUND_008_AUDIT.json",
-  "docs/M3_R8_ROUND_008_RESULTS.md",
-  "docs/evidence/M3_R8_ROUND_008_SELECTION.json",
-  "docs/M3_R8_ROUND_008_SELECTION.md",
-] as const);
 
 type R8DatasetFreeze = Omit<R7PerformanceReport["datasetFreeze"], "schemaVersion" | "source"> & Readonly<{
   schemaVersion: typeof M3_R8_DATASET_FREEZE_SCHEMA_VERSION;
@@ -295,10 +288,6 @@ export function validateR8AuthoritativeReport(report: R8PerformanceReport): void
   if (report.evidenceStatus !== "COMPLETE" || report.integrityErrors.length > 0) throw new Error("R8 evidence is not structurally complete.");
   if (report.controlReport.status !== "PASS" && report.controlReport.status !== "FAIL") throw new Error("R8 CONTROL execution is not structurally complete.");
   if (report.selection.selectedCandidateId !== null && !R8_CANDIDATE_IDS.includes(report.selection.selectedCandidateId)) throw new Error("R8 selection identity is invalid.");
-}
-
-export function r8OutputPaths(root = process.cwd()): readonly string[] {
-  return M3_R8_OUTPUT_PATHS.map((relative) => path.join(root, relative));
 }
 
 export function existingR8OutputArtifacts(root = process.cwd()): readonly string[] {
