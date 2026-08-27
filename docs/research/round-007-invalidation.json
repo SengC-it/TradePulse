@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "tradepulse-round-invalidation-001",
+  "roundId": "baseline-002-research-round-007",
+  "executionSourceSha": "04d75215987c28822a4de9c1be30e41838a1adea",
+  "performanceLock": "FIRST_M3_R7_PERFORMANCE_RESULT_GENERATED",
+  "performanceLockTriggered": true,
+  "abortStage": "executeR7Authoritative: evidence completeness classification after CONTROL execution",
+  "classification": "INVALIDATED_AFTER_PERFORMANCE_LOCK",
+  "rootCause": "RESEARCH_EVIDENCE_COMPLETENESS_SEMANTIC_BUG: an economically failing CONTROL report was treated as incomplete evidence; PERIOD_END_CENSORED was present, but DATA_INCOMPLETE and SETTLEMENT_AMBIGUOUS were absent.",
+  "artifactStatus": "INVALIDATED_NON_AUTHORITATIVE",
+  "artifacts": [
+    {
+      "path": "docs/evidence/M3_R7_ROUND_007_SUMMARY.json",
+      "sizeBytes": 719092,
+      "sha256": "535f574cbefc9c825b365b81a94c33c7e27b606bdb094d3fdc4dfc75147b25be",
+      "status": "INVALIDATED_NON_AUTHORITATIVE"
+    },
+    {
+      "path": "docs/evidence/M3_R7_ROUND_007_AUDIT.json",
+      "sizeBytes": 2488307,
+      "sha256": "899746bce47c188c1b14e872d1d9dbae4d787d18360aae0fdf3e34be47ffdece",
+      "status": "INVALIDATED_NON_AUTHORITATIVE"
+    },
+    {
+      "path": "docs/M3_R7_ROUND_007_RESULTS.md",
+      "sizeBytes": 5127,
+      "sha256": "6d10da2ca7d07dcb64dc84bb942427f8fb89d164ed69a6868757855a020c84c8",
+      "status": "INVALIDATED_NON_AUTHORITATIVE"
+    },
+    {
+      "path": "docs/evidence/M3_R7_ROUND_007_SELECTION.json",
+      "sizeBytes": 9916,
+      "sha256": "6ea30db1dfca97075d58302564a7549764b9858170858e9f199c781be5a72c4b",
+      "status": "INVALIDATED_NON_AUTHORITATIVE"
+    },
+    {
+      "path": "docs/M3_R7_ROUND_007_SELECTION.md",
+      "sizeBytes": 2067,
+      "sha256": "b7dcd3d19d89e3944a055e8c7cabdde0674c6c0dba8c1a356dc233c8d7fc65b0",
+      "status": "INVALIDATED_NON_AUTHORITATIVE"
+    }
+  ],
+  "control": {
+    "structuralStatus": "STRUCTURALLY_COMPLETE_WITH_PERIOD_END_CENSORED",
+    "reportStatus": "FAIL",
+    "formalSignals": 7500,
+    "executedTrades": 7495,
+    "periodEndCensored": 5,
+    "dataIncomplete": 0,
+    "settlementAmbiguous": 0,
+    "integrityErrors": 0
+  },
+  "baseline002Status": "NOT_FROZEN",
+  "m3JStatus": "BLOCKED",
+  "m4Status": "NOT_STARTED",
+  "round007ResultsUsedForRound008Tuning": false
+}
