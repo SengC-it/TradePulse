@@ -9,10 +9,13 @@ import {
   ROUND006_PAGE_CACHE_SCHEMA_VERSION,
   Round006CacheIntegrityError,
   Round006CachedBinanceClient,
+  latestClosedCandleWindow,
   runRound006PublicDataPreflight,
+  validateRound006PreflightCandle,
 } from "../src/lib/research/m3-r6-round-006-data.ts";
 
 const HOUR = 60 * 60 * 1_000;
+const MINUTE = 60 * 1_000;
 const SYMBOL = "BTCUSDT" as const;
 
 function temporaryDirectory(): string {
@@ -51,6 +54,57 @@ function clientFor(
 }
 
 describe("Round-006 research acquisition transport", () => {
+  it("derives the latest fully closed 1h candle from UTC epoch server time", () => {
+    expect(latestClosedCandleWindow(10 * HOUR + 46 * MINUTE, HOUR)).toEqual({
+      openTime: 9 * HOUR,
+      closeTime: 10 * HOUR - 1,
+    });
+    expect(latestClosedCandleWindow(11 * HOUR, HOUR)).toEqual({
+      openTime: 10 * HOUR,
+      closeTime: 11 * HOUR - 1,
+    });
+    expect(latestClosedCandleWindow(11 * HOUR - 1, HOUR)).toEqual({
+      openTime: 9 * HOUR,
+      closeTime: 10 * HOUR - 1,
+    });
+  });
+
+  it("uses the same UTC epoch calculation for 4h candles", () => {
+    expect(latestClosedCandleWindow(11 * HOUR + 15 * MINUTE, 4 * HOUR)).toEqual({
+      openTime: 4 * HOUR,
+      closeTime: 8 * HOUR - 1,
+    });
+    expect(latestClosedCandleWindow(12 * HOUR, 4 * HOUR)).toEqual({
+      openTime: 8 * HOUR,
+      closeTime: 12 * HOUR - 1,
+    });
+    expect(latestClosedCandleWindow(12 * HOUR - 1, 4 * HOUR)).toEqual({
+      openTime: 4 * HOUR,
+      closeTime: 8 * HOUR - 1,
+    });
+  });
+
+  it("rejects a current/forming candle and accepts the exact previous closed candle", () => {
+    const serverTime = 10 * HOUR + 46 * MINUTE;
+    const formingOpenTime = 10 * HOUR;
+    expect(() => validateRound006PreflightCandle(
+      { data: [candleRow(formingOpenTime)] },
+      SYMBOL,
+      "1h",
+      formingOpenTime,
+      serverTime,
+    )).toThrowError(/fully closed/u);
+
+    const closedOpenTime = 9 * HOUR;
+    expect(() => validateRound006PreflightCandle(
+      { data: [candleRow(closedOpenTime)] },
+      SYMBOL,
+      "1h",
+      closedOpenTime,
+      serverTime,
+    )).not.toThrow();
+  });
+
   it("retries timeout, 5xx, and 429 responses with bounded attempts", async () => {
     const root = temporaryDirectory();
     try {

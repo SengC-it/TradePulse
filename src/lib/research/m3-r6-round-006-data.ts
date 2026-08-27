@@ -501,13 +501,45 @@ export function createRound006HistoricalLoader(
   });
 }
 
-function latestClosedOpenTime(serverTime: number, timeframe: "1h" | "4h"): number {
-  const interval = INTERVAL_MS[timeframe];
-  return Math.floor((serverTime - 1) / interval) * interval;
+export type Round006ClosedCandleWindow = Readonly<{
+  openTime: number;
+  closeTime: number;
+}>;
+
+export function latestClosedCandleWindow(
+  serverTime: number,
+  intervalMs: number,
+): Round006ClosedCandleWindow {
+  if (!Number.isSafeInteger(serverTime) || serverTime <= 0) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Round-006 preflight requires a positive safe-integer server time.",
+    });
+  }
+  if (!Number.isSafeInteger(intervalMs) || intervalMs <= 0) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Round-006 preflight requires a positive safe-integer timeframe interval.",
+    });
+  }
+  const openTime = Math.floor(serverTime / intervalMs) * intervalMs - intervalMs;
+  const closeTime = openTime + intervalMs - 1;
+  if (openTime < 0 || closeTime >= serverTime) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Round-006 preflight could not derive a fully closed candle interval.",
+      diagnostics: { openTime, closeTime, serverTime, intervalMs },
+    });
+  }
+  return Object.freeze({ openTime, closeTime });
 }
 
-function validatePreflightCandle(
-  response: BinanceResponse<unknown>,
+function latestClosedOpenTime(serverTime: number, timeframe: "1h" | "4h"): number {
+  return latestClosedCandleWindow(serverTime, INTERVAL_MS[timeframe]).openTime;
+}
+
+export function validateRound006PreflightCandle(
+  response: Pick<BinanceResponse<unknown>, "data">,
   symbol: ResearchSymbol,
   timeframe: "1h" | "4h",
   openTime: number,
@@ -521,6 +553,27 @@ function validatePreflightCandle(
     expectedEndTime: openTime,
     serverTime,
   });
+  const candle = candles[0]!;
+  const expectedCloseTime = openTime + INTERVAL_MS[timeframe] - 1;
+  if (
+    candle.openTime !== openTime
+    || candle.closeTime !== expectedCloseTime
+    || candle.closeTime >= serverTime
+  ) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: "Round-006 preflight candle does not equal the exact fully closed interval.",
+      symbol,
+      timeframe,
+      diagnostics: {
+        expectedOpenTime: openTime,
+        actualOpenTime: candle.openTime,
+        expectedCloseTime,
+        actualCloseTime: candle.closeTime,
+        serverTime,
+      },
+    });
+  }
 }
 
 function validatePreflightFunding(
@@ -589,10 +642,10 @@ export async function runRound006PublicDataPreflight(
   let requestCount = 1;
   for (const symbol of RESEARCH_SYMBOLS) {
     const oneHour = await client.getKlinesRange(symbol, "1h", latest1h, latest1h, 1);
-    validatePreflightCandle(oneHour, symbol, "1h", latest1h, serverTime);
+    validateRound006PreflightCandle(oneHour, symbol, "1h", latest1h, serverTime);
     requestCount += 1;
     const fourHour = await client.getKlinesRange(symbol, "4h", latest4h, latest4h, 1);
-    validatePreflightCandle(fourHour, symbol, "4h", latest4h, serverTime);
+    validateRound006PreflightCandle(fourHour, symbol, "4h", latest4h, serverTime);
     requestCount += 1;
     const funding = await client.getFundingRateHistory(symbol, fundingRange.startTime, fundingRange.endTime, 100);
     validatePreflightFunding(funding, symbol, fundingRange);
