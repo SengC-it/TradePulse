@@ -555,64 +555,77 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED`.
 
-## ADR-036 — Freeze the Round-006 final registry, Gate, and Plan
+## ADR-036 — Freeze the Round-006 profitability-rebuild registry, Gate, and Plan
 
-- Decision: Freeze baseline-002-research-round-006 from the accepted B.1A
-  post-merge source b8e03e34360ceaaf515882226940eba99bf89b1c. The four
-  standalone candidates are H19, H20, H21, and H22 exactly as recorded by
-  the B.1A protocol, with one variant each and unchanged complexity tuples.
-- Gate: Round-005 numeric values, comparison directions, fold-improvement
-  semantics, catastrophic-fold semantics, sample floors, concentration,
-  profit-factor, and fee-burden definitions are inherited without weakening.
-  Round-006 has exactly ten applicable gates because redundancy is
-  NOT_APPLICABLE for every candidate. The accepted Round-005 Gate SHA is
-  e7af8bf2137df8e0c4277c92abffab480511e25d3414682dd78836c1c973adb5; the
+- **Decision:** Freeze `baseline-002-research-round-006` from authoritative
+  main source `009b0c2aa11d7f8b387c130f8172ec60e9efa333`. The registry contains
+  exactly twelve one-variant candidates: `R6-A1`/`A2`/`A3` for 12h/24h/48h
+  same-symbol/same-direction cooldown, `R6-B1`/`B2` for score TOP-1/TOP-2,
+  `R6-B3`/`B4` for relative-strength TOP-1/TOP-2, `R6-C1`/`C2` for trend
+  freshness with optional score TOP-1, and `R6-D1`/`D2`/`D3` for breakout,
+  pullback-breakout, and the predeclared pullback-breakout plus TOP-1
+  composition. No combinations, parameter sweep, optimizer, or result-driven
+  variant is permitted.
+- **Gate:** The Round-005 numeric thresholds, comparison directions,
+  fold-improvement semantics, catastrophic-fold semantics, sample floors,
+  concentration, profit-factor, fee/funding, and settlement definitions are
+  inherited without weakening. Round-006 requires aggregate validation
+  expectancy improvement of at least `+0.10R`, at least four improved folds,
+  zero catastrophic folds, aggregate net expectancy of at least `+0.03R` per
+  trade, PF at least `1.20`, concentration at most `0.50`, single-trade
+  contribution at most `0.10`, applicable sample floors, and at least 30%
+  overlap reduction for cooldown/TOP-N candidates. The canonical Round-006
+  Gate SHA is
+  `a56ebfa2702ded5d9de0996d3d26b4d2251326e5623e3b37c69f7190e752b871`; the
   inherited Round-004 ancestry SHA remains
-  c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54. The
-  corrected Round-006 canonical Gate SHA is
-  404e532d1594d708995de2f6b7573f386ea9270ff5386d5591948e002a4ef1fd.
-- Plan: The canonical Plan binds the five-symbol universe, F1–F6 folds,
-  seen-data boundary, baseline-001, bt-policy-003, R6 protocol identity,
-  Gate SHA, settlement/economics, deterministic staged selection, the complete
-  metric/status/output contract, and runtime provenance checks. Its corrected
-  canonical SHA is
-  195ba66a3b6bf920a1d3418a26e72037c817c1a713b888c1179047b85f9fc005.
-- Constraint: The future performance execution SHA is not predeclared; it
-  must be supplied only by a separately authorized runtime and must equal the
-  authorized source SHA and the clean-worktree Git HEAD. Required manifests
-  must pass and authoritative outputs must be absent before network access.
-  No performance, selection, Binance access, historical exploration,
-  optimizer, sweep, or evidence generation occurs in B.1B.
-- Consequence: Performance remains NOT_AUTHORIZED / NOT_GENERATED,
-  baseline-002 remains NOT_FROZEN, M3-J remains BLOCKED, and M4 remains
-  NOT_STARTED. After FIRST_M3_R6_PERFORMANCE_RESULT_GENERATED,
-  result-affecting changes require ROUND_006_INVALIDATION_REQUIRED.
+  `c82757a5e4e3252fcda929fec5c24b83f0408c2c3251125b042c107edcfa4f54`.
+- **Plan:** The canonical Plan binds the five-symbol universe, F1–F6 folds,
+  seen-data boundary `2026-08-15T23:59:59.999Z`, baseline-001, bt-policy-003,
+  the R6 protocol identity, closed-candle and no-future-data rules, exact
+  control-first execution, frozen candidate families, inherited
+  settlement/economics, deterministic staged selection, output integrity, and
+  runtime provenance checks. Its canonical Plan SHA is
+  `2619723e98e3ffa083a1833454c838993263d0e7066527abaa373d2e373ef7d9`.
+- **Selection:** The inclusive expectancy tie band uses threshold `0.01` and
+  `SCALE_AWARE_NUMBER_EPSILON`:
+  `difference = maxExpectancy - candidateExpectancy`,
+  `tolerance = Number.EPSILON * Math.max(1, Math.abs(maxExpectancy),
+  Math.abs(candidateExpectancy), Math.abs(threshold))`, and the candidate is
+  inside when `difference - threshold <= tolerance`. Selection then applies
+  improved folds, complexity, PF, and candidate ID deterministically.
+- **Observed production context:** The frozen M6 observations are
+  `SEEN_DIAGNOSTIC_DATA` only. They are not a gate, threshold, candidate
+  definition, or evidence input and cannot tune the Round-006 study.
+- **Constraint:** The performance execution SHA is not predeclared. The
+  separately authorized runtime must supply it and match the authorized source
+  SHA and clean-worktree Git HEAD; manifests must pass and all authoritative
+  outputs must be absent before network access. Until then performance remains
+  `NOT_AUTHORIZED` / `NOT_GENERATED`, baseline-002 remains `NOT_FROZEN`, M3-J
+  remains `BLOCKED`, and M4 remains `NOT_STARTED`.
 
-## ADR-037 — Remediate the Round-006 B.1B provenance, selector, and metric contract
+## ADR-037 — Freeze the Round-006 execution and provenance boundary
 
-- **Decision:** B.1B remains pre-performance and unmerged on its existing PR.
-  The machine Gate now records the accepted Round-005 Gate independently from
-  the inherited Round-004 ancestry Gate. The selector is a staged algorithm:
-  eligibility, maximum improved folds, an inclusive 0.01 expectancy tie band,
-  complexity tuple, PF with null after finite, then candidate ID. The tie band
-  is `SCALE_AWARE_NUMBER_EPSILON` with
-  `difference - threshold <= Number.EPSILON * Math.max(1, Math.abs(maxExpectancy), Math.abs(candidateExpectancy), Math.abs(threshold))`;
-  the threshold remains exactly 0.01 and the boundary is inclusive. This
-  avoids the non-transitive behavior of a pairwise comparator and freezes
-  eligible-ID serialization in ascending order.
+- **Decision:** Round-006 uses the existing historical/backtest and
+  framework-independent strategy infrastructure. CONTROL runs first exactly
+  once, and the predeclared candidate transformations derive candidate streams
+  without changing formulas, settlement, or economics. All historical inputs
+  must be public Binance data with exact manifest/range coverage; old cache data
+  is allowed only with matching provenance and checksums.
 - **Metric contract:** Only formal evaluator signals create records. The Plan
-  explicitly defines the status semantics, formal/executed counts, PF
-  NO_TRADES/NO_LOSSES behavior, fee burden, concentration, fold improvement,
+  defines status semantics, formal/executed counts, PF `NO_TRADES`/
+  `NO_LOSSES` behavior, fee burden, concentration, fold improvement,
   catastrophic folds, minimum fold executed trades, finite/null/rounding
-  normalization, deterministic ordering, and the accepted-base implementation
-  identities used for diagnostics and stable serialization.
-- **Authorization:** The future source remains `null` in B.1B. A later run
-  must provide the execution source, separately authorized source, and Git HEAD
-  as the same SHA, plus clean worktree, passing manifests, and absent output
-  artifacts before any network request. Arbitrary valid SHAs are rejected.
-- **Consequence:** The corrected Gate and Plan hashes are recorded above.
-  Performance remains `NOT_AUTHORIZED` / `NOT_GENERATED`; baseline-002 remains
-  `NOT_FROZEN`; M3-J remains `BLOCKED`; and M4 remains `NOT_STARTED`.
+  normalization, and deterministic serialization. Any integrity failure stops
+  the batch as incomplete; no partial evidence is authoritative.
+- **Authorization:** The one performance command requires explicit
+  authoritative confirmation, source/Git-head equality, clean worktree,
+  passing manifests, and absent outputs. The subsequent selection command
+  requires the exact generated Summary/Audit/Results hashes and the same clean
+  gate-application source. No performance result, selection, candidate, or
+  evidence artifact is authorized before those runtime checks pass.
+- **Consequence:** No baseline-002 candidate may be selected unless every
+  applicable frozen gate passes. If none passes, the mechanical result is
+  `NO BASELINE-002 CANDIDATE — ROUND-006`; no gate weakening is allowed.
 
 ## Deferred decisions
 

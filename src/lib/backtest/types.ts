@@ -30,6 +30,8 @@ export type BacktestData = Readonly<{
   markPriceSegments?: Readonly<Record<ResearchSymbol, readonly HistoricalMarkPriceSegment[] | undefined>>;
   intrabarSettlementWindows?: readonly HistoricalIntrabarSettlementWindow[];
   intrabarSettlementRequirements?: readonly IntrabarSettlementRequirement[];
+  /** Frozen Round-006 declaration identity attached before bt-policy-003 runs. */
+  intrabarSettlementDeclarationHash?: string;
   manifests: readonly HistoricalManifest[];
   serverTime?: number;
 }>;

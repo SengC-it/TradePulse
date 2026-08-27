@@ -1,5 +1,6 @@
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../../config/constants.ts";
 import { BinancePublicClient, type BinancePublicClientOptions } from "../../market-data/binance/client.ts";
+import { MarketDataError } from "../../market-data/errors.ts";
 import { parseBinanceKlines } from "../../market-data/binance/parser.ts";
 import { INTERVAL_MS, type MarketTimeframe } from "../../market-data/intervals.ts";
 import type { Candle } from "../../market-data/types.ts";
@@ -128,17 +129,46 @@ function assertMarkPriceRange(request: HistoricalMarkPriceRequest): void {
   }
 }
 
+function safeUpstreamDiagnostics(error: MarketDataError): Readonly<Record<string, number | string | boolean>> {
+  const source = error.diagnostics;
+  const diagnostics: Record<string, number | string | boolean> = {
+    rootCauseCode: error.code,
+    upstreamCode: error.code,
+  };
+  if (source?.endpoint?.startsWith("/")) diagnostics.endpoint = source.endpoint.split("?", 1)[0]!;
+  for (const key of [
+    "httpStatus",
+    "attempts",
+    "operationStartedAt",
+    "attemptStartedAt",
+    "attemptCompletedAt",
+    "roundTripMs",
+    "retryAfterMs",
+    "maxRetryDelayMs",
+  ] as const) {
+    const value = source?.[key];
+    if (typeof value === "number" && Number.isFinite(value)) diagnostics[key] = value;
+  }
+  return diagnostics;
+}
+
 function wrapUpstreamError(error: unknown, symbol: ResearchSymbol, timeframe?: MarketTimeframe): never {
-  const upstreamCode =
-    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+  if (error instanceof HistoricalDataError) throw error;
+
+  const upstreamCode = error instanceof MarketDataError
+    ? error.code
+    : typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
       ? error.code
       : "UNKNOWN";
+  const diagnostics = error instanceof MarketDataError
+    ? safeUpstreamDiagnostics(error)
+    : { rootCauseCode: upstreamCode, upstreamCode };
   throw new HistoricalDataError({
     code: "DATA_INCOMPLETE",
     message: `Binance historical ${timeframe ? "candle" : "funding"} retrieval failed (${upstreamCode}).`,
     symbol,
     ...(timeframe ? { timeframe } : {}),
-    diagnostics: { upstreamCode },
+    diagnostics,
   });
 }
 
@@ -364,17 +394,19 @@ export class BinanceHistoricalDataLoader {
     const expectedEndTime = Math.floor(request.range.endTime / interval) * interval;
     const candles: HistoricalMarkPriceCandle[] = [];
     let cursor = expectedStartTime;
-    let firstRequest = true;
 
     while (cursor <= expectedEndTime) {
+      const remainingCandleCount = Math.floor((expectedEndTime - cursor) / interval) + 1;
+      const pageLimit = Math.min(this.markPriceLimit, remainingCandleCount);
+      const pageExpectedEnd = cursor + (pageLimit - 1) * interval;
       let payload: unknown;
       try {
         payload = (
           await this.client.getMarkPriceKlinesRange(
             request.symbol,
-            firstRequest ? request.range.startTime : cursor,
-            request.range.endTime,
-            this.markPriceLimit,
+            cursor,
+            pageExpectedEnd,
+            pageLimit,
           )
         ).data;
       } catch (error) {
@@ -382,7 +414,6 @@ export class BinanceHistoricalDataLoader {
       }
 
       const page = parseBinanceMarkPriceKlines(payload, request.symbol);
-      validateMarkPriceCandleSeries(page, { symbol: request.symbol, serverTime });
       const first = page[0];
       const last = page[page.length - 1];
       if (!first || !last) {
@@ -390,14 +421,35 @@ export class BinanceHistoricalDataLoader {
           code: "DATA_INCOMPLETE",
           message: "Binance returned an empty historical mark-price Kline page.",
           symbol: request.symbol,
+          diagnostics: { cursor, pageExpectedEnd, pageLimit, receivedCount: page.length },
         });
       }
       if (first.openTime !== cursor) {
         throw new HistoricalDataError({
-          code: "DATA_INCOMPLETE",
+          code: first.openTime < cursor ? "DUPLICATE_CANDLE" : "CANDLE_GAP",
           message: "Historical mark-price Kline pagination did not continue at the next expected candle.",
           symbol: request.symbol,
-          diagnostics: { cursor, firstOpenTime: first.openTime },
+          diagnostics: { cursor, firstOpenTime: first.openTime, pageExpectedEnd, pageLimit },
+        });
+      }
+      validateMarkPriceCandleSeries(page, {
+        symbol: request.symbol,
+        serverTime,
+        expectedStartTime: cursor,
+        expectedEndTime: pageExpectedEnd,
+      });
+      if (page.length !== pageLimit || last.openTime !== pageExpectedEnd) {
+        throw new HistoricalDataError({
+          code: "DATA_INCOMPLETE",
+          message: "Historical mark-price Kline page did not match its exact requested window.",
+          symbol: request.symbol,
+          diagnostics: {
+            cursor,
+            pageExpectedEnd,
+            pageLimit,
+            receivedCount: page.length,
+            actualLastOpenTime: last.openTime,
+          },
         });
       }
       if (last.openTime > expectedEndTime) {
@@ -409,7 +461,7 @@ export class BinanceHistoricalDataLoader {
       }
 
       candles.push(...page);
-      const nextCursor = last.openTime + interval;
+      const nextCursor = pageExpectedEnd + interval;
       if (nextCursor <= cursor) {
         throw new HistoricalDataError({
           code: "DATA_INCOMPLETE",
@@ -418,8 +470,6 @@ export class BinanceHistoricalDataLoader {
         });
       }
       cursor = nextCursor;
-      firstRequest = false;
-      if (page.length < this.markPriceLimit) break;
     }
 
     const normalized = validateMarkPriceCandleSeries(candles, {

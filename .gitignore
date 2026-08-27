@@ -17,6 +17,7 @@ coverage/
 artifacts/backtest/
 .tmp/backtest/
 .tmp/
+.cache/tradepulse/round-006/
 
 # Supabase local state
 supabase/.branches/

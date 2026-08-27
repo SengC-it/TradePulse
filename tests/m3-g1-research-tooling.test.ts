@@ -179,9 +179,12 @@ function sourceText(): string {
     // not generic offline diagnostics tooling, and has its own B.1A suite.
     // Round-005 B.2 performance machinery is a future execution boundary,
     // covered by its dedicated offline implementation suite.
+    // Round-006 protocol and performance machinery are a separate bounded
+    // profitability-rebuild boundary with dedicated offline suites.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
+      !name.startsWith("m3-r6-round-006-") &&
       name !== "m3-r5-h17-funding-qualification.ts" &&
       name !== "m3-r5-round-005-performance.ts" &&
       name !== "m3-r5-round-005-settlement.ts",
