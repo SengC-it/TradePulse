@@ -1,0 +1,20 @@
+{
+  "roundId": "baseline-002-research-round-006",
+  "evidenceSchemaVersion": "m3-r6-round-006-report-001",
+  "originalFileName": "M3_R6_ROUND_006_SUMMARY.json",
+  "originalSizeBytes": 116552111,
+  "originalSha256": "6a73fb8b4bf546c151ac9d5bb53e74e29be998a67b07afdce16494a5fbe838ee",
+  "transportFileName": "round-006-authoritative-summary.json.gz",
+  "transportSizeBytes": 18948569,
+  "transportSha256": "72faa2316761829cb6b2d940e71239f9aa765fd409342674c61eedaf329b5917",
+  "compression": "gzip -n -9 (deterministic)",
+  "datasetIdentity": "865ea8043de553b88c7a5faa558091e0ff7d10c1358d04cd14cf5766a6eb9cc0",
+  "intrabarDeclarationHash": "acecb0323a8068ca5c0c5b61e1ea8ac41c6741ac5ced12ca40dddfb6b2aeb765",
+  "candidatePlanHash": "2619723e98e3ffa083a1833454c838993263d0e7066527abaa373d2e373ef7d9",
+  "gateHash": "a56ebfa2702ded5d9de0996d3d26b4d2251326e5623e3b37c69f7190e752b871",
+  "backtestPolicyVersion": "bt-policy-003",
+  "performanceLockIdentity": "FIRST_M3_R6_PERFORMANCE_RESULT_GENERATED",
+  "researchSourceIdentity": "b4aa9f68bacf1fb24a7a69615da1fde250ee9b5b",
+  "storageType": "github-release-asset",
+  "releaseTag": "round-006-evidence-001"
+}
