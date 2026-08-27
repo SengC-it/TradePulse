@@ -1,0 +1,58 @@
+{
+  "roundId": "baseline-002-research-round-008",
+  "performanceExecutionSourceSha": "e4662257e512ea08fa2ded6b2d6a171079d02fb0",
+  "publicationHeadSha": "e0b0494d4745f50a99bbdef1404acdec8f3bb9f3",
+  "datasetIdentity": "da67ee93669ec7d854f31b99e6482dbbbbd662aba69708ac5cabd83a6a38c2a8",
+  "performanceLock": true,
+  "performanceExecutionCount": 1,
+  "evidence": [
+    {
+      "path": "docs/evidence/M3_R8_ROUND_008_SUMMARY.json",
+      "byteSize": 719083,
+      "sha256": "2d788c09b447384a1d4daef0a94535b7cd1430468bf8b42e45f9069d065598a4",
+      "storageType": "git-blob"
+    },
+    {
+      "path": "docs/evidence/M3_R8_ROUND_008_AUDIT.json",
+      "byteSize": 2488307,
+      "sha256": "63bd7bad3a208ff55c9c63f740235221bf328f6728a83a1779cfb556ee7969bf",
+      "storageType": "git-blob"
+    },
+    {
+      "path": "docs/M3_R8_ROUND_008_RESULTS.md",
+      "byteSize": 5337,
+      "sha256": "bccf4628d18c4b621930b3931a9bd6785aef87c31d02412e275843abfab09581",
+      "storageType": "git-blob"
+    },
+    {
+      "path": "docs/evidence/M3_R8_ROUND_008_SELECTION.json",
+      "byteSize": 9903,
+      "sha256": "2d21df16c8dae8401ea6303ca686c988109d31360d58c04f166a6e58abc406ca",
+      "storageType": "git-blob"
+    },
+    {
+      "path": "docs/evidence/M3_R8_ROUND_008_SELECTION.md",
+      "byteSize": 2120,
+      "sha256": "d8bd37c462543be0873ab54573e79aebaf28d55586052d1a102291d92070f5f8",
+      "storageType": "git-blob"
+    }
+  ],
+  "resultAffectingPostLockDiffCount": 0,
+  "finalDecision": "NO BASELINE-002 CANDIDATE — ROUND-008",
+  "selectedCandidateId": null,
+  "baseline002Status": "NOT_FROZEN",
+  "originalAbort": "POST_PERFORMANCE_EXECUTION_ABORT",
+  "originalExitCode": 1,
+  "actualFailureStage": "POST_SELECTION_REPORTING_STATISTICS",
+  "rootCause": "SELECTION_MARKDOWN_PATH_MISMATCH",
+  "researchPerformanceCompleted": true,
+  "selectionCompleted": true,
+  "evidenceGenerated": true,
+  "resultAffectingFailure": false,
+  "publicationRecovery": "POST_SELECTION_REPORTING_PATH_FIX_ONLY",
+  "publicationRecoveryAuthorized": true,
+  "performanceRerun": false,
+  "performanceRerunRequired": false,
+  "selectionRerun": false,
+  "evidenceRegenerated": false
+}
