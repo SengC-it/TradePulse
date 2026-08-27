@@ -394,17 +394,19 @@ export class BinanceHistoricalDataLoader {
     const expectedEndTime = Math.floor(request.range.endTime / interval) * interval;
     const candles: HistoricalMarkPriceCandle[] = [];
     let cursor = expectedStartTime;
-    let firstRequest = true;
 
     while (cursor <= expectedEndTime) {
+      const remainingCandleCount = Math.floor((expectedEndTime - cursor) / interval) + 1;
+      const pageLimit = Math.min(this.markPriceLimit, remainingCandleCount);
+      const pageExpectedEnd = cursor + (pageLimit - 1) * interval;
       let payload: unknown;
       try {
         payload = (
           await this.client.getMarkPriceKlinesRange(
             request.symbol,
-            firstRequest ? request.range.startTime : cursor,
-            request.range.endTime,
-            this.markPriceLimit,
+            cursor,
+            pageExpectedEnd,
+            pageLimit,
           )
         ).data;
       } catch (error) {
@@ -412,7 +414,6 @@ export class BinanceHistoricalDataLoader {
       }
 
       const page = parseBinanceMarkPriceKlines(payload, request.symbol);
-      validateMarkPriceCandleSeries(page, { symbol: request.symbol, serverTime });
       const first = page[0];
       const last = page[page.length - 1];
       if (!first || !last) {
@@ -420,14 +421,35 @@ export class BinanceHistoricalDataLoader {
           code: "DATA_INCOMPLETE",
           message: "Binance returned an empty historical mark-price Kline page.",
           symbol: request.symbol,
+          diagnostics: { cursor, pageExpectedEnd, pageLimit, receivedCount: page.length },
         });
       }
       if (first.openTime !== cursor) {
         throw new HistoricalDataError({
-          code: "DATA_INCOMPLETE",
+          code: first.openTime < cursor ? "DUPLICATE_CANDLE" : "CANDLE_GAP",
           message: "Historical mark-price Kline pagination did not continue at the next expected candle.",
           symbol: request.symbol,
-          diagnostics: { cursor, firstOpenTime: first.openTime },
+          diagnostics: { cursor, firstOpenTime: first.openTime, pageExpectedEnd, pageLimit },
+        });
+      }
+      validateMarkPriceCandleSeries(page, {
+        symbol: request.symbol,
+        serverTime,
+        expectedStartTime: cursor,
+        expectedEndTime: pageExpectedEnd,
+      });
+      if (page.length !== pageLimit || last.openTime !== pageExpectedEnd) {
+        throw new HistoricalDataError({
+          code: "DATA_INCOMPLETE",
+          message: "Historical mark-price Kline page did not match its exact requested window.",
+          symbol: request.symbol,
+          diagnostics: {
+            cursor,
+            pageExpectedEnd,
+            pageLimit,
+            receivedCount: page.length,
+            actualLastOpenTime: last.openTime,
+          },
         });
       }
       if (last.openTime > expectedEndTime) {
@@ -439,7 +461,7 @@ export class BinanceHistoricalDataLoader {
       }
 
       candles.push(...page);
-      const nextCursor = last.openTime + interval;
+      const nextCursor = pageExpectedEnd + interval;
       if (nextCursor <= cursor) {
         throw new HistoricalDataError({
           code: "DATA_INCOMPLETE",
@@ -448,8 +470,6 @@ export class BinanceHistoricalDataLoader {
         });
       }
       cursor = nextCursor;
-      firstRequest = false;
-      if (page.length < this.markPriceLimit) break;
     }
 
     const normalized = validateMarkPriceCandleSeries(candles, {

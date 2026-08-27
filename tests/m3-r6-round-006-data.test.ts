@@ -8,6 +8,7 @@ import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/
 import { HistoricalDataError, classifyHistoricalAcquisitionFailure } from "../src/lib/historical-data/errors.ts";
 import { BinancePublicClient } from "../src/lib/market-data/binance/client.ts";
 import { MarketDataError } from "../src/lib/market-data/errors.ts";
+import { validateMarkPriceCandleSeries } from "../src/lib/historical-data/validation.ts";
 import {
   ROUND006_PAGE_CACHE_SCHEMA_VERSION,
   Round006CacheIntegrityError,
@@ -187,6 +188,246 @@ describe("Round-006 research acquisition transport", () => {
       closedOpenTime,
       serverTime,
     )).not.toThrow();
+  });
+
+  it("uses one exact 1500-candle mark-price page when the range fits", async () => {
+    const count = 1_500;
+    const calls: URL[] = [];
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: count,
+      clientOptions: {
+        fetchImpl: async (input) => {
+          const url = new URL(input.toString());
+          calls.push(url);
+          const start = Number(url.searchParams.get("startTime"));
+          const limit = Number(url.searchParams.get("limit"));
+          return jsonResponse(Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+        },
+      },
+    });
+    const dataset = await loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: count * HOUR - 1 },
+      serverTime: (count + 1) * HOUR,
+    });
+    expect(dataset.candles).toHaveLength(count);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.searchParams.get("startTime")).toBe("0");
+    expect(calls[0]?.searchParams.get("endTime")).toBe(String((count - 1) * HOUR));
+    expect(calls[0]?.searchParams.get("limit")).toBe(String(count));
+    expect(validateMarkPriceCandleSeries(dataset.candles, {
+      symbol: SYMBOL,
+      serverTime: (count + 1) * HOUR,
+      expectedStartTime: 0,
+      expectedEndTime: count * HOUR - 1,
+    })).toHaveLength(count);
+  });
+
+  it("requests a 1501-candle range as 1500 plus one exact final candle", async () => {
+    const count = 1_501;
+    const calls: URL[] = [];
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 1_500,
+      clientOptions: {
+        fetchImpl: async (input) => {
+          const url = new URL(input.toString());
+          calls.push(url);
+          const start = Number(url.searchParams.get("startTime"));
+          const limit = Number(url.searchParams.get("limit"));
+          return jsonResponse(Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+        },
+      },
+    });
+    const dataset = await loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: count * HOUR - 1 },
+      serverTime: (count + 1) * HOUR,
+    });
+    expect(dataset.candles).toHaveLength(count);
+    expect(calls.map((call) => [
+      call.searchParams.get("startTime"),
+      call.searchParams.get("endTime"),
+      call.searchParams.get("limit"),
+    ])).toEqual([
+      ["0", String(1_499 * HOUR), "1500"],
+      [String(1_500 * HOUR), String(1_500 * HOUR), "1"],
+    ]);
+  });
+
+  it("continues multiple exact mark-price pages until the requested end", async () => {
+    const count = 3_001;
+    const calls: URL[] = [];
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 1_500,
+      clientOptions: {
+        fetchImpl: async (input) => {
+          const url = new URL(input.toString());
+          calls.push(url);
+          const start = Number(url.searchParams.get("startTime"));
+          const limit = Number(url.searchParams.get("limit"));
+          return jsonResponse(Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+        },
+      },
+    });
+    const dataset = await loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: count * HOUR - 1 },
+      serverTime: (count + 1) * HOUR,
+    });
+    expect(dataset.candles).toHaveLength(count);
+    expect(calls.map((call) => [
+      call.searchParams.get("startTime"),
+      call.searchParams.get("endTime"),
+      call.searchParams.get("limit"),
+    ])).toEqual([
+      ["0", String(1_499 * HOUR), "1500"],
+      [String(1_500 * HOUR), String(2_999 * HOUR), "1500"],
+      [String(3_000 * HOUR), String(3_000 * HOUR), "1"],
+    ]);
+  });
+
+  it("does not treat a full first page as complete before the exact range end", async () => {
+    const calls: URL[] = [];
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 1_500,
+      clientOptions: {
+        fetchImpl: async (input) => {
+          const url = new URL(input.toString());
+          calls.push(url);
+          const start = Number(url.searchParams.get("startTime"));
+          const limit = Number(url.searchParams.get("limit"));
+          return jsonResponse(Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+        },
+      },
+    });
+    await loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: 1_500 * HOUR },
+      serverTime: 1_502 * HOUR,
+    });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.searchParams.get("startTime")).toBe(String(1_500 * HOUR));
+  });
+
+  it("rejects an inexact final short page", async () => {
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 1_500,
+      clientOptions: {
+        fetchImpl: async (input) => {
+          const url = new URL(input.toString());
+          const start = Number(url.searchParams.get("startTime"));
+          const limit = Number(url.searchParams.get("limit"));
+          return jsonResponse(limit === 1
+            ? [candleRow(start), candleRow(start + HOUR)]
+            : Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+        },
+      },
+    });
+    const error = await captureRejection(loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: 1_500 * HOUR },
+      serverTime: 1_502 * HOUR,
+    }));
+    expect(error).toMatchObject({ code: "DATA_INCOMPLETE" });
+  });
+
+  it("fails closed on a page that starts after the expected cursor", async () => {
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 1,
+      clientOptions: { fetchImpl: async () => jsonResponse([candleRow(HOUR)]) },
+    });
+    const error = await captureRejection(loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: HOUR - 1 },
+      serverTime: 2 * HOUR,
+    }));
+    expect(error).toMatchObject({ code: "CANDLE_GAP" });
+  });
+
+  it("fails closed when a page repeats an earlier candle", async () => {
+    let calls = 0;
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 1,
+      clientOptions: {
+        fetchImpl: async () => {
+          calls += 1;
+          return jsonResponse([candleRow(calls === 1 ? 0 : 0)]);
+        },
+      },
+    });
+    const error = await captureRejection(loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: 2 * HOUR - 1 },
+      serverTime: 3 * HOUR,
+    }));
+    expect(calls).toBe(2);
+    expect(error).toMatchObject({ code: "DUPLICATE_CANDLE" });
+  });
+
+  it("fails closed when a page returns fewer rows than its exact window", async () => {
+    const loader = new BinanceHistoricalDataLoader({
+      markPriceLimit: 2,
+      clientOptions: { fetchImpl: async () => jsonResponse([candleRow(0)]) },
+    });
+    const error = await captureRejection(loader.loadMarkPriceKlines({
+      symbol: SYMBOL,
+      range: { startTime: 0, endTime: 2 * HOUR - 1 },
+      serverTime: 3 * HOUR,
+    }));
+    expect(error).toMatchObject({ code: "DATA_INCOMPLETE" });
+  });
+
+  it("resumes mark-price pages from the first missing cached page", async () => {
+    const root = temporaryDirectory();
+    const range = { startTime: 0, endTime: 4 * HOUR - 1 };
+    try {
+      const firstCalls: number[] = [];
+      const firstClient = new Round006CachedBinanceClient({
+        cacheDirectory: root,
+        clientOptions: {
+          maxAttempts: 1,
+          sleep: async () => undefined,
+          fetchImpl: async (input) => {
+            const start = Number(new URL(input.toString()).searchParams.get("startTime"));
+            firstCalls.push(start);
+            if (start === 2 * HOUR) throw new Error("second page unavailable");
+            const limit = Number(new URL(input.toString()).searchParams.get("limit"));
+            return jsonResponse(Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+          },
+        },
+      });
+      const firstLoader = new BinanceHistoricalDataLoader({ client: firstClient, markPriceLimit: 2 });
+      await expect(firstLoader.loadMarkPriceKlines({ symbol: SYMBOL, range, serverTime: 5 * HOUR })).rejects.toThrow();
+      expect(firstCalls).toEqual([0, 2 * HOUR]);
+
+      const resumedCalls: number[] = [];
+      const resumedClient = new Round006CachedBinanceClient({
+        cacheDirectory: root,
+        clientOptions: {
+          maxAttempts: 1,
+          sleep: async () => undefined,
+          fetchImpl: async (input) => {
+            const url = new URL(input.toString());
+            const start = Number(url.searchParams.get("startTime"));
+            resumedCalls.push(start);
+            const limit = Number(url.searchParams.get("limit"));
+            return jsonResponse(Array.from({ length: limit }, (_, index) => candleRow(start + index * HOUR)));
+          },
+        },
+      });
+      const resumedLoader = new BinanceHistoricalDataLoader({ client: resumedClient, markPriceLimit: 2 });
+      const resumed = await resumedLoader.loadMarkPriceKlines({ symbol: SYMBOL, range, serverTime: 5 * HOUR });
+      expect(resumed.candles).toHaveLength(4);
+      expect(resumedCalls).toEqual([2 * HOUR]);
+      expect(validateMarkPriceCandleSeries(resumed.candles, {
+        symbol: SYMBOL,
+        serverTime: 5 * HOUR,
+        expectedStartTime: range.startTime,
+        expectedEndTime: range.endTime,
+      })).toHaveLength(4);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("retries timeout, 5xx, and 429 responses with bounded attempts", async () => {

@@ -278,6 +278,24 @@ function validatePage(
       expectedEndTime: identity.endTime,
     });
     requireNonEmptyPage(page, "Mark-price", identity.symbol);
+    const interval = INTERVAL_MS["1h"];
+    const expectedStartTime = Math.ceil(identity.startTime / interval) * interval;
+    const expectedEndTime = Math.floor(identity.endTime / interval) * interval;
+    const expectedPageCount = Math.floor((expectedEndTime - expectedStartTime) / interval) + 1;
+    if (page.length !== expectedPageCount || page.length !== identity.limit) {
+      throw new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: "Cached mark-price Kline page does not match its exact requested window.",
+        symbol: identity.symbol,
+        diagnostics: {
+          expectedStartTime,
+          expectedEndTime,
+          expectedPageCount,
+          pageLimit: identity.limit,
+          receivedCount: page.length,
+        },
+      });
+    }
     return;
   }
 
