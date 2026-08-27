@@ -17,6 +17,10 @@ import {
   Round006AuthoritativeExecutionError,
 } from "../src/lib/research/m3-r6-round-006-performance.ts";
 import {
+  createRound006HistoricalLoader,
+  runRound006PublicDataPreflight,
+} from "../src/lib/research/m3-r6-round-006-data.ts";
+import {
   M3_R6_ROUND_006_CANDIDATE_IDS,
   M3_R6_ROUND_006_CONTROL_ID,
   M3_R6_ROUND_006_MACHINE_RECORD,
@@ -114,7 +118,13 @@ async function main(): Promise<void> {
       researchEndIso: M3_R6_RESEARCH_END_ISO,
     });
 
-    const artifacts = await executeRound006Authoritative({ executionSourceSha: args.sourceSha });
+    const acquisition = createRound006HistoricalLoader();
+    const preflight = await runRound006PublicDataPreflight(acquisition.client);
+    const artifacts = await executeRound006Authoritative({
+      loader: acquisition.loader,
+      executionSourceSha: args.sourceSha,
+      dataAcquisition: { preflight, cache: acquisition.cache },
+    });
     performanceLockTriggered = artifacts.report.performanceLockTriggered;
     try {
       publishRound006ArtifactsAtomically({

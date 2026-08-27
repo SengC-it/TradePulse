@@ -12,9 +12,22 @@ import {
 import path from "node:path";
 
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
-import type { HistoricalIntrabarSettlementWindow, HistoricalManifest, HistoricalRange, HistoricalStudyData } from "../historical-data/types.ts";
+import type {
+  HistoricalFundingRecord,
+  HistoricalIntrabarSettlementWindow,
+  HistoricalManifest,
+  HistoricalRange,
+  HistoricalStudyData,
+} from "../historical-data/types.ts";
 import { HISTORICAL_PROVIDER } from "../historical-data/types.ts";
-import { BinanceHistoricalDataLoader } from "../historical-data/binance/loader.ts";
+import { HistoricalDataError } from "../historical-data/errors.ts";
+import type { BinanceHistoricalDataLoader } from "../historical-data/binance/loader.ts";
+import {
+  validateFundingRecords,
+  validateHistoricalCandleSeries,
+  validateIntrabarSettlementWindow,
+  validateMarkPriceCandleSeries,
+} from "../historical-data/validation.ts";
 import { discoverIntrabarSettlementRequirements, runBacktest } from "../backtest/runner.ts";
 import { validateIntrabarSettlementManifestCoverage } from "../backtest/manifests.ts";
 import type { BacktestData, BacktestReport, BacktestSignalResult, IntrabarSettlementRequirement } from "../backtest/types.ts";
@@ -52,6 +65,14 @@ import {
   M3_R6_ROUND_006_PLAN_SHA256,
   validateM3R6Round006Plan,
 } from "./m3-r6-round-006-plan.ts";
+import type {
+  Round006CacheConfig,
+  Round006PreflightReport,
+} from "./m3-r6-round-006-data.ts";
+import {
+  createRound006HistoricalLoader,
+  runRound006PublicDataPreflight,
+} from "./m3-r6-round-006-data.ts";
 
 export const M3_R6_ROUND_006_SCHEMA_VERSION = "m3-r6-round-006-report-001" as const;
 export const M3_R6_ROUND_006_AUDIT_SCHEMA_VERSION = "m3-r6-round-006-audit-001" as const;
@@ -230,6 +251,9 @@ export type Round006Report = Readonly<{
   performanceLock: typeof M3_R6_PERFORMANCE_LOCK;
   performanceLockTriggered: boolean;
   performanceLifecycle: Round006PerformanceLifecycle;
+  dataAcquisition?: Round006DataAcquisitionMetadata;
+  datasetFreeze?: Round006DatasetFreeze;
+  performanceLockDetails?: Round006PerformanceLockDetails;
   evidenceStatus: "COMPLETE" | "INCOMPLETE";
   integrityErrors: readonly string[];
   controlReport: ControlReportSummary;
@@ -285,6 +309,33 @@ export type Round006Preflight = Readonly<{
   folds: Readonly<Record<string, unknown>>;
   backtestPolicyVersion: string;
   researchEndIso: string;
+}>;
+
+export type Round006DataAcquisitionMetadata = Readonly<{
+  preflight: Round006PreflightReport;
+  cache: Round006CacheConfig;
+}>;
+
+export type Round006DatasetFreeze = Readonly<{
+  schemaVersion: "m3-r6-round-006-dataset-freeze-001";
+  dataFreezeCompleted: true;
+  datasetIdentitySha256: string;
+  manifestIdentitySha256: string;
+  manifestCount: number;
+  intrabarRequirementCount: number;
+  studyServerTime: number;
+}>;
+
+export type Round006PerformanceLockDetails = Readonly<{
+  schemaVersion: "m3-r6-round-006-performance-lock-001";
+  performanceLock: typeof M3_R6_PERFORMANCE_LOCK;
+  performanceExecutionSourceSha: string;
+  selectionGateSha256: typeof M3_R6_ROUND_006_SELECTION_GATE_SHA256;
+  experimentPlanSha256: typeof M3_R6_ROUND_006_PLAN_SHA256;
+  foldDefinitionsSha256: string;
+  backtestPolicyVersion: "bt-policy-003";
+  datasetIdentitySha256: string;
+  lockBoundary: "AFTER_DATASET_FREEZE_BEFORE_CONTROL";
 }>;
 
 function round006BaseEnd(): number {
@@ -753,6 +804,183 @@ export function validateRound006EvidenceIntegrity(input: Readonly<{
   return Object.freeze({ passed: errors.length === 0, errors });
 }
 
+function freezeValidationMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function freezeManifestIdentity(manifest: HistoricalManifest): Readonly<Record<string, unknown>> {
+  const identity = { ...manifest } as Record<string, unknown>;
+  delete identity.retrievedAt;
+  return identity;
+}
+
+function intrabarRequirementIdentity(requirement: IntrabarSettlementRequirement): string {
+  return `${requirement.symbol}|${requirement.exitCandleOpenTime}|${requirement.exitCandleCloseTime}|${requirement.settlementOnly}`;
+}
+
+function markFallbackRequired(
+  records: readonly HistoricalFundingRecord[],
+): boolean {
+  return records.some((record) =>
+    !(typeof record.directMarkPrice === "number" && Number.isFinite(record.directMarkPrice) && record.directMarkPrice > 0));
+}
+
+/** Validates every frozen input before the performance lock can be triggered. */
+export function freezeRound006Dataset(input: Readonly<{
+  data: BacktestData;
+  requirements: readonly IntrabarSettlementRequirement[];
+  windows: readonly HistoricalIntrabarSettlementWindow[];
+  executionSourceSha: string;
+}>): Round006DatasetFreeze {
+  const errors: string[] = [];
+  const ranges = buildRound006HistoricalLoadRanges();
+  const serverTime = input.data.serverTime;
+  const studyServerTime = typeof serverTime === "number" ? serverTime : -1;
+  if (!Number.isSafeInteger(studyServerTime) || studyServerTime <= 0) errors.push("INVALID_STUDY_SERVER_TIME");
+
+  for (const symbol of RESEARCH_SYMBOLS) {
+    const dataset = input.data.datasets[symbol];
+    const funding = input.data.funding[symbol];
+    if (!dataset || !funding) {
+      errors.push(`MISSING_DATASET:${symbol}`);
+      continue;
+    }
+    try {
+      validateHistoricalCandleSeries(dataset.candles1h, {
+        symbol,
+        timeframe: "1h",
+        expectedStartTime: ranges.candleRange["1h"].startTime,
+        expectedEndTime: ranges.settlementTail.candleRange.endTime,
+        serverTime: studyServerTime,
+      });
+    } catch (error) {
+      errors.push(`INVALID_CANDLES_1H:${symbol}:${freezeValidationMessage(error)}`);
+    }
+    try {
+      validateHistoricalCandleSeries(dataset.candles4h, {
+        symbol,
+        timeframe: "4h",
+        expectedStartTime: ranges.candleRange["4h"].startTime,
+        expectedEndTime: ranges.candleRange["4h"].endTime,
+        serverTime: studyServerTime,
+      });
+    } catch (error) {
+      errors.push(`INVALID_CANDLES_4H:${symbol}:${freezeValidationMessage(error)}`);
+    }
+    try {
+      validateFundingRecords(funding, {
+        symbol,
+        startTime: ranges.fundingRange.startTime,
+        endTime: ranges.settlementTail.fundingRange.endTime,
+        policy: "bt-policy-003",
+      });
+    } catch (error) {
+      errors.push(`INVALID_FUNDING:${symbol}:${freezeValidationMessage(error)}`);
+    }
+
+    const fallbackRequired = markFallbackRequired(funding);
+    const markPrice = input.data.markPrice?.[symbol];
+    const segments = input.data.markPriceSegments?.[symbol] ?? [];
+    if (fallbackRequired && (!markPrice || markPrice.length === 0)) errors.push(`MISSING_MARK_PRICE_FALLBACK:${symbol}`);
+    if (markPrice && markPrice.length > 0) {
+      const markSegments = segments.length > 0
+        ? segments
+        : [Object.freeze({ segment: "base" as const, candles: markPrice })];
+      for (const segment of markSegments) {
+        const expectedRange = segment.segment === "base"
+          ? ranges.markPriceRange
+          : ranges.settlementTail.markPriceRange;
+        try {
+          validateMarkPriceCandleSeries(segment.candles, {
+            symbol,
+            serverTime: studyServerTime,
+            expectedStartTime: expectedRange.startTime,
+            expectedEndTime: expectedRange.endTime,
+          });
+        } catch (error) {
+          errors.push(`INVALID_MARK_PRICE_${segment.segment.toUpperCase()}:${symbol}:${freezeValidationMessage(error)}`);
+        }
+      }
+      if (fallbackRequired && segments.length === 0) {
+        errors.push(`MARK_PRICE_SEGMENT_PROVENANCE_MISSING:${symbol}`);
+      }
+    }
+  }
+
+  const windowsByIdentity = new Map(input.windows.map((window) => [
+    `${window.symbol}|${window.exitCandleOpenTime}|${window.settlementOnly}`,
+    window,
+  ]));
+  const requirementIdentities = new Set<string>();
+  for (const requirement of input.requirements) {
+    const identity = intrabarRequirementIdentity(requirement);
+    if (requirementIdentities.has(identity)) errors.push(`DUPLICATE_INTRABAR_REQUIREMENT:${identity}`);
+    requirementIdentities.add(identity);
+    const window = windowsByIdentity.get(
+      `${requirement.symbol}|${requirement.exitCandleOpenTime}|${requirement.settlementOnly}`,
+    );
+    if (!window) {
+      errors.push(`MISSING_INTRABAR_WINDOW:${identity}`);
+      continue;
+    }
+    try {
+      validateIntrabarSettlementWindow(window.candles, {
+        symbol: requirement.symbol,
+        exitCandleOpenTime: requirement.exitCandleOpenTime,
+        exitCandleCloseTime: requirement.exitCandleCloseTime,
+        serverTime: studyServerTime,
+      });
+    } catch (error) {
+      errors.push(`INVALID_INTRABAR_WINDOW:${identity}:${freezeValidationMessage(error)}`);
+    }
+  }
+  for (const window of input.windows) {
+    const identity = `${window.symbol}|${window.exitCandleOpenTime}|${window.settlementOnly}`;
+    if (!requirementIdentities.has(identity)) errors.push(`UNDECLARED_INTRABAR_WINDOW:${identity}`);
+  }
+
+  const integrity = validateRound006EvidenceIntegrity({
+    data: input.data,
+    records: [],
+    executionSourceSha: input.executionSourceSha,
+  });
+  errors.push(...integrity.errors);
+  if (errors.length > 0) {
+    throw new HistoricalDataError({
+      code: "DATA_INCOMPLETE",
+      message: `Round-006 dataset freeze failed: ${[...new Set(errors)].join("; ")}`,
+      diagnostics: { errorCount: new Set(errors).size },
+    });
+  }
+
+  const canonicalManifests = [...(input.data.manifests ?? [])]
+    .map(freezeManifestIdentity)
+    .sort((left, right) => stableStringify(left).localeCompare(stableStringify(right)));
+  const manifestIdentitySha256 = sha256(canonicalManifests);
+  const canonicalRequirements = [...input.requirements]
+    .map((requirement) => ({ ...requirement }))
+    .sort((left, right) => intrabarRequirementIdentity(left).localeCompare(intrabarRequirementIdentity(right)));
+  const datasetIdentitySha256 = sha256({
+    schemaVersion: "m3-r6-round-006-dataset-freeze-001",
+    researchRoundId: M3_R6_RESEARCH_ROUND_ID,
+    executionSourceSha: input.executionSourceSha,
+    backtestPolicyVersion: "bt-policy-003",
+    studyServerTime,
+    manifestIdentitySha256,
+    manifests: canonicalManifests,
+    intrabarRequirements: canonicalRequirements,
+  });
+  return deepFreeze({
+    schemaVersion: "m3-r6-round-006-dataset-freeze-001",
+    dataFreezeCompleted: true,
+    datasetIdentitySha256,
+    manifestIdentitySha256,
+    manifestCount: input.data.manifests?.length ?? 0,
+    intrabarRequirementCount: input.requirements.length,
+    studyServerTime,
+  });
+}
+
 function buildScoreDiagnostics(controlRecords: readonly Round006ResearchRecord[]): Round006ScoreDiagnostics {
   const oosRange = getResearchFoldRoleRange("F6", "VALIDATION");
   const results = controlRecords
@@ -908,6 +1136,9 @@ export function buildRound006PerformanceReport(input: Readonly<{
   candidateRecords: readonly Round006ResearchRecord[];
   incompleteEvaluationReasons?: readonly string[];
   performanceLockTriggered?: boolean;
+  dataAcquisition?: Round006DataAcquisitionMetadata;
+  datasetFreeze?: Round006DatasetFreeze;
+  performanceLockDetails?: Round006PerformanceLockDetails;
 }>): Round006Report {
   validateM3R6Round006MachineRecord();
   validateM3R6Round006Plan();
@@ -936,6 +1167,9 @@ export function buildRound006PerformanceReport(input: Readonly<{
     performanceLock: M3_R6_PERFORMANCE_LOCK,
     performanceLockTriggered,
     performanceLifecycle: performanceLockTriggered ? "PERFORMANCE_LOCKED" : "PRE_PERFORMANCE",
+    ...(input.dataAcquisition ? { dataAcquisition: input.dataAcquisition } : {}),
+    ...(input.datasetFreeze ? { datasetFreeze: input.datasetFreeze } : {}),
+    ...(input.performanceLockDetails ? { performanceLockDetails: input.performanceLockDetails } : {}),
     evidenceStatus: integrityErrors.length === 0 && input.controlReport.overallAcceptance.status !== "INCOMPLETE"
       ? "COMPLETE"
       : "INCOMPLETE",
@@ -994,6 +1228,19 @@ export function renderRound006ResultsMarkdown(report: Round006Report): string {
     `- dataClassification: ${report.dataClassification}`,
     `- researchBoundary: ${M3_R6_RESEARCH_END_ISO}`,
     `- studyServerTime: ${report.studyServerTime}`,
+    ...(report.dataAcquisition ? [
+      `- dataPreflight: ${report.dataAcquisition.preflight.status}; requests=${report.dataAcquisition.preflight.requestCount}`,
+      `- researchCache: ${report.dataAcquisition.cache.directory}; maxConcurrency=${report.dataAcquisition.cache.maxConcurrency}`,
+    ] : []),
+    ...(report.datasetFreeze ? [
+      `- dataFreezeCompleted: ${report.datasetFreeze.dataFreezeCompleted}`,
+      `- datasetIdentitySha256: ${report.datasetFreeze.datasetIdentitySha256}`,
+      `- manifestIdentitySha256: ${report.datasetFreeze.manifestIdentitySha256}`,
+    ] : []),
+    ...(report.performanceLockDetails ? [
+      `- performanceLockBoundary: ${report.performanceLockDetails.lockBoundary}`,
+      `- performanceLockDatasetIdentitySha256: ${report.performanceLockDetails.datasetIdentitySha256}`,
+    ] : []),
     `- evidenceStatus: ${report.evidenceStatus}`,
     `- performanceLockTriggered: ${report.performanceLockTriggered}`,
     `- performanceLifecycle: ${report.performanceLifecycle}`,
@@ -1248,19 +1495,46 @@ export function round006ArtifactHashes(
 export async function executeRound006Authoritative(input: Readonly<{
   loader?: Round006HistoricalLoader;
   executionSourceSha: string;
+  dataAcquisition?: Round006DataAcquisitionMetadata;
 }>): Promise<Round006ExecutionArtifacts> {
   let performanceLockTriggered = false;
   const onPerformanceResultGenerated: Round006PerformanceResultListener = () => {
     performanceLockTriggered = true;
   };
   try {
-    const loader = input.loader ?? new BinanceHistoricalDataLoader();
+    let loader = input.loader;
+    let dataAcquisition = input.dataAcquisition;
+    if (!loader) {
+      const acquisition = createRound006HistoricalLoader();
+      const preflight = await runRound006PublicDataPreflight(acquisition.client);
+      loader = acquisition.loader;
+      dataAcquisition = Object.freeze({ preflight, cache: acquisition.cache });
+    }
     const ranges = buildRound006HistoricalLoadRanges();
     const study = await loader.loadStudyData({ ...ranges, policy: "bt-policy-003" });
     const initialData = toBacktestData(study);
     const requirements = discoverRound006IntrabarRequirements({ data: initialData });
     const windows = await loader.loadIntrabarSettlementWindows(requirements, study.serverTime);
     const data = appendRound006IntrabarWindows(initialData, windows, requirements);
+    const datasetFreeze = freezeRound006Dataset({
+      data,
+      requirements,
+      windows,
+      executionSourceSha: input.executionSourceSha,
+    });
+    const performanceLockDetails = deepFreeze({
+      schemaVersion: "m3-r6-round-006-performance-lock-001" as const,
+      performanceLock: M3_R6_PERFORMANCE_LOCK,
+      performanceExecutionSourceSha: input.executionSourceSha,
+      selectionGateSha256: M3_R6_ROUND_006_SELECTION_GATE_SHA256,
+      experimentPlanSha256: M3_R6_ROUND_006_PLAN_SHA256,
+      foldDefinitionsSha256: sha256(RESEARCH_FOLDS),
+      backtestPolicyVersion: "bt-policy-003" as const,
+      datasetIdentitySha256: datasetFreeze.datasetIdentitySha256,
+      lockBoundary: "AFTER_DATASET_FREEZE_BEFORE_CONTROL" as const,
+    });
+    // Stage B is complete; no CONTROL or candidate result may run before this lock.
+    performanceLockTriggered = true;
     const control = buildRound006ControlRecords(data, onPerformanceResultGenerated);
     const candidateRecords: Round006ResearchRecord[] = [];
     for (const candidateId of M3_R6_ROUND_006_CANDIDATE_IDS) {
@@ -1277,6 +1551,9 @@ export async function executeRound006Authoritative(input: Readonly<{
       controlRecords: control.records,
       candidateRecords,
       performanceLockTriggered,
+      dataAcquisition,
+      datasetFreeze,
+      performanceLockDetails,
     });
     return buildRound006ExecutionArtifacts({
       report,
