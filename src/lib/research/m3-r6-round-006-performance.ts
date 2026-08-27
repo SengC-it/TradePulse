@@ -73,6 +73,13 @@ import {
   createRound006HistoricalLoader,
   runRound006PublicDataPreflight,
 } from "./m3-r6-round-006-data.ts";
+import type { Round006IntrabarDependencyPlan } from "./m3-r6-round-006-intrabar-plan.ts";
+import {
+  createRound006DeclaredIntrabarLoader,
+  persistRound006IntrabarDependencyPlan,
+  planRound006IntrabarDependencies,
+  validateRound006IntrabarPlanCoverage,
+} from "./m3-r6-round-006-intrabar-plan.ts";
 
 export const M3_R6_ROUND_006_SCHEMA_VERSION = "m3-r6-round-006-report-001" as const;
 export const M3_R6_ROUND_006_AUDIT_SCHEMA_VERSION = "m3-r6-round-006-audit-001" as const;
@@ -252,6 +259,7 @@ export type Round006Report = Readonly<{
   performanceLockTriggered: boolean;
   performanceLifecycle: Round006PerformanceLifecycle;
   dataAcquisition?: Round006DataAcquisitionMetadata;
+  intrabarDependencyPlan?: Round006IntrabarDependencyPlan;
   datasetFreeze?: Round006DatasetFreeze;
   performanceLockDetails?: Round006PerformanceLockDetails;
   evidenceStatus: "COMPLETE" | "INCOMPLETE";
@@ -323,7 +331,18 @@ export type Round006DatasetFreeze = Readonly<{
   manifestIdentitySha256: string;
   manifestCount: number;
   intrabarRequirementCount: number;
+  intrabarPlanVersion: Round006IntrabarDependencyPlan["planVersion"];
+  intrabarDeclarationHash: string;
+  rawDependencyCount: number;
+  uniqueDeclaredWindowCount: number;
+  duplicateDependencyCount: number;
   studyServerTime: number;
+}>;
+
+export type Round006PreparedDataset = Readonly<{
+  data: BacktestData;
+  intrabarPlan: Round006IntrabarDependencyPlan;
+  datasetFreeze: Round006DatasetFreeze;
 }>;
 
 export type Round006PerformanceLockDetails = Readonly<{
@@ -386,7 +405,7 @@ export function round006AuthorizedSettlementEndTime(): number {
   return buildRound006HistoricalLoadRanges().settlementTail.candleRange.endTime + INTERVAL_MS["1h"] - 1;
 }
 
-function toBacktestData(study: HistoricalStudyData): BacktestData {
+export function toBacktestData(study: HistoricalStudyData): BacktestData {
   const datasets = Object.fromEntries(RESEARCH_SYMBOLS.map((symbol) => [symbol, {
     candles1h: study.datasets[symbol].candles1h.candles,
     candles4h: study.datasets[symbol].candles4h.candles,
@@ -414,11 +433,15 @@ export function appendRound006IntrabarWindows(
   data: BacktestData,
   windows: readonly HistoricalIntrabarSettlementWindow[],
   requirements: readonly IntrabarSettlementRequirement[] = data.intrabarSettlementRequirements ?? [],
+  intrabarDependencyPlan?: Round006IntrabarDependencyPlan,
 ): BacktestData {
   return Object.freeze({
     ...data,
     intrabarSettlementWindows: Object.freeze([...windows]),
     intrabarSettlementRequirements: Object.freeze([...requirements]),
+    ...(intrabarDependencyPlan ? {
+      intrabarSettlementDeclarationHash: intrabarDependencyPlan.declarationHash,
+    } : {}),
     manifests: Object.freeze([...data.manifests, ...windows.map((window) => window.manifest)]),
   });
 }
@@ -818,6 +841,10 @@ function intrabarRequirementIdentity(requirement: IntrabarSettlementRequirement)
   return `${requirement.symbol}|${requirement.exitCandleOpenTime}|${requirement.exitCandleCloseTime}|${requirement.settlementOnly}`;
 }
 
+function intrabarWindowIdentity(window: HistoricalIntrabarSettlementWindow): string {
+  return `${window.symbol}|${window.exitCandleOpenTime}|${window.exitCandleOpenTime + INTERVAL_MS["1h"] - 1}|${window.settlementOnly}`;
+}
+
 function markFallbackRequired(
   records: readonly HistoricalFundingRecord[],
 ): boolean {
@@ -830,6 +857,7 @@ export function freezeRound006Dataset(input: Readonly<{
   data: BacktestData;
   requirements: readonly IntrabarSettlementRequirement[];
   windows: readonly HistoricalIntrabarSettlementWindow[];
+  intrabarPlan: Round006IntrabarDependencyPlan;
   executionSourceSha: string;
 }>): Round006DatasetFreeze {
   const errors: string[] = [];
@@ -907,17 +935,27 @@ export function freezeRound006Dataset(input: Readonly<{
     }
   }
 
-  const windowsByIdentity = new Map(input.windows.map((window) => [
-    `${window.symbol}|${window.exitCandleOpenTime}|${window.settlementOnly}`,
-    window,
-  ]));
+  const planCoverage = validateRound006IntrabarPlanCoverage(input.intrabarPlan, input.windows);
+  if (input.data.intrabarSettlementDeclarationHash !== input.intrabarPlan.declarationHash) {
+    errors.push("INTRABAR_DECLARATION_HASH_NOT_ATTACHED_BEFORE_FREEZE");
+  }
+  if (planCoverage.missingDeclaredIdentities.length > 0) {
+    errors.push(...planCoverage.missingDeclaredIdentities.map((identity) => `MISSING_DECLARED_INTRABAR_WINDOW:${identity}`));
+  }
+  if (planCoverage.undeclaredWindowIdentities.length > 0) {
+    errors.push(...planCoverage.undeclaredWindowIdentities.map((identity) => `UNDECLARED_INTRABAR_WINDOW:${identity}`));
+  }
+  if (planCoverage.duplicateWindowIdentities.length > 0) {
+    errors.push(...planCoverage.duplicateWindowIdentities.map((identity) => `DUPLICATE_INTRABAR_WINDOW:${identity}`));
+  }
+  const windowsByIdentity = new Map(input.windows.map((window) => [intrabarWindowIdentity(window), window]));
   const requirementIdentities = new Set<string>();
   for (const requirement of input.requirements) {
     const identity = intrabarRequirementIdentity(requirement);
     if (requirementIdentities.has(identity)) errors.push(`DUPLICATE_INTRABAR_REQUIREMENT:${identity}`);
     requirementIdentities.add(identity);
     const window = windowsByIdentity.get(
-      `${requirement.symbol}|${requirement.exitCandleOpenTime}|${requirement.settlementOnly}`,
+      intrabarRequirementIdentity(requirement),
     );
     if (!window) {
       errors.push(`MISSING_INTRABAR_WINDOW:${identity}`);
@@ -934,11 +972,6 @@ export function freezeRound006Dataset(input: Readonly<{
       errors.push(`INVALID_INTRABAR_WINDOW:${identity}:${freezeValidationMessage(error)}`);
     }
   }
-  for (const window of input.windows) {
-    const identity = `${window.symbol}|${window.exitCandleOpenTime}|${window.settlementOnly}`;
-    if (!requirementIdentities.has(identity)) errors.push(`UNDECLARED_INTRABAR_WINDOW:${identity}`);
-  }
-
   const integrity = validateRound006EvidenceIntegrity({
     data: input.data,
     records: [],
@@ -977,6 +1010,11 @@ export function freezeRound006Dataset(input: Readonly<{
     manifestIdentitySha256,
     manifestCount: input.data.manifests?.length ?? 0,
     intrabarRequirementCount: input.requirements.length,
+    intrabarPlanVersion: input.intrabarPlan.planVersion,
+    intrabarDeclarationHash: input.intrabarPlan.declarationHash,
+    rawDependencyCount: input.intrabarPlan.rawDependencyCount,
+    uniqueDeclaredWindowCount: input.intrabarPlan.uniqueDeclaredWindowCount,
+    duplicateDependencyCount: input.intrabarPlan.duplicateDependencyCount,
     studyServerTime,
   });
 }
@@ -1137,6 +1175,7 @@ export function buildRound006PerformanceReport(input: Readonly<{
   incompleteEvaluationReasons?: readonly string[];
   performanceLockTriggered?: boolean;
   dataAcquisition?: Round006DataAcquisitionMetadata;
+  intrabarDependencyPlan?: Round006IntrabarDependencyPlan;
   datasetFreeze?: Round006DatasetFreeze;
   performanceLockDetails?: Round006PerformanceLockDetails;
 }>): Round006Report {
@@ -1168,6 +1207,7 @@ export function buildRound006PerformanceReport(input: Readonly<{
     performanceLockTriggered,
     performanceLifecycle: performanceLockTriggered ? "PERFORMANCE_LOCKED" : "PRE_PERFORMANCE",
     ...(input.dataAcquisition ? { dataAcquisition: input.dataAcquisition } : {}),
+    ...(input.intrabarDependencyPlan ? { intrabarDependencyPlan: input.intrabarDependencyPlan } : {}),
     ...(input.datasetFreeze ? { datasetFreeze: input.datasetFreeze } : {}),
     ...(input.performanceLockDetails ? { performanceLockDetails: input.performanceLockDetails } : {}),
     evidenceStatus: integrityErrors.length === 0 && input.controlReport.overallAcceptance.status !== "INCOMPLETE"
@@ -1236,6 +1276,11 @@ export function renderRound006ResultsMarkdown(report: Round006Report): string {
       `- dataFreezeCompleted: ${report.datasetFreeze.dataFreezeCompleted}`,
       `- datasetIdentitySha256: ${report.datasetFreeze.datasetIdentitySha256}`,
       `- manifestIdentitySha256: ${report.datasetFreeze.manifestIdentitySha256}`,
+      `- intrabarPlanVersion: ${report.datasetFreeze.intrabarPlanVersion}`,
+      `- intrabarDeclarationHash: ${report.datasetFreeze.intrabarDeclarationHash}`,
+      `- rawDependencyCount: ${report.datasetFreeze.rawDependencyCount}`,
+      `- uniqueDeclaredWindowCount: ${report.datasetFreeze.uniqueDeclaredWindowCount}`,
+      `- duplicateDependencyCount: ${report.datasetFreeze.duplicateDependencyCount}`,
     ] : []),
     ...(report.performanceLockDetails ? [
       `- performanceLockBoundary: ${report.performanceLockDetails.lockBoundary}`,
@@ -1492,6 +1537,48 @@ export function round006ArtifactHashes(
   });
 }
 
+/**
+ * Runs the non-performance portion of Round-006: coarse acquisition,
+ * outcome-blind declaration, declared-only intrabar acquisition, and the
+ * complete dataset freeze. No performance lock, CONTROL, candidate, gate, or
+ * selection work is reachable from this function.
+ */
+export async function prepareRound006Dataset(input: Readonly<{
+  loader: Round006HistoricalLoader;
+  executionSourceSha: string;
+  dataAcquisition?: Round006DataAcquisitionMetadata;
+}>): Promise<Round006PreparedDataset> {
+  const ranges = buildRound006HistoricalLoadRanges();
+  const study = await input.loader.loadStudyData({ ...ranges, policy: "bt-policy-003" });
+  const initialData = toBacktestData(study);
+  const intrabarPlan = planRound006IntrabarDependencies({
+    data: initialData,
+    sourceSha: input.executionSourceSha,
+  });
+  const cacheDirectory = input.dataAcquisition?.cache.directory
+    ?? path.join(process.cwd(), ".cache", "tradepulse", "round-006");
+  persistRound006IntrabarDependencyPlan(intrabarPlan, cacheDirectory);
+  const declaredLoader = createRound006DeclaredIntrabarLoader(input.loader, intrabarPlan);
+  const windows = await declaredLoader.loadIntrabarSettlementWindows(
+    intrabarPlan.requirements,
+    study.serverTime,
+  );
+  const data = appendRound006IntrabarWindows(
+    initialData,
+    windows,
+    intrabarPlan.requirements,
+    intrabarPlan,
+  );
+  const datasetFreeze = freezeRound006Dataset({
+    data,
+    requirements: intrabarPlan.requirements,
+    windows,
+    intrabarPlan,
+    executionSourceSha: input.executionSourceSha,
+  });
+  return deepFreeze({ data, intrabarPlan, datasetFreeze });
+}
+
 export async function executeRound006Authoritative(input: Readonly<{
   loader?: Round006HistoricalLoader;
   executionSourceSha: string;
@@ -1510,18 +1597,12 @@ export async function executeRound006Authoritative(input: Readonly<{
       loader = acquisition.loader;
       dataAcquisition = Object.freeze({ preflight, cache: acquisition.cache });
     }
-    const ranges = buildRound006HistoricalLoadRanges();
-    const study = await loader.loadStudyData({ ...ranges, policy: "bt-policy-003" });
-    const initialData = toBacktestData(study);
-    const requirements = discoverRound006IntrabarRequirements({ data: initialData });
-    const windows = await loader.loadIntrabarSettlementWindows(requirements, study.serverTime);
-    const data = appendRound006IntrabarWindows(initialData, windows, requirements);
-    const datasetFreeze = freezeRound006Dataset({
-      data,
-      requirements,
-      windows,
+    const prepared = await prepareRound006Dataset({
+      loader,
       executionSourceSha: input.executionSourceSha,
+      dataAcquisition,
     });
+    const { data, intrabarPlan, datasetFreeze } = prepared;
     const performanceLockDetails = deepFreeze({
       schemaVersion: "m3-r6-round-006-performance-lock-001" as const,
       performanceLock: M3_R6_PERFORMANCE_LOCK,
@@ -1552,6 +1633,7 @@ export async function executeRound006Authoritative(input: Readonly<{
       candidateRecords,
       performanceLockTriggered,
       dataAcquisition,
+      intrabarDependencyPlan: intrabarPlan,
       datasetFreeze,
       performanceLockDetails,
     });
