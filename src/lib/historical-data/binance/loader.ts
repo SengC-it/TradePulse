@@ -1,5 +1,6 @@
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../../config/constants.ts";
 import { BinancePublicClient, type BinancePublicClientOptions } from "../../market-data/binance/client.ts";
+import { MarketDataError } from "../../market-data/errors.ts";
 import { parseBinanceKlines } from "../../market-data/binance/parser.ts";
 import { INTERVAL_MS, type MarketTimeframe } from "../../market-data/intervals.ts";
 import type { Candle } from "../../market-data/types.ts";
@@ -128,17 +129,46 @@ function assertMarkPriceRange(request: HistoricalMarkPriceRequest): void {
   }
 }
 
+function safeUpstreamDiagnostics(error: MarketDataError): Readonly<Record<string, number | string | boolean>> {
+  const source = error.diagnostics;
+  const diagnostics: Record<string, number | string | boolean> = {
+    rootCauseCode: error.code,
+    upstreamCode: error.code,
+  };
+  if (source?.endpoint?.startsWith("/")) diagnostics.endpoint = source.endpoint.split("?", 1)[0]!;
+  for (const key of [
+    "httpStatus",
+    "attempts",
+    "operationStartedAt",
+    "attemptStartedAt",
+    "attemptCompletedAt",
+    "roundTripMs",
+    "retryAfterMs",
+    "maxRetryDelayMs",
+  ] as const) {
+    const value = source?.[key];
+    if (typeof value === "number" && Number.isFinite(value)) diagnostics[key] = value;
+  }
+  return diagnostics;
+}
+
 function wrapUpstreamError(error: unknown, symbol: ResearchSymbol, timeframe?: MarketTimeframe): never {
-  const upstreamCode =
-    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+  if (error instanceof HistoricalDataError) throw error;
+
+  const upstreamCode = error instanceof MarketDataError
+    ? error.code
+    : typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
       ? error.code
       : "UNKNOWN";
+  const diagnostics = error instanceof MarketDataError
+    ? safeUpstreamDiagnostics(error)
+    : { rootCauseCode: upstreamCode, upstreamCode };
   throw new HistoricalDataError({
     code: "DATA_INCOMPLETE",
     message: `Binance historical ${timeframe ? "candle" : "funding"} retrieval failed (${upstreamCode}).`,
     symbol,
     ...(timeframe ? { timeframe } : {}),
-    diagnostics: { upstreamCode },
+    diagnostics,
   });
 }
 

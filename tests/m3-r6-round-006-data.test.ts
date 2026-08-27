@@ -5,6 +5,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { BinanceHistoricalDataLoader } from "../src/lib/historical-data/binance/loader.ts";
+import { HistoricalDataError, classifyHistoricalAcquisitionFailure } from "../src/lib/historical-data/errors.ts";
+import { BinancePublicClient } from "../src/lib/market-data/binance/client.ts";
+import { MarketDataError } from "../src/lib/market-data/errors.ts";
 import {
   ROUND006_PAGE_CACHE_SCHEMA_VERSION,
   Round006CacheIntegrityError,
@@ -37,6 +40,15 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
+async function captureRejection(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected the promise to reject.");
+}
+
 function clientFor(
   cacheDirectory: string,
   fetchImpl: typeof fetch,
@@ -54,6 +66,78 @@ function clientFor(
 }
 
 describe("Round-006 research acquisition transport", () => {
+  it("preserves and classifies the terminal acquisition cause without double-wrapping", async () => {
+    const root = temporaryDirectory();
+    const request = {
+      symbol: SYMBOL,
+      timeframe: "1h" as const,
+      range: { startTime: HOUR, endTime: HOUR },
+      serverTime: 3 * HOUR,
+    };
+    try {
+      const timeout = new MarketDataError({
+        code: "HTTP_TIMEOUT",
+        message: "timeout",
+        retryable: true,
+        diagnostics: { endpoint: "/fapi/v1/klines", attempts: 5, httpStatus: 408 },
+      });
+      const timeoutClient = { getKlinesRange: async () => { throw timeout; } } as unknown as BinancePublicClient;
+      const timeoutLoader = new BinanceHistoricalDataLoader({ client: timeoutClient, klineLimit: 1 });
+      const timeoutError = await captureRejection(timeoutLoader.loadCandles(request));
+      expect(timeoutError).toMatchObject({
+        code: "DATA_INCOMPLETE",
+        diagnostics: {
+          rootCauseCode: "HTTP_TIMEOUT",
+          upstreamCode: "HTTP_TIMEOUT",
+          endpoint: "/fapi/v1/klines",
+          attempts: 5,
+          httpStatus: 408,
+        },
+      });
+      expect(classifyHistoricalAcquisitionFailure(timeoutError)).toBe("TRANSIENT");
+
+      const network = new MarketDataError({
+        code: "NETWORK_ERROR",
+        message: "network unavailable",
+        retryable: true,
+      });
+      const networkClient = { getKlinesRange: async () => { throw network; } } as unknown as BinancePublicClient;
+      const networkLoader = new BinanceHistoricalDataLoader({ client: networkClient, klineLimit: 1 });
+      const networkError = await captureRejection(networkLoader.loadCandles(request));
+      expect(networkError).toBeInstanceOf(HistoricalDataError);
+      expect(networkError).toMatchObject({ diagnostics: { rootCauseCode: "NETWORK_ERROR" } });
+      expect(classifyHistoricalAcquisitionFailure(networkError)).toBe("TRANSIENT");
+
+      const candleGap = new HistoricalDataError({
+        code: "CANDLE_GAP",
+        message: "gap",
+        symbol: SYMBOL,
+        timeframe: "1h",
+      });
+      const gapClient = { getKlinesRange: async () => { throw candleGap; } } as unknown as BinancePublicClient;
+      const gapLoader = new BinanceHistoricalDataLoader({ client: gapClient, klineLimit: 1 });
+      const gapError = await captureRejection(gapLoader.loadCandles(request));
+      expect(gapError).toBe(candleGap);
+      expect(classifyHistoricalAcquisitionFailure(gapError)).toBe("NON_TRANSIENT");
+
+      const upstreamFailure = new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: "wrapped upstream failure",
+        diagnostics: { rootCauseCode: "UPSTREAM_5XX" },
+      });
+      expect(classifyHistoricalAcquisitionFailure(upstreamFailure)).toBe("TRANSIENT");
+
+      const unknown = new HistoricalDataError({
+        code: "DATA_INCOMPLETE",
+        message: "nested incomplete",
+        diagnostics: { upstreamCode: "DATA_INCOMPLETE" },
+      });
+      expect(classifyHistoricalAcquisitionFailure(unknown)).toBe("ACQUISITION_ROOT_CAUSE_UNKNOWN");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("derives the latest fully closed 1h candle from UTC epoch server time", () => {
     expect(latestClosedCandleWindow(10 * HOUR + 46 * MINUTE, HOUR)).toEqual({
       openTime: 9 * HOUR,
