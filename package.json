@@ -29,6 +29,7 @@
     "research:m3r6:performance": "node --experimental-strip-types --no-warnings scripts/m3-r6-performance.ts",
     "research:m3r6:select": "node --experimental-strip-types --no-warnings scripts/m3-r6-select.ts",
     "research:round007:performance": "node --experimental-strip-types --no-warnings scripts/m3-r7-performance.ts",
+    "research:round008:performance": "node --experimental-strip-types --no-warnings scripts/m3-r8-performance.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "check": "npm run verify"
   },
