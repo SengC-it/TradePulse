@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -30,7 +31,7 @@ import {
   validateMarkPriceCandleSeries,
 } from "../historical-data/validation.ts";
 import { BinanceHistoricalDataLoader } from "../historical-data/binance/loader.ts";
-import type { HistoricalRange } from "../historical-data/types.ts";
+import type { HistoricalFundingRecord, HistoricalRange } from "../historical-data/types.ts";
 import { stableStringify } from "./utils.ts";
 
 export const ROUND006_RESEARCH_TIMEOUT_MS = 15_000 as const;
@@ -320,6 +321,26 @@ function isCacheablePage(payload: unknown, identity: Round006PageCacheIdentity):
   return identity.dataType !== "funding" || (Array.isArray(payload) && payload.length > 0);
 }
 
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isFundingCacheIdentity(value: unknown, symbol: ResearchSymbol): value is Round006PageCacheIdentity {
+  return isRecord(value)
+    && value.schemaVersion === ROUND006_PAGE_CACHE_SCHEMA_VERSION
+    && value.provider === "binance-usdm-public"
+    && value.endpoint === "/fapi/v1/fundingRate"
+    && value.dataType === "funding"
+    && value.symbol === symbol
+    && value.timeframe === null
+    && isNonNegativeSafeInteger(value.startTime)
+    && isNonNegativeSafeInteger(value.endTime)
+    && value.endTime >= value.startTime
+    && isNonNegativeSafeInteger(value.limit)
+    && value.limit >= 1
+    && value.backtestPolicyVersion === "bt-policy-003";
+}
+
 export class Round006CachedBinanceClient extends BinancePublicClient {
   readonly cacheDirectory: string;
   private activeRequests = 0;
@@ -394,6 +415,83 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
     });
   }
 
+  private readCachedFundingRange(
+    identity: Round006PageCacheIdentity,
+  ): BinanceResponse<unknown> | undefined {
+    if (!existsSync(this.cacheDirectory)) return undefined;
+
+    const candidates: Array<Readonly<{
+      cachePath: string;
+      identity: Round006PageCacheIdentity;
+      payload: readonly unknown[];
+      records: readonly HistoricalFundingRecord[];
+    }>> = [];
+    for (const entry of readdirSync(this.cacheDirectory).filter((name) => name.endsWith(".json")).sort()) {
+      const cachePath = path.join(this.cacheDirectory, entry);
+      let envelope: unknown;
+      try {
+        envelope = JSON.parse(readFileSync(cachePath, "utf8"));
+      } catch {
+        throw new Round006CacheIntegrityError("Round-006 page cache is not valid UTF-8 JSON.", cachePath);
+      }
+      if (!isRecord(envelope) || !isFundingCacheIdentity(envelope.identity, identity.symbol)) continue;
+      const candidateIdentity = envelope.identity;
+      if (candidateIdentity.limit < identity.limit
+        || candidateIdentity.startTime > identity.endTime
+        || candidateIdentity.endTime < identity.startTime) continue;
+      if (typeof envelope.payloadSha256 !== "string" || envelope.payloadSha256 !== sha256(envelope.payload)) {
+        throw new Round006CacheIntegrityError("Round-006 funding cache identity or checksum mismatch.", cachePath);
+      }
+
+      try {
+        validateCachedPage(envelope.payload, candidateIdentity);
+      } catch (error) {
+        throw new Round006CacheIntegrityError(
+          `Round-006 funding cache failed semantic validation: ${error instanceof Error ? error.message : "invalid page"}`,
+          cachePath,
+        );
+      }
+      const payload = envelope.payload as readonly unknown[];
+      const records = parseBinanceFundingRateHistory(payload, identity.symbol);
+      const pageIsCompleteThroughRequest = candidateIdentity.endTime >= identity.endTime
+        || payload.length < candidateIdentity.limit;
+      if (!pageIsCompleteThroughRequest || candidateIdentity.startTime > identity.startTime) continue;
+      candidates.push(Object.freeze({ cachePath, identity: candidateIdentity, payload, records }));
+    }
+
+    const candidate = candidates
+      .sort((left, right) => right.identity.endTime - left.identity.endTime
+        || right.identity.startTime - left.identity.startTime
+        || left.cachePath.localeCompare(right.cachePath))[0];
+    if (!candidate) return undefined;
+
+    const selectedPayload: unknown[] = [];
+    const selectedRecords: HistoricalFundingRecord[] = [];
+    candidate.records.forEach((record, index) => {
+      if (record.fundingTime < identity.startTime || record.fundingTime > identity.endTime) return;
+      selectedRecords.push(record);
+      selectedPayload.push(candidate.payload[index]);
+    });
+    if (selectedRecords.length === 0) return undefined;
+    try {
+      validateFundingRecords(selectedRecords, {
+        symbol: identity.symbol,
+        startTime: identity.startTime,
+        endTime: identity.endTime,
+        policy: "bt-policy-003",
+      });
+    } catch (error) {
+      throw new Round006CacheIntegrityError(
+        `Round-006 funding cache range failed semantic validation: ${error instanceof Error ? error.message : "invalid page"}`,
+        candidate.cachePath,
+      );
+    }
+    return Object.freeze({
+      data: Object.freeze(selectedPayload),
+      diagnostics: cachedDiagnostics(identity.endpoint),
+    });
+  }
+
   private writeCache(identity: Round006PageCacheIdentity, payload: unknown): void {
     mkdirSync(this.cacheDirectory, { recursive: true });
     const cachePath = round006PageCachePath(this.cacheDirectory, identity);
@@ -463,6 +561,10 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
     limit = 1_000,
   ): Promise<BinanceResponse<unknown>> {
     const identity = fundingIdentity(symbol, startTime, endTime, limit);
+    const exact = this.readCache(identity, validateCachedPage);
+    if (exact) return exact;
+    const ranged = this.readCachedFundingRange(identity);
+    if (ranged) return ranged;
     return this.getCachedOrFetch(identity, validateNetworkPage, () => super.getFundingRateHistory(
       symbol,
       startTime,

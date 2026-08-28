@@ -639,3 +639,28 @@ backtest policy:
 ordering for M3 research. Those assumptions do not change baseline-001 or
 settle the M6 production policy. No other baseline-001 strategy rule remains
 open for M2-A.
+
+## ADR-038 — Freeze the Round-009 spec-conformance replay
+
+- **Decision:** Authorize one bounded `baseline-002-research-round-009`
+  spec-conformance replay from the frozen main base
+  `230c9301b8324446327c1274f4ba05089a4b4f99`. The replay keeps the five
+  explicitly registered one-variant candidates, the five-symbol universe,
+  six folds, seen-data boundary `2026-08-15T23:59:59.999Z`, `baseline-001`,
+  and `bt-policy-003`.
+- **Conformance:** The machine-readable record freezes zero
+  result-affecting deviations. E1 is directly generated without baseline
+  formal membership; E2 is directly generated without CONTROL settlement;
+  S1 consumes the pre-score stream; the 4-hour feature uses the 4-hour close;
+  and router volatility is `ATR14_1H / CLOSE1H`. The intrabar dependency union
+  is declared before dataset freeze and post-lock market fetch is forbidden.
+- **Lifecycle:** The accepted Round-006 cache may be reused only after
+  provenance/integrity validation. Dataset freeze precedes the one performance
+  lock; CONTROL, candidates, gate, selection, and evidence publication occur
+  exactly once after the lock. The execution source SHA is supplied at runtime
+  and is not predeclared in the Plan.
+- **Boundary:** Round-008 remains `INVALIDATED_NON_AUTHORITATIVE`; no Round-008
+  outcome is used for tuning. No private Binance API, automatic trading,
+  production change, optimizer, sweep, or later milestone is authorized.
+  `baseline-002` remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
+  `NOT_STARTED` until a separate accepted result.
