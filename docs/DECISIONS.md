@@ -664,3 +664,25 @@ open for M2-A.
   production change, optimizer, sweep, or later milestone is authorized.
   `baseline-002` remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED` until a separate accepted result.
+
+## ADR-039 — Freeze the Round-010 risk-geometry spec-conformance replay
+
+- **Decision:** Authorize one bounded `baseline-002-research-round-010`
+  replay from the Round-009 publication head after invalidating Round-009 for
+  `EVENT_RISK_GEOMETRY_SPEC_CONFORMANCE_FAILURE`. Round-009 evidence remains
+  unchanged and diagnostic-only; it is not used to tune Round-010.
+- **Risk geometry:** E1 uses the previous five fully closed 1h structural
+  swing candles. E2 uses the complete closed breakout-through-reclaim path.
+  Both apply a `0.2 * ATR14_1h` buffer beyond the structural extreme, require
+  inclusive `0.8 <= stopAtr <= 3.0`, and set TP at two times the full stop
+  distance. C1 retains the exact E1 settlement identity.
+- **Conformance:** These result-affecting rules are machine-recorded in the
+  Round-010 Gate/Plan and checked by executable deterministic helpers before
+  any performance lock. The result-affecting deviation count must be zero.
+- **Boundary:** The five Round-009 candidates, thresholds, features,
+  `baseline-001`, `bt-policy-003`, folds, fees, slippage, funding, and
+  selection semantics remain frozen. No private Binance API, automatic
+  trading, optimizer, sweep, post-lock fetch, or later milestone is allowed.
+  Until the replay completes, performance is `NOT_AUTHORIZED` /
+  `NOT_GENERATED`, baseline-002 is `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is
+  `NOT_STARTED`.
