@@ -555,6 +555,35 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED`.
 
+## ADR-040 — Freeze the Round-011 event-predicate conformance replay
+
+- **Decision:** Authorize one bounded `baseline-002-research-round-011` replay
+  from the clean Round-011 execution source after invalidating Round-010 for
+  `E2_RETEST_BAND_SPEC_CONFORMANCE_FAILURE`. Round-010 evidence remains
+  unchanged and diagnostic-only; it is not used for tuning.
+- **Event conformance:** R11-E2 uses a two-sided inclusive `0.25 *
+  breakoutAtr` retest band and requires only the current candle's in-band
+  touch plus close-through reclaim. The former prior-close prerequisite is
+  not part of the R11 predicate, and expiry is exactly three fully closed 1h
+  candles.
+- **Lifecycle:** The exact frozen history boundary is
+  `2026-08-15T23:59:59.999Z`. Intrabar dependencies are declared before the
+  dataset freeze; period-end formal signals are preserved as
+  `PERIOD_END_CENSORED`; no market fetch is allowed after the single
+  performance lock. CONTROL must reconcile deterministically with the
+  accepted Round-010 baseline-001 / bt-policy-003 aggregate before candidate
+  execution.
+- **Machine freeze:** The R11 Gate SHA is
+  `b4e5cf79a8715706346e48904c83f755fa6e92462b61324e53c2760b1028a4f1`, the
+  Plan SHA is
+  `d406cbf9aea20b9755ad45f9fd343b2d206a4c03e4ff5994e5c1b4150e93b414`, and
+  the executable conformance manifest requires zero result-affecting
+  deviations.
+- **Boundary:** No private Binance API, automatic trading, production change,
+  optimizer, sweep, or later milestone is authorized. Until the replay is
+  accepted, performance is `NOT_AUTHORIZED` / `NOT_GENERATED`, baseline-002 is
+  `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is `NOT_STARTED`.
+
 ## ADR-036 — Freeze the Round-006 profitability-rebuild registry, Gate, and Plan
 
 - **Decision:** Freeze `baseline-002-research-round-006` from authoritative
