@@ -639,3 +639,50 @@ backtest policy:
 ordering for M3 research. Those assumptions do not change baseline-001 or
 settle the M6 production policy. No other baseline-001 strategy rule remains
 open for M2-A.
+
+## ADR-038 — Freeze the Round-009 spec-conformance replay
+
+- **Decision:** Authorize one bounded `baseline-002-research-round-009`
+  spec-conformance replay from the frozen main base
+  `230c9301b8324446327c1274f4ba05089a4b4f99`. The replay keeps the five
+  explicitly registered one-variant candidates, the five-symbol universe,
+  six folds, seen-data boundary `2026-08-15T23:59:59.999Z`, `baseline-001`,
+  and `bt-policy-003`.
+- **Conformance:** The machine-readable record freezes zero
+  result-affecting deviations. E1 is directly generated without baseline
+  formal membership; E2 is directly generated without CONTROL settlement;
+  S1 consumes the pre-score stream; the 4-hour feature uses the 4-hour close;
+  and router volatility is `ATR14_1H / CLOSE1H`. The intrabar dependency union
+  is declared before dataset freeze and post-lock market fetch is forbidden.
+- **Lifecycle:** The accepted Round-006 cache may be reused only after
+  provenance/integrity validation. Dataset freeze precedes the one performance
+  lock; CONTROL, candidates, gate, selection, and evidence publication occur
+  exactly once after the lock. The execution source SHA is supplied at runtime
+  and is not predeclared in the Plan.
+- **Boundary:** Round-008 remains `INVALIDATED_NON_AUTHORITATIVE`; no Round-008
+  outcome is used for tuning. No private Binance API, automatic trading,
+  production change, optimizer, sweep, or later milestone is authorized.
+  `baseline-002` remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
+  `NOT_STARTED` until a separate accepted result.
+
+## ADR-039 — Freeze the Round-010 risk-geometry spec-conformance replay
+
+- **Decision:** Authorize one bounded `baseline-002-research-round-010`
+  replay from the Round-009 publication head after invalidating Round-009 for
+  `EVENT_RISK_GEOMETRY_SPEC_CONFORMANCE_FAILURE`. Round-009 evidence remains
+  unchanged and diagnostic-only; it is not used to tune Round-010.
+- **Risk geometry:** E1 uses the previous five fully closed 1h structural
+  swing candles. E2 uses the complete closed breakout-through-reclaim path.
+  Both apply a `0.2 * ATR14_1h` buffer beyond the structural extreme, require
+  inclusive `0.8 <= stopAtr <= 3.0`, and set TP at two times the full stop
+  distance. C1 retains the exact E1 settlement identity.
+- **Conformance:** These result-affecting rules are machine-recorded in the
+  Round-010 Gate/Plan and checked by executable deterministic helpers before
+  any performance lock. The result-affecting deviation count must be zero.
+- **Boundary:** The five Round-009 candidates, thresholds, features,
+  `baseline-001`, `bt-policy-003`, folds, fees, slippage, funding, and
+  selection semantics remain frozen. No private Binance API, automatic
+  trading, optimizer, sweep, post-lock fetch, or later milestone is allowed.
+  Until the replay completes, performance is `NOT_AUTHORIZED` /
+  `NOT_GENERATED`, baseline-002 is `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is
+  `NOT_STARTED`.

@@ -557,6 +557,38 @@ describe("Round-006 research acquisition transport", () => {
     }
   });
 
+  it("reuses a complete validated funding cache page for a shifted range without network", async () => {
+    const root = temporaryDirectory();
+    try {
+      let seedCalls = 0;
+      const seedClient = clientFor(root, async (input) => {
+        seedCalls += 1;
+        const symbol = new URL(String(input)).searchParams.get("symbol");
+        return jsonResponse([
+          { symbol, fundingTime: 8 * HOUR, fundingRate: "0.0001", markPrice: "100" },
+          { symbol, fundingTime: 16 * HOUR, fundingRate: "0.0002", markPrice: "101" },
+        ]);
+      }, 1);
+      await seedClient.getFundingRateHistory(SYMBOL, HOUR, 24 * HOUR, 100);
+      expect(seedCalls).toBe(1);
+
+      let fallbackCalls = 0;
+      const resumedClient = clientFor(root, async () => {
+        fallbackCalls += 1;
+        throw new Error("funding network fallback must not be used");
+      }, 1);
+      const resumed = await resumedClient.getFundingRateHistory(SYMBOL, HOUR + 1, 24 * HOUR + 1, 100);
+      expect(fallbackCalls).toBe(0);
+      expect(resumed.diagnostics.attempts).toBe(1);
+      expect(resumed.data).toEqual([
+        { symbol: SYMBOL, fundingTime: 8 * HOUR, fundingRate: "0.0001", markPrice: "100" },
+        { symbol: SYMBOL, fundingTime: 16 * HOUR, fundingRate: "0.0002", markPrice: "101" },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("fails closed when a cached payload checksum is changed", async () => {
     const root = temporaryDirectory();
     try {
