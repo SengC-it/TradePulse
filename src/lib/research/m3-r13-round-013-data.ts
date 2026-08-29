@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { type ResearchSymbol } from "../config/constants.ts";
@@ -9,7 +9,11 @@ import { createRound006HistoricalLoader, type Round006DataAcquisitionOptions } f
 import { buildRound006HistoricalLoadRanges, toBacktestData } from "./m3-r6-round-006-performance.ts";
 import type { BacktestData } from "../backtest/types.ts";
 import type { IntrabarSettlementCandle } from "../historical-data/types.ts";
-import { M3_R13_RESEARCH_END_ISO, M3_R13_RESEARCH_START_ISO, M3_R13_RESEARCH_ROUND_ID, R13_SYMBOLS } from "./m3-r13-round-013-protocol.ts";
+import { R13OneMinuteIndexedSeries } from "./m3-r13-round-013-index.ts";
+import { M3_R13_RESEARCH_END_ISO, M3_R13_RESEARCH_START_ISO, M3_R13_RESEARCH_ROUND_ID, M3_R13_POLICY_VERSION, R13_SYMBOLS } from "./m3-r13-round-013-protocol.ts";
+import { R13_FEATURE_SPEC_SHA256, R13_MODEL_SPEC_SHA256, R13_PLAN_SHA256 } from "./m3-r13-round-013-plan.ts";
+import { R13_SPEC_CONFORMANCE_SHA256 } from "./m3-r13-round-013-conformance.ts";
+import { R13_SELECTION_GATE_SHA256 } from "./selection-gates-round-013.ts";
 import { stableStringify } from "./utils.ts";
 
 export const R13_PAGE_CACHE_SCHEMA_VERSION = "m3-r13-round-013-1m-page-cache-001" as const;
@@ -54,6 +58,7 @@ export type R13OneMinuteManifest = Readonly<{
 export type R13PreparedDataset = Readonly<{
   coarseData: BacktestData;
   oneMinute: Readonly<Record<ResearchSymbol, readonly IntrabarSettlementCandle[]>>;
+  oneMinuteIndexed: Readonly<Record<ResearchSymbol, R13OneMinuteIndexedSeries>>;
   manifests: readonly R13OneMinuteManifest[];
   datasetFreeze: R13DatasetFreeze;
 }>;
@@ -61,6 +66,14 @@ export type R13PreparedDataset = Readonly<{
 export type R13DatasetFreeze = Readonly<{
   schemaVersion: "m3-r13-round-013-dataset-freeze-001";
   dataFreezeCompleted: true;
+  researchRoundId: typeof M3_R13_RESEARCH_ROUND_ID;
+  researchBoundary: typeof M3_R13_RESEARCH_END_ISO;
+  coarsePolicyVersion: typeof M3_R13_POLICY_VERSION;
+  featureSpecSha256: string;
+  modelSpecSha256: string;
+  gateSha256: string;
+  planSha256: string;
+  conformanceSha256: string;
   datasetIdentitySha256: string;
   manifestIdentitySha256: string;
   symbols: readonly ResearchSymbol[];
@@ -93,6 +106,16 @@ function validateOneMinutePage(page: readonly IntrabarSettlementCandle[], identi
   }
 }
 
+export function validateR13OneMinuteSeries(candles: readonly IntrabarSettlementCandle[], symbol: ResearchSymbol): void {
+  const lastOpenTime = Math.floor(R13_ONE_MINUTE_END_TIME / 60_000) * 60_000;
+  if (candles.length === 0 || candles[0]!.openTime !== R13_ONE_MINUTE_START_TIME || candles.at(-1)!.openTime !== lastOpenTime) {
+    throw new Error(`R13 1m series has incomplete coverage for ${symbol}.`);
+  }
+  validateOneMinutePage(candles, cacheIdentity(symbol, R13_ONE_MINUTE_START_TIME, R13_ONE_MINUTE_END_TIME, candles.length));
+  const expectedRows = Math.floor((lastOpenTime - R13_ONE_MINUTE_START_TIME) / 60_000) + 1;
+  if (candles.length !== expectedRows) throw new Error(`R13 1m series row count is incomplete for ${symbol}.`);
+}
+
 function readPage(cacheDirectory: string, identity: R13OneMinutePageIdentity): readonly IntrabarSettlementCandle[] | null {
   const filePath = r13OneMinuteCachePath(cacheDirectory, identity);
   if (!existsSync(filePath)) return null;
@@ -107,8 +130,14 @@ function writePage(cacheDirectory: string, identity: R13OneMinutePageIdentity, p
   mkdirSync(path.resolve(cacheDirectory), { recursive: true });
   const target = r13OneMinuteCachePath(cacheDirectory, identity);
   const temporary = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(temporary, stableStringify({ schemaVersion: R13_PAGE_CACHE_SCHEMA_VERSION, identity, payload, payloadSha256: sha256(payload) }), "utf8");
-  renameSync(temporary, target);
+  try {
+    writeFileSync(temporary, stableStringify({ schemaVersion: R13_PAGE_CACHE_SCHEMA_VERSION, identity, payload, payloadSha256: sha256(payload) }), "utf8");
+    renameSync(temporary, target);
+  } finally {
+    if (existsSync(temporary)) {
+      try { unlinkSync(temporary); } catch { /* preserve the primary cache write error */ }
+    }
+  }
 }
 
 function cachedDiagnostics(endpoint: string): { endpoint: string; operationStartedAt: number; attemptStartedAt: number; attemptCompletedAt: number; roundTripMs: number; attempts: number } {
@@ -134,7 +163,7 @@ export class R13OneMinuteCachedClient extends BinancePublicClient {
     const parsed = parseBinanceIntrabarKlines(response.data, symbol);
     validateOneMinutePage(parsed, identity);
     writePage(this.cacheDirectory, identity, parsed);
-    return response;
+    return { data: parsed, diagnostics: response.diagnostics };
   }
 }
 
@@ -186,31 +215,31 @@ export function freezeR13Dataset(input: Readonly<{ coarseData: BacktestData; one
   const errors: string[] = [];
   for (const symbol of R13_SYMBOLS) {
     const candles = input.oneMinute[symbol] ?? [];
-    if (candles.length === 0 || candles[0]!.openTime !== R13_ONE_MINUTE_START_TIME || candles.at(-1)!.openTime !== Math.floor(R13_ONE_MINUTE_END_TIME / 60_000) * 60_000) errors.push(`INCOMPLETE_1M_COVERAGE:${symbol}`);
-    try { validateOneMinutePage(candles, cacheIdentity(symbol, R13_ONE_MINUTE_START_TIME, R13_ONE_MINUTE_END_TIME, candles.length)); } catch (error) { errors.push(`INVALID_1M_COVERAGE:${symbol}:${error instanceof Error ? error.message : String(error)}`); }
+    try { validateR13OneMinuteSeries(candles, symbol); } catch (error) { errors.push(`INVALID_1M_COVERAGE:${symbol}:${error instanceof Error ? error.message : String(error)}`); }
   }
   if (input.manifests.length !== R13_SYMBOLS.length) errors.push("MISSING_1M_MANIFEST");
   if (errors.length > 0) throw new Error(`R13 dataset freeze failed: ${[...new Set(errors)].join("; ")}`);
   const datasetIdentitySha256 = r13DatasetIdentity({ coarseData: input.coarseData, oneMinuteManifests: input.manifests, serverTime: input.serverTime });
-  return Object.freeze({ schemaVersion: "m3-r13-round-013-dataset-freeze-001", dataFreezeCompleted: true, datasetIdentitySha256, manifestIdentitySha256: sha256(input.manifests), symbols: R13_SYMBOLS, oneMinuteCoverage: { startTime: R13_ONE_MINUTE_START_TIME, endTime: R13_ONE_MINUTE_END_TIME, completeSymbols: R13_SYMBOLS }, coarseManifestCount: input.coarseData.manifests.length, oneMinuteManifestCount: input.manifests.length, purgeEmbargoHours: 24, postLockMarketFetchPossible: false, integrityErrors: Object.freeze([]) });
+  return Object.freeze({ schemaVersion: "m3-r13-round-013-dataset-freeze-001", dataFreezeCompleted: true, researchRoundId: M3_R13_RESEARCH_ROUND_ID, researchBoundary: M3_R13_RESEARCH_END_ISO, coarsePolicyVersion: M3_R13_POLICY_VERSION, featureSpecSha256: R13_FEATURE_SPEC_SHA256, modelSpecSha256: R13_MODEL_SPEC_SHA256, gateSha256: R13_SELECTION_GATE_SHA256, planSha256: R13_PLAN_SHA256, conformanceSha256: R13_SPEC_CONFORMANCE_SHA256, datasetIdentitySha256, manifestIdentitySha256: sha256(input.manifests), symbols: R13_SYMBOLS, oneMinuteCoverage: { startTime: R13_ONE_MINUTE_START_TIME, endTime: R13_ONE_MINUTE_END_TIME, completeSymbols: R13_SYMBOLS }, coarseManifestCount: input.coarseData.manifests.length, oneMinuteManifestCount: input.manifests.length, purgeEmbargoHours: 24, postLockMarketFetchPossible: false, integrityErrors: Object.freeze([]) });
 }
 
 export async function prepareR13Dataset(input: Readonly<{ cacheDirectory: string; acceptedCoarseCacheDirectory?: string; clientOptions?: BinancePublicClientOptions; fetchMissingOneMinute?: boolean }>): Promise<R13PreparedDataset> {
   const coarseCacheDirectory = input.acceptedCoarseCacheDirectory ?? locateAcceptedRound006Cache();
   if (!coarseCacheDirectory) throw new Error("R13 acquisition cannot start: accepted Round-006 coarse cache is unavailable.");
-  const coarseAcquisition: Round006DataAcquisitionOptions = { cacheDirectory: coarseCacheDirectory, clientOptions: input.clientOptions };
+  const coarseAcquisition: Round006DataAcquisitionOptions = { cacheDirectory: coarseCacheDirectory, clientOptions: input.clientOptions, allowNetworkAcquisition: input.fetchMissingOneMinute !== false };
   const coarseLoader = createRound006HistoricalLoader(coarseAcquisition).loader;
   const study = await coarseLoader.loadStudyData({ ...buildRound006HistoricalLoadRanges(), policy: "bt-policy-003" });
   const coarseData = toBacktestData(study);
   const oneMinuteClient = new R13OneMinuteCachedClient({ cacheDirectory: input.cacheDirectory, clientOptions: input.clientOptions, allowNetworkAcquisition: input.fetchMissingOneMinute !== false });
   const oneMinute = {} as Record<ResearchSymbol, readonly IntrabarSettlementCandle[]>;
+  const oneMinuteIndexed = {} as Record<ResearchSymbol, R13OneMinuteIndexedSeries>;
   const manifests: R13OneMinuteManifest[] = [];
   for (const symbol of R13_SYMBOLS) {
-    if (input.fetchMissingOneMinute === false && !existsSync(path.resolve(input.cacheDirectory))) throw new Error(`R13 acquisition cache is missing for ${symbol}.`);
     const loaded = await loadR13OneMinuteRange({ client: oneMinuteClient, symbol });
     oneMinute[symbol] = loaded.candles;
+    oneMinuteIndexed[symbol] = new R13OneMinuteIndexedSeries(loaded.candles);
     manifests.push(loaded.manifest);
   }
   const datasetFreeze = freezeR13Dataset({ coarseData, oneMinute, manifests, serverTime: study.serverTime });
-  return Object.freeze({ coarseData, oneMinute: Object.freeze(oneMinute), manifests: Object.freeze(manifests), datasetFreeze });
+  return Object.freeze({ coarseData, oneMinute: Object.freeze(oneMinute), oneMinuteIndexed: Object.freeze(oneMinuteIndexed), manifests: Object.freeze(manifests), datasetFreeze });
 }

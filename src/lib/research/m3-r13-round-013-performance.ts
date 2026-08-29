@@ -12,6 +12,7 @@ import { buildR13FeatureVector, r13Atr14AtDecision, type R13FeatureVector } from
 import { computeR13PrimaryAndLatencyStress, type R13ForwardLabel } from "./m3-r13-round-013-labels.ts";
 import { fitR13RidgeModel, predictR13RidgeModel, type R13RidgeModel } from "./m3-r13-round-013-model.ts";
 import { calculateR13Drawdown } from "./r13-drawdown.ts";
+import { R13OneMinuteIndexedSeries, type R13OneMinuteLookup } from "./m3-r13-round-013-index.ts";
 import { evaluateR13HorizonGates, selectR13Horizon, R13_SELECTION_GATE_SHA256, type R13HorizonGateEvaluation, type R13HorizonSelection, type R13HorizonSelectionCandidate } from "./selection-gates-round-013.ts";
 import { isR13TrainingObservationPurgeSafe, r13SelectTopOne } from "./m3-r13-round-013-validation.ts";
 import { R13_PLAN_SHA256, validateR13Plan } from "./m3-r13-round-013-plan.ts";
@@ -39,7 +40,7 @@ export type R13Observation = Readonly<{
   latencyStressLabels: Readonly<Record<R13HorizonHours, R13ForwardLabel>>;
 }>;
 
-export type R13ScoredSelection = Readonly<{
+export type R13ScoredOpportunity = Readonly<{
   observationId: string;
   foldId: ResearchFoldId;
   decisionTime: number;
@@ -49,6 +50,8 @@ export type R13ScoredSelection = Readonly<{
   label: R13ForwardLabel;
   latencyStressLabel: R13ForwardLabel;
 }>;
+
+export type R13ScoredSelection = R13ScoredOpportunity;
 
 export type R13HorizonMetrics = Readonly<{
   horizonHours: R13HorizonHours;
@@ -74,6 +77,9 @@ export type R13HorizonMetrics = Readonly<{
   pooledSpearman: number | null;
   topBottomDecileSpread: number | null;
   positiveSpreadFolds: number;
+  crossSectionalOpportunityCount: number;
+  crossSectionalOpportunityTimestamps: number;
+  insufficientCrossSectionalTimestamps: number;
   costStressMean: number;
   costStressProfitFactor: number | null;
   latencyStressMean: number;
@@ -110,7 +116,7 @@ export type R13PerformanceReport = Readonly<{
   performanceLifecycle: "PERFORMANCE_LOCKED";
   datasetFreeze: Readonly<Record<string, unknown>>;
   conformance: R13SpecConformanceReport;
-  observationCounts: Readonly<{ all: number; byHorizon: Readonly<Record<R13HorizonHours, number>> }>;
+  observationCounts: Readonly<{ all: number; byHorizon: Readonly<Record<R13HorizonHours, number>>; totalCanonicalDecisionTimestamps: number; warmupExcludedObservations: number; eligibleObservations: number; integrityExcludedObservations: number }>;
   horizons: readonly R13HorizonPerformance[];
   selection: R13HorizonSelection;
   baseline002Status: "NOT_FROZEN";
@@ -131,7 +137,7 @@ function directionOrder(direction: R13Direction): number { return direction === 
 
 function orderObservations(observations: readonly R13Observation[]): readonly R13Observation[] { return Object.freeze([...observations].sort((left, right) => left.decisionTime - right.decisionTime || R13_SYMBOLS.indexOf(left.symbol) - R13_SYMBOLS.indexOf(right.symbol) || directionOrder(left.direction) - directionOrder(right.direction))); }
 
-export function buildR13Observation(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, readonly IntrabarSettlementCandle[]>>; symbol: ResearchSymbol; direction: R13Direction; signalTime: number }>): R13Observation {
+export function buildR13Observation(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, R13OneMinuteLookup | readonly IntrabarSettlementCandle[]>>; symbol: ResearchSymbol; direction: R13Direction; signalTime: number }>): R13Observation {
   const dataset = input.data.datasets[input.symbol];
   if (!dataset) throw new Error(`R13 observation dataset missing for ${input.symbol}.`);
   const allSymbolCandles = Object.fromEntries(R13_SYMBOLS.map((symbol) => [symbol, input.data.datasets[symbol]?.candles1h ?? []])) as Readonly<Record<ResearchSymbol, readonly import("../market-data/types.ts").Candle[]>>;
@@ -147,14 +153,70 @@ export function buildR13Observation(input: Readonly<{ data: BacktestData; oneMin
   return Object.freeze({ observationId: key(input.signalTime, input.symbol, input.direction), decisionTime: input.signalTime, symbol: input.symbol, direction: input.direction, features, atr14_1h, labels: Object.freeze(labels), latencyStressLabels: Object.freeze(latencyStressLabels) });
 }
 
-export function buildR13ObservationUniverse(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, readonly IntrabarSettlementCandle[]>> }>): readonly R13Observation[] {
+export type R13ObservationUniverseReport = Readonly<{
+  observations: readonly R13Observation[];
+  totalCanonicalDecisionTimestamps: number;
+  warmupExcludedObservations: number;
+  eligibleObservations: number;
+  integrityExcludedObservations: number;
+}>;
+
+function validateR13CoarseSeries(data: BacktestData): void {
+  for (const symbol of R13_SYMBOLS) {
+    const dataset = data.datasets[symbol];
+    if (!dataset) throw new Error(`R13 observation dataset missing for ${symbol}.`);
+    for (const timeframe of ["1h", "4h"] as const) {
+      const candles = timeframe === "1h" ? dataset.candles1h : dataset.candles4h;
+      const interval = timeframe === "1h" ? 60 * 60_000 : 4 * 60 * 60_000;
+      for (let index = 0; index < candles.length; index += 1) {
+        const candle = candles[index]!;
+        if (candle.symbol !== symbol || candle.timeframe !== timeframe || !Number.isSafeInteger(candle.openTime) || candle.closeTime !== candle.openTime + interval - 1 || !Number.isFinite(candle.open) || !Number.isFinite(candle.high) || !Number.isFinite(candle.low) || !Number.isFinite(candle.close) || candle.open <= 0 || candle.high < candle.low) throw new Error(`R13 coarse ${timeframe} history is malformed for ${symbol}.`);
+        if (index > 0 && candle.openTime !== candles[index - 1]!.openTime + interval) throw new Error(`R13 coarse ${timeframe} history has a gap or duplicate for ${symbol}.`);
+      }
+    }
+  }
+  const referenceTimes = (data.datasets.BTCUSDT?.candles1h ?? []).filter((candle) => candle.closeTime <= M3_R13_RESEARCH_RANGE.endTime).map((candle) => candle.closeTime);
+  for (const symbol of R13_SYMBOLS) {
+    const times = (data.datasets[symbol]?.candles1h ?? []).filter((candle) => candle.closeTime <= M3_R13_RESEARCH_RANGE.endTime).map((candle) => candle.closeTime);
+    if (stableStringify(times) !== stableStringify(referenceTimes)) throw new Error(`R13 cross-symbol decision timeline mismatch for ${symbol}.`);
+  }
+}
+
+export function buildR13ObservationUniverseWithDiagnostics(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, R13OneMinuteLookup | readonly IntrabarSettlementCandle[]>> }>): R13ObservationUniverseReport {
+  validateR13CoarseSeries(input.data);
+  const indexedOneMinute = Object.fromEntries(R13_SYMBOLS.map((symbol) => {
+    const source = input.oneMinute[symbol];
+    if (!source) throw new Error(`R13 1m history missing for ${symbol}.`);
+    return [symbol, source instanceof R13OneMinuteIndexedSeries ? source : new R13OneMinuteIndexedSeries(source as readonly IntrabarSettlementCandle[])];
+  })) as unknown as Readonly<Record<ResearchSymbol, R13OneMinuteLookup>>;
+  const indexedInput = { ...input, oneMinute: indexedOneMinute };
   const times = [...new Set((input.data.datasets.BTCUSDT?.candles1h ?? []).filter((candle) => candle.closeTime <= M3_R13_RESEARCH_RANGE.endTime).map((candle) => candle.closeTime))].sort((left, right) => left - right);
   const values: R13Observation[] = [];
-  for (const signalTime of times) for (const symbol of R13_SYMBOLS) for (const direction of ["LONG", "SHORT"] as const) {
-    try { values.push(buildR13Observation({ ...input, symbol, direction, signalTime })); } catch { /* incomplete backward-looking features are excluded from the observation universe */ }
+  let warmupExcludedObservations = 0;
+  let warmedUp = false;
+  for (const signalTime of times) {
+    const atTime: R13Observation[] = [];
+    const failures: string[] = [];
+    for (const symbol of R13_SYMBOLS) for (const direction of ["LONG", "SHORT"] as const) {
+      try { atTime.push(buildR13Observation({ ...indexedInput, symbol, direction, signalTime })); }
+      catch (error) { failures.push(`${symbol}/${direction}: ${error instanceof Error ? error.message : String(error)}`); }
+    }
+    if (failures.length > 0) {
+      if (warmedUp) throw new Error(`R13 observation integrity failure after warmup at ${signalTime}: ${failures.join("; ")}`);
+      warmupExcludedObservations += failures.length;
+      continue;
+    }
+    warmedUp = true;
+    values.push(...atTime);
   }
   const unique = new Map(values.map((observation) => [observation.observationId, observation]));
-  return Object.freeze(orderObservations([...unique.values()]));
+  if (unique.size !== values.length) throw new Error("R13 observation universe contains duplicate observation identities.");
+  const observations = orderObservations([...unique.values()]);
+  return Object.freeze({ observations, totalCanonicalDecisionTimestamps: times.length, warmupExcludedObservations, eligibleObservations: observations.length, integrityExcludedObservations: 0 });
+}
+
+export function buildR13ObservationUniverse(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, R13OneMinuteLookup | readonly IntrabarSettlementCandle[]>> }>): readonly R13Observation[] {
+  return buildR13ObservationUniverseWithDiagnostics(input).observations;
 }
 
 function foldRole(observation: R13Observation, foldId: ResearchFoldId, role: "RESEARCH" | "VALIDATION"): boolean { const range = getResearchFoldRoleRange(foldId, role); return observation.decisionTime >= range.startTime && observation.decisionTime <= range.endTime; }
@@ -166,10 +228,12 @@ function pearson(left: readonly number[], right: readonly number[]): number | nu
 function ranks(values: readonly number[]): number[] { const order = values.map((value, index) => ({ value, index })).sort((left, right) => left.value - right.value || left.index - right.index); const result = Array<number>(values.length); order.forEach((item, index) => { result[item.index] = index + 1; }); return result; }
 function spearman(left: readonly number[], right: readonly number[]): number | null { if (left.length < 2 || left.length !== right.length) return null; return pearson(ranks(left), ranks(right)); }
 
-function selectedForValidation(observations: readonly R13Observation[], models: Readonly<Record<ResearchFoldId, R13RidgeModel | null>>, horizon: R13HorizonHours): Readonly<{ selections: readonly R13ScoredSelection[]; noTrade: number; timestamps: number }> {
+function selectedForValidation(observations: readonly R13Observation[], models: Readonly<Record<ResearchFoldId, R13RidgeModel | null>>, horizon: R13HorizonHours): Readonly<{ selections: readonly R13ScoredSelection[]; opportunities: readonly R13ScoredOpportunity[]; noTrade: number; timestamps: number; insufficientCrossSectionalTimestamps: number }> {
   const selections: R13ScoredSelection[] = [];
+  const opportunities: R13ScoredOpportunity[] = [];
   let noTrade = 0;
   let timestamps = 0;
+  let insufficientCrossSectionalTimestamps = 0;
   for (const foldId of R13_FOLD_IDS) {
     const validation = observations.filter((observation) => foldRole(observation, foldId, "VALIDATION"));
     const byTime = new Map<number, R13Observation[]>();
@@ -179,6 +243,12 @@ function selectedForValidation(observations: readonly R13Observation[], models: 
       timestamps += 1;
       if (!model) { noTrade += 1; continue; }
       const scored = values.map((observation) => ({ observation, prediction: predictR13RidgeModel(model, observation.features) }));
+      const usableAtTime = scored.filter((value) => value.observation.labels[horizon].status === "EXECUTED" && value.observation.labels[horizon].netForwardAtr !== null && Number.isFinite(value.observation.labels[horizon].netForwardAtr));
+      if (usableAtTime.length < 2) insufficientCrossSectionalTimestamps += 1;
+      for (const value of usableAtTime) {
+        const label = value.observation.labels[horizon];
+        opportunities.push(Object.freeze({ observationId: value.observation.observationId, foldId, decisionTime, symbol: value.observation.symbol, direction: value.observation.direction, prediction: value.prediction, label, latencyStressLabel: value.observation.latencyStressLabels[horizon] }));
+      }
       const top = r13SelectTopOne(scored.map((value) => ({ ...value, symbol: value.observation.symbol, direction: value.observation.direction })));
       if (!top.selected) { noTrade += 1; continue; }
       const selected = top.selected;
@@ -187,13 +257,14 @@ function selectedForValidation(observations: readonly R13Observation[], models: 
       if (label.status === "EXECUTED") selections.push(Object.freeze({ observationId: selected.observation.observationId, foldId, decisionTime, symbol: selected.observation.symbol, direction: selected.observation.direction, prediction: selected.prediction, label, latencyStressLabel: stress }));
     }
   }
-  return Object.freeze({ selections: Object.freeze(selections), noTrade, timestamps });
+  return Object.freeze({ selections: Object.freeze(selections), opportunities: Object.freeze(opportunities), noTrade, timestamps, insufficientCrossSectionalTimestamps });
 }
 
 function gateCountByFold(values: readonly R13ScoredSelection[], mapper: (value: R13ScoredSelection) => number | null): Readonly<Record<ResearchFoldId, number>> { return Object.freeze(Object.fromEntries(R13_FOLD_IDS.map((foldId) => [foldId, values.filter((value) => value.foldId === foldId && mapper(value) !== null).length])) as Record<ResearchFoldId, number>); }
 
-function metricForHorizon(observations: readonly R13Observation[], models: Readonly<Record<ResearchFoldId, R13RidgeModel | null>>, provenance: R13HorizonPerformance["modelProvenance"], horizon: R13HorizonHours): R13HorizonPerformance {
+function metricForHorizon(observations: readonly R13Observation[], models: Readonly<Record<ResearchFoldId, R13RidgeModel | null>>, provenance: R13HorizonPerformance["modelProvenance"], horizon: R13HorizonHours, evidenceIntegrity: boolean): R13HorizonPerformance {
   const selected = selectedForValidation(observations, models, horizon);
+  const opportunities = selected.opportunities;
   const usableSelections = selected.selections.filter((selection) => selection.label.netForwardAtr !== null && Number.isFinite(selection.label.netForwardAtr));
   const values = usableSelections.map((selection) => selection.label.netForwardAtr!);
   const positive = values.filter((value) => value > 0);
@@ -203,13 +274,20 @@ function metricForHorizon(observations: readonly R13Observation[], models: Reado
   const positiveMeanEdgeFolds = Object.values(byFoldMean).filter((value): value is number => value !== null && value > 0).length;
   const negativeMeanEdgeFolds = Object.values(byFoldMean).filter((value): value is number => value !== null && value < 0).length;
   const catastrophicFolds = Object.values(byFoldMean).filter((value): value is number => value !== null && value <= -0.10).length;
-  const foldSpearman = R13_FOLD_IDS.map((foldId) => { const fold = usableSelections.filter((selection) => selection.foldId === foldId); return spearman(fold.map((selection) => selection.prediction), fold.map((selection) => selection.label.netForwardAtr!)); });
+  const byDecisionTime = new Map<string, R13ScoredOpportunity[]>();
+  for (const opportunity of opportunities) { const group = byDecisionTime.get(`${opportunity.foldId}|${opportunity.decisionTime}`) ?? []; group.push(opportunity); byDecisionTime.set(`${opportunity.foldId}|${opportunity.decisionTime}`, group); }
+  const timestampSpearman = [...byDecisionTime.values()].map((group) => spearman(group.map((value) => value.prediction), group.map((value) => value.label.netForwardAtr!))).filter((value): value is number => value !== null);
+  const foldSpearman = R13_FOLD_IDS.map((foldId) => mean([...byDecisionTime.entries()].filter(([key]) => key.startsWith(`${foldId}|`)).map(([, group]) => spearman(group.map((value) => value.prediction), group.map((value) => value.label.netForwardAtr!))).filter((value): value is number => value !== null)));
   const positiveSpearmanFolds = foldSpearman.filter((value) => value !== null && value > 0).length;
-  const pooledSpearman = spearman(usableSelections.map((selection) => selection.prediction), values);
-  const ordered = [...usableSelections].sort((left, right) => left.prediction - right.prediction || left.decisionTime - right.decisionTime || left.symbol.localeCompare(right.symbol) || directionOrder(left.direction) - directionOrder(right.direction));
-  const deciles = Object.freeze(Array.from({ length: 10 }, (_, decile) => { const group = ordered.filter((_, index) => Math.floor(index * 10 / Math.max(1, ordered.length)) === decile); return Object.freeze({ decile, count: group.length, meanRealizedNetForwardAtr: mean(group.map((selection) => selection.label.netForwardAtr!)) }); }));
+  const pooledSpearman = mean(timestampSpearman);
+  const decileRows: Array<R13ScoredOpportunity & { decile: number }> = [];
+  for (const foldId of R13_FOLD_IDS) {
+    const fold = opportunities.filter((opportunity) => opportunity.foldId === foldId).sort((left, right) => left.prediction - right.prediction || left.decisionTime - right.decisionTime || left.symbol.localeCompare(right.symbol) || directionOrder(left.direction) - directionOrder(right.direction));
+    for (const [index, opportunity] of fold.entries()) decileRows.push({ ...opportunity, decile: Math.floor(index * 10 / Math.max(1, fold.length)) });
+  }
+  const deciles = Object.freeze(Array.from({ length: 10 }, (_, decile) => { const group = decileRows.filter((value) => value.decile === decile); return Object.freeze({ decile, count: group.length, meanRealizedNetForwardAtr: mean(group.map((selection) => selection.label.netForwardAtr!)) }); }));
   const spread = deciles[9]!.meanRealizedNetForwardAtr !== null && deciles[0]!.meanRealizedNetForwardAtr !== null ? deciles[9]!.meanRealizedNetForwardAtr - deciles[0]!.meanRealizedNetForwardAtr : null;
-  const positiveSpreadFolds = R13_FOLD_IDS.filter((foldId) => { const fold = usableSelections.filter((selection) => selection.foldId === foldId).sort((left, right) => left.prediction - right.prediction); if (fold.length < 2) return false; const width = Math.max(1, Math.ceil(fold.length / 10)); const bottom = mean(fold.slice(0, width).map((value) => value.label.netForwardAtr!)) ?? 0; const top = mean(fold.slice(-width).map((value) => value.label.netForwardAtr!)) ?? 0; return top - bottom > 0; }).length;
+  const positiveSpreadFolds = R13_FOLD_IDS.filter((foldId) => { const fold = decileRows.filter((value) => value.foldId === foldId); const bottom = mean(fold.filter((value) => value.decile === 0).map((value) => value.label.netForwardAtr!)); const top = mean(fold.filter((value) => value.decile === 9).map((value) => value.label.netForwardAtr!)); return bottom !== null && top !== null && top - bottom > 0; }).length;
   const drawdown = calculateR13Drawdown(usableSelections.map((selection) => ({ decisionTime: selection.decisionTime, symbol: selection.symbol, direction: selection.direction, netForwardAtr: selection.label.netForwardAtr! })));
   const positiveSelections = usableSelections.filter((selection) => selection.label.netForwardAtr! > 0);
   const totalPositive = positive.reduce((sum, value) => sum + value, 0);
@@ -226,8 +304,8 @@ function metricForHorizon(observations: readonly R13Observation[], models: Reado
   const monthlyCounts = [...monthCounts.values()];
   const grossPositiveAtr = positiveSelections.reduce((sum, selection) => sum + (selection.label.grossForwardAtr ?? 0), 0);
   const grossNegativeAtrMagnitude = Math.abs(usableSelections.filter((selection) => (selection.label.grossForwardAtr ?? 0) < 0).reduce((sum, selection) => sum + (selection.label.grossForwardAtr ?? 0), 0));
-  const metrics: R13HorizonMetrics = Object.freeze({ horizonHours: horizon, selectedValidationObservations: values.length, noTradeDecisionTimestamps: selected.noTrade, totalValidationDecisionTimestamps: selected.timestamps, meanNetForwardAtr: mean(values), medianNetForwardAtr: median(values), meanSelectedSignalsPerMonth: mean(monthlyCounts), medianSelectedSignalsPerMonth: median(monthlyCounts), grossPositiveAtr, grossNegativeAtrMagnitude, totalFeesBps: usableSelections.reduce((sum, selection) => sum + (selection.label.feesBps ?? 0), 0), totalFundingBps: usableSelections.reduce((sum, selection) => sum + (selection.label.fundingBps ?? 0), 0), totalSlippageBps: usableSelections.reduce((sum, selection) => sum + (selection.label.slippageBps ?? 0), 0), atrProfitFactor: negative.length ? positive.reduce((sum, value) => sum + value, 0) / Math.abs(negative.reduce((sum, value) => sum + value, 0)) : null, cumulativeNetForwardAtr: values.reduce((sum, value) => sum + value, 0), maximumDrawdownAtr: drawdown.maximumDrawdownAtr, positiveMeanEdgeFolds, negativeMeanEdgeFolds, catastrophicFolds, positiveSpearmanFolds, pooledSpearman, topBottomDecileSpread: spread, positiveSpreadFolds, costStressMean: mean(costStressValues) ?? 0, costStressProfitFactor: costNegative.length ? costPositive.reduce((sum, value) => sum + value, 0) / Math.abs(costNegative.reduce((sum, value) => sum + value, 0)) : null, latencyStressMean: mean(stressValues) ?? 0, maximumPositiveSymbolContributionShare: maxSymbolShare, maximumSinglePositiveObservationContribution: maxSingleShare, byFoldMeanNetForwardAtr: Object.freeze(byFoldMean), bySymbolNetForwardAtr: Object.freeze(netBySymbol), byDirectionNetForwardAtr: Object.freeze(netByDirection), deciles });
-  const gateEvaluation = evaluateR13HorizonGates({ horizonHours: horizon, selectedValidationObservationsAggregate: metrics.selectedValidationObservations, selectedValidationObservationsByFold: gateCountByFold(usableSelections, (value) => value.label.netForwardAtr), meanNetForwardAtr: metrics.meanNetForwardAtr ?? Number.NEGATIVE_INFINITY, atrProfitFactor: metrics.atrProfitFactor, positiveMeanEdgeFolds, catastrophicFolds, positiveSpearmanFolds, pooledSpearman, topBottomDecileSpread: spread, positiveSpreadFolds, costStressMean: metrics.costStressMean, costStressProfitFactor: metrics.costStressProfitFactor, latencyStressMean: metrics.latencyStressMean, maximumPositiveSymbolContributionShare: maxSymbolShare, maximumSinglePositiveObservationContribution: maxSingleShare, evidenceIntegrity: true, modelProvenance: provenance.every((value) => value.status === "FIT") });
+  const metrics: R13HorizonMetrics = Object.freeze({ horizonHours: horizon, selectedValidationObservations: values.length, noTradeDecisionTimestamps: selected.noTrade, totalValidationDecisionTimestamps: selected.timestamps, meanNetForwardAtr: mean(values), medianNetForwardAtr: median(values), meanSelectedSignalsPerMonth: mean(monthlyCounts), medianSelectedSignalsPerMonth: median(monthlyCounts), grossPositiveAtr, grossNegativeAtrMagnitude, totalFeesBps: usableSelections.reduce((sum, selection) => sum + (selection.label.feesBps ?? 0), 0), totalFundingBps: usableSelections.reduce((sum, selection) => sum + (selection.label.fundingBps ?? 0), 0), totalSlippageBps: usableSelections.reduce((sum, selection) => sum + (selection.label.slippageBps ?? 0), 0), atrProfitFactor: negative.length ? positive.reduce((sum, value) => sum + value, 0) / Math.abs(negative.reduce((sum, value) => sum + value, 0)) : null, cumulativeNetForwardAtr: values.reduce((sum, value) => sum + value, 0), maximumDrawdownAtr: drawdown.maximumDrawdownAtr, positiveMeanEdgeFolds, negativeMeanEdgeFolds, catastrophicFolds, positiveSpearmanFolds, pooledSpearman, topBottomDecileSpread: spread, positiveSpreadFolds, crossSectionalOpportunityCount: opportunities.length, crossSectionalOpportunityTimestamps: opportunities.length === 0 ? 0 : new Set(opportunities.map((value) => `${value.foldId}|${value.decisionTime}`)).size, insufficientCrossSectionalTimestamps: selected.insufficientCrossSectionalTimestamps, costStressMean: mean(costStressValues) ?? 0, costStressProfitFactor: costNegative.length ? costPositive.reduce((sum, value) => sum + value, 0) / Math.abs(costNegative.reduce((sum, value) => sum + value, 0)) : null, latencyStressMean: mean(stressValues) ?? 0, maximumPositiveSymbolContributionShare: maxSymbolShare, maximumSinglePositiveObservationContribution: maxSingleShare, byFoldMeanNetForwardAtr: Object.freeze(byFoldMean), bySymbolNetForwardAtr: Object.freeze(netBySymbol), byDirectionNetForwardAtr: Object.freeze(netByDirection), deciles });
+  const gateEvaluation = evaluateR13HorizonGates({ horizonHours: horizon, selectedValidationObservationsAggregate: metrics.selectedValidationObservations, selectedValidationObservationsByFold: gateCountByFold(usableSelections, (value) => value.label.netForwardAtr), meanNetForwardAtr: metrics.meanNetForwardAtr ?? Number.NEGATIVE_INFINITY, atrProfitFactor: metrics.atrProfitFactor, positiveMeanEdgeFolds, catastrophicFolds, positiveSpearmanFolds, pooledSpearman, topBottomDecileSpread: spread, positiveSpreadFolds, costStressMean: metrics.costStressMean, costStressProfitFactor: metrics.costStressProfitFactor, latencyStressMean: metrics.latencyStressMean, maximumPositiveSymbolContributionShare: maxSymbolShare, maximumSinglePositiveObservationContribution: maxSingleShare, evidenceIntegrity, modelProvenance: provenance.every((value) => value.status === "FIT") });
   return Object.freeze({ horizonHours: horizon, metrics, gateEvaluation, modelProvenance: provenance });
 }
 
@@ -242,12 +320,13 @@ function fitModels(observations: readonly R13Observation[], horizon: R13HorizonH
   return Object.freeze({ models: Object.freeze(models), provenance: Object.freeze(provenance) });
 }
 
-export function evaluateR13Discovery(observations: readonly R13Observation[], datasetFreeze: Readonly<Record<string, unknown>>, executionSourceSha: string, conformance: R13SpecConformanceReport): R13PerformanceReport {
+export function evaluateR13Discovery(observations: readonly R13Observation[], datasetFreeze: Readonly<Record<string, unknown>>, executionSourceSha: string, conformance: R13SpecConformanceReport, universeDiagnostics?: Pick<R13ObservationUniverseReport, "totalCanonicalDecisionTimestamps" | "warmupExcludedObservations" | "eligibleObservations" | "integrityExcludedObservations">): R13PerformanceReport {
   const horizonResults: R13HorizonPerformance[] = [];
-  for (const horizon of R13_HORIZON_HOURS) { const fitted = fitModels(observations, horizon); horizonResults.push(metricForHorizon(observations, fitted.models, fitted.provenance, horizon)); }
+  const diagnostics = universeDiagnostics ?? { totalCanonicalDecisionTimestamps: new Set(observations.map((observation) => observation.decisionTime)).size, warmupExcludedObservations: 0, eligibleObservations: observations.length, integrityExcludedObservations: 0 };
+  for (const horizon of R13_HORIZON_HOURS) { const fitted = fitModels(observations, horizon); horizonResults.push(metricForHorizon(observations, fitted.models, fitted.provenance, horizon, diagnostics.integrityExcludedObservations === 0)); }
   const candidates: R13HorizonSelectionCandidate[] = horizonResults.map((result) => ({ horizonHours: result.horizonHours, eligible: result.gateEvaluation.eligibility === "ELIGIBLE", meanNetForwardAtr: result.metrics.meanNetForwardAtr ?? Number.NEGATIVE_INFINITY, costStressMean: result.metrics.costStressMean, maximumDrawdownAtr: result.metrics.maximumDrawdownAtr, atrProfitFactor: result.metrics.atrProfitFactor ?? Number.NEGATIVE_INFINITY }));
   const selection = selectR13Horizon(candidates);
-  return Object.freeze({ schemaVersion: M3_R13_REPORT_SCHEMA_VERSION, researchRoundId: M3_R13_RESEARCH_ROUND_ID, executionSourceSha, acceptedSourceSha: M3_R13_ACCEPTED_R11_SOURCE_SHA, selectionGateSha256: R13_SELECTION_GATE_SHA256, experimentPlanSha256: R13_PLAN_SHA256, strategyVersion: "baseline-001", backtestPolicyVersion: M3_R13_POLICY_VERSION, dataClassification: "RESEARCH_AVAILABLE_SEEN_DATA", researchUniverse: M3_R13_RESEARCH_RANGE, researchBoundary: M3_R13_RESEARCH_END_ISO, performanceLock: M3_R13_PERFORMANCE_LOCK, performanceLockTriggered: true, performanceExecutionCount: 1, performanceLifecycle: "PERFORMANCE_LOCKED", datasetFreeze, conformance, observationCounts: { all: observations.length, byHorizon: Object.freeze(Object.fromEntries(R13_HORIZON_HOURS.map((horizon) => [horizon, observations.filter((observation) => observation.labels[horizon].status === "EXECUTED").length])) as Record<R13HorizonHours, number>) }, horizons: Object.freeze(horizonResults), selection, baseline002Status: "NOT_FROZEN", m3JStatus: "BLOCKED", m4Status: "NOT_STARTED", privateBinanceApi: false, automaticTrading: false });
+  return Object.freeze({ schemaVersion: M3_R13_REPORT_SCHEMA_VERSION, researchRoundId: M3_R13_RESEARCH_ROUND_ID, executionSourceSha, acceptedSourceSha: M3_R13_ACCEPTED_R11_SOURCE_SHA, selectionGateSha256: R13_SELECTION_GATE_SHA256, experimentPlanSha256: R13_PLAN_SHA256, strategyVersion: "baseline-001", backtestPolicyVersion: M3_R13_POLICY_VERSION, dataClassification: "RESEARCH_AVAILABLE_SEEN_DATA", researchUniverse: M3_R13_RESEARCH_RANGE, researchBoundary: M3_R13_RESEARCH_END_ISO, performanceLock: M3_R13_PERFORMANCE_LOCK, performanceLockTriggered: true, performanceExecutionCount: 1, performanceLifecycle: "PERFORMANCE_LOCKED", datasetFreeze, conformance, observationCounts: { all: observations.length, byHorizon: Object.freeze(Object.fromEntries(R13_HORIZON_HOURS.map((horizon) => [horizon, observations.filter((observation) => observation.labels[horizon].status === "EXECUTED").length])) as Record<R13HorizonHours, number>), ...diagnostics }, horizons: Object.freeze(horizonResults), selection, baseline002Status: "NOT_FROZEN", m3JStatus: "BLOCKED", m4Status: "NOT_STARTED", privateBinanceApi: false, automaticTrading: false });
 }
 
 function renderResults(report: R13PerformanceReport): string { const lines = [`# M3-R13 Round-013 Forward Edge Discovery`, ``, `- researchRoundId: ${report.researchRoundId}`, `- executionSourceSha: ${report.executionSourceSha}`, `- dataClassification: ${report.dataClassification}`, `- researchBoundary: ${report.researchBoundary}`, `- primary execution delay: 6 minutes`, `- latency stress: 7 minutes`, `- performanceLock: ${report.performanceLock}`, `- performanceExecutionCount: ${report.performanceExecutionCount}`, ``, `| horizon | selected | mean net ATR | PF | max DD ATR | gates |`, `| --- | ---: | ---: | ---: | ---: | --- |`]; for (const result of report.horizons) lines.push(`| H${result.horizonHours} | ${result.metrics.selectedValidationObservations} | ${result.metrics.meanNetForwardAtr ?? "null"} | ${result.metrics.atrProfitFactor ?? "null"} | ${result.metrics.maximumDrawdownAtr} | ${result.gateEvaluation.eligibility} |`); lines.push(``, `- finalDecision: ${report.selection.finalDecision}`, `- selectedDiscoveryHorizon: ${report.selection.selectedDiscoveryHorizon ?? "null"}`, `- baseline002Status: ${report.baseline002Status}`, `- m3JStatus: ${report.m3JStatus}`, `- m4Status: ${report.m4Status}`, `- privateBinanceApi: ${report.privateBinanceApi}`, `- automaticTrading: ${report.automaticTrading}`); return lines.join("\n"); }

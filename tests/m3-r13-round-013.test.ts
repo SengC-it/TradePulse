@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import path from "node:path";
 
 import type { Candle } from "../src/lib/market-data/types.ts";
 import type { HistoricalFundingRecord, IntrabarSettlementCandle } from "../src/lib/historical-data/types.ts";
@@ -11,6 +13,8 @@ import { calculateR13Drawdown } from "../src/lib/research/r13-drawdown.ts";
 import { isR13TrainingObservationPurgeSafe, r13PurgeTrainingObservations, r13SelectTopOne } from "../src/lib/research/m3-r13-round-013-validation.ts";
 import { readR13SpecConformance, R13_SPEC_CONFORMANCE_REPORT } from "../src/lib/research/m3-r13-round-013-conformance.ts";
 import { R13_PLAN, validateR13Plan } from "../src/lib/research/m3-r13-round-013-plan.ts";
+import { R13OneMinuteCachedClient } from "../src/lib/research/m3-r13-round-013-data.ts";
+import { R13OneMinuteIndexedSeries } from "../src/lib/research/m3-r13-round-013-index.ts";
 
 const HOUR = 3_600_000;
 const MINUTE = 60_000;
@@ -61,7 +65,32 @@ describe("Round-013 frozen protocol and conformance", () => {
     expect(R13_PLAN.featureSpec.count).toBe(18);
     expect(R13_HARD_GATE_IDENTITIES).toHaveLength(16);
     expect(R13_SELECTION_GATE_SHA256).toMatch(/^[0-9a-f]{64}$/u);
-    expect(R13_SPEC_CONFORMANCE_REPORT).toMatchObject({ resultAffectingDeviationCount: 0, postLockMarketFetchPossible: false, privateBinanceApi: false, automaticTrading: false });
+    expect(R13_SPEC_CONFORMANCE_REPORT).toMatchObject({
+      resultAffectingDeviationCount: 0,
+      executionAlignmentVerified: true,
+      cacheHitMissSemanticIdentityVerified: true,
+      acquisitionSeparatedFromPerformance: true,
+      performanceNetworkDisabled: true,
+      featureFormulasVerified: true,
+      featureUniquenessVerified: true,
+      forwardLabelsVerified: true,
+      boundedLabelLookupVerified: true,
+      noFullSeriesSortPerLabel: true,
+      noSilentObservationDropVerified: true,
+      fundingIntervalVerified: true,
+      MfeMaeMirroringVerified: true,
+      purgeEmbargoVerified: true,
+      noFeatureLeakage: true,
+      researchOnlyStandardizationVerified: true,
+      modelTrainingIsolationVerified: true,
+      crossSectionalRankingVerified: true,
+      fullValidationDecileCalibrationVerified: true,
+      crossSectionalSelectionVerified: true,
+      productionSeenDataExcluded: true,
+      postLockMarketFetchPossible: false,
+      privateBinanceApi: false,
+      automaticTrading: false,
+    });
   });
 
   it("keeps the fixed feature vector independent of symbol identity and baseline score", () => {
@@ -69,6 +98,44 @@ describe("Round-013 frozen protocol and conformance", () => {
     expect(R13_FEATURE_NAMES.join(" ")).not.toMatch(/score|grade|symbolId/iu);
     const features = buildR13FeatureVector(featureInput());
     expect(Object.keys(features)).toEqual([...R13_FEATURE_NAMES]);
+  });
+});
+
+describe("Round-013 acquisition/cache/index boundaries", () => {
+  it("returns parsed semantic data on both network miss and cache hit", async () => {
+    const cacheDirectory = mkdtempSync(path.join(process.cwd(), ".r13-cache-test-"));
+    let fetchCount = 0;
+    const raw = [[0, "100", "101", "99", "100", "10", 59_999, "1000", 10, "5", "500", "0"]];
+    try {
+      const client = new R13OneMinuteCachedClient({ cacheDirectory, clientOptions: { fetchImpl: async () => { fetchCount += 1; return new Response(JSON.stringify(raw), { status: 200, headers: { "content-type": "application/json" } }); } } });
+      const first = await client.getOneMinuteKlinesRange("BTCUSDT", 0, 59_999, 1);
+      const second = await client.getOneMinuteKlinesRange("BTCUSDT", 0, 59_999, 1);
+      expect(fetchCount).toBe(1);
+      expect(first.data).toEqual(second.data);
+      expect((first.data as readonly { openTime: number }[])[0]!.openTime).toBe(0);
+    } finally {
+      rmSync(cacheDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not invoke a fetch in performance/offline mode when a page is absent", async () => {
+    const cacheDirectory = mkdtempSync(path.join(process.cwd(), ".r13-cache-test-"));
+    let fetchCount = 0;
+    try {
+      const client = new R13OneMinuteCachedClient({ cacheDirectory, allowNetworkAcquisition: false, clientOptions: { fetchImpl: async () => { fetchCount += 1; return new Response("[]", { status: 200 }); } } });
+      await expect(client.getOneMinuteKlinesRange("BTCUSDT", 0, 59_999, 1)).rejects.toThrow(/missing a cached 1m page/u);
+      expect(fetchCount).toBe(0);
+    } finally {
+      rmSync(cacheDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("uses one immutable timestamp index with bounded range lookups", () => {
+    const candles = Object.freeze(Array.from({ length: 5 }, (_, index) => minuteCandle(index * MINUTE, 100 + index)));
+    const series = new R13OneMinuteIndexedSeries(candles);
+    expect(series.getExact(2 * MINUTE)?.open).toBe(102);
+    expect(series.openAtOrAfter(2 * MINUTE + 1)?.open).toBe(103);
+    expect(series.getRange(MINUTE, 3 * MINUTE)).toHaveLength(3);
   });
 });
 
@@ -154,7 +221,7 @@ describe("Round-013 F01-F18 formula implementation", () => {
     expect(features.F01_directionAdjustedClose4hMinusEma200Atr).toBe(0);
     expect(features.F02_directionAdjustedEma50MinusEma200Atr).toBe(0);
     expect(features.F03_directionAdjustedEma200FiveBarSlopeAtr).toBe(0);
-    expect(features.F04_directionAdjustedReturn12hAtrPriceScale).toBe(0);
+    expect(features.F04_directionAdjustedReturn1hAtrPriceScale).toBe(0);
     expect(features.F05_directionAdjustedEma20MinusEma50Atr).toBe(0);
     expect(features.F06_directionAdjustedEma20ThreeBarSlopeAtr).toBe(0);
     expect(features.F07_directionAdjustedReturn4hAtrPriceScale).toBe(0);
@@ -188,6 +255,7 @@ describe("Round-013 F01-F18 formula implementation", () => {
     const ema50_4h = localEma(candles4h, index4h, 50);
     const ema200_4h = localEma(candles4h, index4h, 200);
     const normalizedAtrPrice = atr1h / close1h;
+    const symbolReturn1h = localReturn(candles1h, index1h, 1);
     const symbolReturn12h = localReturn(candles1h, index1h, 12);
     const symbolReturn24h = localReturn(candles1h, index1h, 24);
     const btcCandles = allSymbolCandles1h.BTCUSDT!;
@@ -212,7 +280,7 @@ describe("Round-013 F01-F18 formula implementation", () => {
       direction * (close4h - ema200_4h) / atr4h,
       direction * (ema50_4h - ema200_4h) / atr4h,
       direction * (ema200_4h - localEma(candles4h, index4h - 5, 200)) / atr4h,
-      direction * symbolReturn12h / normalizedAtrPrice,
+      direction * symbolReturn1h / normalizedAtrPrice,
       direction * (ema20_1h - ema50_1h) / atr1h,
       direction * (ema20_1h - localEma(candles1h, index1h - 3, 20)) / atr1h,
       direction * localReturn(candles1h, index1h, 4) / normalizedAtrPrice,

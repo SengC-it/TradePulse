@@ -82,6 +82,7 @@ export type Round006CacheConfig = Readonly<{
 export type Round006DataAcquisitionOptions = Readonly<{
   cacheDirectory?: string;
   clientOptions?: BinancePublicClientOptions;
+  allowNetworkAcquisition?: boolean;
 }>;
 
 export type Round006PreflightReport = Readonly<{
@@ -343,6 +344,7 @@ function isFundingCacheIdentity(value: unknown, symbol: ResearchSymbol): value i
 
 export class Round006CachedBinanceClient extends BinancePublicClient {
   readonly cacheDirectory: string;
+  readonly allowNetworkAcquisition: boolean;
   private activeRequests = 0;
   private readonly waitingRequests: Array<() => void> = [];
   private readonly inFlight = new Map<string, Promise<BinanceResponse<unknown>>>();
@@ -356,6 +358,7 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
     this.cacheDirectory = path.resolve(
       options.cacheDirectory ?? path.join(process.cwd(), ".cache", "tradepulse", "round-006"),
     );
+    this.allowNetworkAcquisition = options.allowNetworkAcquisition ?? true;
   }
 
   get cacheConfig(): Round006CacheConfig {
@@ -524,6 +527,12 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
     const request = (async () => {
       const afterWait = this.readCache(identity, validateCachedPage);
       if (afterWait) return afterWait;
+      if (!this.allowNetworkAcquisition) {
+        throw new Round006CacheIntegrityError(
+          "Round-006 offline mode cannot fetch a missing page.",
+          cachePath,
+        );
+      }
       const response = await this.withNetworkPermit(fetchPage);
       validate(response.data, identity);
       if (isCacheablePage(response.data, identity)) this.writeCache(identity, response.data);

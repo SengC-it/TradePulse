@@ -10,7 +10,7 @@
       "F01_directionAdjustedClose4hMinusEma200Atr",
       "F02_directionAdjustedEma50MinusEma200Atr",
       "F03_directionAdjustedEma200FiveBarSlopeAtr",
-      "F04_directionAdjustedReturn12hAtrPriceScale",
+      "F04_directionAdjustedReturn1hAtrPriceScale",
       "F05_directionAdjustedEma20MinusEma50Atr",
       "F06_directionAdjustedEma20ThreeBarSlopeAtr",
       "F07_directionAdjustedReturn4hAtrPriceScale",
@@ -35,7 +35,7 @@
     "noOptimizer": true,
     "noSweep": true,
     "noSymbolIdentity": true,
-    "sha256": "8fda6262de7bac06e2525ccb1e94b9e573eb2e5ccd36446887f504c1605647ad"
+    "sha256": "7a9b6beec8e10e2ac2ed6dc8e1bbcaea8497f4b5273f8e2ab11eedb7cf0ab9d7"
   },
-  "sha256": "8fda6262de7bac06e2525ccb1e94b9e573eb2e5ccd36446887f504c1605647ad"
+  "sha256": "7a9b6beec8e10e2ac2ed6dc8e1bbcaea8497f4b5273f8e2ab11eedb7cf0ab9d7"
 }

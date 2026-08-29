@@ -2,6 +2,7 @@ import type { ResearchSymbol } from "../config/constants.ts";
 import type { HistoricalFundingRecord, IntrabarSettlementCandle } from "../historical-data/types.ts";
 import { BACKTEST_POLICY } from "../backtest/constants.ts";
 import type { R13Direction, R13HorizonHours } from "./m3-r13-round-013-protocol.ts";
+import { R13OneMinuteIndexedSeries, type R13OneMinuteLookup } from "./m3-r13-round-013-index.ts";
 import { requireSafeTimestamp } from "./utils.ts";
 
 export const R13_ONE_MINUTE_MS = 60_000;
@@ -51,7 +52,7 @@ export type R13LabelInput = Readonly<{
   signalTime: number;
   horizonHours: R13HorizonHours;
   atr14_1h: number;
-  candles1m: readonly IntrabarSettlementCandle[];
+  candles1m: R13OneMinuteLookup | readonly IntrabarSettlementCandle[];
   funding: readonly HistoricalFundingRecord[];
   delayMs?: number;
   researchEndTime?: number;
@@ -98,34 +99,12 @@ function emptyLabel(input: R13LabelInput, actionableAt: number, status: Exclude<
   });
 }
 
-function completeMinuteCandle(candle: IntrabarSettlementCandle): boolean {
-  return Number.isSafeInteger(candle.openTime)
-    && candle.openTime % R13_ONE_MINUTE_MS === 0
-    && candle.closeTime === candle.openTime + R13_ONE_MINUTE_MS - 1
-    && Number.isFinite(candle.open)
-    && Number.isFinite(candle.high)
-    && Number.isFinite(candle.low)
-    && Number.isFinite(candle.close)
-    && candle.open > 0
-    && candle.high >= candle.low;
-}
-
-function orderedMinuteCandles(candles: readonly IntrabarSettlementCandle[]): readonly IntrabarSettlementCandle[] {
-  const ordered = [...candles].sort((left, right) => left.openTime - right.openTime);
-  for (let index = 0; index < ordered.length; index += 1) {
-    const candle = ordered[index]!;
-    if (!completeMinuteCandle(candle)) throw new Error("R13 1m label data contains a malformed candle.");
-    if (index > 0 && candle.openTime !== ordered[index - 1]!.openTime + R13_ONE_MINUTE_MS) throw new Error("R13 1m label data contains a gap or duplicate.");
-  }
-  return ordered;
+function indexedMinuteSeries(candles: R13LabelInput["candles1m"]): R13OneMinuteLookup {
+  return candles instanceof R13OneMinuteIndexedSeries ? candles : new R13OneMinuteIndexedSeries(candles as readonly IntrabarSettlementCandle[]);
 }
 
 function canonicalMinuteTimestamp(timestamp: number): number {
   return Math.ceil(timestamp / R13_ONE_MINUTE_MS) * R13_ONE_MINUTE_MS;
-}
-
-function firstAtOrAfter(candles: readonly IntrabarSettlementCandle[], timestamp: number): IntrabarSettlementCandle | undefined {
-  return candles.find((candle) => candle.openTime >= timestamp && candle.closeTime >= candle.openTime);
 }
 
 function fundingBetween(input: R13LabelInput, entryTime: number, exitTime: number, entryPrice: number): Readonly<{ pnl: number; bps: number; count: number }> {
@@ -170,12 +149,12 @@ export function computeR13ForwardLabel(input: R13LabelInput): R13ForwardLabel {
   if (!Number.isSafeInteger(delayMs) || delayMs < 0) throw new Error("R13 label delay must be a non-negative safe integer.");
   const actionableAt = r13ActionableAt(input.signalTime, delayMs);
   const validUntil = input.signalTime + R13_SIGNAL_VALIDITY_MS;
-  const ordered = orderedMinuteCandles(input.candles1m);
-  const entry = firstAtOrAfter(ordered, actionableAt);
+  const minuteSeries = indexedMinuteSeries(input.candles1m);
+  const entry = minuteSeries.openAtOrAfter(actionableAt);
   if (!entry || entry.openTime > validUntil) return emptyLabel({ ...input, delayMs }, actionableAt, "NO_ENTRY", "No complete 1m open exists inside the advisory validity window.");
   const exitTargetTime = entry.openTime + (input.horizonHours * R13_HOUR_MS);
   if (input.researchEndTime !== undefined && exitTargetTime > input.researchEndTime) return Object.freeze({ ...emptyLabel({ ...input, delayMs }, actionableAt, "PERIOD_END_CENSORED", "Forward horizon crosses the frozen research boundary."), exitTargetTime });
-  const exit = firstAtOrAfter(ordered, exitTargetTime);
+  const exit = minuteSeries.getExact(exitTargetTime);
   if (!exit) return Object.freeze({ ...emptyLabel({ ...input, delayMs }, actionableAt, "DATA_INCOMPLETE", "The exact forward exit candle is unavailable."), exitTargetTime });
   const sign = directionSign(input.direction);
   const feeRate = input.feeRate ?? BACKTEST_POLICY.feeRate;
@@ -194,7 +173,7 @@ export function computeR13ForwardLabel(input: R13LabelInput): R13ForwardLabel {
   const feesBps = (feeCost / entryPrice) * 10_000;
   const slippageBps = (slippageCost / entryPrice) * 10_000;
   const netBps = (netPnl / entryPrice) * 10_000;
-  const extremes = extrema(input, ordered.filter((candle) => candle.openTime >= entry.openTime && candle.openTime <= exit.openTime), entryPrice);
+  const extremes = extrema(input, minuteSeries.getRange(entry.openTime, exit.openTime), entryPrice);
   const stressNetPnl = grossPnl - (slippageCost + feeCost) * 1.5 + funding.pnl;
   return Object.freeze({
     symbol: input.symbol,

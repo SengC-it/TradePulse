@@ -178,6 +178,7 @@ export function buildR13FeatureVector(input: R13FeatureInput): R13FeatureVector 
   const btcCandles = closedCandles(input.allSymbolCandles1h.BTCUSDT ?? [], input.signalTime);
   const btcIndex = latestIndex(btcCandles, input.signalTime, true);
   const symbolReturn12h = returnOver(candles1h, index1h, 12);
+  const symbolReturn1h = returnOver(candles1h, index1h, 1);
   const symbolReturn24h = returnOver(candles1h, index1h, 24);
   const btcReturn12h = returnOver(btcCandles, btcIndex, 12);
   const btcReturn24h = returnOver(btcCandles, btcIndex, 24);
@@ -189,7 +190,7 @@ export function buildR13FeatureVector(input: R13FeatureInput): R13FeatureVector 
     direction * ratio(close4h - ema200_4h, atr4h, "F01"),
     direction * ratio(ema50_4h - ema200_4h, atr4h, "F02"),
     direction * ratio(ema200_4h - ema200_4h_5, atr4h, "F03"),
-    direction * ratio(symbolReturn12h, normalizedAtrPrice, "F04"),
+    direction * ratio(symbolReturn1h, normalizedAtrPrice, "F04"),
     direction * ratio(ema20_1h - ema50_1h, atr1h, "F05"),
     direction * ratio(ema20_1h - ema20_1h_3, atr1h, "F06"),
     direction * ratio(returnOver(candles1h, index1h, 4), normalizedAtrPrice, "F07"),

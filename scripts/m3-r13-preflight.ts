@@ -1,11 +1,12 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { readR13SpecConformance } from "../src/lib/research/m3-r13-round-013-conformance.ts";
 import { validateR13Plan } from "../src/lib/research/m3-r13-round-013-plan.ts";
-import { existingR13OutputArtifacts } from "../src/lib/research/m3-r13-round-013-performance.ts";
+import { buildR13ObservationUniverseWithDiagnostics, existingR13OutputArtifacts } from "../src/lib/research/m3-r13-round-013-performance.ts";
 import { locateAcceptedRound006Cache, prepareR13Dataset, R13_DEFAULT_CACHE_DIRECTORY } from "../src/lib/research/m3-r13-round-013-data.ts";
+import { stableStringify } from "../src/lib/research/utils.ts";
 
 function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -34,7 +35,16 @@ if (!existsSync(cacheDirectory)) abort("dataset-acquisition", `complete R13 1m c
 
 try {
   const prepared = await prepareR13Dataset({ cacheDirectory, acceptedCoarseCacheDirectory: coarseCacheDirectory, fetchMissingOneMinute: false });
-  console.log(JSON.stringify({ status: "PASS", stage: "pre-performance-dataset-validation", datasetFreeze: prepared.datasetFreeze, cacheDirectory, coarseCacheDirectory, performanceLockTriggered: false, network: false }, null, 2));
+  const universe = buildR13ObservationUniverseWithDiagnostics({ data: prepared.coarseData, oneMinute: prepared.oneMinuteIndexed });
+  if (universe.integrityExcludedObservations !== 0) throw new Error("R13 preflight found integrity-excluded observations.");
+  const freezePath = path.join(process.cwd(), "docs", "research", "round-013-dataset-freeze.json");
+  if (existsSync(freezePath)) {
+    const existingFreeze = JSON.parse(readFileSync(freezePath, "utf8")) as Readonly<Record<string, unknown>>;
+    if (stableStringify(existingFreeze) !== stableStringify(prepared.datasetFreeze)) throw new Error("Existing R13 dataset freeze does not match the validated offline dataset.");
+  } else {
+    writeFileSync(freezePath, stableStringify(prepared.datasetFreeze), "utf8");
+  }
+  console.log(JSON.stringify({ status: "PASS", stage: "pre-performance-dataset-validation", datasetFreeze: prepared.datasetFreeze, cacheDirectory, coarseCacheDirectory, observationCounts: universe, performanceLockTriggered: false, performanceExecutionCount: 0, network: false }, null, 2));
 } catch (error) {
   abort("dataset-acquisition", error);
 }

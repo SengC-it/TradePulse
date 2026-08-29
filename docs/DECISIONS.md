@@ -728,11 +728,30 @@ open for M2-A.
   Seven minutes is a diagnostic stress profile only; it cannot alter training
   or choose the selected horizon. Every horizon exits at the first complete
   1m open at `entryTime + H`.
+- **Execution and integrity hardening:** The canonical execution reference is
+  `ACTIONABLE_MARKET_REFERENCE` with a primary entry and a diagnostic stress
+  entry; Production has no entry side effect. One-minute pages are parsed into
+  an immutable, contiguous UTC index once. Labels use exact or bounded indexed
+  lookups and never sort the full one-minute series per label. Cache hits and
+  network misses expose the same parsed candle data and diagnostics. After the
+  initial warm-up interval, any missing, malformed, duplicate, or non-contiguous
+  observation fails closed as incomplete evidence rather than being silently
+  dropped.
 - **Model and gates:** The fixed F01–F18 feature vector, research-only
   standardization, pooled deterministic ridge model (`lambda = 10`), 4/8/12/24h
   labels, 24h purge/embargo, and conjunctive A–P discovery gates are frozen in
   the Round-013 machine records. Production observations after the boundary
   are hypothesis-only and excluded from the model, Gate, and selection.
+- **Feature and ranking distinction:** F04 is the direction-adjusted 1h symbol
+  return divided by the ATR14/close price scale; F08 remains the distinct 12h
+  return feature. Cross-sectional diagnostics rank all complete opportunities
+  at each decision timestamp, while validation deciles are calibrated from the
+  full validation opportunity set; TOP1 is a separate selection view.
+- **Acquisition boundary:** Network access is confined to the explicit
+  `research:round013:acquire` acquisition command. Preflight, dataset freeze,
+  and performance consume the validated local cache only; performance cannot
+  fetch after its lock. The freeze records the dataset, feature/model/Plan/Gate,
+  and conformance identities before the one authorized performance execution.
 - **Boundary:** Round-013 cannot freeze baseline-002. A discovered horizon is
   only a `ROUND-014_DESIGN_INPUT`. No private Binance API, automatic trading,
   Production deployment, optimizer, sweep, or post-lock market fetch is
