@@ -555,6 +555,23 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED`.
 
+## ADR-042 — Separate Round-013 acquisition sources from the accepted cache
+
+- **Decision:** Keep the accepted Round-006/R11 coarse and funding cache
+  read-only. Round-013 one-minute gaps are acquired first from verified
+  official Binance Vision monthly/daily archives, with public REST restricted
+  to genuinely unresolved ranges before the performance lock.
+- **Integrity:** Every Vision archive is paired with and validated against its
+  `.CHECKSUM`; archive bytes, normalized canonical records, source URLs, and
+  provenance are stored in the R13 resumable cache. Kline and funding archive
+  rows use the same canonical types as REST/cache rows, with exact UTC
+  chronology and no fabricated gaps.
+- **Boundary:** Coarse loading is explicitly `READ_ONLY_OFFLINE`; archive and
+  bounded REST acquisition are pre-lock only; preflight and performance have
+  all network acquisition disabled. Accepted-cache tree identity is checked
+  before and after acquisition. This changes acquisition plumbing only and
+  does not change F01–F18, horizons, folds, gates, selection, or economics.
+
 ## ADR-040 — Freeze the Round-011 event-predicate conformance replay
 
 - **Decision:** Authorize one bounded `baseline-002-research-round-011` replay

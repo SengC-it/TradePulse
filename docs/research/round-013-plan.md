@@ -38,3 +38,24 @@ timestamp, and deterministic deciles are formed from all usable validation
 opportunities within each fold. Performance is `NOT_AUTHORIZED` / `NOT_GENERATED` until the authorized runtime
 supplies a clean post-freeze execution SHA. Baseline-002 remains
 `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains `NOT_STARTED`.
+
+## Acquisition source and cache boundary
+
+Round-013 acquisition uses the fixed source priority
+`ACCEPTED_EXISTING_CACHE` → `BINANCE_VISION_ARCHIVE` →
+`BINANCE_PUBLIC_REST_FALLBACK`. The accepted Round-006/R11 cache is opened
+read-only and its tree identity is checked before and after acquisition.
+Missing one-minute history is recovered from the official Binance Vision
+USD-M monthly archives for 2023-01 through 2026-07 and daily archives for
+2026-08-01 through 2026-08-15. Each archive is accepted only after its
+`.CHECKSUM` digest is verified; verified archives and their provenance are
+stored under the R13 cache with resumable atomic publication.
+
+Funding first reuses the accepted cache, then uses the same official Vision
+funding archive representation, and calls public REST only for a genuinely
+unresolved range after a public server-time check. Vision CSV and REST/cache
+records are normalized into the same canonical historical types. Explicit
+`coarseNetworkMode`, `oneMinuteNetworkMode`, and `fundingNetworkMode` keep
+coarse accepted data offline, permit archive acquisition only before the
+performance lock, and disable every network path during preflight and
+performance.

@@ -579,6 +579,8 @@ export class BinanceHistoricalDataLoader {
     fundingRange: HistoricalRange;
     markPriceRange?: HistoricalRange;
     policy?: BacktestPolicyVersion;
+    /** Allows an already-frozen offline study to reuse its captured validation time. */
+    serverTime?: number;
     settlementTail?: Readonly<{
       candleRange: HistoricalRange;
       fundingRange: HistoricalRange;
@@ -593,7 +595,7 @@ export class BinanceHistoricalDataLoader {
       });
     }
     const firstSymbol = RESEARCH_SYMBOLS[0] ?? "BTCUSDT";
-    const serverTime = await this.getAuthoritativeServerTime(firstSymbol);
+    const serverTime = input.serverTime ?? (await this.getAuthoritativeServerTime(firstSymbol));
     const datasets = {} as Record<ResearchSymbol, HistoricalSymbolDataset>;
     const funding = {} as Record<ResearchSymbol, HistoricalFundingDataset>;
     const markPrice = {} as Record<ResearchSymbol, HistoricalMarkPriceDataset | undefined>;

@@ -423,12 +423,11 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
   ): BinanceResponse<unknown> | undefined {
     if (!existsSync(this.cacheDirectory)) return undefined;
 
-    const candidates: Array<Readonly<{
+    const recordsByFundingTime = new Map<number, Readonly<{
       cachePath: string;
-      identity: Round006PageCacheIdentity;
-      payload: readonly unknown[];
-      records: readonly HistoricalFundingRecord[];
-    }>> = [];
+      payload: unknown;
+      record: HistoricalFundingRecord;
+    }>>();
     for (const entry of readdirSync(this.cacheDirectory).filter((name) => name.endsWith(".json")).sort()) {
       const cachePath = path.join(this.cacheDirectory, entry);
       let envelope: unknown;
@@ -439,9 +438,7 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
       }
       if (!isRecord(envelope) || !isFundingCacheIdentity(envelope.identity, identity.symbol)) continue;
       const candidateIdentity = envelope.identity;
-      if (candidateIdentity.limit < identity.limit
-        || candidateIdentity.startTime > identity.endTime
-        || candidateIdentity.endTime < identity.startTime) continue;
+      if (candidateIdentity.startTime > identity.endTime || candidateIdentity.endTime < identity.startTime) continue;
       if (typeof envelope.payloadSha256 !== "string" || envelope.payloadSha256 !== sha256(envelope.payload)) {
         throw new Round006CacheIntegrityError("Round-006 funding cache identity or checksum mismatch.", cachePath);
       }
@@ -456,26 +453,22 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
       }
       const payload = envelope.payload as readonly unknown[];
       const records = parseBinanceFundingRateHistory(payload, identity.symbol);
-      const pageIsCompleteThroughRequest = candidateIdentity.endTime >= identity.endTime
-        || payload.length < candidateIdentity.limit;
-      if (!pageIsCompleteThroughRequest || candidateIdentity.startTime > identity.startTime) continue;
-      candidates.push(Object.freeze({ cachePath, identity: candidateIdentity, payload, records }));
+      records.forEach((record, index) => {
+        if (record.fundingTime < identity.startTime || record.fundingTime > identity.endTime) return;
+        const raw = payload[index];
+        if (raw === undefined) return;
+        const previous = recordsByFundingTime.get(record.fundingTime);
+        if (!previous || cachePath.localeCompare(previous.cachePath) < 0) {
+          recordsByFundingTime.set(record.fundingTime, Object.freeze({ cachePath, payload: raw, record }));
+        }
+      });
     }
 
-    const candidate = candidates
-      .sort((left, right) => right.identity.endTime - left.identity.endTime
-        || right.identity.startTime - left.identity.startTime
-        || left.cachePath.localeCompare(right.cachePath))[0];
-    if (!candidate) return undefined;
-
-    const selectedPayload: unknown[] = [];
-    const selectedRecords: HistoricalFundingRecord[] = [];
-    candidate.records.forEach((record, index) => {
-      if (record.fundingTime < identity.startTime || record.fundingTime > identity.endTime) return;
-      selectedRecords.push(record);
-      selectedPayload.push(candidate.payload[index]);
-    });
-    if (selectedRecords.length === 0) return undefined;
+    const selected = [...recordsByFundingTime.values()]
+      .sort((left, right) => left.record.fundingTime - right.record.fundingTime)
+      .slice(0, identity.limit);
+    if (selected.length === 0) return undefined;
+    const selectedRecords = selected.map((entry) => entry.record);
     try {
       validateFundingRecords(selectedRecords, {
         symbol: identity.symbol,
@@ -486,11 +479,11 @@ export class Round006CachedBinanceClient extends BinancePublicClient {
     } catch (error) {
       throw new Round006CacheIntegrityError(
         `Round-006 funding cache range failed semantic validation: ${error instanceof Error ? error.message : "invalid page"}`,
-        candidate.cachePath,
+        selected[0]?.cachePath ?? round006PageCachePath(this.cacheDirectory, identity),
       );
     }
     return Object.freeze({
-      data: Object.freeze(selectedPayload),
+      data: Object.freeze(selected.map((entry) => entry.payload)),
       diagnostics: cachedDiagnostics(identity.endpoint),
     });
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Candle } from "../src/lib/market-data/types.ts";
@@ -13,7 +14,10 @@ import { calculateR13Drawdown } from "../src/lib/research/r13-drawdown.ts";
 import { isR13TrainingObservationPurgeSafe, r13PurgeTrainingObservations, r13SelectTopOne } from "../src/lib/research/m3-r13-round-013-validation.ts";
 import { readR13SpecConformance, R13_SPEC_CONFORMANCE_REPORT } from "../src/lib/research/m3-r13-round-013-conformance.ts";
 import { R13_PLAN, validateR13Plan } from "../src/lib/research/m3-r13-round-013-plan.ts";
-import { R13OneMinuteCachedClient } from "../src/lib/research/m3-r13-round-013-data.ts";
+import { buildR13VisionFundingArchiveRequests, buildR13VisionKlineArchiveRequests, R13OneMinuteCachedClient, r13CacheTreeIdentity } from "../src/lib/research/m3-r13-round-013-data.ts";
+import { isR13VisionArchiveUnavailable, normalizeVisionFundingCsv, normalizeVisionKlineCsv, r13ArchiveChecksumMatches, r13VisionArchiveChecksumUrl, r13VisionArchiveUrl, R13VisionArchiveError } from "../src/lib/research/m3-r13-round-013-archives.ts";
+import { parseBinanceFundingRateHistory } from "../src/lib/historical-data/binance/parser.ts";
+import { parseBinanceIntrabarKlines } from "../src/lib/historical-data/binance/intrabar.ts";
 import { R13OneMinuteIndexedSeries } from "../src/lib/research/m3-r13-round-013-index.ts";
 
 const HOUR = 3_600_000;
@@ -136,6 +140,73 @@ describe("Round-013 acquisition/cache/index boundaries", () => {
     expect(series.getExact(2 * MINUTE)?.open).toBe(102);
     expect(series.openAtOrAfter(2 * MINUTE + 1)?.open).toBe(103);
     expect(series.getRange(MINUTE, 3 * MINUTE)).toHaveLength(3);
+  });
+
+  it("normalizes Vision Kline and funding CSV into the same canonical records as REST", () => {
+    const restKline = parseBinanceIntrabarKlines([
+      [1_699_999_980_000, "100", "101", "99", "100.5", "10", 1_700_000_039_999, "1000", 10, "5", "500", "0"],
+    ], "BTCUSDT");
+    const visionKline = normalizeVisionKlineCsv([
+      "open_time,open,high,low,close,volume,close_time,quote_asset_volume,number_of_trades,taker_buy_base_asset_volume,taker_buy_quote_asset_volume,ignore",
+      "1699999980000,100,101,99,100.5,10,1700000039999,1000,10,5,500,0",
+    ].join("\n"), "BTCUSDT");
+    expect(visionKline).toEqual(restKline);
+
+    const restFunding = parseBinanceFundingRateHistory([
+      { symbol: "BTCUSDT", fundingTime: 1_699_999_980_000, fundingRate: "0.0001", markPrice: "100" },
+    ], "BTCUSDT");
+    const visionFunding = normalizeVisionFundingCsv([
+      "calc_time,mark_price,funding_interval_hours,last_funding_rate",
+      "1699999980000,100,8,0.0001",
+    ].join("\n"), "BTCUSDT");
+    expect(visionFunding).toEqual(restFunding);
+  });
+
+  it("keeps Vision archive source planning and checksum verification deterministic", () => {
+    const klineRequests = buildR13VisionKlineArchiveRequests("BTCUSDT");
+    expect(klineRequests).toHaveLength(58);
+    expect(r13VisionArchiveUrl(klineRequests[0]!)).toContain("/monthly/klines/BTCUSDT/1m/BTCUSDT-1m-2023-01.zip");
+    expect(r13VisionArchiveUrl(klineRequests.at(-1)!)).toContain("/daily/klines/BTCUSDT/1m/BTCUSDT-1m-2026-08-15.zip");
+    expect(r13VisionArchiveChecksumUrl(klineRequests[0]!)).toMatch(/\.zip\.CHECKSUM$/u);
+    const fundingRequests = buildR13VisionFundingArchiveRequests(
+      "BTCUSDT",
+      Date.parse("2023-01-01T00:00:00.000Z"),
+      Date.parse("2023-02-01T00:00:00.000Z"),
+    );
+    expect(fundingRequests.map((request) => request.period)).toEqual(["2023-01", "2023-02"]);
+    const bytes = new TextEncoder().encode("r13-checksum-test");
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    expect(r13ArchiveChecksumMatches(bytes, `${digest}  fixture.zip`)).toBe(true);
+    expect(r13ArchiveChecksumMatches(bytes, `${"0".repeat(64)}  fixture.zip`)).toBe(false);
+  });
+
+  it("fails closed for archive validation errors while allowing only unavailable sources to fall back", () => {
+    expect(isR13VisionArchiveUnavailable(new R13VisionArchiveError("missing", "https://data.binance.vision/missing", 404, "HTTP"))).toBe(true);
+    expect(isR13VisionArchiveUnavailable(new R13VisionArchiveError("timeout", "https://data.binance.vision/timeout", null, "NETWORK"))).toBe(true);
+    expect(isR13VisionArchiveUnavailable(new R13VisionArchiveError("checksum mismatch", "https://data.binance.vision/bad", null, "VALIDATION"))).toBe(false);
+  });
+
+  it("writes new R13 pages without changing the accepted cache tree", async () => {
+    const acceptedDirectory = mkdtempSync(path.join(process.cwd(), ".r13-accepted-cache-test-"));
+    const r13Directory = mkdtempSync(path.join(process.cwd(), ".r13-cache-test-"));
+    const acceptedMarker = path.join(acceptedDirectory, "accepted.json");
+    writeFileSync(acceptedMarker, "accepted-cache", "utf8");
+    const raw = [[0, "100", "101", "99", "100", "10", 59_999, "1000", 10, "5", "500", "0"]];
+    try {
+      const before = r13CacheTreeIdentity(acceptedDirectory);
+      const client = new R13OneMinuteCachedClient({
+        cacheDirectory: r13Directory,
+        clientOptions: {
+          fetchImpl: async () => new Response(JSON.stringify(raw), { status: 200 }),
+        },
+      });
+      await client.getOneMinuteKlinesRange("BTCUSDT", 0, 59_999, 1);
+      expect(r13CacheTreeIdentity(acceptedDirectory)).toBe(before);
+      expect(readFileSync(acceptedMarker, "utf8")).toBe("accepted-cache");
+    } finally {
+      rmSync(acceptedDirectory, { recursive: true, force: true });
+      rmSync(r13Directory, { recursive: true, force: true });
+    }
   });
 });
 

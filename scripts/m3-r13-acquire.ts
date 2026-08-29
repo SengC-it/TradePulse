@@ -22,7 +22,7 @@ try {
   const expectedLastOpenTime = Math.floor(R13_ONE_MINUTE_END_TIME / 60_000) * 60_000;
   const manifests = R13_SYMBOLS.map((symbol) => prepared.manifests.find((manifest) => manifest.symbol === symbol));
   if (manifests.some((manifest) => !manifest || manifest.firstOpenTime !== R13_ONE_MINUTE_START_TIME || manifest.lastOpenTime !== expectedLastOpenTime || manifest.rowCount <= 0 || manifest.pageCount <= 0)) throw new Error("R13 acquisition produced incomplete or mismatched 1m manifest coverage.");
-  console.log(JSON.stringify({ status: "PASS", stage: "dataset-acquisition", researchRoundId: M3_R13_RESEARCH_ROUND_ID, cacheDirectory, coarseCacheDirectory, symbols: R13_SYMBOLS, manifests: prepared.manifests, datasetFreeze: prepared.datasetFreeze, performanceLockTriggered: false, performanceExecutionCount: 0, network: true }, null, 2));
+  console.log(JSON.stringify({ status: "PASS", stage: "dataset-acquisition", researchRoundId: M3_R13_RESEARCH_ROUND_ID, cacheDirectory, coarseCacheDirectory, symbols: R13_SYMBOLS, manifests: prepared.manifests, acquisition: prepared.acquisition, datasetFreeze: prepared.datasetFreeze, performanceLockTriggered: false, performanceExecutionCount: 0, network: true }, null, 2));
 } catch (error) {
   abort(error);
 }

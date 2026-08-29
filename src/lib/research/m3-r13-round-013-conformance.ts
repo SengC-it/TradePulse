@@ -3,12 +3,21 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { HistoricalFundingRecord, IntrabarSettlementCandle } from "../historical-data/types.ts";
+import { parseBinanceFundingRateHistory } from "../historical-data/binance/parser.ts";
+import { parseBinanceIntrabarKlines } from "../historical-data/binance/intrabar.ts";
 import { featureVectorFromOrderedValues } from "./m3-r13-round-013-features.ts";
 import { computeR13ForwardLabel, computeR13PrimaryAndLatencyStress, R13_HOUR_MS, R13_PRIMARY_DELAY_MS, R13_STRESS_DELAY_MS, r13ActionableAt, r13SignalValidUntil } from "./m3-r13-round-013-labels.ts";
 import { R13OneMinuteIndexedSeries, r13IndexedSeriesLookupBounded } from "./m3-r13-round-013-index.ts";
 import { isR13TrainingObservationPurgeSafe } from "./m3-r13-round-013-validation.ts";
 import { R13_FEATURE_NAMES, R13_FEATURE_DEFINITIONS, R13_GOVERNANCE, M3_R13_RESEARCH_END_ISO, M3_R13_RESEARCH_ROUND_ID, R13_DATA_CONTRACT, R13_EXECUTION_ALIGNMENT, R13_LABEL_CONTRACT, R13_MODEL_CONTRACT } from "./m3-r13-round-013-protocol.ts";
 import { R13_SELECTION_GATE_SHA256 } from "./selection-gates-round-013.ts";
+import {
+  chooseR13AcquisitionSource,
+  normalizeVisionFundingCsv,
+  normalizeVisionKlineCsv,
+  orderR13AcquisitionSources,
+  r13ArchiveChecksumMatches,
+} from "./m3-r13-round-013-archives.ts";
 import { stableStringify } from "./utils.ts";
 
 export const M3_R13_CONFORMANCE_SCHEMA_VERSION = "m3-r13-round-013-spec-conformance-001" as const;
@@ -21,6 +30,13 @@ export type R13SpecConformanceReport = Readonly<{
   executionAlignmentVerified: boolean;
   cacheHitMissSemanticIdentityVerified: boolean;
   acquisitionSeparatedFromPerformance: boolean;
+  acceptedCoarseCacheReadOnlyVerified: boolean;
+  bulkArchiveChecksumVerified: boolean;
+  fundingSourceSemanticIdentityVerified: boolean;
+  archiveRestKlineSemanticIdentityVerified: boolean;
+  acquisitionSourcesDeterministic: boolean;
+  restFallbackOnlyWhenRequired: boolean;
+  visionCanOperateWithoutRest: boolean;
   performanceNetworkDisabled: boolean;
   featureFormulasVerified: boolean;
   featureUniquenessVerified: boolean;
@@ -72,10 +88,32 @@ function behaviorChecks(): Readonly<Record<string, boolean>> {
   const dataSource = readFileSync(path.join(process.cwd(), "src/lib/research/m3-r13-round-013-data.ts"), "utf8");
   const performanceSource = readFileSync(path.join(process.cwd(), "scripts/m3-r13-performance.ts"), "utf8");
   const acquisitionSource = readFileSync(path.join(process.cwd(), "scripts/m3-r13-acquire.ts"), "utf8");
+  const archiveSource = readFileSync(path.join(process.cwd(), "src/lib/research/m3-r13-round-013-archives.ts"), "utf8");
   const cacheSemanticIdentity = stableStringify(cacheParsed) === stableStringify(minutes)
     && indexed.getExact(minutes[0]!.openTime)?.openTime === minutes[0]!.openTime
     && dataSource.includes("return { data: parsed, diagnostics: response.diagnostics }");
   const short = computeR13ForwardLabel({ symbol: "BTCUSDT", direction: "SHORT", signalTime, horizonHours: 4, atr14_1h: 10, candles1m: minutes, funding, researchEndTime: signalTime + 48 * R13_HOUR_MS });
+  const restKline = [[1_699_999_980_000, "100", "101", "99", "100.5", "10", 1_700_000_039_999, "1000", 10, "5", "500", "0"]];
+  const visionKline = normalizeVisionKlineCsv([
+    "open_time,open,high,low,close,volume,close_time,quote_asset_volume,number_of_trades,taker_buy_base_asset_volume,taker_buy_quote_asset_volume,ignore",
+    "1699999980000,100,101,99,100.5,10,1700000039999,1000,10,5,500,0",
+  ].join("\n"), "BTCUSDT");
+  const restKlineCanonical = parseBinanceIntrabarKlines(restKline, "BTCUSDT");
+  const restFundingCanonical = parseBinanceFundingRateHistory([
+    { symbol: "BTCUSDT", fundingTime: 1_699_999_980_000, fundingRate: "0.0001", markPrice: "100" },
+  ], "BTCUSDT");
+  const visionFunding = normalizeVisionFundingCsv([
+    "symbol,calc_time,mark_price,funding_interval,last_funding_rate",
+    "BTCUSDT,1699999980000,100,8,0.0001",
+  ].join("\n"), "BTCUSDT");
+  const checksumFixture = new TextEncoder().encode("r13-checksum-fixture");
+  const checksumDigest = createHash("sha256").update(checksumFixture).digest("hex");
+  const orderedSources = orderR13AcquisitionSources([
+    "BINANCE_PUBLIC_REST_FALLBACK",
+    "ACCEPTED_EXISTING_CACHE",
+    "BINANCE_VISION_ARCHIVE",
+    "BINANCE_VISION_ARCHIVE",
+  ]);
   return Object.freeze({
     closedDecisionCandle: R13_EXECUTION_ALIGNMENT.decisionCandle === "FULLY_CLOSED_1H_CANDLE",
     sixMinuteActionableDelay: actionableAt === signalTime + R13_PRIMARY_DELAY_MS && r13SignalValidUntil(signalTime) === signalTime + R13_HOUR_MS,
@@ -103,6 +141,13 @@ function behaviorChecks(): Readonly<Record<string, boolean>> {
     automaticTradingDisabled: R13_GOVERNANCE.noAutomaticTrading && !R13_GOVERNANCE.tradingEnabled,
     cacheHitMissSemanticIdentity: cacheSemanticIdentity,
     acquisitionSeparatedFromPerformance: R13_DATA_CONTRACT.rawCache === "LOCAL_RESUMABLE_PAGE_CHECKPOINTS_NOT_COMMITTED" && R13_GOVERNANCE.performanceExactlyOnceAfterLock && acquisitionSource.includes("fetchMissingOneMinute: true") && performanceSource.includes("fetchMissingOneMinute: false"),
+    acceptedCoarseCacheReadOnlyVerified: dataSource.includes("const acceptedBefore = r13CacheTreeIdentity") && dataSource.includes("const acceptedAfter = r13CacheTreeIdentity") && dataSource.includes("R13 acquisition detected mutation of the accepted Round-006 cache") && dataSource.includes("allowNetworkAcquisition: false"),
+    bulkArchiveChecksumVerified: r13ArchiveChecksumMatches(checksumFixture, `${checksumDigest}  fixture.zip`) && archiveSource.includes(".CHECKSUM") && dataSource.includes("bulkArchiveChecksumVerified: archives.every"),
+    fundingSourceSemanticIdentityVerified: stableStringify(restFundingCanonical) === stableStringify(visionFunding) && dataSource.includes("parseBinanceFundingRateHistory") && dataSource.includes("fundingRawRows"),
+    archiveRestKlineSemanticIdentityVerified: stableStringify(restKlineCanonical) === stableStringify(visionKline) && dataSource.includes("parseBinanceIntrabarKlines") && archiveSource.includes("parseKlineRows"),
+    acquisitionSourcesDeterministic: stableStringify(orderedSources) === stableStringify(["ACCEPTED_EXISTING_CACHE", "BINANCE_VISION_ARCHIVE", "BINANCE_PUBLIC_REST_FALLBACK"]) && dataSource.includes("orderSources"),
+    restFallbackOnlyWhenRequired: chooseR13AcquisitionSource({ acceptedCacheAvailable: true, visionAvailable: true, restFallbackAllowed: true }) === "ACCEPTED_EXISTING_CACHE" && chooseR13AcquisitionSource({ acceptedCacheAvailable: false, visionAvailable: true, restFallbackAllowed: false }) === "BINANCE_VISION_ARCHIVE" && chooseR13AcquisitionSource({ acceptedCacheAvailable: false, visionAvailable: false, restFallbackAllowed: true }) === "BINANCE_PUBLIC_REST_FALLBACK",
+    visionCanOperateWithoutRest: chooseR13AcquisitionSource({ acceptedCacheAvailable: false, visionAvailable: true, restFallbackAllowed: false }) === "BINANCE_VISION_ARCHIVE",
     performanceNetworkDisabled: R13_GOVERNANCE.noPostLockMarketFetch && R13_DATA_CONTRACT.rawCache === "LOCAL_RESUMABLE_PAGE_CHECKPOINTS_NOT_COMMITTED" && performanceSource.includes("fetchMissingOneMinute: false") && !performanceSource.includes("fetchMissingOneMinute: true"),
     forwardLabels: primary.status === "EXECUTED" && primary.entryTime === actionableAt,
     boundedLabelLookup: r13IndexedSeriesLookupBounded(indexed, actionableAt, actionableAt + 4 * R13_HOUR_MS),
@@ -123,6 +168,13 @@ export const R13_SPEC_CONFORMANCE_REPORT: R13SpecConformanceReport = Object.free
   executionAlignmentVerified: checks.sixMinuteActionableDelay && checks.primaryEntryNotBeforeActionableAt,
   cacheHitMissSemanticIdentityVerified: checks.cacheHitMissSemanticIdentity,
   acquisitionSeparatedFromPerformance: checks.acquisitionSeparatedFromPerformance,
+  acceptedCoarseCacheReadOnlyVerified: checks.acceptedCoarseCacheReadOnlyVerified,
+  bulkArchiveChecksumVerified: checks.bulkArchiveChecksumVerified,
+  fundingSourceSemanticIdentityVerified: checks.fundingSourceSemanticIdentityVerified,
+  archiveRestKlineSemanticIdentityVerified: checks.archiveRestKlineSemanticIdentityVerified,
+  acquisitionSourcesDeterministic: checks.acquisitionSourcesDeterministic,
+  restFallbackOnlyWhenRequired: checks.restFallbackOnlyWhenRequired,
+  visionCanOperateWithoutRest: checks.visionCanOperateWithoutRest,
   performanceNetworkDisabled: checks.performanceNetworkDisabled,
   featureFormulasVerified: checks.allFixedFeatureFormulas,
   featureUniquenessVerified: checks.featureUniqueness,
@@ -160,7 +212,7 @@ export function validateR13SpecConformance(report: R13SpecConformanceReport = R1
   if (report.resultAffectingDeviationCount !== 0 || report.featureCount !== R13_FEATURE_NAMES.length || report.primaryDelayMinutes !== 6 || report.stressDelayMinutes !== 7 || report.maximumLabelHorizonHours !== 24 || report.purgeEmbargoHours < 24) throw new Error("R13 conformance numeric contract failed.");
   for (const [name, value] of Object.entries(report.checks)) if (value !== true) throw new Error(`R13 conformance check failed: ${name}.`);
   const required: readonly [keyof R13SpecConformanceReport, boolean][] = [
-    ["executionAlignmentVerified", true], ["cacheHitMissSemanticIdentityVerified", true], ["acquisitionSeparatedFromPerformance", true], ["performanceNetworkDisabled", true], ["featureFormulasVerified", true], ["featureUniquenessVerified", true], ["forwardLabelsVerified", true], ["boundedLabelLookupVerified", true], ["noFullSeriesSortPerLabel", true], ["noSilentObservationDropVerified", true], ["fundingIntervalVerified", true], ["MfeMaeMirroringVerified", true], ["purgeEmbargoVerified", true], ["noFeatureLeakage", true], ["researchOnlyStandardizationVerified", true], ["modelTrainingIsolationVerified", true], ["crossSectionalRankingVerified", true], ["fullValidationDecileCalibrationVerified", true], ["crossSectionalSelectionVerified", true], ["productionSeenDataExcluded", true], ["postLockMarketFetchPossible", false], ["privateBinanceApi", false], ["automaticTrading", false],
+    ["executionAlignmentVerified", true], ["cacheHitMissSemanticIdentityVerified", true], ["acquisitionSeparatedFromPerformance", true], ["acceptedCoarseCacheReadOnlyVerified", true], ["bulkArchiveChecksumVerified", true], ["fundingSourceSemanticIdentityVerified", true], ["archiveRestKlineSemanticIdentityVerified", true], ["acquisitionSourcesDeterministic", true], ["restFallbackOnlyWhenRequired", true], ["visionCanOperateWithoutRest", true], ["performanceNetworkDisabled", true], ["featureFormulasVerified", true], ["featureUniquenessVerified", true], ["forwardLabelsVerified", true], ["boundedLabelLookupVerified", true], ["noFullSeriesSortPerLabel", true], ["noSilentObservationDropVerified", true], ["fundingIntervalVerified", true], ["MfeMaeMirroringVerified", true], ["purgeEmbargoVerified", true], ["noFeatureLeakage", true], ["researchOnlyStandardizationVerified", true], ["modelTrainingIsolationVerified", true], ["crossSectionalRankingVerified", true], ["fullValidationDecileCalibrationVerified", true], ["crossSectionalSelectionVerified", true], ["productionSeenDataExcluded", true], ["postLockMarketFetchPossible", false], ["privateBinanceApi", false], ["automaticTrading", false],
   ];
   for (const [key, expected] of required) if (report[key] !== expected) throw new Error(`R13 conformance boolean failed: ${String(key)}.`);
 }
