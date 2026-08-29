@@ -83,11 +83,73 @@ function indicators(candles: readonly Candle[]): IndicatorSeries {
   };
 }
 
+type PreparedCandleSeries = Readonly<{
+  candles: readonly Candle[];
+  indicators: IndicatorSeries | null;
+  canUsePrefix: boolean;
+}>;
+
+const preparedCandleSeriesCache = new WeakMap<readonly Candle[], PreparedCandleSeries>();
+
+function preparedCandleSeries(candles: readonly Candle[]): PreparedCandleSeries {
+  const cached = preparedCandleSeriesCache.get(candles);
+  if (cached) return cached;
+  const ordered = candles.slice().sort((left, right) => left.openTime - right.openTime);
+  let canUsePrefix = true;
+  for (let index = 1; index < ordered.length; index += 1) {
+    if (ordered[index]!.openTime <= ordered[index - 1]!.openTime
+      || ordered[index]!.closeTime < ordered[index - 1]!.closeTime) {
+      canUsePrefix = false;
+      break;
+    }
+  }
+  const prepared = Object.freeze({
+    candles: Object.freeze(ordered),
+    indicators: canUsePrefix ? indicators(ordered) : null,
+    canUsePrefix,
+  });
+  preparedCandleSeriesCache.set(candles, prepared);
+  return prepared;
+}
+
 function latestIndex(candles: readonly Candle[], signalTime: number, exact = false): number {
   const index = candles.length - 1;
   if (index < 0) throw new Error("R13 feature candle history is empty.");
   if (exact && candles[index]!.closeTime !== signalTime) throw new Error("R13 feature history does not contain the decision candle at signalTime.");
   return index;
+}
+
+function latestIndexAtOrBefore(candles: readonly Candle[], signalTime: number, exact = false): number {
+  let lower = 0;
+  let upper = candles.length - 1;
+  let result = -1;
+  while (lower <= upper) {
+    const middle = Math.floor((lower + upper) / 2);
+    if (candles[middle]!.closeTime <= signalTime) {
+      result = middle;
+      lower = middle + 1;
+    } else {
+      upper = middle - 1;
+    }
+  }
+  if (result < 0) throw new Error("R13 feature candle history is empty.");
+  if (exact && candles[result]!.closeTime !== signalTime) throw new Error("R13 feature history does not contain the decision candle at signalTime.");
+  return result;
+}
+
+type DecisionCandleView = Readonly<{
+  candles: readonly Candle[];
+  index: number;
+  indicators: IndicatorSeries;
+}>;
+
+function decisionCandleView(candles: readonly Candle[], signalTime: number, exact: boolean): DecisionCandleView {
+  const prepared = preparedCandleSeries(candles);
+  if (prepared.canUsePrefix && prepared.indicators) {
+    return { candles: prepared.candles, index: latestIndexAtOrBefore(prepared.candles, signalTime, exact), indicators: prepared.indicators };
+  }
+  const closed = closedCandles(candles, signalTime);
+  return { candles: closed, index: latestIndex(closed, signalTime, exact), indicators: indicators(closed) };
 }
 
 function returnOver(candles: readonly Candle[], index: number, bars: number): number {
@@ -125,13 +187,11 @@ function featureFromSymbolAtDecision(
   candles: readonly Candle[],
   signalTime: number,
 ): Readonly<{ close: number; ema50: number; return12h: number }> {
-  const closed = closedCandles(candles, signalTime);
-  const index = latestIndex(closed, signalTime, true);
-  const series = indicators(closed);
+  const view = decisionCandleView(candles, signalTime, true);
   return {
-    close: closed[index]!.close,
-    ema50: finite(series.ema50[index], "cross-sectional EMA50"),
-    return12h: returnOver(closed, index, 12),
+    close: view.candles[view.index]!.close,
+    ema50: finite(view.indicators.ema50[view.index], "cross-sectional EMA50"),
+    return12h: returnOver(view.candles, view.index, 12),
   };
 }
 
@@ -143,12 +203,14 @@ function featureFromSymbolAtDecision(
 export function buildR13FeatureVector(input: R13FeatureInput): R13FeatureVector {
   requireSafeTimestamp(input.signalTime, "R13 signalTime");
   const direction = directionSign(input.direction);
-  const candles1h = closedCandles(input.candles1h, input.signalTime);
-  const candles4h = closedCandles(input.candles4h, input.signalTime);
-  const index1h = latestIndex(candles1h, input.signalTime, true);
-  const index4h = latestIndex(candles4h, input.signalTime);
-  const oneHour = indicators(candles1h);
-  const fourHour = indicators(candles4h);
+  const oneHourView = decisionCandleView(input.candles1h, input.signalTime, true);
+  const fourHourView = decisionCandleView(input.candles4h, input.signalTime, false);
+  const candles1h = oneHourView.candles;
+  const candles4h = fourHourView.candles;
+  const index1h = oneHourView.index;
+  const index4h = fourHourView.index;
+  const oneHour = oneHourView.indicators;
+  const fourHour = fourHourView.indicators;
   const close1h = candles1h[index1h]!.close;
   const close4h = candles4h[index4h]!.close;
   const atr1h = finite(oneHour.atr14[index1h], "ATR14_1h");
@@ -175,8 +237,9 @@ export function buildR13FeatureVector(input: R13FeatureInput): R13FeatureVector 
   const volumeRatio = ratio(candles1h[index1h]!.quoteVolume, median(previousVolumes), "quote volume");
   if (volumeRatio <= 0) throw new Error("R13 feature current quote volume must be positive.");
   const takerBuyRatio = ratio(candles1h[index1h]!.takerBuyQuoteVolume, candles1h[index1h]!.quoteVolume, "taker imbalance");
-  const btcCandles = closedCandles(input.allSymbolCandles1h.BTCUSDT ?? [], input.signalTime);
-  const btcIndex = latestIndex(btcCandles, input.signalTime, true);
+  const btcView = decisionCandleView(input.allSymbolCandles1h.BTCUSDT ?? [], input.signalTime, true);
+  const btcCandles = btcView.candles;
+  const btcIndex = btcView.index;
   const symbolReturn12h = returnOver(candles1h, index1h, 12);
   const symbolReturn1h = returnOver(candles1h, index1h, 1);
   const symbolReturn24h = returnOver(candles1h, index1h, 24);
@@ -225,9 +288,8 @@ export function r13ClosedCandleHistory(candles: readonly Candle[], signalTime: n
 }
 
 export function r13Atr14AtDecision(candles: readonly Candle[], signalTime: number): number {
-  const closed = closedCandles(candles, signalTime);
-  const index = latestIndex(closed, signalTime, true);
-  return finite(indicators(closed).atr14[index], "ATR14_1h");
+  const view = decisionCandleView(candles, signalTime, true);
+  return finite(view.indicators.atr14[view.index], "ATR14_1h");
 }
 
 export const R13_FEATURE_FORMULA_COUNT = R13_FEATURE_NAMES.length;
