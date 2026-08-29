@@ -715,3 +715,27 @@ open for M2-A.
   Until the replay completes, performance is `NOT_AUTHORIZED` /
   `NOT_GENERATED`, baseline-002 is `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is
   `NOT_STARTED`.
+
+## ADR-041 — Freeze the Round-013 forward-edge discovery replay
+
+- **Decision:** Round-013 studies forward net edge independently of the
+  baseline-001 formal signal stream. Its observation universe is every
+  complete closed 1h decision timestamp × the five approved symbols × LONG
+  and SHORT, using only information available at the decision time.
+- **Execution alignment:** The primary advisory delay is fixed at 6 minutes,
+  normalized to a canonical UTC 1m timestamp. Entry is the first complete 1m
+  open at or after that time and no later than `signalTime + 60 minutes`.
+  Seven minutes is a diagnostic stress profile only; it cannot alter training
+  or choose the selected horizon. Every horizon exits at the first complete
+  1m open at `entryTime + H`.
+- **Model and gates:** The fixed F01–F18 feature vector, research-only
+  standardization, pooled deterministic ridge model (`lambda = 10`), 4/8/12/24h
+  labels, 24h purge/embargo, and conjunctive A–P discovery gates are frozen in
+  the Round-013 machine records. Production observations after the boundary
+  are hypothesis-only and excluded from the model, Gate, and selection.
+- **Boundary:** Round-013 cannot freeze baseline-002. A discovered horizon is
+  only a `ROUND-014_DESIGN_INPUT`. No private Binance API, automatic trading,
+  Production deployment, optimizer, sweep, or post-lock market fetch is
+  allowed. Until the replay completes, performance is `NOT_AUTHORIZED` /
+  `NOT_GENERATED`, baseline-002 is `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is
+  `NOT_STARTED`.

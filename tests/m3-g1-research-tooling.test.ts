@@ -187,6 +187,8 @@ function sourceText(): string {
     // research boundary with dedicated offline suites.
     // Round-010 risk-geometry replay machinery is a separate bounded
     // research boundary with dedicated offline suites.
+    // Round-013 forward-edge discovery machinery is a separate bounded
+    // research boundary with dedicated offline suites.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -195,6 +197,9 @@ function sourceText(): string {
       !name.startsWith("m3-r9-round-009-") &&
       !name.startsWith("m3-r10-round-010-") &&
       !name.startsWith("m3-r11-round-011-") &&
+      !name.startsWith("m3-r13-round-013-") &&
+      name !== "selection-gates-round-013.ts" &&
+      name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&
       name !== "selection-gates-round-009.ts" &&
       name !== "selection-gates-round-010.ts" &&
