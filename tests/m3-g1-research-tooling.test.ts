@@ -187,6 +187,8 @@ function sourceText(): string {
     // research boundary with dedicated offline suites.
     // Round-010 risk-geometry replay machinery is a separate bounded
     // research boundary with dedicated offline suites.
+    // Round-012 thesis deduplication machinery is a separate bounded
+    // research boundary with dedicated offline suites.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -195,10 +197,12 @@ function sourceText(): string {
       !name.startsWith("m3-r9-round-009-") &&
       !name.startsWith("m3-r10-round-010-") &&
       !name.startsWith("m3-r11-round-011-") &&
+      !name.startsWith("m3-r12-round-012-") &&
       name !== "selection-gates-round-007.ts" &&
       name !== "selection-gates-round-009.ts" &&
       name !== "selection-gates-round-010.ts" &&
       name !== "selection-gates-round-011.ts" &&
+      name !== "selection-gates-round-012.ts" &&
       name !== "m3-r5-h17-funding-qualification.ts" &&
       name !== "m3-r5-round-005-performance.ts" &&
       name !== "m3-r5-round-005-settlement.ts",
