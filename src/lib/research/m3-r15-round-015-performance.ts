@@ -17,7 +17,6 @@ import {
   R15_SOURCE_MANIFEST_SHA256,
   R15_SOURCE_OBSERVATION_SHA256,
   R15_SPEC_SHA256,
-  R15_TARGET_THRESHOLD,
   R15_FOLD_IDS,
   R15_SYMBOLS,
   M3_R15_ACCEPTED_R14_SOURCE_SHA,
@@ -36,6 +35,7 @@ import { fitR15RidgeModel, predictR15RidgeModel, type R15RidgeModel } from "./m3
 import { streamR15Observations, type R15FrozenObservation, type R15ObservationFreezeManifest } from "./m3-r15-round-015-data.ts";
 import { calculateR13Drawdown } from "./r13-drawdown.ts";
 import { checkpointExists, finalPerformanceCheckpointPath, foldCheckpointPath, readR15Checkpoint, writeR15CheckpointAtomic, type R15ExecutionLock } from "./m3-r15-round-015-checkpoints.ts";
+import { r15Deciles, r15Ranks, r15SelectTopOne, r15Spearman, r15TopBottomRealizedSpread } from "./m3-r15-round-015-behavior.ts";
 import { stableStringify } from "./utils.ts";
 import type { ResearchFoldId } from "./constants.ts";
 
@@ -134,16 +134,12 @@ function hash(value: unknown): string { return createHash("sha256").update(stabl
 function mean(values: readonly number[]): number | null { return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length; }
 function median(values: readonly number[]): number | null { if (values.length === 0) return null; const ordered = [...values].sort((left, right) => left - right); const middle = Math.floor(ordered.length / 2); return ordered.length % 2 === 0 ? (ordered[middle - 1]! + ordered[middle]!) / 2 : ordered[middle]!; }
 function pearson(left: readonly number[], right: readonly number[]): number | null { if (left.length < 2 || left.length !== right.length) return null; const leftMean = left.reduce((sum, value) => sum + value, 0) / left.length; const rightMean = right.reduce((sum, value) => sum + value, 0) / right.length; const numerator = left.reduce((sum, value, index) => sum + (value - leftMean) * (right[index]! - rightMean), 0); const leftDenom = Math.sqrt(left.reduce((sum, value) => sum + (value - leftMean) ** 2, 0)); const rightDenom = Math.sqrt(right.reduce((sum, value) => sum + (value - rightMean) ** 2, 0)); return leftDenom === 0 || rightDenom === 0 ? null : numerator / (leftDenom * rightDenom); }
-function ranks(values: readonly number[]): number[] { const order = values.map((value, index) => ({ value, index })).sort((left, right) => left.value - right.value || left.index - right.index); const output = Array<number>(values.length); order.forEach((value, index) => { output[value.index] = index + 1; }); return output; }
-function spearman(left: readonly number[], right: readonly number[]): number | null { if (left.length < 2 || left.length !== right.length) return null; return pearson(ranks(left), ranks(right)); }
-function directionOrder(direction: R15Direction): number { return direction === "LONG" ? 0 : 1; }
+export const selectR15TopOne = r15SelectTopOne;
+export const r15RanksForTest = r15Ranks;
+export const r15SpearmanForTest = r15Spearman;
+export const r15DecilesForTest = r15Deciles;
+export const r15TopBottomRealizedSpreadForTest = r15TopBottomRealizedSpread;
 function symbolOrder(symbol: string): number { return R15_SYMBOLS.indexOf(symbol as (typeof R15_SYMBOLS)[number]); }
-export function selectR15TopOne<T extends R15SelectionPrediction>(predictions: readonly T[]): T | null {
-  const finite = predictions.filter((prediction) => Number.isFinite(prediction.predictedNetAtr));
-  const top = [...finite].sort((left, right) => right.predictedNetAtr - left.predictedNetAtr || symbolOrder(left.symbol) - symbolOrder(right.symbol) || directionOrder(left.direction) - directionOrder(right.direction))[0];
-  return top && top.predictedNetAtr >= R15_TARGET_THRESHOLD ? top : null;
-}
-function deciles(values: readonly number[], observations: readonly number[]): readonly R15MetricDecile[] { return Object.freeze(Array.from({ length: 10 }, (_, decile) => { const bucket = observations.map((value, index) => ({ value, observation: values[index]! })).sort((left, right) => left.value - right.value || left.observation - right.observation); const start = Math.floor(bucket.length * decile / 10); const end = Math.floor(bucket.length * (decile + 1) / 10); const selected = bucket.slice(start, end).map((value) => value.observation); return Object.freeze({ decile, count: selected.length, mean: mean(selected) }); })); }
 function foldRole(decisionTime: number, foldId: ResearchFoldId, role: "RESEARCH" | "VALIDATION"): boolean { const range = getResearchFoldRoleRange(foldId, role); return decisionTime >= range.startTime && decisionTime <= range.endTime; }
 
 async function collectTrainingExamples(filePath: string, foldId: ResearchFoldId): Promise<Readonly<{ beta: readonly { features: Readonly<Record<string, number>>; target: number }[]; alpha: readonly { features: Readonly<Record<string, number>>; target: number }[] }>> {
@@ -189,8 +185,7 @@ function processValidation(foldId: ResearchFoldId, predictions: readonly R15Pred
       betaPairs.push(Object.freeze({ foldId, decisionTime, direction, predicted: beta.predictedMarketBeta, realized: beta.observation.marketBetaTarget }));
       const alphaOrdered = directionRows.map((row) => Object.freeze({ symbol: row.observation.symbol, predicted: row.predictedRelativeAlpha, realized: row.observation.relativeAlphaTarget }));
       alphaPairs.push(...alphaOrdered.map((row) => Object.freeze({ foldId, decisionTime, direction, symbol: row.symbol, predicted: row.predicted, realized: row.realized })));
-      const alphaByPrediction = [...alphaOrdered].sort((left, right) => right.predicted - left.predicted || symbolOrder(left.symbol) - symbolOrder(right.symbol));
-      alphaTimestampStatistics.push(Object.freeze({ foldId, decisionTime, direction, spearman: spearman(alphaOrdered.map((row) => row.predicted), alphaOrdered.map((row) => row.realized)), topBottomSpread: alphaByPrediction[0]!.realized - alphaByPrediction[alphaByPrediction.length - 1]!.realized }));
+      alphaTimestampStatistics.push(Object.freeze({ foldId, decisionTime, direction, spearman: r15Spearman(alphaOrdered.map((row) => row.predicted), alphaOrdered.map((row) => row.realized)), topBottomSpread: r15TopBottomRealizedSpread(alphaOrdered) }));
     }
     const top = selectR15TopOne(timestampRows);
     if (!top) {
@@ -233,12 +228,12 @@ function buildBetaDiagnostics(folds: readonly R15FoldPerformance[]): R15Performa
     const predicted = fold.betaPairs.map((pair) => pair.predicted);
     const realized = fold.betaPairs.map((pair) => pair.realized);
     const signs = predicted.length === 0 ? null : predicted.filter((value, index) => Math.sign(value) === Math.sign(realized[index]!)).length / predicted.length;
-    return Object.freeze({ foldId: fold.foldId, pearson: pearson(predicted, realized), spearman: spearman(predicted, realized), signAccuracy: signs, realizedMean: mean(realized), predictionDeciles: deciles(realized, predicted) });
+    return Object.freeze({ foldId: fold.foldId, pearson: pearson(predicted, realized), spearman: r15Spearman(predicted, realized), signAccuracy: signs, realizedMean: mean(realized), predictionDeciles: r15Deciles(realized, predicted) });
   });
   const pairs = folds.flatMap((fold) => fold.betaPairs);
   const predicted = pairs.map((pair) => pair.predicted);
   const realized = pairs.map((pair) => pair.realized);
-  return Object.freeze({ modelId: "R15-BETA-H4", pooledPearson: pearson(predicted, realized), pooledSpearman: spearman(predicted, realized), signAccuracy: predicted.length === 0 ? null : predicted.filter((value, index) => Math.sign(value) === Math.sign(realized[index]!)).length / predicted.length, positiveCorrelationFolds: perFold.filter((fold) => fold.pearson !== null && fold.pearson > 0).length, perFold: Object.freeze(perFold), realizedByPredictionDecile: deciles(realized, predicted) });
+  return Object.freeze({ modelId: "R15-BETA-H4", pooledPearson: pearson(predicted, realized), pooledSpearman: r15Spearman(predicted, realized), signAccuracy: predicted.length === 0 ? null : predicted.filter((value, index) => Math.sign(value) === Math.sign(realized[index]!)).length / predicted.length, positiveCorrelationFolds: perFold.filter((fold) => fold.pearson !== null && fold.pearson > 0).length, perFold: Object.freeze(perFold), realizedByPredictionDecile: r15Deciles(realized, predicted) });
 }
 
 function buildAlphaDiagnostics(folds: readonly R15FoldPerformance[]): R15PerformanceReport["alpha"] {
@@ -250,7 +245,7 @@ function buildAlphaDiagnostics(folds: readonly R15FoldPerformance[]): R15Perform
     return Object.freeze({ foldId: fold.foldId, spearman: mean(correlations), positiveTimestamps: correlations.filter((value) => value > 0).length, timestampCount: correlations.length, topBottomSpread: mean(spreads), positiveSpread: (mean(spreads) ?? Number.NEGATIVE_INFINITY) > 0 });
   });
   const pairs = folds.flatMap((fold) => fold.alphaPairs);
-  return Object.freeze({ modelId: "R15-ALPHA-H4", pooledSpearman: spearman(pairs.map((pair) => pair.predicted), pairs.map((pair) => pair.realized)), meanTimestampSpearman: mean(statistics.map((value) => value.spearman).filter((value): value is number => value !== null)), positiveCorrelationFolds: perFold.filter((fold) => fold.spearman !== null && fold.spearman > 0).length, foldMeans: Object.freeze(perFold), topBottomSpread: mean(statistics.map((value) => value.topBottomSpread).filter((value): value is number => value !== null)), positiveSpreadFolds: perFold.filter((fold) => fold.positiveSpread).length });
+  return Object.freeze({ modelId: "R15-ALPHA-H4", pooledSpearman: r15Spearman(pairs.map((pair) => pair.predicted), pairs.map((pair) => pair.realized)), meanTimestampSpearman: mean(statistics.map((value) => value.spearman).filter((value): value is number => value !== null)), positiveCorrelationFolds: perFold.filter((fold) => fold.spearman !== null && fold.spearman > 0).length, foldMeans: Object.freeze(perFold), topBottomSpread: mean(statistics.map((value) => value.topBottomSpread).filter((value): value is number => value !== null)), positiveSpreadFolds: perFold.filter((fold) => fold.positiveSpread).length });
 }
 
 function buildCombinedMetrics(folds: readonly R15FoldPerformance[]): R15PerformanceReport["combined"] {
@@ -271,7 +266,7 @@ function buildCombinedMetrics(folds: readonly R15FoldPerformance[]): R15Performa
   const drawdown = calculateR13Drawdown(selected.map((value) => ({ decisionTime: value.decisionTime, symbol: value.symbol, direction: value.direction, netForwardAtr: value.realizedNetForwardAtr })));
   const calibration = selected.map((value) => value.predictedNetAtr - value.realizedNetForwardAtr);
   const predictionValues = selected.map((value) => value.predictedNetAtr);
-  return Object.freeze({ selectedCount: selected.length, validationDecisionTimestamps: totalTimestamps, noTradeDecisionTimestamps: noTrade, noTradeRate: totalTimestamps === 0 ? 0 : noTrade / totalTimestamps, meanSignalsPerMonth: mean([...monthCounts.values()]), medianSignalsPerMonth: median([...monthCounts.values()]), longCount: selected.filter((value) => value.direction === "LONG").length, shortCount: selected.filter((value) => value.direction === "SHORT").length, symbolDistribution: Object.freeze(Object.fromEntries(R15_SYMBOLS.map((symbol) => [symbol, selected.filter((value) => value.symbol === symbol).length]))), meanRealizedNetForwardAtr: mean(values), medianRealizedNetForwardAtr: median(values), profitFactor: negative.length === 0 ? null : positive.reduce((sum, value) => sum + value, 0) / Math.abs(negative.reduce((sum, value) => sum + value, 0)), cumulativeNetAtr: drawdown.cumulativeNetForwardAtr, maximumDrawdownAtr: drawdown.maximumDrawdownAtr, positiveFolds: Object.values(foldMeans).filter((value): value is number => value !== null && value > 0).length, negativeFolds: Object.values(foldMeans).filter((value): value is number => value !== null && value < 0).length, catastrophicFolds: Object.values(foldMeans).filter((value): value is number => value !== null && value <= -0.10).length, foldMeans: Object.freeze(foldMeans), feesBps: selected.reduce((sum, value) => sum + value.feesBps, 0), slippageBps: selected.reduce((sum, value) => sum + value.slippageBps, 0), fundingBps: selected.reduce((sum, value) => sum + value.fundingBps, 0), costStressMean: mean(costValues), costStressProfitFactor: costNegative.length === 0 ? null : costPositive.reduce((sum, value) => sum + value, 0) / Math.abs(costNegative.reduce((sum, value) => sum + value, 0)), latencyStressMean: mean(selected.map((value) => value.realizedLatencyStressNetAtr)), maximumPositiveSymbolContributionShare: contributions.symbol, maximumSinglePositiveObservationContribution: contributions.single, calibrationErrorByPredictionDecile: deciles(calibration, predictionValues), selectedByFold: Object.freeze(selectedByFold) });
+  return Object.freeze({ selectedCount: selected.length, validationDecisionTimestamps: totalTimestamps, noTradeDecisionTimestamps: noTrade, noTradeRate: totalTimestamps === 0 ? 0 : noTrade / totalTimestamps, meanSignalsPerMonth: mean([...monthCounts.values()]), medianSignalsPerMonth: median([...monthCounts.values()]), longCount: selected.filter((value) => value.direction === "LONG").length, shortCount: selected.filter((value) => value.direction === "SHORT").length, symbolDistribution: Object.freeze(Object.fromEntries(R15_SYMBOLS.map((symbol) => [symbol, selected.filter((value) => value.symbol === symbol).length]))), meanRealizedNetForwardAtr: mean(values), medianRealizedNetForwardAtr: median(values), profitFactor: negative.length === 0 ? null : positive.reduce((sum, value) => sum + value, 0) / Math.abs(negative.reduce((sum, value) => sum + value, 0)), cumulativeNetAtr: drawdown.cumulativeNetForwardAtr, maximumDrawdownAtr: drawdown.maximumDrawdownAtr, positiveFolds: Object.values(foldMeans).filter((value): value is number => value !== null && value > 0).length, negativeFolds: Object.values(foldMeans).filter((value): value is number => value !== null && value < 0).length, catastrophicFolds: Object.values(foldMeans).filter((value): value is number => value !== null && value <= -0.10).length, foldMeans: Object.freeze(foldMeans), feesBps: selected.reduce((sum, value) => sum + value.feesBps, 0), slippageBps: selected.reduce((sum, value) => sum + value.slippageBps, 0), fundingBps: selected.reduce((sum, value) => sum + value.fundingBps, 0), costStressMean: mean(costValues), costStressProfitFactor: costNegative.length === 0 ? null : costPositive.reduce((sum, value) => sum + value, 0) / Math.abs(costNegative.reduce((sum, value) => sum + value, 0)), latencyStressMean: mean(selected.map((value) => value.realizedLatencyStressNetAtr)), maximumPositiveSymbolContributionShare: contributions.symbol, maximumSinglePositiveObservationContribution: contributions.single, calibrationErrorByPredictionDecile: r15Deciles(calibration, predictionValues), selectedByFold: Object.freeze(selectedByFold) });
 }
 
 function buildReport(input: Readonly<{ executionId: string; executionSourceSha: string; freeze: R15ObservationFreezeManifest; folds: readonly R15FoldPerformance[]; provenance: readonly R15ModelProvenance[] }>): R15PerformanceReport {

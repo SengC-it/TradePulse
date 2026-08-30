@@ -8,9 +8,10 @@ import type { R13Observation } from "../src/lib/research/m3-r13-round-013-perfor
 import type { R13FeatureVector } from "../src/lib/research/m3-r13-round-013-features.ts";
 import { getResearchFoldRoleRange } from "../src/lib/research/folds.ts";
 import { isR13TrainingObservationPurgeSafe } from "../src/lib/research/m3-r13-round-013-validation.ts";
-import { deriveR15GroupForTest } from "../src/lib/research/m3-r15-round-015-data.ts";
+import { deriveR15GroupForTest, isR15TargetDecompositionValid, r15TargetReconstructionTolerance } from "../src/lib/research/m3-r15-round-015-data.ts";
 import { fitR15RidgeModel, predictR15RidgeModel } from "../src/lib/research/m3-r15-round-015-model.ts";
-import { publishR15ArtifactsAtomically, selectR15TopOne, type R15ExecutionArtifacts } from "../src/lib/research/m3-r15-round-015-performance.ts";
+import { publishR15ArtifactsAtomically, r15DecilesForTest, r15RanksForTest, r15SpearmanForTest, r15TopBottomRealizedSpreadForTest, selectR15TopOne, type R15ExecutionArtifacts } from "../src/lib/research/m3-r15-round-015-performance.ts";
+import { R15_CONFORMANCE_DOCUMENT, runR15ConformanceProbes } from "../src/lib/research/m3-r15-round-015-conformance.ts";
 import { R15_ALPHA_FEATURE_NAMES, R15_BETA_FEATURE_NAMES, R15_DIRECTIONS, R15_RIDGE_LAMBDA, R15_SPEC_OBJECT, R15_SYMBOLS, R15_TARGET_THRESHOLD } from "../src/lib/research/m3-r15-round-015-protocol.ts";
 import { evaluateR15Gates } from "../src/lib/research/selection-gates-round-015.ts";
 
@@ -128,6 +129,26 @@ describe("Round-015 conformance and decomposition", () => {
     for (const row of derived) expect(row.marketBetaTarget + row.relativeAlphaTarget).toBeCloseTo(row.symbolTarget, 12);
   });
 
+  it("accepts scale-aware target reconstruction and rejects incorrect or mismatched targets", () => {
+    expect(r15TargetReconstructionTolerance({ marketBetaTarget: 0.3, relativeAlphaTarget: 0.6, symbolTarget: 0.9 })).toBe(16 * Number.EPSILON);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: 0.3, relativeAlphaTarget: 0.6, symbolTarget: 0.9, originalNetForwardAtr: 0.9 })).toBe(true);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: 1, relativeAlphaTarget: 4 * Number.EPSILON, symbolTarget: 1, originalNetForwardAtr: 1 })).toBe(true);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: 0.7, relativeAlphaTarget: 0.289, symbolTarget: 1, originalNetForwardAtr: 1 })).toBe(false);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: 0.2, relativeAlphaTarget: 0.3, symbolTarget: 0.5, originalNetForwardAtr: 0.5001 })).toBe(false);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: 1_000_000_000_000.125, relativeAlphaTarget: -1_000_000_000_000, symbolTarget: 0.125, originalNetForwardAtr: 0.125 })).toBe(true);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: 1e-12, relativeAlphaTarget: 2e-12, symbolTarget: 3e-12, originalNetForwardAtr: 3e-12 })).toBe(true);
+    expect(isR15TargetDecompositionValid({ marketBetaTarget: -0.8, relativeAlphaTarget: 0.3, symbolTarget: -0.5, originalNetForwardAtr: -0.5 })).toBe(true);
+  });
+
+  it("records executable conformance probes with computed deviations", () => {
+    const probes = runR15ConformanceProbes();
+    expect(probes.checks).toHaveLength(24);
+    expect(probes.checks.every((value) => value.passed && value.probeId.startsWith("r15-behavior-probe/") && typeof value.evidence === "object")).toBe(true);
+    expect(probes.resultAffectingDeviationCount).toBe(probes.checks.filter((value) => !value.passed).length);
+    expect(probes.integrity).toBe("COMPLETE");
+    expect(R15_CONFORMANCE_DOCUMENT.resultAffectingDeviationCount).toBe(0);
+  });
+
   it("applies the fixed B01-B10 mappings and same-time A01-A10 medians", () => {
     const long = deriveR15GroupForTest({ decisionTime: DECISION_TIME, rows: allObservations() }).slice(0, 5);
     const btc = long[0]!;
@@ -221,6 +242,27 @@ describe("Round-015 fixed selection and gates", () => {
     } as const;
     expect(evaluateR15Gates(input).eligibility).toBe("ELIGIBLE");
     expect(evaluateR15Gates({ ...input, alphaPooledSpearman: null }).eligibility).toBe("INELIGIBLE");
+  });
+
+  it("uses average ranks for ties and keeps beta, combined, and alpha ordering semantics", () => {
+    expect(r15RanksForTest([1, 2, 2, 4])).toEqual([1, 2.5, 2.5, 4]);
+    expect(r15SpearmanForTest([1, 2, 2, 4], [1, 2, 2, 4])).toBeCloseTo(1, 12);
+
+    const predicted = [0.4, 0.1, 0.3, 0.2, 0.9, 0.5, 0.8, 0.6, 0.7, 0];
+    const betaRealized = predicted.map((value) => value * 2);
+    const betaDeciles = r15DecilesForTest(betaRealized, predicted);
+    expect(betaDeciles.every((value) => value.count === 1)).toBe(true);
+    expect(betaDeciles[0]?.mean).toBe(0);
+    expect(betaDeciles[9]?.mean).toBe(1.8);
+
+    const realizedNet = predicted.map((_value, index) => index / 10);
+    const predictionReport = predicted.map((value, index) => value - realizedNet[index]!);
+    const combinedDeciles = r15DecilesForTest(predictionReport, predicted);
+    expect(combinedDeciles[0]?.mean).toBe(predictionReport[9]);
+    expect(combinedDeciles[9]?.mean).toBe(predictionReport[4]);
+
+    const alphaRows = predicted.map((value, index) => ({ symbol: R15_SYMBOLS[index]!, predicted: value, realized: index }));
+    expect(r15TopBottomRealizedSpreadForTest(alphaRows)).toBe(alphaRows[4]!.realized - alphaRows[9]!.realized);
   });
 });
 

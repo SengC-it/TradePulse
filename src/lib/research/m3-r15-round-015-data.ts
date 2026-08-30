@@ -79,6 +79,25 @@ export type R15ObservationFreezeManifest = Readonly<{
   manifestSha256: string;
 }>;
 
+export type R15TargetDecomposition = Readonly<{
+  marketBetaTarget: number;
+  relativeAlphaTarget: number;
+  symbolTarget: number;
+  originalNetForwardAtr: number;
+}>;
+
+export function r15TargetReconstructionTolerance(input: Readonly<Omit<R15TargetDecomposition, "originalNetForwardAtr">>): number {
+  return 16 * Number.EPSILON * Math.max(1, Math.abs(input.marketBetaTarget), Math.abs(input.relativeAlphaTarget), Math.abs(input.symbolTarget));
+}
+
+export function isR15TargetDecompositionValid(input: R15TargetDecomposition): boolean {
+  if (![input.marketBetaTarget, input.relativeAlphaTarget, input.symbolTarget, input.originalNetForwardAtr].every(Number.isFinite)) return false;
+  const tolerance = r15TargetReconstructionTolerance(input);
+  const reconstructedDifference = input.marketBetaTarget + input.relativeAlphaTarget - input.symbolTarget;
+  const frozenLabelDifference = input.symbolTarget - input.originalNetForwardAtr;
+  return Math.abs(reconstructedDifference) <= tolerance && Math.abs(frozenLabelDifference) <= tolerance;
+}
+
 type SourceGroup = Readonly<{ decisionTime: number; byDirection: Readonly<Record<R15Direction, ReadonlyMap<ResearchSymbol, R13Observation>>> }>;
 
 const SOURCE_TO_BETA = Object.freeze({
@@ -227,7 +246,7 @@ function validateR15Observation(value: unknown): R15FrozenObservation {
   for (const name of R15_BETA_FEATURE_NAMES) if (!Number.isFinite(observation.betaFeatures[name])) throw new Error(`R15 beta feature is invalid: ${observation.observationId}`);
   for (const name of R15_ALPHA_FEATURE_NAMES) if (!Number.isFinite(observation.alphaFeatures[name])) throw new Error(`R15 alpha feature is invalid: ${observation.observationId}`);
   for (const value of [observation.marketBetaTarget, observation.relativeAlphaTarget, observation.symbolTarget, observation.label.netForwardAtr, observation.label.netForwardAtrCostStress, observation.label.feesBps, observation.label.fundingBps, observation.label.slippageBps, observation.label.latencyStressNetForwardAtr, observation.label.latencyStressNetForwardAtrCostStress]) if (!Number.isFinite(value)) throw new Error(`R15 frozen value is invalid: ${observation.observationId}`);
-  if (observation.label.status !== "EXECUTED" || Math.abs(observation.marketBetaTarget + observation.relativeAlphaTarget - observation.symbolTarget) > Number.EPSILON * Math.max(1, Math.abs(observation.symbolTarget))) throw new Error(`R15 target reconstruction failed: ${observation.observationId}`);
+  if (observation.label.status !== "EXECUTED" || !isR15TargetDecompositionValid({ marketBetaTarget: observation.marketBetaTarget, relativeAlphaTarget: observation.relativeAlphaTarget, symbolTarget: observation.symbolTarget, originalNetForwardAtr: observation.label.netForwardAtr })) throw new Error(`R15 target reconstruction failed: ${observation.observationId}`);
   return observation;
 }
 
