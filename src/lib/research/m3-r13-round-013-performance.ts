@@ -182,7 +182,8 @@ function validateR13CoarseSeries(data: BacktestData): void {
   }
 }
 
-export function buildR13ObservationUniverseWithDiagnostics(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, R13OneMinuteLookup | readonly IntrabarSettlementCandle[]>> }>): R13ObservationUniverseReport {
+export function buildR13ObservationUniverseWithDiagnostics(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, R13OneMinuteLookup | readonly IntrabarSettlementCandle[]>>; retainObservations?: boolean }>): R13ObservationUniverseReport {
+  const retainObservations = input.retainObservations ?? true;
   validateR13CoarseSeries(input.data);
   const indexedOneMinute = Object.fromEntries(R13_SYMBOLS.map((symbol) => {
     const source = input.oneMinute[symbol];
@@ -192,6 +193,8 @@ export function buildR13ObservationUniverseWithDiagnostics(input: Readonly<{ dat
   const indexedInput = { ...input, oneMinute: indexedOneMinute };
   const times = [...new Set((input.data.datasets.BTCUSDT?.candles1h ?? []).filter((candle) => candle.closeTime <= M3_R13_RESEARCH_RANGE.endTime).map((candle) => candle.closeTime))].sort((left, right) => left - right);
   const values: R13Observation[] = [];
+  const seenObservationIds = new Set<string>();
+  let eligibleObservations = 0;
   let warmupExcludedObservations = 0;
   let warmedUp = false;
   for (const signalTime of times) {
@@ -207,12 +210,15 @@ export function buildR13ObservationUniverseWithDiagnostics(input: Readonly<{ dat
       continue;
     }
     warmedUp = true;
-    values.push(...atTime);
+    for (const observation of atTime) {
+      if (seenObservationIds.has(observation.observationId)) throw new Error("R13 observation universe contains duplicate observation identities.");
+      seenObservationIds.add(observation.observationId);
+    }
+    eligibleObservations += atTime.length;
+    if (retainObservations) values.push(...atTime);
   }
-  const unique = new Map(values.map((observation) => [observation.observationId, observation]));
-  if (unique.size !== values.length) throw new Error("R13 observation universe contains duplicate observation identities.");
-  const observations = orderObservations([...unique.values()]);
-  return Object.freeze({ observations, totalCanonicalDecisionTimestamps: times.length, warmupExcludedObservations, eligibleObservations: observations.length, integrityExcludedObservations: 0 });
+  const observations = retainObservations ? orderObservations(values) : Object.freeze([] as R13Observation[]);
+  return Object.freeze({ observations, totalCanonicalDecisionTimestamps: times.length, warmupExcludedObservations, eligibleObservations, integrityExcludedObservations: 0 });
 }
 
 export function buildR13ObservationUniverse(input: Readonly<{ data: BacktestData; oneMinute: Readonly<Record<ResearchSymbol, R13OneMinuteLookup | readonly IntrabarSettlementCandle[]>> }>): readonly R13Observation[] {

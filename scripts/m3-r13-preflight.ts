@@ -35,7 +35,7 @@ if (!existsSync(cacheDirectory)) abort("dataset-acquisition", `complete R13 1m c
 
 try {
   const prepared = await prepareR13Dataset({ cacheDirectory, acceptedCoarseCacheDirectory: coarseCacheDirectory, fetchMissingOneMinute: false });
-  const universe = buildR13ObservationUniverseWithDiagnostics({ data: prepared.coarseData, oneMinute: prepared.oneMinuteIndexed });
+  const universe = buildR13ObservationUniverseWithDiagnostics({ data: prepared.coarseData, oneMinute: prepared.oneMinuteIndexed, retainObservations: false });
   if (universe.integrityExcludedObservations !== 0) throw new Error("R13 preflight found integrity-excluded observations.");
   const freezePath = path.join(process.cwd(), "docs", "research", "round-013-dataset-freeze.json");
   if (existsSync(freezePath)) {
