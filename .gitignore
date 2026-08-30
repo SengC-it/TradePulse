@@ -18,6 +18,7 @@ artifacts/backtest/
 .tmp/backtest/
 .tmp/
 .cache/tradepulse/round-006/
+.cache/tradepulse/round-013/
 
 # Supabase local state
 supabase/.branches/

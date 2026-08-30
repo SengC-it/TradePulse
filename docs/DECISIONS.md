@@ -555,6 +555,23 @@ Status: M3-A backtest specification decision record (M0-M2-B decisions retained)
   baseline-002 remains `NOT_FROZEN`, M3-J remains `BLOCKED`, and M4 remains
   `NOT_STARTED`.
 
+## ADR-042 — Separate Round-013 acquisition sources from the accepted cache
+
+- **Decision:** Keep the accepted Round-006/R11 coarse and funding cache
+  read-only. Round-013 one-minute gaps are acquired first from verified
+  official Binance Vision monthly/daily archives, with public REST restricted
+  to genuinely unresolved ranges before the performance lock.
+- **Integrity:** Every Vision archive is paired with and validated against its
+  `.CHECKSUM`; archive bytes, normalized canonical records, source URLs, and
+  provenance are stored in the R13 resumable cache. Kline and funding archive
+  rows use the same canonical types as REST/cache rows, with exact UTC
+  chronology and no fabricated gaps.
+- **Boundary:** Coarse loading is explicitly `READ_ONLY_OFFLINE`; archive and
+  bounded REST acquisition are pre-lock only; preflight and performance have
+  all network acquisition disabled. Accepted-cache tree identity is checked
+  before and after acquisition. This changes acquisition plumbing only and
+  does not change F01–F18, horizons, folds, gates, selection, or economics.
+
 ## ADR-040 — Freeze the Round-011 event-predicate conformance replay
 
 - **Decision:** Authorize one bounded `baseline-002-research-round-011` replay
@@ -713,5 +730,48 @@ open for M2-A.
   selection semantics remain frozen. No private Binance API, automatic
   trading, optimizer, sweep, post-lock fetch, or later milestone is allowed.
   Until the replay completes, performance is `NOT_AUTHORIZED` /
+  `NOT_GENERATED`, baseline-002 is `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is
+  `NOT_STARTED`.
+
+## ADR-041 — Freeze the Round-013 forward-edge discovery replay
+
+- **Decision:** Round-013 studies forward net edge independently of the
+  baseline-001 formal signal stream. Its observation universe is every
+  complete closed 1h decision timestamp × the five approved symbols × LONG
+  and SHORT, using only information available at the decision time.
+- **Execution alignment:** The primary advisory delay is fixed at 6 minutes,
+  normalized to a canonical UTC 1m timestamp. Entry is the first complete 1m
+  open at or after that time and no later than `signalTime + 60 minutes`.
+  Seven minutes is a diagnostic stress profile only; it cannot alter training
+  or choose the selected horizon. Every horizon exits at the first complete
+  1m open at `entryTime + H`.
+- **Execution and integrity hardening:** The canonical execution reference is
+  `ACTIONABLE_MARKET_REFERENCE` with a primary entry and a diagnostic stress
+  entry; Production has no entry side effect. One-minute pages are parsed into
+  an immutable, contiguous UTC index once. Labels use exact or bounded indexed
+  lookups and never sort the full one-minute series per label. Cache hits and
+  network misses expose the same parsed candle data and diagnostics. After the
+  initial warm-up interval, any missing, malformed, duplicate, or non-contiguous
+  observation fails closed as incomplete evidence rather than being silently
+  dropped.
+- **Model and gates:** The fixed F01–F18 feature vector, research-only
+  standardization, pooled deterministic ridge model (`lambda = 10`), 4/8/12/24h
+  labels, 24h purge/embargo, and conjunctive A–P discovery gates are frozen in
+  the Round-013 machine records. Production observations after the boundary
+  are hypothesis-only and excluded from the model, Gate, and selection.
+- **Feature and ranking distinction:** F04 is the direction-adjusted 1h symbol
+  return divided by the ATR14/close price scale; F08 remains the distinct 12h
+  return feature. Cross-sectional diagnostics rank all complete opportunities
+  at each decision timestamp, while validation deciles are calibrated from the
+  full validation opportunity set; TOP1 is a separate selection view.
+- **Acquisition boundary:** Network access is confined to the explicit
+  `research:round013:acquire` acquisition command. Preflight, dataset freeze,
+  and performance consume the validated local cache only; performance cannot
+  fetch after its lock. The freeze records the dataset, feature/model/Plan/Gate,
+  and conformance identities before the one authorized performance execution.
+- **Boundary:** Round-013 cannot freeze baseline-002. A discovered horizon is
+  only a `ROUND-014_DESIGN_INPUT`. No private Binance API, automatic trading,
+  Production deployment, optimizer, sweep, or post-lock market fetch is
+  allowed. Until the replay completes, performance is `NOT_AUTHORIZED` /
   `NOT_GENERATED`, baseline-002 is `NOT_FROZEN`, M3-J is `BLOCKED`, and M4 is
   `NOT_STARTED`.
