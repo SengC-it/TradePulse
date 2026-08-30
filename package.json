@@ -42,6 +42,11 @@
     "research:round013:acquire": "node --experimental-strip-types --no-warnings scripts/m3-r13-acquire.ts",
     "research:round013:performance": "node --experimental-strip-types --no-warnings scripts/m3-r13-performance.ts",
     "research:round013:runtime-import-smoke": "node --experimental-strip-types --no-warnings scripts/m3-r13-runtime-import-smoke.ts",
+    "research:round014:write-identity": "node --experimental-strip-types --no-warnings scripts/m3-r14-write-identity.ts",
+    "research:round014:observation-freeze": "node --experimental-strip-types --no-warnings scripts/m3-r14-observation-freeze.ts",
+    "research:round014:preflight": "node --experimental-strip-types --no-warnings scripts/m3-r14-preflight.ts",
+    "research:round014:performance": "node --experimental-strip-types --no-warnings scripts/m3-r14-performance.ts",
+    "research:round014:runtime-import-smoke": "node --experimental-strip-types --no-warnings scripts/m3-r14-runtime-import-smoke.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "check": "npm run verify"
   },
