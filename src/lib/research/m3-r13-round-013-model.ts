@@ -108,8 +108,14 @@ export function fitR13RidgeModel(examples: readonly R13FitExample[]): R13RidgeMo
   for (let index = 1; index < dimension; index += 1) matrix[index]![index] += R13_RIDGE_LAMBDA;
   const solution = gaussianSolve(matrix, vector);
   const coefficients = Object.fromEntries(R13_FEATURE_NAMES.map((name, index) => [name, solution[index + 1]!])) as Record<R13FeatureName, number>;
-  const targetValues = examples.map((example) => example.targetNetForwardAtr);
-  const modelIdentity = { modelType: "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION", lambda: R13_RIDGE_LAMBDA, interceptPenalized: false, featureNames: R13_FEATURE_NAMES, intercept: solution[0], coefficients, standardization, trainingExamples: examples.length, targetRange: { min: Math.min(...targetValues), max: Math.max(...targetValues) } };
+  let targetMin = Number.POSITIVE_INFINITY;
+  let targetMax = Number.NEGATIVE_INFINITY;
+  for (const example of examples) {
+    targetMin = Math.min(targetMin, example.targetNetForwardAtr);
+    targetMax = Math.max(targetMax, example.targetNetForwardAtr);
+  }
+  const targetRange = { min: targetMin, max: targetMax };
+  const modelIdentity = { modelType: "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION", lambda: R13_RIDGE_LAMBDA, interceptPenalized: false, featureNames: R13_FEATURE_NAMES, intercept: solution[0], coefficients, standardization, trainingExamples: examples.length, targetRange };
   return Object.freeze({
     modelType: "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
     lambda: R13_RIDGE_LAMBDA,
@@ -119,7 +125,7 @@ export function fitR13RidgeModel(examples: readonly R13FitExample[]): R13RidgeMo
     coefficients: Object.freeze(coefficients),
     standardization,
     trainingExamples: examples.length,
-    trainingTargetRange: Object.freeze({ min: Math.min(...targetValues), max: Math.max(...targetValues) }),
+    trainingTargetRange: Object.freeze(targetRange),
     modelIdentitySha256: sha256(modelIdentity),
   });
 }

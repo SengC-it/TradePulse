@@ -1,0 +1,26 @@
+{
+  "round": "baseline-002-research-round-014",
+  "hashMethod": "SHA256_EXACT_COMMITTED_UTF8_BYTES",
+  "artifacts": [
+    {
+      "path": "docs/evidence/M3_R14_ROUND_014_SUMMARY.json",
+      "exactUtf8ByteSha256": "0240e9ccf827095531b0cc220652540a53e93ebd4945002b41f70a5c6202f39c"
+    },
+    {
+      "path": "docs/evidence/M3_R14_ROUND_014_AUDIT.json",
+      "exactUtf8ByteSha256": "ba3899d9e6d74dd53f72aaa5ef9be0de5e0589b151673ed048eda3efb5efc32b"
+    },
+    {
+      "path": "docs/M3_R14_ROUND_014_RESULTS.md",
+      "exactUtf8ByteSha256": "84775dee1a1b09bc2a2df2a45bd57ee23dc719de2fa5980b9f296a1dbdfe939d"
+    },
+    {
+      "path": "docs/evidence/M3_R14_ROUND_014_SELECTION.json",
+      "exactUtf8ByteSha256": "e1eddf15428d46fd5a032494b9f790fe3c773d51f390ac641fb2e3989faa1795"
+    },
+    {
+      "path": "docs/evidence/M3_R14_ROUND_014_SELECTION.md",
+      "exactUtf8ByteSha256": "f404ed153263394d14f8a9633b951d4365bcb468fb459c7c114591a64d48ba61"
+    }
+  ]
+}
