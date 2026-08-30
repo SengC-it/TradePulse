@@ -191,6 +191,8 @@ function sourceText(): string {
     // research boundary with dedicated offline suites.
     // Round-014 crash-safe replay machinery is a separate bounded
     // research boundary with dedicated offline suites.
+    // Round-015 beta/alpha decomposition machinery is a separate bounded
+    // research boundary with dedicated offline suites.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -201,12 +203,14 @@ function sourceText(): string {
       !name.startsWith("m3-r11-round-011-") &&
       !name.startsWith("m3-r13-round-013-") &&
       !name.startsWith("m3-r14-round-014-") &&
+      !name.startsWith("m3-r15-round-015-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&
       name !== "selection-gates-round-009.ts" &&
       name !== "selection-gates-round-010.ts" &&
       name !== "selection-gates-round-011.ts" &&
+      name !== "selection-gates-round-015.ts" &&
       name !== "m3-r5-h17-funding-qualification.ts" &&
       name !== "m3-r5-round-005-performance.ts" &&
       name !== "m3-r5-round-005-settlement.ts",
