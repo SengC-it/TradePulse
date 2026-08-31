@@ -47,6 +47,18 @@ describe("Round-016 official archive conformance", () => {
     expect(() => parseR16MetricsCsv(csv.replace("101,1010000,0.8", "101,1010000,not-a-number"), "BTCUSDT")).toThrow(R16ArchiveError);
   });
 
+  it("parses Binance Vision create_time text as UTC milliseconds", () => {
+    const csv = [
+      "create_time,symbol,sum_open_interest,sum_open_interest_value,sum_taker_long_short_vol_ratio",
+      "2023-01-01 00:00:00,BTCUSDT,100,1000000,1.25",
+      "2023-01-01 00:05:00,BTCUSDT,101,1010000,0.8",
+    ].join("\n");
+    expect(parseR16MetricsCsv(csv, "BTCUSDT").map((row) => row.timestamp)).toEqual([
+      Date.parse("2023-01-01T00:00:00.000Z"),
+      Date.parse("2023-01-01T00:05:00.000Z"),
+    ]);
+  });
+
   it("accepts only canonical closed 5-minute basis candles", () => {
     const openTime = 1700000100000 - (1700000100000 % (5 * 60_000));
     const csv = [

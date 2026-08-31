@@ -132,7 +132,12 @@ function requiredNumber(value: string | undefined, label: string, url: string): 
   return parsed;
 }
 function requiredTimestamp(value: string | undefined, label: string, url: string): number {
-  const parsed = requiredNumber(value, label, url);
+  if (value === undefined || value.trim() === "") throw new R16ArchiveError(`${label} is missing.`, url);
+  const trimmed = value.trim();
+  const numeric = /^\d+(?:\.\d+)?$/u.test(trimmed) ? Number(trimmed) : Number.NaN;
+  const utcText = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/u.test(trimmed) ? `${trimmed.replace(" ", "T")}Z` : trimmed;
+  const parsed = Number.isFinite(numeric) ? numeric : Date.parse(utcText);
+  if (!Number.isFinite(parsed)) throw new R16ArchiveError(`${label} is not finite.`, url);
   if (!Number.isSafeInteger(parsed) || parsed < 1_000_000_000_000) throw new R16ArchiveError(`${label} is not a millisecond timestamp.`, url);
   return parsed;
 }
