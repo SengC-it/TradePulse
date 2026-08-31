@@ -38,6 +38,7 @@ const document = {
     detectedCadenceMs: value.detectedCadenceMs,
     duplicatesIdentical: value.duplicatesIdentical,
     duplicatesConflicting: value.duplicatesConflicting,
+    invalidRows: value.invalidRows ?? 0,
     missingIntervals: value.missingIntervals,
   })),
   officialChecksumsVerified: acquisition.officialChecksumsVerified,

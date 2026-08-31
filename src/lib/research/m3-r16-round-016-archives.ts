@@ -169,10 +169,19 @@ function parseR16MetricsCsvDetailed(csv: string, symbol: ResearchSymbol, sourceU
   for (const row of data) {
     const rowSymbol = row[symbolIndex] ?? symbol;
     if (rowSymbol !== symbol) throw new R16ArchiveError(`R16 metrics symbol mismatch: ${rowSymbol}.`, sourceUrl);
-    const sumOpenInterest = requiredNumber(row[oiIndex], "sum_open_interest", sourceUrl);
-    const sumOpenInterestValue = requiredNumber(row[oiValueIndex], "sum_open_interest_value", sourceUrl);
-    const sumTakerLongShortVolRatio = requiredNumber(row[takerIndex], "sum_taker_long_short_vol_ratio", sourceUrl);
-    const timestamp = requiredTimestamp(row[timestampIndex], "create_time", sourceUrl);
+    let sumOpenInterest: number;
+    let sumOpenInterestValue: number;
+    let sumTakerLongShortVolRatio: number;
+    let timestamp: number;
+    try {
+      sumOpenInterest = requiredNumber(row[oiIndex], "sum_open_interest", sourceUrl);
+      sumOpenInterestValue = requiredNumber(row[oiValueIndex], "sum_open_interest_value", sourceUrl);
+      sumTakerLongShortVolRatio = requiredNumber(row[takerIndex], "sum_taker_long_short_vol_ratio", sourceUrl);
+      timestamp = requiredTimestamp(row[timestampIndex], "create_time", sourceUrl);
+    } catch (error) {
+      if (error instanceof R16ArchiveError) { invalidRows += 1; continue; }
+      throw error;
+    }
     if (!(sumOpenInterest > 0) || !(sumOpenInterestValue > 0) || !(sumTakerLongShortVolRatio > 0)) { invalidRows += 1; continue; }
     output.push(Object.freeze({ symbol, timestamp, sumOpenInterest, sumOpenInterestValue, sumTakerLongShortVolRatio }));
   }
@@ -320,7 +329,8 @@ async function downloadVerifiedArchive(request: R16ArchiveRequest, cacheDirector
   if (existsSync(markerFile)) {
     const marker = JSON.parse(readFileSync(markerFile, "utf8")) as R16ArchiveMarker;
     if (stableStringify(marker.request) !== stableStringify(request) || !existsSync(marker.archivePath) || sha256(readFileSync(marker.archivePath)) !== marker.archiveSha256) throw new R16ArchiveError("R16 archive marker does not match cached bytes.", url);
-    return marker;
+    const provenance = Object.freeze({ ...marker.provenance, invalidRows: marker.provenance.invalidRows ?? 0 });
+    return Object.freeze({ ...marker, provenance });
   }
   const archiveBytes = await fetchBytes(url, options);
   const archiveSha256 = sha256(archiveBytes);
