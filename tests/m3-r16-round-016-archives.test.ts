@@ -43,7 +43,7 @@ describe("Round-016 official archive conformance", () => {
     const rows = parseR16MetricsCsv(csv, "BTCUSDT");
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ symbol: "BTCUSDT", timestamp: 1700000000000, sumOpenInterest: 100, sumOpenInterestValue: 1_000_000, sumTakerLongShortVolRatio: 1.25 });
-    expect(() => parseR16MetricsCsv(csv.replace("101,1010000,0.8", "-1,1010000,0.8"), "BTCUSDT")).toThrow(R16ArchiveError);
+    expect(parseR16MetricsCsv(csv.replace("101,1010000,0.8", "-1,1010000,0.8"), "BTCUSDT")).toHaveLength(1);
     expect(() => parseR16MetricsCsv(csv.replace("101,1010000,0.8", "101,1010000,not-a-number"), "BTCUSDT")).toThrow(R16ArchiveError);
   });
 

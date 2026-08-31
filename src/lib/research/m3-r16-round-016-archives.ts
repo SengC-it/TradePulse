@@ -34,6 +34,11 @@ export type R16MetricRow = Readonly<{
   sumTakerLongShortVolRatio: number;
 }>;
 
+type R16MetricsParseResult = Readonly<{
+  rows: readonly R16MetricRow[];
+  invalidRows: number;
+}>;
+
 export type R16BasisRow = Readonly<{
   symbol: ResearchSymbol;
   openTime: number;
@@ -63,6 +68,7 @@ export type R16ArchiveProvenance = Readonly<{
   detectedCadenceMs: number | null;
   duplicatesIdentical: number;
   duplicatesConflicting: number;
+  invalidRows: number;
   missingIntervals: number;
 }>;
 
@@ -147,7 +153,7 @@ function indexOfRequired(header: readonly string[], names: readonly string[], la
   return index;
 }
 
-export function parseR16MetricsCsv(csv: string, symbol: ResearchSymbol, sourceUrl = "fixture://r16-metrics"): readonly R16MetricRow[] {
+function parseR16MetricsCsvDetailed(csv: string, symbol: ResearchSymbol, sourceUrl = "fixture://r16-metrics"): R16MetricsParseResult {
   const rows = csvRows(csv);
   if (rows.length < 2) throw new R16ArchiveError("R16 metrics archive is empty.", sourceUrl);
   const header = rows[0]!.map(normalizedHeader);
@@ -159,16 +165,22 @@ export function parseR16MetricsCsv(csv: string, symbol: ResearchSymbol, sourceUr
   const oiValueIndex = headerPresent ? indexOfRequired(header, ["sumopeninterestvalue"], "sum_open_interest_value", sourceUrl) : 3;
   const takerIndex = headerPresent ? indexOfRequired(header, ["sumtakerlongshortvolratio"], "sum_taker_long_short_vol_ratio", sourceUrl) : 7;
   const output: R16MetricRow[] = [];
+  let invalidRows = 0;
   for (const row of data) {
     const rowSymbol = row[symbolIndex] ?? symbol;
     if (rowSymbol !== symbol) throw new R16ArchiveError(`R16 metrics symbol mismatch: ${rowSymbol}.`, sourceUrl);
     const sumOpenInterest = requiredNumber(row[oiIndex], "sum_open_interest", sourceUrl);
     const sumOpenInterestValue = requiredNumber(row[oiValueIndex], "sum_open_interest_value", sourceUrl);
     const sumTakerLongShortVolRatio = requiredNumber(row[takerIndex], "sum_taker_long_short_vol_ratio", sourceUrl);
-    if (!(sumOpenInterest > 0) || !(sumOpenInterestValue > 0) || !(sumTakerLongShortVolRatio > 0)) throw new R16ArchiveError("R16 metrics values must be positive.", sourceUrl);
-    output.push(Object.freeze({ symbol, timestamp: requiredTimestamp(row[timestampIndex], "create_time", sourceUrl), sumOpenInterest, sumOpenInterestValue, sumTakerLongShortVolRatio }));
+    const timestamp = requiredTimestamp(row[timestampIndex], "create_time", sourceUrl);
+    if (!(sumOpenInterest > 0) || !(sumOpenInterestValue > 0) || !(sumTakerLongShortVolRatio > 0)) { invalidRows += 1; continue; }
+    output.push(Object.freeze({ symbol, timestamp, sumOpenInterest, sumOpenInterestValue, sumTakerLongShortVolRatio }));
   }
-  return Object.freeze(output);
+  return Object.freeze({ rows: Object.freeze(output), invalidRows });
+}
+
+export function parseR16MetricsCsv(csv: string, symbol: ResearchSymbol, sourceUrl = "fixture://r16-metrics"): readonly R16MetricRow[] {
+  return parseR16MetricsCsvDetailed(csv, symbol, sourceUrl).rows;
 }
 
 export function parseR16BasisCsv(csv: string, symbol: ResearchSymbol, sourceUrl = "fixture://r16-basis"): readonly Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>[] {
@@ -267,8 +279,12 @@ function detectCadence(timestamps: readonly number[], interval: number): number 
   return [...frequencies.entries()].sort((left, right) => right[1] - left[1] || left[0] - right[0])[0]![0];
 }
 
-function parseArchiveRecords(request: R16ArchiveRequest, csv: string, url: string): readonly R16MetricRow[] | readonly Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>[] {
-  return request.kind === "metrics" ? parseR16MetricsCsv(csv, request.symbol, url) : parseR16BasisCsv(csv, request.symbol, url);
+function parseArchiveRecords(request: R16ArchiveRequest, csv: string, url: string): Readonly<{ records: readonly R16ParsedArchiveRecord[]; invalidRows: number }> {
+  if (request.kind === "metrics") {
+    const parsed = parseR16MetricsCsvDetailed(csv, request.symbol, url);
+    return Object.freeze({ records: parsed.rows, invalidRows: parsed.invalidRows });
+  }
+  return Object.freeze({ records: parseR16BasisCsv(csv, request.symbol, url), invalidRows: 0 });
 }
 
 type R16ParsedArchiveRecord = R16MetricRow | Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>;
@@ -312,10 +328,10 @@ async function downloadVerifiedArchive(request: R16ArchiveRequest, cacheDirector
   const expected = checksumDigest(officialChecksumContent, checksumUrl);
   if (archiveSha256 !== expected) throw new R16ArchiveError("R16 archive SHA-256 does not match official CHECKSUM.", url);
   const csv = zipCsv(archiveBytes, url);
-  const records = parseArchiveRecords(request, csv.text, url);
-  if (records.length === 0) throw new R16ArchiveError("R16 archive has no usable records.", url);
-  const quality = archiveQuality(records, request.kind === "metrics" ? R16_METRICS_INTERVAL_MS : R16_BASIS_INTERVAL_MS, url);
-  const provenance: R16ArchiveProvenance = Object.freeze({ source: "BINANCE_VISION_ARCHIVE", sourceUrl: url, checksumUrl, archiveFileName: archiveFileName(request), archiveSha256, officialChecksumContent, officialChecksumSha256: sha256(new TextEncoder().encode(officialChecksumContent)), symbol: request.symbol, dataType: request.kind, frequency: request.frequency, period: request.period, interval: request.interval ?? null, csvFileName: csv.name, rowCount: records.length, firstTimestamp: quality.timestamps[0] ?? null, lastTimestamp: quality.timestamps.at(-1) ?? null, detectedCadenceMs: quality.detectedCadenceMs, duplicatesIdentical: quality.duplicatesIdentical, duplicatesConflicting: quality.duplicatesConflicting, missingIntervals: quality.missingIntervals });
+  const parsed = parseArchiveRecords(request, csv.text, url);
+  if (parsed.records.length === 0) throw new R16ArchiveError("R16 archive has no usable records.", url);
+  const quality = archiveQuality(parsed.records, request.kind === "metrics" ? R16_METRICS_INTERVAL_MS : R16_BASIS_INTERVAL_MS, url);
+  const provenance: R16ArchiveProvenance = Object.freeze({ source: "BINANCE_VISION_ARCHIVE", sourceUrl: url, checksumUrl, archiveFileName: archiveFileName(request), archiveSha256, officialChecksumContent, officialChecksumSha256: sha256(new TextEncoder().encode(officialChecksumContent)), symbol: request.symbol, dataType: request.kind, frequency: request.frequency, period: request.period, interval: request.interval ?? null, csvFileName: csv.name, rowCount: parsed.records.length, firstTimestamp: quality.timestamps[0] ?? null, lastTimestamp: quality.timestamps.at(-1) ?? null, detectedCadenceMs: quality.detectedCadenceMs, duplicatesIdentical: quality.duplicatesIdentical, duplicatesConflicting: quality.duplicatesConflicting, invalidRows: parsed.invalidRows, missingIntervals: quality.missingIntervals });
   const archivePath = path.join(directory, archiveFileName(request));
   const staging = mkdtempSync(path.join(directory, ".r16-archive-staging-"));
   try {
