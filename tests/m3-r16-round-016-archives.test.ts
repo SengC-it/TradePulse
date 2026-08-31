@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   R16ArchiveError,
   buildR16ArchiveRequests,
+  collapseR16Rows,
   parseR16BasisCsv,
   parseR16MetricsCsv,
   r16ArchiveChecksumUrl,
@@ -58,6 +59,21 @@ describe("Round-016 official archive conformance", () => {
       Date.parse("2023-01-01T00:00:00.000Z"),
       Date.parse("2023-01-01T00:05:00.000Z"),
     ]);
+  });
+
+  it("collapses identical duplicates and invalidates conflicting timestamps", () => {
+    const first = { timestamp: 1, value: "first" };
+    const identical = { timestamp: 1, value: "first" };
+    const conflict = { timestamp: 1, value: "conflict" };
+    expect(collapseR16Rows([first, identical], (row) => row.timestamp)).toEqual({ rows: [first], invalidKeys: [] });
+    expect(collapseR16Rows([first, conflict, identical], (row) => row.timestamp)).toEqual({ rows: [], invalidKeys: [1] });
+
+    const basis = collapseR16Rows([
+      { openTime: 5, close: 100 },
+      { openTime: 5, close: 101 },
+    ], (row) => row.openTime);
+    expect(basis.rows).toEqual([]);
+    expect(basis.invalidKeys).toEqual([5]);
   });
 
   it("accepts only canonical closed 5-minute basis candles", () => {

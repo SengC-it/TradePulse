@@ -72,6 +72,7 @@ export async function buildR16Conformance(root = process.cwd()): Promise<R16Conf
   const acquisition = readR16AcquisitionManifest(path.resolve(root, ".cache", "tradepulse", "round-016"));
   const r15Path = (() => { try { return locateR16R15ObservationFile(root); } catch { return null; } })();
   const text = sourceText(root);
+  const performanceText = existsSync(path.join(root, "src/lib/research/m3-r16-round-016-performance.ts")) ? readFileSync(path.join(root, "src/lib/research/m3-r16-round-016-performance.ts"), "utf8") : "";
   const checks: R16ConformanceCheck[] = [];
   let sourceR15Verified = false;
   if (r15Path) sourceR15Verified = (await hashR16File(r15Path)) === M3_R16_SOURCE_R15_OBSERVATION_SHA256;
@@ -98,7 +99,7 @@ export async function buildR16Conformance(root = process.cwd()): Promise<R16Conf
   checks.push(check("noSweep", R16_SPEC_OBJECT.model.noSweep === true && R16_PLAN.performance.models.length === 4, { noSweep: R16_SPEC_OBJECT.model.noSweep, modelCount: R16_PLAN.performance.models.length }));
   checks.push(check("noOptimizer", R16_SPEC_OBJECT.model.noOptimizer === true && !/optimizer/iu.test(text.replace(/noOptimizer/gu, "")), { noOptimizer: R16_SPEC_OBJECT.model.noOptimizer }));
   checks.push(check("productionSeenDataExcluded", R16_SPEC_OBJECT.governance.productionDataExcluded === true && R16_SPEC_OBJECT.governance.productionSeenDataClassification === "SEEN_HYPOTHESIS_GENERATING_DIAGNOSTIC_ONLY", { governance: R16_SPEC_OBJECT.governance }));
-  checks.push(check("networkDisabledDuringPerformance", R16_SPEC_OBJECT.governance.networkDisabledDuringPerformance === true && R16_PLAN.performance.network === "DISABLED_AFTER_LOCK" && !/fetch\s*\(/iu.test(readFileSync(path.join(root, "src/lib/research/m3-r16-round-016-performance.ts"), "utf8")), { network: R16_PLAN.performance.network }));
+  checks.push(check("networkDisabledDuringPerformance", R16_SPEC_OBJECT.governance.networkDisabledDuringPerformance === true && R16_PLAN.performance.network === "DISABLED_AFTER_LOCK" && !/fetch\s*\(/iu.test(performanceText), { network: R16_PLAN.performance.network, performanceSourcePresent: performanceText.length > 0 }));
   checks.push(check("privateBinanceApiAbsent", R16_SPEC_OBJECT.governance.privateBinanceApi === false && !/apiKey|secretKey|createOrder|cancelOrder/iu.test(text), { privateBinanceApi: R16_SPEC_OBJECT.governance.privateBinanceApi }));
   checks.push(check("automaticTradingFalse", R16_SPEC_OBJECT.governance.automaticTrading === false && R16_SPEC_OBJECT.governance.tradingEnabled === false, { automaticTrading: R16_SPEC_OBJECT.governance.automaticTrading, tradingEnabled: R16_SPEC_OBJECT.governance.tradingEnabled }));
   const deviations = checks.filter((value) => resultAffecting.has(value.checkId) && !value.passed).map((value) => value.checkId);

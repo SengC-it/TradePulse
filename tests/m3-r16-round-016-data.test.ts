@@ -83,4 +83,10 @@ describe("Round-016 microstructure materialization inputs", () => {
     const invalidSeries = Object.freeze({ metrics: Object.freeze(metrics), basis: series().basis, acquisition: acquisition() });
     expect(() => deriveR16MicroValue({ series: invalidSeries, symbol: "BTCUSDT", direction: "LONG", decisionTime: DECISION_TIME, return4h: 0.5 })).toThrow(/invalid current metrics/u);
   });
+
+  it("uses the same exact windows with indexed lookup", () => {
+    const value = deriveR16MicroValue({ series: series(), symbol: "BTCUSDT", direction: "LONG", decisionTime: DECISION_TIME, return4h: 0.5 });
+    const expected = Array.from({ length: 12 }, (_, index) => Math.log(1 + index / 1_000)).reduce((sum, item) => sum + item, 0) / 12;
+    expect(value.taker1h).toBeCloseTo(expected, 12);
+  });
 });

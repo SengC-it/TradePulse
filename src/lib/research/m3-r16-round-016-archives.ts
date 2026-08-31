@@ -48,6 +48,13 @@ export type R16BasisRow = Readonly<{
   basisBps: number;
 }>;
 
+type R16ParsedBasisRow = Readonly<{
+  symbol: ResearchSymbol;
+  openTime: number;
+  closeTime: number;
+  close: number;
+}>;
+
 export type R16ArchiveProvenance = Readonly<{
   source: "BINANCE_VISION_ARCHIVE";
   sourceUrl: string;
@@ -192,7 +199,7 @@ export function parseR16MetricsCsv(csv: string, symbol: ResearchSymbol, sourceUr
   return parseR16MetricsCsvDetailed(csv, symbol, sourceUrl).rows;
 }
 
-export function parseR16BasisCsv(csv: string, symbol: ResearchSymbol, sourceUrl = "fixture://r16-basis"): readonly Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>[] {
+export function parseR16BasisCsv(csv: string, symbol: ResearchSymbol, sourceUrl = "fixture://r16-basis"): readonly R16ParsedBasisRow[] {
   const rows = csvRows(csv);
   if (rows.length < 2) throw new R16ArchiveError("R16 basis archive is empty.", sourceUrl);
   const header = rows[0]!.map(normalizedHeader);
@@ -279,6 +286,19 @@ function requestKey(request: R16ArchiveRequest): string { return `${request.kind
 function markerPath(cacheDirectory: string, request: R16ArchiveRequest): string { return path.join(archiveDirectory(cacheDirectory, request), `${requestKey(request).replaceAll("|", "_")}.json`); }
 
 type R16ArchiveMarker = Readonly<{ request: R16ArchiveRequest; archivePath: string; archiveSha256: string; officialChecksumContent: string; officialChecksumSha256: string; provenance: R16ArchiveProvenance }>;
+
+export function collapseR16Rows<T>(rows: readonly T[], keyOf: (row: T) => number): Readonly<{ rows: readonly T[]; invalidKeys: readonly number[] }> {
+  const byKey = new Map<number, T>();
+  const invalidKeys = new Set<number>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    if (invalidKeys.has(key)) continue;
+    const prior = byKey.get(key);
+    if (prior === undefined) { byKey.set(key, row); continue; }
+    if (stableStringify(prior) !== stableStringify(row)) { byKey.delete(key); invalidKeys.add(key); }
+  }
+  return Object.freeze({ rows: Object.freeze([...byKey.values()]), invalidKeys: Object.freeze([...invalidKeys].sort((left, right) => left - right)) });
+}
 
 function detectCadence(timestamps: readonly number[], interval: number): number | null {
   const differences = timestamps.slice(1).map((value, index) => value - timestamps[index]!).filter((value) => value > 0 && value <= interval * 24);
@@ -439,22 +459,23 @@ export function loadR16MicroSeries(cacheDirectory: string): R16MicroSeries {
   const acquisition = readR16AcquisitionManifest(cacheDirectory);
   if (!acquisition?.completed || !acquisition.officialChecksumsVerified || !acquisition.metricsSchemaVerified || !acquisition.metricsCadenceVerified || !acquisition.markIndexPairingVerified) throw new Error("R16 micro archive acquisition manifest is missing or incomplete.");
   const metrics = Object.fromEntries(R16_SYMBOLS.map((symbol) => [symbol, [] as R16MetricRow[]])) as Record<ResearchSymbol, R16MetricRow[]>;
-  const mark = Object.fromEntries(R16_SYMBOLS.map((symbol) => [symbol, new Map<number, Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>>()])) as Record<ResearchSymbol, Map<number, Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>>>;
-  const index = Object.fromEntries(R16_SYMBOLS.map((symbol) => [symbol, new Map<number, Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>>()])) as Record<ResearchSymbol, Map<number, Readonly<{ symbol: ResearchSymbol; openTime: number; closeTime: number; close: number }>>>;
+  const mark = Object.fromEntries(R16_SYMBOLS.map((symbol) => [symbol, [] as R16ParsedBasisRow[]])) as Record<ResearchSymbol, R16ParsedBasisRow[]>;
+  const index = Object.fromEntries(R16_SYMBOLS.map((symbol) => [symbol, [] as R16ParsedBasisRow[]])) as Record<ResearchSymbol, R16ParsedBasisRow[]>;
   for (const provenance of acquisition.archiveProvenance) {
     const request: R16ArchiveRequest = { kind: provenance.dataType, frequency: provenance.frequency, symbol: provenance.symbol, period: provenance.period, ...(provenance.interval ? { interval: provenance.interval } : {}) };
     const filePath = path.join(path.resolve(cacheDirectory), "archives", request.kind, request.symbol, request.frequency, request.interval ?? "none", archiveFileName(request));
     const csv = zipCsv(readFileSync(filePath), provenance.sourceUrl);
     if (request.kind === "metrics") metrics[request.symbol]!.push(...parseR16MetricsCsv(csv.text, request.symbol, provenance.sourceUrl));
-    else { const destination = request.kind === "markPriceKlines" ? mark[request.symbol]! : index[request.symbol]!; for (const row of parseR16BasisCsv(csv.text, request.symbol, provenance.sourceUrl)) { const prior = destination.get(row.openTime); if (prior && stableStringify(prior) !== stableStringify(row)) throw new Error(`R16 conflicting ${request.kind} duplicate at ${request.symbol}/${row.openTime}.`); destination.set(row.openTime, row); } }
+    else { const destination = request.kind === "markPriceKlines" ? mark[request.symbol]! : index[request.symbol]!; destination.push(...parseR16BasisCsv(csv.text, request.symbol, provenance.sourceUrl)); }
   }
   const metricOutput = {} as Record<ResearchSymbol, readonly R16MetricRow[]>;
   const basisOutput = {} as Record<ResearchSymbol, readonly R16BasisRow[]>;
   for (const symbol of R16_SYMBOLS) {
-    const metricByTime = new Map<number, R16MetricRow>();
-    for (const row of metrics[symbol]!) { const prior = metricByTime.get(row.timestamp); if (prior && stableStringify(prior) !== stableStringify(row)) throw new Error(`R16 conflicting metrics duplicate at ${symbol}/${row.timestamp}.`); metricByTime.set(row.timestamp, row); }
-    metricOutput[symbol] = Object.freeze([...metricByTime.values()].sort((left, right) => left.timestamp - right.timestamp));
-    const paired = [...mark[symbol]!.keys()].filter((time) => index[symbol]!.has(time)).sort((left, right) => left - right).map((openTime) => { const left = mark[symbol]!.get(openTime)!; const right = index[symbol]!.get(openTime)!; if (!(right.close > 0)) throw new Error(`R16 index close is not positive at ${symbol}/${openTime}.`); return Object.freeze({ symbol, openTime, closeTime: Math.min(left.closeTime, right.closeTime), markClose: left.close, indexClose: right.close, basisBps: 10_000 * (left.close - right.close) / right.close }); });
+    const metricRows = collapseR16Rows(metrics[symbol]!, (row) => row.timestamp).rows;
+    metricOutput[symbol] = Object.freeze([...metricRows].sort((left, right) => left.timestamp - right.timestamp));
+    const markByTime = new Map(collapseR16Rows(mark[symbol]!, (row) => row.openTime).rows.map((row) => [row.openTime, row]));
+    const indexByTime = new Map(collapseR16Rows(index[symbol]!, (row) => row.openTime).rows.map((row) => [row.openTime, row]));
+    const paired = [...markByTime.keys()].filter((time) => indexByTime.has(time)).sort((left, right) => left - right).map((openTime) => { const left = markByTime.get(openTime)!; const right = indexByTime.get(openTime)!; if (!(right.close > 0)) throw new Error(`R16 index close is not positive at ${symbol}/${openTime}.`); return Object.freeze({ symbol, openTime, closeTime: Math.min(left.closeTime, right.closeTime), markClose: left.close, indexClose: right.close, basisBps: 10_000 * (left.close - right.close) / right.close }); });
     basisOutput[symbol] = Object.freeze(paired.filter((row) => Number.isFinite(row.basisBps)));
   }
   return Object.freeze({ metrics: Object.freeze(metricOutput), basis: Object.freeze(basisOutput), acquisition });

@@ -142,6 +142,14 @@ function latestAtOrBefore(rows: readonly R16MetricRow[], target: number): R16Met
   while (low <= high) { const middle = Math.floor((low + high) / 2); const row = rows[middle]!; if (row.timestamp <= target) { found = row; low = middle + 1; } else high = middle - 1; }
   return found;
 }
+
+function firstAfter(rows: readonly R16MetricRow[], target: number): number {
+  let low = 0;
+  let high = rows.length;
+  while (low < high) { const middle = Math.floor((low + high) / 2); if (rows[middle]!.timestamp <= target) low = middle + 1; else high = middle; }
+  return low;
+}
+
 function requireRecentMetric(rows: readonly R16MetricRow[], target: number, label: string): R16MetricRow {
   const row = latestAtOrBefore(rows, target);
   if (!row || target - row.timestamp > R16_METRICS_INTERVAL_MS) throw new Error(`R16 missing canonical ${label} metrics sample.`);
@@ -149,15 +157,32 @@ function requireRecentMetric(rows: readonly R16MetricRow[], target: number, labe
   if (row.timestamp % R16_METRICS_INTERVAL_MS !== 0) throw new Error(`R16 non-canonical ${label} metrics timestamp.`);
   return row;
 }
+
 function exactBasis(rows: readonly R16BasisRow[], openTime: number, decisionTime: number, label: string): R16BasisRow {
-  const row = rows.find((value) => value.openTime === openTime);
+  let low = 0;
+  let high = rows.length - 1;
+  let row: R16BasisRow | undefined;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = rows[middle]!;
+    if (candidate.openTime === openTime) { row = candidate; break; }
+    if (candidate.openTime < openTime) low = middle + 1;
+    else high = middle - 1;
+  }
   if (!row || row.closeTime !== openTime + R16_BASIS_INTERVAL_MS - 1 || row.closeTime >= decisionTime) throw new Error(`R16 missing canonical ${label} basis pair.`);
   return row;
 }
 function windowTaker(rows: readonly R16MetricRow[], startExclusive: number, endInclusive: number, expectedCount: number, label: string): number {
-  const values = rows.filter((row) => row.timestamp > startExclusive && row.timestamp <= endInclusive).map((row) => Math.log(row.sumTakerLongShortVolRatio));
-  if (values.length !== expectedCount || values.some((value) => !Number.isFinite(value))) throw new Error(`R16 incomplete canonical ${label} taker window.`);
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+  const start = firstAfter(rows, startExclusive);
+  const end = firstAfter(rows, endInclusive);
+  if (end - start !== expectedCount) throw new Error(`R16 incomplete canonical ${label} taker window.`);
+  let sum = 0;
+  for (let index = start; index < end; index += 1) {
+    const value = Math.log(rows[index]!.sumTakerLongShortVolRatio);
+    if (!Number.isFinite(value)) throw new Error(`R16 incomplete canonical ${label} taker window.`);
+    sum += value;
+  }
+  return sum / expectedCount;
 }
 
 export function deriveR16MicroValue(input: Readonly<{ series: R16MicroSeries; symbol: ResearchSymbol; direction: R16Direction; decisionTime: number; return4h: number }>): R16MicroValue {

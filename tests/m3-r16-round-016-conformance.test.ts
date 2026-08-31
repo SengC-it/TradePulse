@@ -11,7 +11,7 @@ import { R16_SPEC_OBJECT, R16_SPEC_SHA256 } from "../src/lib/research/m3-r16-rou
 
 describe("Round-016 pre-performance conformance", () => {
   it("defines every result-affecting check in stable order and fails closed without frozen inputs", async () => {
-    const document = await buildR16Conformance(process.cwd());
+    const document = await buildR16Conformance(path.join(process.cwd(), ".r16-conformance-empty-fixture"));
     expect(document.checks).toHaveLength(R16_CONFORMANCE_CHECK_IDS.length);
     expect(document.checks.map((value) => value.checkId)).toEqual([...R16_CONFORMANCE_CHECK_IDS]);
     expect(document.resultAffectingDeviationCount).toBe(document.resultAffectingDeviations.length);
