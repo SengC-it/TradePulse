@@ -220,6 +220,7 @@ export const R16_OBSERVATION_FREEZE_PATH = R16_REQUIRED_OUTPUT_PATHS[4];
 export const R16_PUBLICATION_HASHES_PATH = R16_REQUIRED_OUTPUT_PATHS[5];
 export const R16_OBSERVATION_DATA_PATH = ".cache/tradepulse/round-016/observations.ndjson" as const;
 export const R16_DEFAULT_CACHE_DIRECTORY = ".cache/tradepulse/round-016" as const;
+export const R16_PERFORMANCE_LEDGER_PATH = "docs/research/round-016-performance-ledger.json" as const;
 
 export function r16HashUtf8Bytes(value: string): string {
   return createHash("sha256").update(Buffer.from(value, "utf8")).digest("hex");

@@ -7,7 +7,7 @@ import { readR16ObservationFreeze, verifyR16ObservationFreeze } from "../src/lib
 import { R16_PLAN, validateR16Plan } from "../src/lib/research/m3-r16-round-016-plan.ts";
 import { buildR16ExecutionArtifacts, executeR16Performance, existingR16OutputArtifacts, publishR16ArtifactsAtomically } from "../src/lib/research/m3-r16-round-016-performance.ts";
 import { R16_PLAN_PATH, R16_SPEC_OBJECT, R16_SPEC_PATH, R16_SPEC_SHA256, M3_R16_SOURCE_R14_OBSERVATION_SHA256, M3_R16_SOURCE_R15_OBSERVATION_SHA256, M3_R16_PERFORMANCE_LOCK, M3_R16_RESEARCH_ROUND_ID } from "../src/lib/research/m3-r16-round-016-protocol.ts";
-import { executionLockPath, newR16ExecutionId, readR16Lock, writeR16LockAtomic, type R16ExecutionLock } from "../src/lib/research/m3-r16-round-016-checkpoints.ts";
+import { claimR16PerformanceExecution, newR16ExecutionId, roundGlobalPerformanceLedgerPath } from "../src/lib/research/m3-r16-round-016-checkpoints.ts";
 import { stableStringify } from "../src/lib/research/utils.ts";
 
 function argument(name: string): string | undefined {
@@ -54,25 +54,18 @@ try {
 
   const executionId = argument("--execution-id") ?? newR16ExecutionId();
   const executionDirectory = path.resolve(argument("--execution-directory") ?? path.join(process.cwd(), ".cache", "tradepulse", "round-016", "executions", executionId));
-  const lockPath = executionLockPath(executionDirectory);
-  let lock: R16ExecutionLock;
-  if (existsSync(lockPath)) {
-    lock = readR16Lock(lockPath);
-    lockPresent = true;
-    if (lock.executionId !== executionId || lock.executionSourceSha !== sourceSha || lock.researchRoundId !== M3_R16_RESEARCH_ROUND_ID || lock.lock !== M3_R16_PERFORMANCE_LOCK || lock.observationDatasetSha256 !== freeze.observationDataSha256) throw new Error("Existing R16 performance lock identity mismatch.");
-  } else {
-    lock = { schemaVersion: "m3-r16-round-016-performance-lock-001", lock: M3_R16_PERFORMANCE_LOCK, researchRoundId: M3_R16_RESEARCH_ROUND_ID, executionId, executionSourceSha: sourceSha, observationDatasetSha256: freeze.observationDataSha256, createdAt: new Date().toISOString(), continuationCount: 0 };
-    writeR16LockAtomic(lockPath, lock);
-    lockPresent = true;
-  }
+  const ledgerPath = roundGlobalPerformanceLedgerPath(process.cwd());
+  lockPresent = existsSync(ledgerPath);
+  const claim = claimR16PerformanceExecution({ root: process.cwd(), executionId, executionSourceSha: sourceSha, observationDatasetSha256: freeze.observationDataSha256 });
+  lockPresent = true;
 
   stage = "post-lock-model-and-performance-execution";
-  const execution = await executeR16Performance({ root: process.cwd(), executionDirectory, executionLock: lock, observationFreeze: freeze, conformance });
+  const execution = await executeR16Performance({ root: process.cwd(), executionDirectory, executionLock: claim.executionLock, executionLedger: claim.ledger, observationFreeze: freeze, conformance });
   stage = "final-evidence-build";
   const artifacts = buildR16ExecutionArtifacts(execution.report);
   stage = "atomic-evidence-publication";
   publishR16ArtifactsAtomically({ root: process.cwd(), artifacts });
-  console.log(JSON.stringify({ status: "READY_FOR_ROUND016_ACCEPTANCE", researchRoundId: M3_R16_RESEARCH_ROUND_ID, executionId, performanceExecutionSourceSha: sourceSha, performanceLock: M3_R16_PERFORMANCE_LOCK, performanceExecutionCount: execution.report.performanceExecutionCount, continuationCount: execution.report.continuationCount, recomputedCompletedCheckpoints: execution.recomputedCompletedCheckpoints, evidenceGenerated: true, report: execution.report, network: false, privateBinanceApi: false, automaticTrading: false }, null, 2));
+  console.log(JSON.stringify({ status: "READY_FOR_ROUND016_ACCEPTANCE", researchRoundId: M3_R16_RESEARCH_ROUND_ID, executionId, performanceExecutionSourceSha: sourceSha, performanceLock: M3_R16_PERFORMANCE_LOCK, performanceExecutionCount: execution.report.performanceExecutionCount, continuationCount: execution.report.continuationCount, reusedCompletedCheckpoints: execution.reusedCompletedCheckpoints, recomputedCompletedCheckpoints: execution.recomputedCompletedCheckpoints, evidenceGenerated: true, report: execution.report, network: false, privateBinanceApi: false, automaticTrading: false }, null, 2));
 } catch (error) {
   abort(lockPresent ? "PERFORMANCE_ABORT_AFTER_LOCK" : "PRE_PERFORMANCE_ABORT", stage, error);
 }
