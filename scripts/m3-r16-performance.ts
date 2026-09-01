@@ -52,15 +52,16 @@ try {
   if (freeze.sourceR14ObservationSha256 !== M3_R16_SOURCE_R14_OBSERVATION_SHA256 || freeze.sourceR15ObservationSha256 !== M3_R16_SOURCE_R15_OBSERVATION_SHA256 || verifiedFreeze.manifest.integrity !== "COMPLETE" || verifiedFreeze.manifest.integrityErrors.length !== 0) throw new Error("R16 observation freeze identity or integrity failed.");
   if (freeze.pooledCoverage < 0.9 || Object.values(freeze.coverageByFold).some((value) => value.trainingCoverage < 0.85 || value.validationCoverage < 0.85)) throw new Error("R16 observation coverage gate failed.");
 
+  if (process.argv.includes("--execution-directory")) throw new Error("R16 authoritative performance does not accept --execution-directory; the round-global ledger owns the checkpoint root.");
   const executionId = argument("--execution-id") ?? newR16ExecutionId();
-  const executionDirectory = path.resolve(argument("--execution-directory") ?? path.join(process.cwd(), ".cache", "tradepulse", "round-016", "executions", executionId));
+  const requestedExecutionDirectory = path.join(process.cwd(), ".cache", "tradepulse", "round-016", "executions", executionId);
   const ledgerPath = roundGlobalPerformanceLedgerPath(process.cwd());
   lockPresent = existsSync(ledgerPath);
-  const claim = claimR16PerformanceExecution({ root: process.cwd(), executionId, executionSourceSha: sourceSha, observationDatasetSha256: freeze.observationDataSha256 });
+  const claim = claimR16PerformanceExecution({ root: process.cwd(), executionId, executionSourceSha: sourceSha, observationDatasetSha256: freeze.observationDataSha256, executionDirectory: requestedExecutionDirectory });
   lockPresent = true;
 
   stage = "post-lock-model-and-performance-execution";
-  const execution = await executeR16Performance({ root: process.cwd(), executionDirectory, executionLock: claim.executionLock, executionLedger: claim.ledger, observationFreeze: freeze, conformance });
+  const execution = await executeR16Performance({ root: process.cwd(), executionDirectory: claim.executionDirectory, executionLock: claim.executionLock, executionLedger: claim.ledger, continuation: claim.continuation, observationFreeze: freeze, conformance });
   stage = "final-evidence-build";
   const artifacts = buildR16ExecutionArtifacts(execution.report);
   stage = "atomic-evidence-publication";
