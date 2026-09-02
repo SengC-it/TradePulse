@@ -1,0 +1,478 @@
+{
+  "schemaVersion": "m3-r18-round-018-design-001",
+  "researchRoundId": "baseline-002-research-round-018",
+  "phase": "DESIGN_ONLY",
+  "dataClassification": "RESEARCH_AVAILABLE_SEEN_DATA",
+  "studyClassification": "HISTORICAL_DEVELOPMENT_STUDY",
+  "freshOosClaim": false,
+  "promotionAuthority": false,
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "requiredBaseHead": "e10d1bdc90f841ba647172c05b2a19717ec6b28b"
+  },
+  "researchBoundary": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "classification": "RESEARCH_AVAILABLE_SEEN_DATA",
+    "timezoneArithmetic": "UTC_EPOCH_MILLISECONDS_ONLY"
+  },
+  "productBoundary": {
+    "signalAdvisoryOnly": true,
+    "privateBinanceApi": false,
+    "automaticTrading": false,
+    "tradingEnabled": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "shadowActivation": false,
+    "schedulerActivation": false,
+    "mainModified": false
+  },
+  "priorRoundEvidenceHandling": {
+    "r13R14": {
+      "role": "REVIEWED_PRIOR_EVIDENCE_ONLY",
+      "previouslyStudiedFamilies": [
+        "trend",
+        "momentum",
+        "volatility",
+        "volume",
+        "taker_flow",
+        "symbol_vs_btc_relative_movement",
+        "funding",
+        "cross_symbol_breadth"
+      ],
+      "r18Prohibitions": [
+        "R13_R14_FEATURE_REWEIGHTING",
+        "THRESHOLD_SEARCH",
+        "FEATURE_SUBSET_SCAN",
+        "RIDGE_LASSO_OR_MODEL_REPLACEMENT",
+        "OPTIMIZER",
+        "HYPERPARAMETER_SEARCH"
+      ]
+    },
+    "r15": {
+      "role": "BETA_ALPHA_DECOMPOSITION_ALREADY_STUDIED",
+      "r18Prohibitions": [
+        "BETA_MODEL_REPACKAGING",
+        "ALPHA_MODEL_REPACKAGING",
+        "BETA_ALPHA_THRESHOLD_TUNING",
+        "RIDGE_COEFFICIENT_REUSE"
+      ]
+    },
+    "r16": {
+      "role": "NEGATIVE_EVIDENCE_ONLY",
+      "round016DesignInput": false,
+      "automaticFeatureCarryForward": false,
+      "forbiddenFeatureFamilies": [
+        "OPEN_INTEREST",
+        "MARK_INDEX_BASIS",
+        "TAKER_FLOW_PERSISTENCE"
+      ],
+      "forbiddenActions": [
+        "R16_THRESHOLD_TUNING",
+        "R16_WINDOW_TUNING",
+        "R16_PARAMETER_SCAN",
+        "R16_MICROSTRUCTURE_REWEIGHTING"
+      ]
+    },
+    "r17": {
+      "role": "PERFORMANCE_INELIGIBLE_DATA_COMPLETENESS",
+      "economicOutcome": "NONE",
+      "authoritativePerformance": false,
+      "r18Prohibitions": [
+        "FIRST_FOLLOW_UP_CLASSIFICATION_AS_SELECTOR",
+        "R17_SUPPRESSION_RESULT_AS_SELECTOR",
+        "R17_5570_CANDIDATE_SUBSET_AS_SELECTOR",
+        "R17_5834_IDENTITY_MATCHED_SUBSET_AS_SELECTOR",
+        "R17_MISSING_DATA_DATE_RESELECTION"
+      ]
+    }
+  },
+  "hypothesisInventory": [
+    {
+      "id": "R18-ALL-COMPONENT-CONSENSUS",
+      "mechanismFamily": "BASELINE_001_SCORE_COMPONENT_EVIDENCE_BREADTH",
+      "status": "ACTIVE",
+      "researchQuestion": "Does requiring every existing baseline-001 score component to contribute positively improve the net H4 economics and robustness of baseline-001 formal advisories versus the complete formal-advisory control?",
+      "falsifiableHypothesis": "A baseline-001 formal advisory whose score is supported by all five existing component families is more robust than a formal advisory whose total score of at least 70 can be achieved while one or more component families contribute zero.",
+      "economicRationale": "Evidence breadth may distinguish advisories supported across the already-frozen signal architecture from advisories reaching the formal score through sparse component support; the comparison uses identical frozen settlement economics.",
+      "noveltyAgainstPriorRounds": "Tests the topology of the existing baseline score breakdown; it is not a new feature family, beta/alpha model, microstructure model, forward-horizon selector, or thesis-lifecycle selector.",
+      "pointInTimeData": "Only the decision-time baseline score breakdown and formal status are used for candidate classification; no label, outcome, future candle, or production result is read.",
+      "expectedBreadthRequirement": "The complete baseline formal stream is CONTROL; candidate breadth must pass all frozen aggregate, fold, symbol, and regime gates before performance eligibility.",
+      "costSensitivity": "Candidate and CONTROL use unchanged bt-policy-003 fees, slippage, funding, settlement, and declared cost/latency stress labels.",
+      "purgedWalkForward": "Admissible only with the existing six chronological validation folds, 24-hour purge, and 24-hour embargo.",
+      "implementationAndIntegrityRisk": "Exact score replay and canonical identity joining are the primary integrity risks; incomplete provenance fails closed and cannot be repaired by tuning."
+    },
+    {
+      "id": "R18-CROSS-SYMBOL-FORMAL-CONSENSUS",
+      "mechanismFamily": "CROSS_SYMBOL_FORMAL_SIGNAL_CONCURRENCE",
+      "status": "REJECTED_DEFERRED",
+      "researchQuestion": "Does same-direction formal-signal concurrence across symbols add independent edge?",
+      "rejectReason": "Materially overlaps prior market-breadth and cross-symbol information work, risks correlated factor exposure, and is not combined with the active component-breadth question."
+    },
+    {
+      "id": "R18-HIGH-GRADE-ONLY",
+      "mechanismFamily": "TOTAL_SCORE_THRESHOLD_FILTER",
+      "status": "REJECTED_THRESHOLD_TUNING",
+      "researchQuestion": "Does retaining only higher-grade or higher-total-score formal advisories improve outcomes?",
+      "rejectReason": "This is direct threshold tuning around the known baseline score and is inadmissible for Round-018."
+    }
+  ],
+  "activeHypothesis": {
+    "id": "R18-ALL-COMPONENT-CONSENSUS",
+    "mechanismFamily": "BASELINE_001_SCORE_COMPONENT_EVIDENCE_BREADTH",
+    "exactlyOneActive": true,
+    "candidateRuleId": "ALL_FIVE_EXISTING_SCORE_COMPONENTS_STRICTLY_POSITIVE"
+  },
+  "sourceUniverse": {
+    "controlFormalPredicate": "candidate?.formalSignal && candidate.totalScore >= 70",
+    "controlDefinition": "All baseline-001 formal advisories satisfying the exact frozen formal predicate.",
+    "universe": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "BNBUSDT"
+    ],
+    "directions": ["LONG", "SHORT"],
+    "strategyVersion": "baseline-001",
+    "noSourceStreamSubstitution": true,
+    "noCustomStartBoundary": true
+  },
+  "candidateDefinition": {
+    "id": "ALL_FIVE_EXISTING_SCORE_COMPONENTS_STRICTLY_POSITIVE",
+    "definition": "Retain a CONTROL formal advisory only when all five existing baseline-001 score components are strictly positive.",
+    "allConditions": [
+      "trendStrength > 0",
+      "pullbackQuality > 0",
+      "breakoutStrength > 0",
+      "volumeScore > 0",
+      "riskRewardScore > 0"
+    ],
+    "structuralMeaning": ">0 means that this existing component family contributed positive evidence; it is a topology condition, not a tuned numeric trading threshold.",
+    "variantCount": 1,
+    "combinations": false,
+    "parameterSweep": false,
+    "optimizer": false,
+    "machineLearning": false,
+    "forbiddenAlternatives": [
+      ">=4/5",
+      ">=3/5",
+      "component_count_sweep",
+      "minimum_component_score_scan",
+      "component_ratio",
+      "component_concentration_threshold",
+      "component_reweighting",
+      "total_score_threshold_change",
+      "grade_filtering",
+      "R16_FEATURE_OR_COST_FILTER"
+    ],
+    "terminationIf": [
+      "candidate changes zero events",
+      "candidate lacks frozen aggregate/fold/symbol/regime breadth"
+    ],
+    "terminationDecision": "ROUND-018 PERFORMANCE INELIGIBLE AT PREFLIGHT"
+  },
+  "baselineScoreProvenance": {
+    "acceptedSourceCommit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "componentNames": [
+      "trendStrength",
+      "pullbackQuality",
+      "breakoutStrength",
+      "volumeScore",
+      "riskRewardScore"
+    ],
+    "componentMapping": [
+      {"name": "trendStrength", "constantKey": "trendStrength", "maximumWeight": 40},
+      {"name": "pullbackQuality", "constantKey": "pullbackQuality", "maximumWeight": 20},
+      {"name": "breakoutStrength", "constantKey": "breakoutStrength", "maximumWeight": 20},
+      {"name": "volumeScore", "constantKey": "volume", "maximumWeight": 10},
+      {"name": "riskRewardScore", "constantKey": "riskReward", "maximumWeight": 10}
+    ],
+    "gradeThresholds": {"A": 85, "B": 75, "C": 70},
+    "formalPredicate": {
+      "expression": "candidate?.formalSignal && candidate.totalScore >= 70",
+      "sourcePaths": [
+        "src/lib/strategy/engine.ts",
+        "src/lib/backtest/runner.ts"
+      ],
+      "changeAfterFreeze": "FORBIDDEN"
+    },
+    "authoritativeSourceBlobs": [
+      {
+        "path": "src/lib/config/constants.ts",
+        "gitBlobSha": "3bc0caa0963bc8d3b977de2ece6fec28a64dd1c9",
+        "sha256": "f34b2225a7afad0bf18e2a8abf14fecdfb28dcba5c0245c689108db1339e15cc",
+        "anchors": ["SCORE_COMPONENTS", "SIGNAL_GRADE_THRESHOLDS"]
+      },
+      {
+        "path": "src/lib/strategy/scoring.ts",
+        "gitBlobSha": "53ebe011b288d834aa46da5175fa0a34f68a67fb",
+        "sha256": "4d21258eea2ba7027098e0d8c69086a0bef1a1419353330b0a8451e2d397d27a",
+        "anchors": ["scoreCandidate", "trendStrength", "breakoutStrength", "volumeScore", "riskRewardScore"]
+      },
+      {
+        "path": "src/lib/strategy/engine.ts",
+        "gitBlobSha": "1a09de542a76e37848e51dc477ac35219d5685f2",
+        "sha256": "a6eff41ee9efcfa9e800cc6b76699338e260e87043ed7421ff2812d44b6774c9",
+        "anchors": ["evaluateStrategy", "isFormalScore", "formalSignal"]
+      },
+      {
+        "path": "src/lib/backtest/runner.ts",
+        "gitBlobSha": "dad472de8d2e7e4b0f0a0943b51e257afaec8ac9",
+        "sha256": "2f6bc2d733ef081cc2aea4b92165dc80f7f1754f1da1d4d09c03d32cc0ca4208",
+        "anchors": ["formalCandidates", "candidate?.formalSignal && candidate.totalScore >= 70"]
+      },
+      {
+        "path": "src/lib/scoring/score-consistency.ts",
+        "gitBlobSha": "17aedebc611fac0476eae0ac2824f2c0339a22e6",
+        "sha256": "817076adfd79345bad1bf225ae0324b060753b6535a78e06777034a353986e45",
+        "anchors": ["calculateScoreTotal"]
+      }
+    ],
+    "workingTreeSubstitution": false,
+    "requiredProvenanceCheck": "git show/cat-file against acceptedSourceCommit"
+  },
+  "canonicalDataSource": {
+    "identity": "EXACT_ACCEPTED_R14_OBSERVATION_FREEZE_NATIVE_UNIVERSE",
+    "observationDataPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "acceptedObservationCount": 244810,
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "manifestSha256": "79c8e56560cd6e1ed2de1772071bd0d92ecd2fac4b4ae065cf65f11f583b3e18",
+    "selectionReason": "The pre-existing immutable R14 native observation/forward-label freeze is the source universe from which later R15/R16 work was derived.",
+    "notR17Universe": true,
+    "prohibited": [
+      "custom R18 start date",
+      "R17 7500 formal stream as R18 universe",
+      "R17 5834 complete subset as R18 universe",
+      "new historical market data",
+      "network backfill",
+      "fuzzy matching",
+      "nearest timestamp matching",
+      "truncation based on R17 missing data"
+    ]
+  },
+  "scoreReconstructionContract": {
+    "purpose": "Future preflight may reconstruct score metadata only; design performs no replay.",
+    "pipeline": [
+      "accepted frozen historical market cache",
+      "exact baseline-001 decision-time evaluation",
+      "exact formal predicate",
+      "exact score breakdown",
+      "canonical identity decisionTime|symbol|direction",
+      "exact join to R14 native observation identity",
+      "structural candidate/control classification",
+      "fold and regime annotation",
+      "later economic evaluation"
+    ],
+    "decisionTimeOnly": true,
+    "labelIndependent": true,
+    "exactCanonicalJoinRequired": true,
+    "fuzzyJoin": false,
+    "nearestTimestampJoin": false,
+    "syntheticScoreBreakdown": false,
+    "featureApproximationFromR13F01F18": false,
+    "labelBasedRepair": false,
+    "incompleteDecision": "ROUND-018 PERFORMANCE INELIGIBLE — SCORE PROVENANCE",
+    "designReplayExecuted": false,
+    "designDataScanExecuted": false
+  },
+  "frozenFolds": {
+    "sourceCommit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "sourcePath": "src/lib/research/folds.ts",
+    "export": "RESEARCH_FOLDS",
+    "sourceSha256": "f9017ab7b9326353535366465861f4ccd4e276ffd6fb49e61afed75e44e62b2a",
+    "foldIds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "boundaries": {
+      "F1": {"research": {"start": "2023-01-01T00:00:00.000Z", "end": "2023-12-31T23:59:59.999Z"}, "validation": {"start": "2024-01-01T00:00:00.000Z", "end": "2024-06-30T23:59:59.999Z"}},
+      "F2": {"research": {"start": "2023-01-01T00:00:00.000Z", "end": "2024-06-30T23:59:59.999Z"}, "validation": {"start": "2024-07-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z"}},
+      "F3": {"research": {"start": "2023-01-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z"}, "validation": {"start": "2025-01-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z"}},
+      "F4": {"research": {"start": "2023-01-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z"}, "validation": {"start": "2025-07-01T00:00:00.000Z", "end": "2025-12-31T23:59:59.999Z"}},
+      "F5": {"research": {"start": "2023-01-01T00:00:00.000Z", "end": "2025-12-31T23:59:59.999Z"}, "validation": {"start": "2026-01-01T00:00:00.000Z", "end": "2026-03-31T23:59:59.999Z"}},
+      "F6": {"research": {"start": "2023-01-01T00:00:00.000Z", "end": "2026-03-31T23:59:59.999Z"}, "validation": {"start": "2026-04-01T00:00:00.000Z", "end": "2026-08-15T23:59:59.999Z"}}
+    },
+    "validationMethod": "PURGED_WALK_FORWARD_FIXED_SELECTOR",
+    "purgeHours": 24,
+    "embargoHours": 24,
+    "trainingRequired": false,
+    "foldBoundaryRedefinition": false,
+    "futureBoundaryChange": "FORBIDDEN"
+  },
+  "frozenRegimes": {
+    "sourceCommit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "sourcePath": "src/lib/strategy/regimes.ts",
+    "function": "calculateBTCRegime",
+    "sourceSha256": "6d5b17c7035c39f65b64cdc70153e0d9f576f587aa20d9f9c31199c5a655709e",
+    "labels": ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"],
+    "rules": {
+      "inputs": "close, ema50, ema200, ema200FiveBarsAgo, and atr14 must be finite; atr14 <= 0 returns null",
+      "strongBull": "close > ema50 > ema200; (close-ema200)/atr14 >= 1; (ema50-ema200)/atr14 >= 0.5; (ema200-ema200FiveBarsAgo)/atr14 >= 0.1",
+      "strongBear": "close < ema50 < ema200; (ema200-close)/atr14 >= 1; (ema200-ema50)/atr14 >= 0.5; (ema200FiveBarsAgo-ema200)/atr14 >= 0.1",
+      "otherwise": "BTC_NEUTRAL"
+    },
+    "role": "REPORTING_AND_BREADTH_STRATIFICATION_ONLY",
+    "candidateClassificationInfluence": false,
+    "thresholdAdjustment": "FORBIDDEN_AFTER_FREEZE"
+  },
+  "economicLabelContract": {
+    "primaryTarget": "R14_NATIVE_H4_NET_FORWARD_ATR",
+    "primaryHorizonHours": 4,
+    "primaryField": "labels[4].netForwardAtr",
+    "costStressField": "labels[4].netForwardAtrCostStress",
+    "latencyStressField": "latencyStressLabels[4].netForwardAtr",
+    "semanticsSource": "EXACT_R13_R14_H4_LABEL_SEMANTICS",
+    "settlement": [
+      "actionable delay",
+      "signal validity",
+      "entry logic",
+      "exit at exact H4 target",
+      "fees",
+      "slippage",
+      "funding",
+      "ATR normalization"
+    ],
+    "statusEligibility": {
+      "EXECUTED": "eligible",
+      "NO_ENTRY": "not economically evaluated",
+      "PERIOD_END_CENSORED": "not economically evaluated",
+      "DATA_INCOMPLETE": "integrity failure"
+    },
+    "noNewEconomicLabel": true,
+    "noSettlementReconstruction": true,
+    "noBtPolicyReplacement": true,
+    "designMayReadValues": false,
+    "prelightMayReadOnly": ["label identity", "label source", "label status"]
+  },
+  "structuralPrelightGates": {
+    "frozenBeforePrelight": true,
+    "evaluationMode": "FAIL_CLOSED",
+    "definitions": [
+      {"id": "G01_DATA_PROVENANCE", "hardGate": true, "requirement": "Exact R14 manifest/hash, exact accepted historical replay source, exact baseline scoring source hashes, complete replayed score breakdown, complete canonical join, zero duplicate canonical identity, zero relevant DATA_INCOMPLETE, and zero integrity anomaly."},
+      {"id": "G02_POINT_IN_TIME", "hardGate": true, "requirement": "Candidate classification uses decision-time baseline score components only and has no future/outcome dependency."},
+      {"id": "G03_AGGREGATE_BREADTH", "hardGate": true, "requirement": "Candidate economically eligible H4 count >= 500."},
+      {"id": "G04_FOLD_BREADTH", "hardGate": true, "requirement": "Candidate H4 EXECUTED count >= 50 in every validation fold F1-F6."},
+      {"id": "G05_SYMBOL_BREADTH", "hardGate": true, "requirement": "Candidate count >= 20 for each of BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, and BNBUSDT."},
+      {"id": "G06_REGIME_BREADTH", "hardGate": true, "requirement": "Candidate count >= 50 in each of BTC_STRONG_BULL, BTC_NEUTRAL, and BTC_STRONG_BEAR."},
+      {"id": "G07_STRUCTURAL_DISCRIMINATION", "hardGate": true, "requirement": "0 < candidateCount < controlCount; candidate equal to CONTROL fails closed as ROUND-018 PERFORMANCE INELIGIBLE — NON-DISCRIMINATIVE SELECTOR."}
+    ]
+  },
+  "frozenPerformanceGates": {
+    "frozenBeforePerformance": true,
+    "evaluatedDuringDesign": false,
+    "resultsMayNotChangeDefinitions": true,
+    "definitions": [
+      {"id": "G08_ABSOLUTE_H4_EDGE", "hardGate": true, "requirement": "candidate.meanNetForwardAtr > 0"},
+      {"id": "G09_H4_PROFIT_FACTOR", "hardGate": true, "requirement": "candidate.profitFactor >= 1.10"},
+      {"id": "G10_INCREMENTAL_H4_EDGE", "hardGate": true, "requirement": "candidate.meanNetForwardAtr - control.meanNetForwardAtr >= 0.05 ATR"},
+      {"id": "G11_FOLD_INCREMENTAL_ROBUSTNESS", "hardGate": true, "requirement": "Candidate mean >= CONTROL mean in >= 4 of 6 validation folds."},
+      {"id": "G12_FOLD_ABSOLUTE_ROBUSTNESS", "hardGate": true, "requirement": "Candidate meanNetForwardAtr > 0 in >= 4 of 6 validation folds."},
+      {"id": "G13_COST_STRESS", "hardGate": true, "requirement": "candidate meanNetForwardAtrCostStress >= 0 and costStressProfitFactor >= 1.05 using the existing frozen cost-stress label."},
+      {"id": "G14_LATENCY_STRESS", "hardGate": true, "requirement": "latencyStressMeanNetForwardAtr >= 0 and latencyStressProfitFactor >= 1.05 using the existing latency-stress label."},
+      {"id": "G15_DRAWDOWN_NON_DEGRADATION", "hardGate": true, "requirement": "Candidate maximum drawdown is not worse than CONTROL by more than 5% of abs(CONTROL maximumDrawdownNetAtr), with deterministic drawdown ordering."}
+    ]
+  },
+  "metrics": {
+    "designCalculation": false,
+    "primaryH4": [
+      "meanNetForwardAtr",
+      "profitFactor",
+      "cumulativeNetForwardAtr",
+      "maximumDrawdownNetAtr",
+      "controlCount",
+      "candidateCount",
+      "retentionRate"
+    ],
+    "comparative": [
+      "deltaMeanNetForwardAtr",
+      "foldLevelCandidateControlMean",
+      "positiveAbsoluteCandidateFolds",
+      "positiveIncrementalFolds"
+    ],
+    "stress": [
+      "meanNetForwardAtrCostStress",
+      "costStressProfitFactor",
+      "latencyStressMeanNetForwardAtr",
+      "latencyStressProfitFactor"
+    ],
+    "crossHorizonReportingOnly": ["H8", "H12", "H24"],
+    "horizonSelection": false,
+    "economicValuesCalculated": false,
+    "economicValuesViewed": false
+  },
+  "authoritativeExecutionGovernance": {
+    "maxAuthoritativePerformanceExecutions": 1,
+    "performanceExecutionCountSource": "ROUND_GLOBAL_LEDGER_ONLY",
+    "performanceLock": "ROUND_GLOBAL_FIRST_RESULT_LOCK",
+    "ledgerPath": "docs/research/round-018-performance-ledger.json",
+    "ledgerMustBeAbsentDuringDesign": true,
+    "executionDirectoryTemplate": ".cache/tradepulse/round-018/executions/{firstLedgerExecutionId}",
+    "rules": [
+      "first executionId only",
+      "alternate execution directory forbidden",
+      "second executionId forbidden",
+      "completed checkpoints reused only",
+      "completed fold never recomputed",
+      "checkpoint identity/hash mismatch aborts",
+      "missing or corrupt completed checkpoint aborts",
+      "never rebuild a completed checkpoint",
+      "final summary marker written last",
+      "ledger survives deleted output/cache attempts",
+      "selection cannot be rerun"
+    ]
+  },
+  "evidenceOutputs": {
+    "generatedDuringDesign": [],
+    "reservedPerformanceOutputs": [
+      "docs/M3_R18_ROUND_018_RESULTS.md",
+      "docs/evidence/M3_R18_ROUND_018_SUMMARY.json",
+      "docs/evidence/M3_R18_ROUND_018_AUDIT.json"
+    ],
+    "reservedSelectionOutputs": [
+      "docs/evidence/M3_R18_ROUND_018_SELECTION.json",
+      "docs/evidence/M3_R18_ROUND_018_SELECTION.md"
+    ],
+    "reservedObservationOutputs": [],
+    "performanceLedgerPresent": false
+  },
+  "designOnlyProhibitions": [
+    "R18_PREFLIGHT",
+    "R18_OBSERVATION_FREEZE",
+    "R18_PERFORMANCE",
+    "R18_SELECTION",
+    "R18_PERFORMANCE_LEDGER_CLAIM",
+    "R18_PERFORMANCE_CHECKPOINT",
+    "H4_H8_H12_H24_ECONOMIC_VALUE_READ",
+    "CANDIDATE_COUNT_CALCULATION",
+    "RETENTION_RATE_CALCULATION",
+    "NEW_MARKET_DATA_ACQUISITION",
+    "NETWORK_BACKFILL",
+    "BASELINE_001_CHANGE",
+    "BASELINE_002_FREEZE",
+    "M3J_ACTIVATION",
+    "M4_START",
+    "PRODUCTION_MODIFICATION",
+    "SCHEDULER_OR_SHADOW_ACTIVATION",
+    "AUTOMATIC_TRADING"
+  ],
+  "status": {
+    "performance": "NOT_AUTHORIZED / NOT_GENERATED",
+    "performanceExecutionCount": 0,
+    "performanceExecuted": false,
+    "performanceLedgerPresent": false,
+    "selection": "NOT_EXECUTED",
+    "selectionExecuted": false,
+    "economicValuesCalculated": false,
+    "economicValuesViewed": false,
+    "newMarketDataFetched": false,
+    "production": "UNCHANGED",
+    "baseline001": "UNCHANGED",
+    "baseline002": "NOT_FROZEN",
+    "m3J": "BLOCKED",
+    "m4": "NOT_STARTED",
+    "automaticTrading": false
+  }
+}
