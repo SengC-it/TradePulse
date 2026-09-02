@@ -1,0 +1,424 @@
+{
+  "schemaVersion": "m3-r17-round-017-design-001",
+  "researchRoundId": "baseline-002-research-round-017",
+  "phase": "DESIGN_ONLY",
+  "designDecision": "ONE_ACTIVE_RESEARCH_QUESTION",
+  "acceptedResearchSource": {
+    "sha": "0f5e24009f3301b8f2fb64d7e01161402a94f0b7",
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "requiredBaseHead": "0f5e24009f3301b8f2fb64d7e01161402a94f0b7"
+  },
+  "researchBoundary": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "classification": "RESEARCH_AVAILABLE_SEEN_DATA",
+    "timezone": "UTC_EPOCH_MILLISECONDS_ONLY"
+  },
+  "productBoundary": {
+    "signalAdvisoryOnly": true,
+    "privateBinanceApi": false,
+    "automaticTrading": false,
+    "tradingEnabled": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  },
+  "historicalEvidenceReview": [
+    {
+      "round": "ROUND-014",
+      "artifacts": [
+        "docs/evidence/M3_R14_ROUND_014_RESULTS.md",
+        "docs/evidence/M3_R14_ROUND_014_SUMMARY.json",
+        "docs/evidence/M3_R14_ROUND_014_SELECTION.json",
+        "docs/evidence/M3_R14_ROUND_014_AUDIT.json"
+      ],
+      "finalDecision": "NO ROBUST FORWARD EDGE — ROUND-014",
+      "executionCount": 1,
+      "replayStatus": "INVALIDATED / PERFORMANCE_ABORT_AFTER_LOCK",
+      "observedHorizonResults": [
+        {
+          "horizonHours": 4,
+          "selectedValidationObservations": 3741,
+          "meanNetForwardAtr": -0.10947910401579543,
+          "profitFactor": 0.771863416934108,
+          "maximumDrawdownAtr": -439.7853513668079
+        },
+        {
+          "horizonHours": 8,
+          "selectedValidationObservations": 7648,
+          "meanNetForwardAtr": -0.14158844414404934,
+          "profitFactor": 0.8059089801971371,
+          "maximumDrawdownAtr": -1175.6978061167617
+        },
+        {
+          "horizonHours": 12,
+          "selectedValidationObservations": 11370,
+          "meanNetForwardAtr": -0.181358849782422,
+          "profitFactor": 0.8074144487943189,
+          "maximumDrawdownAtr": -2197.3494371796965
+        },
+        {
+          "horizonHours": 24,
+          "selectedValidationObservations": 18017,
+          "meanNetForwardAtr": -0.15101974017324213,
+          "profitFactor": 0.8911096823852761,
+          "maximumDrawdownAtr": -3389.1136625155705
+        }
+      ],
+      "attribution": {
+        "informationInsufficiency": "LOW",
+        "modelOrEdgeFailure": "HIGH",
+        "stabilityFailure": "HIGH",
+        "sampleBreadthFailure": "NOT_PRIMARY",
+        "transactionCostFailure": "HIGH"
+      }
+    },
+    {
+      "round": "ROUND-015",
+      "artifacts": [
+        "docs/evidence/M3_R15_ROUND_015_RESULTS.md",
+        "docs/evidence/M3_R15_ROUND_015_SUMMARY.json",
+        "docs/evidence/M3_R15_ROUND_015_SELECTION.json",
+        "docs/evidence/M3_R15_ROUND_015_AUDIT.json"
+      ],
+      "finalDecision": "NO BETA-ALPHA DEVELOPMENT CANDIDATE — ROUND-015",
+      "executionCount": 1,
+      "observedControl": {
+        "betaPooledPearson": 0.06450005351049345,
+        "betaPooledSpearman": 0.08443454057337485,
+        "alphaPooledSpearman": 0.031413190212612865,
+        "alphaMeanTimestampSpearman": 0.023398007569495907
+      },
+      "observedCombined": {
+        "selectedCount": 488,
+        "meanNetForwardAtr": -0.13477565587312162,
+        "profitFactor": 0.722668437831905,
+        "cumulativeNetAtr": -65.77052006608335,
+        "maximumDrawdownAtr": -71.99492948598194,
+        "costStressMean": -0.212246707912189,
+        "costStressProfitFactor": 0.601511731580027,
+        "latencyStressMean": -0.13390640528283465
+      },
+      "attribution": {
+        "informationInsufficiency": "MEDIUM",
+        "modelOrEdgeFailure": "HIGH",
+        "stabilityFailure": "HIGH",
+        "sampleBreadthFailure": "HIGH",
+        "transactionCostFailure": "HIGH",
+        "specificDataGap": "H17 historical decision-time funding qualification was DATA_NOT_AVAILABLE and was correctly excluded"
+      }
+    },
+    {
+      "round": "ROUND-016",
+      "artifacts": [
+        "docs/evidence/M3_R16_ROUND_016_RESULTS.md",
+        "docs/evidence/M3_R16_ROUND_016_SUMMARY.json",
+        "docs/evidence/M3_R16_ROUND_016_SELECTION.json",
+        "docs/evidence/M3_R16_ROUND_016_AUDIT.json"
+      ],
+      "finalDecision": "NO ROBUST MICROSTRUCTURE INFORMATION GAIN — ROUND-016",
+      "executionCount": 1,
+      "round017DesignInput": false,
+      "observedControl": {
+        "betaPooledPearson": 0.066014505864532,
+        "betaPooledSpearman": 0.08686210282195353,
+        "alphaMeanTimestampSpearman": 0.02289715516862349,
+        "alphaPooledOpportunitySpearman": 0.0313368027090042,
+        "alphaTopBottomSpread": 0.08723622099287304
+      },
+      "observedMicrostructure": {
+        "betaPooledPearson": 0.04905593789544725,
+        "betaPooledSpearman": 0.07033450250198028,
+        "betaDeltaPooledPearson": -0.01695856796908475,
+        "alphaMeanTimestampSpearman": 0.02122411291386362,
+        "alphaPooledOpportunitySpearman": 0.027316918863440023,
+        "alphaTopBottomSpread": 0.07451779734589553,
+        "improvedBetaFolds": 0,
+        "improvedAlphaFolds": 0
+      },
+      "dataCoverage": {
+        "pooledCoverage": 0.988437653211309,
+        "integrity": "COMPLETE",
+        "excludedWindows": "Some basis, lookback, and taker windows were unavailable; excluded windows were not reconstructed"
+      },
+      "attribution": {
+        "informationInsufficiency": "MEDIUM",
+        "modelOrEdgeFailure": "HIGH",
+        "stabilityFailure": "HIGH",
+        "sampleBreadthFailure": "LOW",
+        "transactionCostFailure": "NOT_PRIMARY",
+        "conclusion": "The microstructure models were negative evidence, not a source of Round-017 features"
+      }
+    }
+  ],
+  "priorRound016Use": {
+    "role": "NEGATIVE_EVIDENCE_ONLY",
+    "round017DesignInput": false,
+    "automaticFeatureCarryForward": false,
+    "forbiddenDefaultFeatureFamilies": [
+      "OPEN_INTEREST",
+      "MARK_INDEX_BASIS",
+      "TAKER_FLOW_PERSISTENCE"
+    ],
+    "forbiddenActions": [
+      "R16_THRESHOLD_TUNING",
+      "R16_WINDOW_TUNING",
+      "R16_PARAMETER_SCAN",
+      "R16_PREDICATE_REUSE_WITH_COST_FILTER"
+    ]
+  },
+  "hypothesisAssessment": [
+    {
+      "id": "R17-THESIS-LIFECYCLE-FIRST-ADVISORY",
+      "mechanismFamily": "THESIS_LIFECYCLE_DEDUPLICATION",
+      "status": "ADMISSIBLE_ACTIVE",
+      "researchQuestion": "Does retaining only the first baseline-001 formal advisory while a same-symbol/same-direction thesis is active improve net economics and signal efficiency while reducing advisory volume?",
+      "falsifiableHypothesis": "Within the frozen baseline-001 formal stream, same-symbol/same-direction follow-up advisories inside the predeclared thesis lifetime have no positive incremental net R after bt-policy-003 costs; retaining FIRST events only will reduce email volume by at least 20% and meet every frozen economic and breadth gate against CONTROL.",
+      "economicRationale": "Repeated advisories can duplicate fee, slippage, funding, and attention cost without adding an independent decision; a lifecycle policy tests incremental value directly.",
+      "noveltyAgainstR14R16": "Event-sequence retention policy; not forward-horizon discovery, not beta/alpha prediction, and not a derivatives microstructure feature model.",
+      "pointInTimeData": "Uses only already-observed formal signal event time, symbol, direction, strategy version, and prior state; no outcome or future candle is read for classification.",
+      "sampleAndBreadth": "CONTROL is the complete baseline-001 formal stream. The candidate is expected to be smaller but must retain at least 500 aggregate observations, at least 50 per fold, at least 20 per symbol, and at least 50 in each of three predeclared regime buckets to be performance-eligible.",
+      "costSensitivity": "Uses unchanged bt-policy-003 settlement, fees, slippage, funding, and bounded label lookup; also requires positive fixed cost-stress results.",
+      "purgedWalkForward": "Admissible with the existing six chronological folds, 24-hour purge, and 24-hour embargo.",
+      "complexityAndIntegrityRisk": "Low implementation complexity; primary risks are over-suppression, sparse retained folds, and deterministic ordering at same-time events. These are explicit gates, not post-result repairs."
+    },
+    {
+      "id": "R17-SESSION-BOUNDARY-RETURN",
+      "mechanismFamily": "UTC_SESSION_BOUNDARY_STATE",
+      "status": "REJECTED_DESIGN",
+      "researchQuestion": "Do fixed UTC session-boundary transitions alter the realized direction of baseline advisories?",
+      "economicRationale": "Session boundaries can change liquidity and risk appetite, but the effect is vulnerable to calendar-specific artifacts.",
+      "noveltyAgainstR14R16": "Different from R14-R16 at the signal identity level, but not admissible for this round because it would introduce a new calendar/session feature family without an established breadth justification.",
+      "pointInTimeData": "Potentially PIT, but requires a separately frozen session convention and sufficient samples in every session/regime combination.",
+      "sampleAndBreadth": "Expected to fragment the five-symbol stream and reduce regime breadth.",
+      "costSensitivity": "No clear incremental cost rationale; likely too weak to offset the existing cost failures.",
+      "purgedWalkForward": "Technically possible, but calendar concentration risk remains.",
+      "complexityAndIntegrityRisk": "Medium calendar-boundary and sample-fragmentation risk; rejected before performance."
+    },
+    {
+      "id": "R17-DERIVATIVE-MICROSTRUCTURE-REWEIGHT",
+      "mechanismFamily": "DERIVATIVE_MICROSTRUCTURE_REWEIGHT",
+      "status": "REJECTED_R16_REUSE",
+      "researchQuestion": "Can another weighting of the R16 microstructure fields improve the failed information-gain result?",
+      "economicRationale": "None acceptable under the current evidence boundary; it would be a rescue attempt after a negative result.",
+      "noveltyAgainstR14R16": "Not novel: it reuses OPEN_INTEREST, MARK_INDEX_BASIS, or TAKER_FLOW_PERSISTENCE and would be R16 tuning.",
+      "pointInTimeData": "Would inherit R16 missing-window and provenance risks.",
+      "sampleAndBreadth": "Would inherit R16 coverage exclusions.",
+      "costSensitivity": "Not admissible as a post-result economic filter.",
+      "purgedWalkForward": "Technically possible but scientifically disallowed.",
+      "complexityAndIntegrityRisk": "High snooping and reuse risk; rejected before performance."
+    }
+  ],
+  "activeDesign": {
+    "hypothesisId": "R17-THESIS-LIFECYCLE-FIRST-ADVISORY",
+    "mechanismFamily": "THESIS_LIFECYCLE_DEDUPLICATION",
+    "sourceUniverse": "EXACT_BASELINE_001_FORMAL_SIGNAL_STREAM",
+    "universe": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "directions": ["LONG", "SHORT"],
+    "strategyVersion": "baseline-001",
+    "variantCount": 1,
+    "combinations": false,
+    "parameterSweep": false,
+    "optimizer": false,
+    "horizonHours": 4,
+    "target": {
+      "name": "realizedNetR",
+      "label": "FORMAL_SIGNAL_SETTLEMENT_NET_R_AT_4H",
+      "calculation": "Use the unchanged baseline-001 entry, stop, take-profit, direction, and bt-policy-003 settlement/economics after the signal event; target data is never used for event classification.",
+      "futureOutcomeUsedForClassification": false
+    },
+    "featureFamilies": [
+      {
+        "name": "FORMAL_SIGNAL_EVENT_SEQUENCE_STATE",
+        "fields": ["symbol", "direction", "signalTime", "strategyVersion", "signalId", "priorAnchorSignalTime", "anchorAgeMs"],
+        "source": "BASELINE_001_FORMAL_EVENT_STREAM",
+        "decisionTimeOnly": true
+      }
+    ],
+    "controlModel": {
+      "id": "R17-CONTROL-ALL-BASELINE-001-FORMAL",
+      "definition": "Retain every complete baseline-001 formal advisory; no R17 thesis-lifecycle filter.",
+      "executionPath": "SAME_FROZEN_SIGNAL_SETTLEMENT_PATH"
+    },
+    "candidateModel": {
+      "id": "R17-THESIS-LIFECYCLE-FIRST-ADVISORY",
+      "definition": "Retain FIRST events only; classify an in-lifetime same-symbol/same-direction event as FOLLOW_UP and suppress it from the retained advisory stream.",
+      "executionPath": "SAME_FROZEN_SIGNAL_SETTLEMENT_PATH",
+      "noNewSignalPredicate": true,
+      "noR16FeatureUse": true
+    },
+    "thesisStateMachine": {
+      "key": ["symbol", "direction"],
+      "eventOrder": ["signalTime ASC", "symbol ASC", "direction ASC with LONG before SHORT", "signalId ASC"],
+      "activeLifetimeHours": 4,
+      "activeUntilRule": "anchorSignalTime + 4 hours; signalTime at or after activeUntil is a new FIRST event",
+      "oppositeDirectionRule": "An observed formal advisory of the opposite direction for the same symbol closes both direction anchors before the current event is classified.",
+      "classification": {
+        "FIRST": "No active anchor exists for the key after expiry/reset handling; create the anchor and retain the event.",
+        "FOLLOW_UP": "An active anchor exists and signalTime is before activeUntil; preserve the anchor and suppress the event.",
+        "NO_SIGNAL": "The formal event is not retained because it is FOLLOW_UP; no new signal is generated."
+      },
+      "futureOutcomeDependency": false,
+      "sameTimestampTieBreakFrozen": true
+    }
+  },
+  "protocol": {
+    "backtestPolicyVersion": "bt-policy-003",
+    "folds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "foldAssignment": "EXISTING_FROZEN_SIX_CHRONOLOGICAL_FOLDS",
+    "purgeHours": 24,
+    "embargoHours": 24,
+    "training": "NONE; mechanical event-state policy",
+    "validation": "PURGED_WALK_FORWARD_ONLY",
+    "dataSources": {
+      "formalSignals": "EXACT_BASELINE_001_FROZEN_FORMAL_SIGNAL_STREAM",
+      "settlementLabels": "IDENTITY_MATCHED_ACCEPTED_HISTORICAL_CACHE_ONLY",
+      "publicMarketArchives": "EXISTING_BINANCE_VISION_PUBLIC_ARCHIVE_CACHE_WHERE_IDENTITY_MATCHES",
+      "funding": "ONLY_BOUNDED_DECISION_TIME_FUNDING_REQUIRED_BY_BT_POLICY_003; OTHERWISE DATA_NOT_AVAILABLE",
+      "productionData": "EXCLUDED",
+      "newAcquisitionDuringDesign": false
+    },
+    "pointInTimeRules": [
+      "Only events with signalTime <= decisionTime are eligible for state classification.",
+      "Only closed candles at or before the formal signal decision time may enter the frozen signal stream.",
+      "No label, settlement result, future candle, post-boundary row, or production observation may influence classification or eligibility.",
+      "If any required source identity or bounded label input is incomplete, mark DATA_NOT_AVAILABLE and do not substitute or reconstruct it."
+    ],
+    "metrics": {
+      "primary": ["meanNetR", "profitFactor", "cumulativeNetR", "maximumDrawdownR", "meanNetRPerRetainedAdvisory"],
+      "cost": ["feeBurdenR", "slippageBurdenR", "fundingBurdenR", "costStressMeanNetR", "costStressProfitFactor"],
+      "efficiency": ["controlCount", "candidateCount", "retainedRate", "suppressionRate", "advisoriesPerMonth", "netRPerEmail"],
+      "breadth": ["byFold", "bySymbol", "byRegime", "positiveIncrementalFolds", "catastrophicFolds"],
+      "comparison": "Every candidate metric is reported beside CONTROL on the identical observations, folds, labels, and economics."
+    },
+    "regimeBuckets": ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"],
+    "symbolBreadthRequirement": {
+      "allSymbolsRequired": true,
+      "minimumCandidateObservationsPerSymbol": 20
+    },
+    "regimeBreadthRequirement": {
+      "allBucketsRequired": true,
+      "minimumCandidateObservationsPerBucket": 50
+    },
+    "gates": {
+      "frozenBeforePerformance": true,
+      "evaluationMode": "ALL_HARD_GATES_REQUIRED",
+      "resultsMayNotChangeDefinitions": true,
+      "definitions": [
+        {
+          "id": "G01_DATA_COMPLETE",
+          "requirement": "Dataset, formal stream, settlement inputs, and provenance are COMPLETE with zero integrity errors."
+        },
+        {
+          "id": "G02_POINT_IN_TIME",
+          "requirement": "Zero look-ahead, leakage, post-boundary, production, or future-outcome classification dependencies."
+        },
+        {
+          "id": "G03_CANDIDATE_AGGREGATE_MINIMUM",
+          "requirement": "candidateCount >= 500"
+        },
+        {
+          "id": "G04_CANDIDATE_FOLD_MINIMUM",
+          "requirement": "candidateCount >= 50 in every F1-F6 fold"
+        },
+        {
+          "id": "G05_SYMBOL_BREADTH",
+          "requirement": "candidateCount >= 20 for each of BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, and BNBUSDT"
+        },
+        {
+          "id": "G06_REGIME_BREADTH",
+          "requirement": "candidateCount >= 50 for each of BTC_STRONG_BULL, BTC_NEUTRAL, and BTC_STRONG_BEAR"
+        },
+        {
+          "id": "G07_INCREMENTAL_MEAN_NET_R",
+          "requirement": "candidate.meanNetR - control.meanNetR >= 0.02"
+        },
+        {
+          "id": "G08_CANDIDATE_PROFIT_FACTOR",
+          "requirement": "candidate.profitFactor >= 1.10"
+        },
+        {
+          "id": "G09_INCREMENTAL_CUMULATIVE_NET_R",
+          "requirement": "candidate.cumulativeNetR - control.cumulativeNetR >= 0"
+        },
+        {
+          "id": "G10_DRAWDOWN_NOT_WORSE",
+          "requirement": "candidate.maximumDrawdownR >= control.maximumDrawdownR - 0.05 * abs(control.maximumDrawdownR)"
+        },
+        {
+          "id": "G11_FOLD_STABILITY",
+          "requirement": "candidate.meanNetR >= control.meanNetR in at least 4 of 6 folds and no more than 1 catastrophic candidate fold"
+        },
+        {
+          "id": "G12_COST_STRESS",
+          "requirement": "Under fixed +25% fee and slippage stress with unchanged funding treatment, candidate.costStressMeanNetR >= 0 and candidate.costStressProfitFactor >= 1.05"
+        },
+        {
+          "id": "G13_FUNDING_STRESS",
+          "requirement": "Under the frozen funding stress defined by bt-policy-003, candidate meanNetR remains >= control meanNetR - 0.02"
+        },
+        {
+          "id": "G14_EMAIL_VOLUME_REDUCTION",
+          "requirement": "suppressionRate >= 0.20 and candidateCount < controlCount"
+        },
+        {
+          "id": "G15_NET_R_PER_EMAIL",
+          "requirement": "candidate.netRPerEmail - control.netRPerEmail >= 0.02"
+        }
+      ]
+    },
+    "transactionCostTreatment": {
+      "base": "UNCHANGED_BT_POLICY_003",
+      "fees": "UNCHANGED",
+      "slippage": "UNCHANGED",
+      "funding": "UNCHANGED_BOUNDED_POINT_IN_TIME_SOURCE",
+      "settlement": "UNCHANGED",
+      "stress": "ONLY_PREDECLARED_FEE_AND_SLIPPAGE_PLUS_25_PERCENT_STRESS"
+    }
+  },
+  "authoritativeExecution": {
+    "performanceExecutionCount": "DERIVE_FROM_ROUND_GLOBAL_LEDGER",
+    "maxAuthoritativeExecutions": 1,
+    "executionBeforeDataFreeze": false,
+    "oneAuthoritativeExecutionOnly": true,
+    "performanceLock": "ROUND_GLOBAL_FIRST_RESULT_LOCK",
+    "ledgerPath": "docs/research/round-017-performance-ledger.json",
+    "ledgerStateAtDesignTime": "NOT_CREATED",
+    "ledgerSchema": {
+      "roundGlobalKey": "baseline-002-research-round-017",
+      "executionCountSource": "ledger.executions.length; never a caller-provided constant",
+      "authoritativeExecutionDirectory": ".cache/tradepulse/round-017/executions/{firstLedgerExecutionId}",
+      "directoryBinding": "FROZEN_ON_FIRST_CLAIM",
+      "alternateExecutionDirectory": "FORBIDDEN",
+      "continuation": "SAME_EXECUTION_ID_AND_FROZEN_DIRECTORY_ONLY",
+      "completedCheckpointPolicy": "HASH_AND_IDENTITY_MUST_MATCH; COMPLETED FOLDS ARE REUSED, NEVER RECOMPUTED",
+      "missingOrCorruptCheckpoint": "ABORT_FAIL_CLOSED; NEVER_REBUILD_FROM_ZERO",
+      "secondExecutionId": "REJECT_AFTER_FIRST_ROUND_GLOBAL_CLAIM_EVEN_IF_OUTPUTS_ARE_DELETED",
+      "summaryCommitMarker": "LAST_OUTPUT_ONLY_AFTER_ALL_OTHER_OUTPUTS_ARE_COMPLETE"
+    },
+    "noPerformanceExecutionInThisTask": true,
+    "noSelectionExecutionInThisTask": true
+  },
+  "evidenceOutputs": {
+    "generatedDuringDesign": [],
+    "reservedFutureOutputs": [
+      "docs/evidence/M3_R17_ROUND_017_SUMMARY.json",
+      "docs/evidence/M3_R17_ROUND_017_AUDIT.json",
+      "docs/M3_R17_ROUND_017_RESULTS.md",
+      "docs/evidence/M3_R17_ROUND_017_SELECTION.json",
+      "docs/evidence/M3_R17_ROUND_017_SELECTION.md"
+    ],
+    "publicationRule": "Do not create evidence, selection, or performance artifacts during design-only phase."
+  },
+  "status": {
+    "performance": "NOT_AUTHORIZED / NOT_GENERATED",
+    "selection": "NOT_EXECUTED",
+    "baseline002": "NOT_FROZEN",
+    "m3J": "BLOCKED",
+    "m4": "NOT_STARTED",
+    "production": "UNCHANGED",
+    "automaticTrading": false
+  }
+}
