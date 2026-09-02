@@ -1,6 +1,6 @@
 # Round-018 DESIGN-ONLY — Baseline-001 Score Component Evidence Breadth
 
-Round-018 is a historical development design, not a production promotion. The accepted research source is the exact merge commit `e10d1bdc90f841ba647172c05b2a19717ec6b28b` on `research/round-015-beta-alpha-decomposition`. The research boundary ends at `2026-08-15T23:59:59.999Z`; `dataClassification` is `RESEARCH_AVAILABLE_SEEN_DATA` and `freshOosClaim` is false.
+Round-018 is a historical development design, not a production promotion. The accepted research source is the exact merge commit `feec11151b334a14754b1f720972c6e2b198960a` on `research/round-015-beta-alpha-decomposition`. The research boundary ends at `2026-08-15T23:59:59.999Z`; `dataClassification` is `RESEARCH_AVAILABLE_SEEN_DATA` and `freshOosClaim` is false.
 
 ## Product and prior-round boundary
 

@@ -1,10 +1,20 @@
 export const ROUND_018_RESEARCH_ROUND_ID = "baseline-002-research-round-018" as const;
 export const ROUND_018_PHASE = "DESIGN_ONLY" as const;
-export const ROUND_018_ACCEPTED_SOURCE = "e10d1bdc90f841ba647172c05b2a19717ec6b28b" as const;
+export const ROUND_018_ACCEPTED_SOURCE = "feec11151b334a14754b1f720972c6e2b198960a" as const;
 export const ROUND_018_ACCEPTED_SOURCE_BRANCH = "research/round-015-beta-alpha-decomposition" as const;
 export const ROUND_018_BOUNDARY_END = "2026-08-15T23:59:59.999Z" as const;
 export const ROUND_018_OBSERVATION_SOURCE =
   ".cache/tradepulse/round-014/observations.ndjson" as const;
+export const ROUND_018_R14_MANIFEST_SOURCE =
+  "docs/research/round-014-observation-freeze.json" as const;
+export const ROUND_018_STRUCTURAL_OBSERVATION_SOURCE =
+  ".cache/tradepulse/round-018/observations.ndjson" as const;
+export const ROUND_018_STRUCTURAL_FREEZE_MANIFEST_PATH =
+  "docs/research/round-018-observation-freeze.json" as const;
+export const ROUND_018_PREFLIGHT_JSON_PATH =
+  "docs/research/round-018-preflight.json" as const;
+export const ROUND_018_PREFLIGHT_MARKDOWN_PATH =
+  "docs/research/round-018-preflight.md" as const;
 export const ROUND_018_OBSERVATION_COUNT = 244_810 as const;
 export const ROUND_018_OBSERVATION_SHA256 =
   "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359" as const;
