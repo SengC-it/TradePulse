@@ -14,9 +14,9 @@ Only one hypothesis is active:
 
 `R18-ALL-COMPONENT-CONSENSUS` (`BASELINE_001_SCORE_COMPONENT_EVIDENCE_BREADTH`)
 
-Does requiring every existing baseline-001 score component to contribute positively improve the net H4 economics and robustness of baseline-001 formal advisories versus the complete formal-advisory control?
+Within the exact frozen R14 native observation universe, does requiring every existing baseline-001 score component to contribute positively improve H4 economics and robustness versus all R14-native baseline-001 formal controls?
 
-The candidate retains a CONTROL formal advisory only when all five existing components are strictly positive:
+The candidate retains an R14-native formal CONTROL observation only when all five existing components are strictly positive:
 
 ```text
 trendStrength > 0
@@ -30,15 +30,19 @@ riskRewardScore > 0
 
 `R18-CROSS-SYMBOL-FORMAL-CONSENSUS` is `REJECTED_DEFERRED` because it overlaps prior breadth work. `R18-HIGH-GRADE-ONLY` is `REJECTED_THRESHOLD_TUNING` because it is direct total-score/grade tuning.
 
-## Frozen source and universe
+## Frozen source, population, and estimand
 
-CONTROL remains the exact baseline-001 formal predicate:
+The R18 estimand population is `R14_NATIVE_HISTORICAL_OBSERVATION_UNIVERSE`: all `244810` observations in the exact accepted R14 native freeze. The population is bound before any replay or formal filtering. Its control identity is `R14_NATIVE_BASELINE_001_FORMAL_CONTROL`.
+
+Within that exact frozen R14 native observation universe, CONTROL retains every observation whose exact accepted-source baseline-001 replay deterministically satisfies the exact formal predicate:
 
 ```ts
 candidate?.formalSignal && candidate.totalScore >= 70
 ```
 
 The five-symbol universe is `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, `XRPUSDT`, and `BNBUSDT`; both `LONG` and `SHORT` are included. Grade C remains 70. The scoring, evaluation, total-score, formal-predicate, fold, and regime files are bound to raw SHA-256 values and Git blob identities from the accepted source commit. Validation checks use `git show`/`git cat-file` against that commit rather than trusting working-tree copies.
+
+The formal filter is applied after R14-native population binding. R18 must never construct its population as `global formal stream → inner join R14 → silently retain matched rows`. The global 7,500-event formal stream is not the R18 universe, and the R17 5,834 subset and 1,666 missing-event count are prior evidence only—not selector inputs, expected R18 counts, or a reason to delete, truncate, or reconstruct observations.
 
 The score component maximums are fixed at trendStrength 40, pullbackQuality 20, breakoutStrength 20, volume 10, and riskReward 10. R13/R14 F01–F18 research features are not substitutes for these exact baseline-001 score components.
 
@@ -49,25 +53,24 @@ The canonical R18 observation universe is the pre-existing native R14 freeze, no
 - Accepted SHA-256: `5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359`
 - Manifest: `docs/research/round-014-observation-freeze.json`
 
-R18 does not create or scan this data during DESIGN. It does not choose a custom start date, import the R17 7,500-event stream, truncate for the R17 1,666 missing identities, backfill from the network, fuzzy-match, nearest-match, or reconstruct a new dataset.
+R18 does not create or scan this data during DESIGN. It does not choose a custom start date, import the R17 7,500-event stream, truncate for the R17 1,666 missing identities, backfill from the network, fuzzy-match, nearest-match, or reconstruct a new dataset. R17's 1,666 missing events are not fixed, reconstructed, backfilled, or used for date selection; they are outside the R18 frozen R14-native estimand. A future R18 pass cannot be extrapolated to the complete historical baseline-001 formal-advisory stream.
 
 ## Future score replay contract
 
-Only a future, separately authorized preflight may perform the following deterministic transformation:
+Only a future, separately authorized preflight may perform the following deterministic transformation, starting from the R14-native identities:
 
 ```text
-accepted frozen historical market cache
-→ exact baseline-001 decision-time evaluation
+R14 native frozen observation identity
+→ exact accepted-source baseline-001 decision-time replay
+→ deterministic replay status
 → exact formal predicate
-→ exact score breakdown
-→ decisionTime|symbol|direction canonical identity
-→ exact join to R14 native observation identity
-→ structural candidate/control classification
+→ R14-native formal CONTROL
+→ all-five-components > 0 candidate
 → fold/regime annotation
 → later economic evaluation
 ```
 
-The replay is decision-time-only and label-independent. An incomplete replay, missing join, duplicate identity, fuzzy/nearest match, synthetic breakdown, or label-based repair produces `ROUND-018 PERFORMANCE INELIGIBLE — SCORE PROVENANCE`. No replay or data scan was performed by this DESIGN task.
+The permitted deterministic replay statuses are `NO_BASELINE_CANDIDATE`, `BASELINE_CANDIDATE_NON_FORMAL`, `BASELINE_FORMAL`, and `PROVENANCE_INCOMPLETE`. A `BASELINE_FORMAL` row requires exact canonical identity, a complete finite five-component breakdown, and exact accepted-source provenance. If an R14-native identity cannot be assigned a deterministic status, it is `PROVENANCE_INCOMPLETE` and G01 fails closed as `ROUND-018 PERFORMANCE INELIGIBLE — SCORE PROVENANCE`; it must not be relabeled `NO_BASELINE_CANDIDATE`. The replay is decision-time-only and label-independent. No replay or data scan was performed by this DESIGN task.
 
 ## Frozen protocol
 
@@ -93,7 +96,7 @@ Only `EXECUTED` labels are economically eligible. `NO_ENTRY` and `PERIOD_END_CEN
 
 Structural gates G01–G07 are frozen before preflight and fail closed:
 
-- G01: exact R14 manifest/hash, accepted replay/source hashes, complete score replay/join, no duplicates, no relevant `DATA_INCOMPLETE`, and no integrity anomaly.
+- G01: exact R14 manifest/hash and accepted replay/source hashes; every R14-native identity receives a deterministic replay status or explicit `PROVENANCE_INCOMPLETE`; every R14-native formal CONTROL row has a complete finite score breakdown and accepted-source provenance; no duplicates, global-formal-to-R14 inner join, fuzzy/nearest join, or synthetic scores; no relevant `DATA_INCOMPLETE`; and no unresolved integrity anomaly.
 - G02: decision-time-only classification with no future/outcome dependency.
 - G03: candidate economically eligible H4 count `>= 500`.
 - G04: candidate H4 `EXECUTED` count `>= 50` in every validation fold F1–F6.

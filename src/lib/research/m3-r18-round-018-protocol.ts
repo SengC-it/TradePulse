@@ -8,6 +8,25 @@ export const ROUND_018_OBSERVATION_SOURCE =
 export const ROUND_018_OBSERVATION_COUNT = 244_810 as const;
 export const ROUND_018_OBSERVATION_SHA256 =
   "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359" as const;
+export const ROUND_018_ESTIMAND_POPULATION =
+  "R14_NATIVE_HISTORICAL_OBSERVATION_UNIVERSE" as const;
+export const ROUND_018_CONTROL_ID = "R14_NATIVE_BASELINE_001_FORMAL_CONTROL" as const;
+export const ROUND_018_REPLAY_STATUSES = Object.freeze([
+  "NO_BASELINE_CANDIDATE",
+  "BASELINE_CANDIDATE_NON_FORMAL",
+  "BASELINE_FORMAL",
+  "PROVENANCE_INCOMPLETE",
+] as const);
+export const ROUND_018_POPULATION_TRANSFORMATION_ORDER = Object.freeze([
+  "R14 native frozen observation identity",
+  "exact accepted-source baseline-001 decision-time replay",
+  "deterministic replay status",
+  "exact formal predicate",
+  "R14-native formal CONTROL",
+  "all-five-components > 0 candidate",
+  "fold and regime annotation",
+  "later economic evaluation",
+] as const);
 
 export const ROUND_018_UNIVERSE = Object.freeze([
   "BTCUSDT",

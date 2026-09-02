@@ -10,7 +10,9 @@ import {
   ROUND_018_BOUNDARY_END,
   ROUND_018_CANDIDATE_RULE,
   ROUND_018_CANDIDATE_RULE_ID,
+  ROUND_018_CONTROL_ID,
   ROUND_018_DIRECTIONS,
+  ROUND_018_ESTIMAND_POPULATION,
   ROUND_018_FOLDS,
   ROUND_018_FORMAL_PREDICATE,
   ROUND_018_GRADE_C_THRESHOLD,
@@ -18,9 +20,11 @@ import {
   ROUND_018_OBSERVATION_COUNT,
   ROUND_018_OBSERVATION_SHA256,
   ROUND_018_OBSERVATION_SOURCE,
+  ROUND_018_POPULATION_TRANSFORMATION_ORDER,
   ROUND_018_PERFORMANCE_GATES,
   ROUND_018_PERFORMANCE_LEDGER_PATH,
   ROUND_018_PRIMARY_HORIZON_HOURS,
+  ROUND_018_REPLAY_STATUSES,
   ROUND_018_RESEARCH_ROUND_ID,
   ROUND_018_REGIMES,
   ROUND_018_SCORE_COMPONENT_WEIGHTS,
@@ -39,15 +43,22 @@ type Design = {
   studyClassification: string;
   freshOosClaim: boolean;
   promotionAuthority: boolean;
+  estimandPopulation: string;
+  estimandScope: {
+    population: string;
+    limitation: string;
+    r17MissingEvents: Record<string, boolean>;
+  };
   acceptedResearchSource: { branch: string; commit: string; requiredBaseHead: string };
   researchBoundary: { start: string; end: string; classification: string; timezoneArithmetic: string };
   productBoundary: Record<string, unknown>;
   priorRoundEvidenceHandling: Record<string, Record<string, unknown>>;
   hypothesisInventory: Array<{ id: string; status: string; mechanismFamily: string; rejectReason?: string }>;
-  activeHypothesis: { id: string; mechanismFamily: string; exactlyOneActive: boolean; candidateRuleId: string };
+  activeHypothesis: { id: string; mechanismFamily: string; exactlyOneActive: boolean; candidateRuleId: string; researchQuestion: string };
   sourceUniverse: Record<string, unknown>;
   candidateDefinition: {
     id: string;
+    definition: string;
     allConditions: string[];
     variantCount: number;
     combinations: boolean;
@@ -135,6 +146,17 @@ describe("Round-018 design-only protocol", () => {
     expect(design.studyClassification).toBe("HISTORICAL_DEVELOPMENT_STUDY");
     expect(design.freshOosClaim).toBe(false);
     expect(design.promotionAuthority).toBe(false);
+    expect(design.estimandPopulation).toBe(ROUND_018_ESTIMAND_POPULATION);
+    expect(design.estimandScope.population).toBe(ROUND_018_ESTIMAND_POPULATION);
+    expect(design.estimandScope.limitation).toContain("does not claim to estimate performance across the complete historical baseline-001 formal-advisory stream");
+    expect(design.estimandScope.r17MissingEvents).toEqual({
+      notFixed: true,
+      notReconstructed: true,
+      notBackfilled: true,
+      notUsedForDateSelection: true,
+      outsideR18Estimand: true,
+      noPassExtrapolationToCompleteBaselineFormalStream: true,
+    });
     expect(design.acceptedResearchSource).toEqual({
       branch: "research/round-015-beta-alpha-decomposition",
       commit: ROUND_018_ACCEPTED_SOURCE,
@@ -171,6 +193,7 @@ describe("Round-018 design-only protocol", () => {
       mechanismFamily: "BASELINE_001_SCORE_COMPONENT_EVIDENCE_BREADTH",
       exactlyOneActive: true,
       candidateRuleId: ROUND_018_CANDIDATE_RULE_ID,
+      researchQuestion: "Within the exact frozen R14 native observation universe, does requiring every existing baseline-001 score component to contribute positively improve H4 economics and robustness versus all R14-native baseline-001 formal controls?",
     });
     expect(design.hypothesisInventory.find((item) => item.id === "R18-CROSS-SYMBOL-FORMAL-CONSENSUS")).toMatchObject({
       status: "REJECTED_DEFERRED",
@@ -187,7 +210,18 @@ describe("Round-018 design-only protocol", () => {
     const design = loadDesign();
     const sourceUniverse = design.sourceUniverse;
 
+    expect(sourceUniverse.estimandPopulation).toBe(ROUND_018_ESTIMAND_POPULATION);
+    expect(sourceUniverse.populationIdentity).toBe("EXACT_ACCEPTED_R14_OBSERVATION_FREEZE_NATIVE_UNIVERSE");
+    expect(sourceUniverse.controlId).toBe(ROUND_018_CONTROL_ID);
     expect(sourceUniverse.controlFormalPredicate).toBe(ROUND_018_FORMAL_PREDICATE);
+    expect(sourceUniverse.controlDefinition).toContain("Within the exact frozen R14 native observation universe");
+    expect(sourceUniverse.controlDefinition).toContain(ROUND_018_FORMAL_PREDICATE);
+    expect(sourceUniverse.populationCountSource).toBe("canonicalDataSource.acceptedObservationCount");
+    expect(sourceUniverse.formalFilterAfterPopulationBinding).toBe(true);
+    expect(sourceUniverse.globalFormalStreamIsNotR18Universe).toBe(true);
+    expect(sourceUniverse.forbiddenPopulationConstruction).toBe("global formal stream -> inner join R14 -> silently retain matched rows");
+    expect(JSON.stringify(sourceUniverse)).not.toContain("5834");
+    expect(JSON.stringify(sourceUniverse)).not.toContain("1666");
     expect(sourceUniverse.universe).toEqual([...ROUND_018_UNIVERSE]);
     expect(sourceUniverse.directions).toEqual([...ROUND_018_DIRECTIONS]);
     expect(sourceUniverse.strategyVersion).toBe("baseline-001");
@@ -204,6 +238,7 @@ describe("Round-018 design-only protocol", () => {
     expect(design.baselineScoreProvenance.gradeThresholds).toEqual({ A: 85, B: 75, C: ROUND_018_GRADE_C_THRESHOLD });
 
     expect(design.candidateDefinition.id).toBe(ROUND_018_CANDIDATE_RULE_ID);
+    expect(design.candidateDefinition.definition).toContain("R14-native formal CONTROL");
     expect(design.candidateDefinition.allConditions).toEqual([
       "trendStrength > 0",
       "pullbackQuality > 0",
@@ -296,7 +331,13 @@ describe("Round-018 design-only protocol", () => {
 
   it("freezes exact score replay and canonical join requirements", () => {
     const contract = loadDesign().scoreReconstructionContract;
+    const pipeline = contract.pipeline as string[];
+    const replayStatusRules = contract.replayStatusRules as Record<string, string>;
 
+    expect(contract.populationBinding).toBe(ROUND_018_ESTIMAND_POPULATION);
+    expect(contract.populationFirst).toBe(true);
+    expect(contract.globalFormalStreamAsPopulation).toBe(false);
+    expect(contract.globalFormalToR14InnerJoin).toBe(false);
     expect(contract.decisionTimeOnly).toBe(true);
     expect(contract.labelIndependent).toBe(true);
     expect(contract.exactCanonicalJoinRequired).toBe(true);
@@ -307,17 +348,91 @@ describe("Round-018 design-only protocol", () => {
     expect(contract.labelBasedRepair).toBe(false);
     expect(contract.designReplayExecuted).toBe(false);
     expect(contract.designDataScanExecuted).toBe(false);
-    expect(contract.pipeline).toEqual([
-      "accepted frozen historical market cache",
-      "exact baseline-001 decision-time evaluation",
-      "exact formal predicate",
-      "exact score breakdown",
-      "canonical identity decisionTime|symbol|direction",
-      "exact join to R14 native observation identity",
-      "structural candidate/control classification",
-      "fold and regime annotation",
-      "later economic evaluation",
+    expect(pipeline).toEqual([
+      ...ROUND_018_POPULATION_TRANSFORMATION_ORDER,
     ]);
+    expect(contract.replayStatuses).toEqual([...ROUND_018_REPLAY_STATUSES]);
+    expect(contract.r14NativeFormalRowsRequire).toEqual([
+      "exact canonical identity",
+      "complete five-component score breakdown",
+      "finite component values",
+      "exact accepted-source provenance",
+    ]);
+    expect(contract.unresolvedReplayProvenanceDecision).toBe("ROUND-018 PERFORMANCE INELIGIBLE — SCORE PROVENANCE");
+    expect(replayStatusRules).toMatchObject({
+      NO_BASELINE_CANDIDATE: expect.stringContaining("no baseline candidate"),
+      BASELINE_CANDIDATE_NON_FORMAL: expect.stringContaining("fails the exact frozen formal predicate"),
+      BASELINE_FORMAL: expect.stringContaining("complete finite five-component breakdown"),
+      PROVENANCE_INCOMPLETE: expect.stringContaining("fails G01 closed"),
+    });
+  });
+
+  it("binds the population before formal filtering and rejects the old global-stream estimand", () => {
+    const design = loadDesign();
+    const sourceUniverse = design.sourceUniverse;
+    const contract = design.scoreReconstructionContract;
+    const pipeline = contract.pipeline as string[];
+
+    expect(sourceUniverse.populationIdentity).toBe("EXACT_ACCEPTED_R14_OBSERVATION_FREEZE_NATIVE_UNIVERSE");
+    expect(sourceUniverse.formalFilterAfterPopulationBinding).toBe(true);
+    expect(pipeline[0]).toBe("R14 native frozen observation identity");
+    expect(pipeline[1]).toBe("exact accepted-source baseline-001 decision-time replay");
+    expect(pipeline[2]).toBe("deterministic replay status");
+    expect(pipeline.indexOf("exact formal predicate")).toBeGreaterThan(2);
+    expect(contract.globalFormalStreamAsPopulation).toBe(false);
+    expect(contract.globalFormalToR14InnerJoin).toBe(false);
+    expect(sourceUniverse.forbiddenPopulationConstruction).toContain("global formal stream");
+    expect(sourceUniverse.forbiddenPopulationConstruction).toContain("silently retain matched rows");
+  });
+
+  it("defines deterministic replay completeness and fails closed on unresolved provenance", () => {
+    const design = loadDesign();
+    const contract = design.scoreReconstructionContract;
+    const replayStatusRules = contract.replayStatusRules as Record<string, string>;
+    const g01 = design.structuralPrelightGates.definitions.find((gate) => gate.id === "G01_DATA_PROVENANCE");
+
+    expect(contract.replayStatuses).toEqual(expect.arrayContaining([
+      "NO_BASELINE_CANDIDATE",
+      "BASELINE_CANDIDATE_NON_FORMAL",
+      "BASELINE_FORMAL",
+      "PROVENANCE_INCOMPLETE",
+    ]));
+    expect(replayStatusRules.PROVENANCE_INCOMPLETE).toContain("cannot be determined exactly");
+    expect(replayStatusRules.PROVENANCE_INCOMPLETE).toContain("fails G01 closed");
+    expect(replayStatusRules.PROVENANCE_INCOMPLETE).not.toContain("NO_BASELINE_CANDIDATE");
+    expect(g01?.requirement).toContain("every R14-native identity receives a deterministic replay status");
+    expect(g01?.requirement).toContain("PROVENANCE_INCOMPLETE");
+    expect(g01?.requirement).toContain("unresolved integrity errors = 0");
+  });
+
+  it("keeps future preflight metadata-only and disallows R17 subset or new-data repair", () => {
+    const design = loadDesign();
+    const source = design.canonicalDataSource;
+    const contract = design.scoreReconstructionContract;
+
+    expect(design.metrics.structuralPreflightOutputs).toEqual(expect.arrayContaining([
+      "r14NativeObservationCount",
+      "deterministicReplayCount",
+      "replayProvenanceIncompleteCount",
+      "r14NativeFormalControlCount",
+      "G01-G07",
+    ]));
+    expect(JSON.stringify({ sourceUniverse: design.sourceUniverse, contract })).not.toContain("5834");
+    expect(JSON.stringify({ sourceUniverse: design.sourceUniverse, contract })).not.toContain("1666");
+    expect(source.prohibited).toEqual(expect.arrayContaining([
+      "new historical market data",
+      "network backfill",
+      "truncation based on R17 missing data",
+    ]));
+    expect(design.designOnlyProhibitions).toEqual(expect.arrayContaining([
+      "GLOBAL_FORMAL_7500_RECONCILIATION",
+      "R17_5834_SELECTOR_RECONCILIATION",
+      "INNER_JOIN_GLOBAL_FORMAL_TO_R14",
+      "R17_MISSING_EVENT_RECONSTRUCTION",
+      "CUSTOM_START_BOUNDARY",
+    ]));
+    expect(contract.designReplayExecuted).toBe(false);
+    expect(contract.designDataScanExecuted).toBe(false);
   });
 
   it("binds folds and regimes to accepted-source definitions without retuning", () => {
