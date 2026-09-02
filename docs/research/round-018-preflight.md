@@ -9,7 +9,9 @@ This report is metadata-only. Economic values were not read, calculated, or insp
 R14 native observations: 244810
 Formal CONTROL rows: 5834
 Consensus candidate rows: 3359
-Consensus candidate H4 EXECUTED rows: 3357
+Validation candidate H4 EXECUTED rows (F1-F6): 3136
+Outside-validation candidate H4 EXECUTED rows: 221
+Total structural candidate H4 EXECUTED rows: 3357
 Excluded by consensus: 2475
 Retention rate: 0.5757627699691464
 
