@@ -29,7 +29,7 @@
     {
       "round": "ROUND-014",
       "artifacts": [
-        "docs/evidence/M3_R14_ROUND_014_RESULTS.md",
+        "docs/M3_R14_ROUND_014_RESULTS.md",
         "docs/evidence/M3_R14_ROUND_014_SUMMARY.json",
         "docs/evidence/M3_R14_ROUND_014_SELECTION.json",
         "docs/evidence/M3_R14_ROUND_014_AUDIT.json"
@@ -78,7 +78,7 @@
     {
       "round": "ROUND-015",
       "artifacts": [
-        "docs/evidence/M3_R15_ROUND_015_RESULTS.md",
+        "docs/M3_R15_ROUND_015_RESULTS.md",
         "docs/evidence/M3_R15_ROUND_015_SUMMARY.json",
         "docs/evidence/M3_R15_ROUND_015_SELECTION.json",
         "docs/evidence/M3_R15_ROUND_015_AUDIT.json"
@@ -113,7 +113,7 @@
     {
       "round": "ROUND-016",
       "artifacts": [
-        "docs/evidence/M3_R16_ROUND_016_RESULTS.md",
+        "docs/M3_R16_ROUND_016_RESULTS.md",
         "docs/evidence/M3_R16_ROUND_016_SUMMARY.json",
         "docs/evidence/M3_R16_ROUND_016_SELECTION.json",
         "docs/evidence/M3_R16_ROUND_016_AUDIT.json"
@@ -268,6 +268,56 @@
     "backtestPolicyVersion": "bt-policy-003",
     "folds": ["F1", "F2", "F3", "F4", "F5", "F6"],
     "foldAssignment": "EXISTING_FROZEN_SIX_CHRONOLOGICAL_FOLDS",
+    "foldIdentity": {
+      "sourceCommit": "0f5e24009f3301b8f2fb64d7e01161402a94f0b7",
+      "canonicalDefinition": {
+        "sourcePath": "src/lib/research/folds.ts",
+        "export": "RESEARCH_FOLDS",
+        "sourceSha256": "f9017ab7b9326353535366465861f4ccd4e276ffd6fb49e61afed75e44e62b2a"
+      },
+      "inheritedAliases": [
+        {
+          "sourcePath": "src/lib/research/m3-r13-round-013-protocol.ts",
+          "export": "R13_FOLDS",
+          "definition": "R13_FOLDS = RESEARCH_FOLDS",
+          "sourceSha256": "ba3731752914357578d03835e35a23e42c94b864e96cc8a05ee1aed72477d510"
+        },
+        {
+          "sourcePath": "src/lib/research/m3-r15-round-015-protocol.ts",
+          "export": "R15_FOLD_IDS",
+          "definition": "R15_FOLD_IDS = Object.keys(R13_FOLDS)",
+          "sourceSha256": "4e703b35a1e5d5336cb2592c89b585e9d0da507d8446f08dda79dde22af456c7"
+        }
+      ],
+      "foldIds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+      "boundaries": {
+        "F1": {
+          "research": {"start": "2023-01-01T00:00:00.000Z", "end": "2023-12-31T23:59:59.999Z"},
+          "validation": {"start": "2024-01-01T00:00:00.000Z", "end": "2024-06-30T23:59:59.999Z"}
+        },
+        "F2": {
+          "research": {"start": "2023-01-01T00:00:00.000Z", "end": "2024-06-30T23:59:59.999Z"},
+          "validation": {"start": "2024-07-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z"}
+        },
+        "F3": {
+          "research": {"start": "2023-01-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z"},
+          "validation": {"start": "2025-01-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z"}
+        },
+        "F4": {
+          "research": {"start": "2023-01-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z"},
+          "validation": {"start": "2025-07-01T00:00:00.000Z", "end": "2025-12-31T23:59:59.999Z"}
+        },
+        "F5": {
+          "research": {"start": "2023-01-01T00:00:00.000Z", "end": "2025-12-31T23:59:59.999Z"},
+          "validation": {"start": "2026-01-01T00:00:00.000Z", "end": "2026-03-31T23:59:59.999Z"}
+        },
+        "F6": {
+          "research": {"start": "2023-01-01T00:00:00.000Z", "end": "2026-03-31T23:59:59.999Z"},
+          "validation": {"start": "2026-04-01T00:00:00.000Z", "end": "2026-08-15T23:59:59.999Z"}
+        }
+      },
+      "futureBoundaryRedefinition": "FORBIDDEN; R17 implementations must consume the accepted-source RESEARCH_FOLDS/R13_FOLDS identity"
+    },
     "purgeHours": 24,
     "embargoHours": 24,
     "training": "NONE; mechanical event-state policy",
@@ -289,11 +339,25 @@
     "metrics": {
       "primary": ["meanNetR", "profitFactor", "cumulativeNetR", "maximumDrawdownR", "meanNetRPerRetainedAdvisory"],
       "cost": ["feeBurdenR", "slippageBurdenR", "fundingBurdenR", "costStressMeanNetR", "costStressProfitFactor"],
-      "efficiency": ["controlCount", "candidateCount", "retainedRate", "suppressionRate", "advisoriesPerMonth", "netRPerEmail"],
+      "efficiency": ["controlCount", "candidateCount", "retainedRate", "suppressionRate", "advisoriesPerMonth", "netRPerEmail", "followUpCount", "followUpMeanNetR", "followUpCumulativeNetR"],
       "breadth": ["byFold", "bySymbol", "byRegime", "positiveIncrementalFolds", "catastrophicFolds"],
       "comparison": "Every candidate metric is reported beside CONTROL on the identical observations, folds, labels, and economics."
     },
     "regimeBuckets": ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"],
+    "regimeIdentity": {
+      "sourceCommit": "0f5e24009f3301b8f2fb64d7e01161402a94f0b7",
+      "sourcePath": "src/lib/strategy/regimes.ts",
+      "function": "calculateBTCRegime",
+      "sourceSha256": "6d5b17c7035c39f65b64cdc70153e0d9f576f587aa20d9f9c31199c5a655709e",
+      "labels": ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"],
+      "rules": {
+        "input": "close, ema50, ema200, ema200FiveBarsAgo, and atr14 must all be finite; atr14 <= 0 returns null",
+        "strongBull": "close > ema50 > ema200; (close - ema200) / atr14 >= 1; (ema50 - ema200) / atr14 >= 0.5; (ema200 - ema200FiveBarsAgo) / atr14 >= 0.1",
+        "strongBear": "close < ema50 < ema200; (ema200 - close) / atr14 >= 1; (ema200 - ema50) / atr14 >= 0.5; (ema200FiveBarsAgo - ema200) / atr14 >= 0.1",
+        "otherwise": "BTC_NEUTRAL"
+      },
+      "thresholdAdjustment": "FORBIDDEN_AFTER_FREEZE"
+    },
     "symbolBreadthRequirement": {
       "allSymbolsRequired": true,
       "minimumCandidateObservationsPerSymbol": 20
@@ -302,6 +366,37 @@
       "allBucketsRequired": true,
       "minimumCandidateObservationsPerBucket": 50
     },
+    "metricDefinitions": {
+      "meanNetR": {
+        "definition": "Sum of settled netR across the evaluated signal set divided by retainedAdvisoryCount.",
+        "denominator": "retainedAdvisoryCount",
+        "scope": "CONTROL_AND_CANDIDATE",
+        "zeroDenominator": "DATA_NOT_AVAILABLE"
+      },
+      "meanNetRPerRetainedAdvisory": {
+        "definition": "The exact retained-advisory arithmetic mean of netR; this is an alias of meanNetR, not independent economic evidence.",
+        "aliasOf": "meanNetR",
+        "independentEconomicEvidence": false
+      },
+      "netRPerEmail": {
+        "definition": "Sum of settled netR across the evaluated signal set divided by modeled deliveredEmailCount.",
+        "denominator": "deliveredEmailCount",
+        "deliveryMapping": "ONE_RETAINED_ADVISORY_TO_ONE_DELIVERED_EMAIL_WITHOUT_DUPLICATES",
+        "aliasOfWhenOneToOne": "meanNetR",
+        "independentEconomicEvidence": false
+      }
+    },
+    "followUpAudit": {
+      "fields": {
+        "followUpCount": "Count of formal advisories classified FOLLOW_UP and suppressed by the frozen thesis state machine.",
+        "followUpMeanNetR": "Sum of settled netR for suppressed FOLLOW_UP observations divided by followUpCount; DATA_NOT_AVAILABLE when followUpCount is zero or required labels are incomplete.",
+        "followUpCumulativeNetR": "Sum of settled netR for suppressed FOLLOW_UP observations."
+      },
+      "classificationSource": "FROZEN_POINT_IN_TIME_THESIS_STATE_MACHINE",
+      "reportingOnly": true,
+      "candidateClassificationUnaffected": true,
+      "newTunableParameters": false
+    },
     "gates": {
       "frozenBeforePerformance": true,
       "evaluationMode": "ALL_HARD_GATES_REQUIRED",
@@ -309,63 +404,79 @@
       "definitions": [
         {
           "id": "G01_DATA_COMPLETE",
+          "hardGate": true,
           "requirement": "Dataset, formal stream, settlement inputs, and provenance are COMPLETE with zero integrity errors."
         },
         {
           "id": "G02_POINT_IN_TIME",
+          "hardGate": true,
           "requirement": "Zero look-ahead, leakage, post-boundary, production, or future-outcome classification dependencies."
         },
         {
           "id": "G03_CANDIDATE_AGGREGATE_MINIMUM",
+          "hardGate": true,
           "requirement": "candidateCount >= 500"
         },
         {
           "id": "G04_CANDIDATE_FOLD_MINIMUM",
+          "hardGate": true,
           "requirement": "candidateCount >= 50 in every F1-F6 fold"
         },
         {
           "id": "G05_SYMBOL_BREADTH",
+          "hardGate": true,
           "requirement": "candidateCount >= 20 for each of BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, and BNBUSDT"
         },
         {
           "id": "G06_REGIME_BREADTH",
+          "hardGate": true,
           "requirement": "candidateCount >= 50 for each of BTC_STRONG_BULL, BTC_NEUTRAL, and BTC_STRONG_BEAR"
         },
         {
           "id": "G07_INCREMENTAL_MEAN_NET_R",
+          "hardGate": true,
           "requirement": "candidate.meanNetR - control.meanNetR >= 0.02"
         },
         {
           "id": "G08_CANDIDATE_PROFIT_FACTOR",
+          "hardGate": true,
           "requirement": "candidate.profitFactor >= 1.10"
         },
         {
           "id": "G09_INCREMENTAL_CUMULATIVE_NET_R",
+          "hardGate": true,
           "requirement": "candidate.cumulativeNetR - control.cumulativeNetR >= 0"
         },
         {
           "id": "G10_DRAWDOWN_NOT_WORSE",
+          "hardGate": true,
           "requirement": "candidate.maximumDrawdownR >= control.maximumDrawdownR - 0.05 * abs(control.maximumDrawdownR)"
         },
         {
           "id": "G11_FOLD_STABILITY",
+          "hardGate": true,
           "requirement": "candidate.meanNetR >= control.meanNetR in at least 4 of 6 folds and no more than 1 catastrophic candidate fold"
         },
         {
           "id": "G12_COST_STRESS",
+          "hardGate": true,
           "requirement": "Under fixed +25% fee and slippage stress with unchanged funding treatment, candidate.costStressMeanNetR >= 0 and candidate.costStressProfitFactor >= 1.05"
         },
         {
           "id": "G13_FUNDING_STRESS",
+          "hardGate": true,
           "requirement": "Under the frozen funding stress defined by bt-policy-003, candidate meanNetR remains >= control meanNetR - 0.02"
         },
         {
           "id": "G14_EMAIL_VOLUME_REDUCTION",
+          "hardGate": true,
           "requirement": "suppressionRate >= 0.20 and candidateCount < controlCount"
         },
         {
           "id": "G15_NET_R_PER_EMAIL",
-          "requirement": "candidate.netRPerEmail - control.netRPerEmail >= 0.02"
+          "hardGate": false,
+          "role": "REPORTING_ALIAS",
+          "requirement": "Report candidate.netRPerEmail beside control.netRPerEmail; do not treat it as an additional hard gate because the frozen one-retained-advisory-to-one-delivered-email mapping makes it an alias of meanNetR."
         }
       ]
     },

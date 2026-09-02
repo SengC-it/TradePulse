@@ -23,6 +23,14 @@ This is a research retention policy, not a Production strategy change. It does n
 
 The review used the committed RESULTS, SUMMARY, SELECTION, and AUDIT artifacts for each round. No new market data was acquired or inspected.
 
+The exact reviewed artifact paths are frozen in the machine-readable design and must exist in accepted source `0f5e24009f3301b8f2fb64d7e01161402a94f0b7`:
+
+| Round | RESULTS | SUMMARY | SELECTION | AUDIT |
+| --- | --- | --- | --- | --- |
+| 014 | `docs/M3_R14_ROUND_014_RESULTS.md` | `docs/evidence/M3_R14_ROUND_014_SUMMARY.json` | `docs/evidence/M3_R14_ROUND_014_SELECTION.json` | `docs/evidence/M3_R14_ROUND_014_AUDIT.json` |
+| 015 | `docs/M3_R15_ROUND_015_RESULTS.md` | `docs/evidence/M3_R15_ROUND_015_SUMMARY.json` | `docs/evidence/M3_R15_ROUND_015_SELECTION.json` | `docs/evidence/M3_R15_ROUND_015_AUDIT.json` |
+| 016 | `docs/M3_R16_ROUND_016_RESULTS.md` | `docs/evidence/M3_R16_ROUND_016_SUMMARY.json` | `docs/evidence/M3_R16_ROUND_016_SELECTION.json` | `docs/evidence/M3_R16_ROUND_016_AUDIT.json` |
+
 ### Round-014
 
 Round-014 was an exact replay of the Round-013 forward-edge study and ended with `NO ROBUST FORWARD EDGE — ROUND-014`; its replay was marked `INVALIDATED / PERFORMANCE_ABORT_AFTER_LOCK`. All tested horizons were economically negative: 4h mean net ATR `-0.10947910401579543` with PF `0.771863416934108`, 8h `-0.14158844414404934` with PF `0.8059089801971371`, 12h `-0.181358849782422` with PF `0.8074144487943189`, and 24h `-0.15101974017324213` with PF `0.8911096823852761`. Cost-stress and latency-stress means were negative as well.
@@ -86,14 +94,22 @@ All fields used here are available at event time. No candle after the decision, 
 
 - The only feature family is `FORMAL_SIGNAL_EVENT_SEQUENCE_STATE`; R16 microstructure fields are excluded.
 - Labels use the unchanged baseline-001 entry/stop/TP/direction and `bt-policy-003` four-hour settlement/economics after the event.
-- The five-symbol universe, LONG/SHORT scope, six chronological folds (`F1`–`F6`), 24-hour purge, and 24-hour embargo are frozen.
+- The five-symbol universe, LONG/SHORT scope, six chronological folds (`F1`–`F6`), 24-hour purge, and 24-hour embargo are frozen. Fold identity is mechanically bound to `0f5e24009f3301b8f2fb64d7e01161402a94f0b7` `src/lib/research/folds.ts#RESEARCH_FOLDS` (source SHA-256 `f9017ab7b9326353535366465861f4ccd4e276ffd6fb49e61afed75e44e62b2`), inherited by `src/lib/research/m3-r13-round-013-protocol.ts#R13_FOLDS` and `src/lib/research/m3-r15-round-015-protocol.ts#R15_FOLD_IDS`. Future R17 code may not redefine fold boundaries.
+- Regime identity is mechanically bound to `0f5e24009f3301b8f2fb64d7e01161402a94f0b7` `src/lib/strategy/regimes.ts#calculateBTCRegime` (source SHA-256 `6d5b17c7035c39f65b64cdc70153e0d9f576f587aa20d9f9c31199c5a655709e`). `BTC_STRONG_BULL` requires the frozen close/EMA ordering and normalized thresholds `1`, `0.5`, `0.1`; `BTC_STRONG_BEAR` uses the corresponding mirrored rules; all other valid inputs are `BTC_NEUTRAL`, while invalid/nonpositive-ATR inputs return null. Threshold adjustment after freeze is forbidden.
 - Data may come only from identity-matched accepted historical cache/public archive inputs. If required bounded inputs are incomplete, the result is `DATA_NOT_AVAILABLE`; no substitution or reconstruction is allowed.
 - Every candidate metric is reported next to CONTROL on identical labels, folds, fees, slippage, funding, and settlement. A separate fixed +25% fee/slippage stress is required.
 - Candidate breadth requires at least 500 aggregate observations, 50 per fold, 20 per symbol, and 50 in each of `BTC_STRONG_BULL`, `BTC_NEUTRAL`, and `BTC_STRONG_BEAR`.
 
+### Metric identity and follow-up audit
+
+- `meanNetR` is `sum(settled netR) / retainedAdvisoryCount` for either CONTROL or CANDIDATE; a zero denominator or incomplete required label is `DATA_NOT_AVAILABLE`.
+- `meanNetRPerRetainedAdvisory` is the exact same retained-advisory arithmetic mean and is a reporting alias of `meanNetR`, not independent economic evidence.
+- `netRPerEmail` is `sum(settled netR) / modeled deliveredEmailCount`. The design freezes one retained advisory to one delivered email without duplicates, so this is mathematically an alias of `meanNetR` in this study. `G15` reports the comparison but is not an additional hard gate; `G07` is the independent mean-net-R economic gate.
+- The report also includes `followUpCount`, `followUpMeanNetR`, and `followUpCumulativeNetR` for events classified and suppressed as `FOLLOW_UP`. These are reporting-only diagnostics and cannot change candidate classification or introduce tunable parameters.
+
 ### Frozen hard gates
 
-All gates are frozen in the machine-readable design before any performance result. All must pass:
+All gates are frozen in the machine-readable design before any performance result. `G01`–`G14` are hard gates and all must pass:
 
 - complete data/provenance and zero integrity errors;
 - zero look-ahead or leakage;
@@ -109,7 +125,7 @@ All gates are frozen in the machine-readable design before any performance resul
 - fixed cost stress has candidate mean net R `>= 0` and PF `>= 1.05`;
 - frozen funding stress is no worse than control by more than `0.02` mean net R;
 - suppression is at least 20% and candidate volume is below control;
-- candidate net R per email improves over control by at least `0.02`.
+- `G15` net R per email is reported beside control as a non-gating alias metric because of the frozen one-to-one delivery mapping.
 
 There is no “best of several” selection. The candidate is either eligible after all gates or the round produces no admissible candidate.
 
