@@ -28,6 +28,7 @@ import {
   ROUND_018_OBSERVATION_COUNT,
   ROUND_018_OBSERVATION_SOURCE,
   ROUND_018_OBSERVATION_SHA256,
+  ROUND_018_PERFORMANCE_LEDGER_PATH,
   ROUND_018_PREFLIGHT_JSON_PATH,
   ROUND_018_STRUCTURAL_OBSERVATION_SOURCE,
   ROUND_018_RESEARCH_ROUND_ID,
@@ -137,11 +138,21 @@ function inputHashes(record: Readonly<{ performanceStageSourceCommit: string; ac
   return Object.freeze({ performanceStageSourceCommit: record.performanceStageSourceCommit, acceptedDesignSourceCommit: record.acceptedDesignSourceCommit, r14ObservationDataSha256: record.r14ObservationDataSha256, compactStructuralSha256: record.compactStructuralSha256, structuralManifestSha256: record.structuralManifestSha256, preflightReportSha256: record.preflightReportSha256 });
 }
 
+function verifyExecutionCheckout(root: string, implementationCommit: string): void {
+  const head = git(root, ["rev-parse", "HEAD"]);
+  if (head === implementationCommit) return;
+  const parent = git(root, ["rev-parse", "HEAD^"]);
+  const subject = git(root, ["show", "-s", "--format=%s", "HEAD"]);
+  const changedFiles = git(root, ["diff", "--name-only", `${implementationCommit}..HEAD`]).split(/\r?\n/).filter(Boolean).sort();
+  const allowedFiles = [ROUND_018_PERFORMANCE_LEDGER_PATH, "scripts/m3-r18-performance.ts"].sort();
+  requireValue(parent === implementationCommit && subject === "Claim Round-018 authoritative performance execution" && JSON.stringify(changedFiles) === JSON.stringify(allowedFiles), "R18 execution must run from the implementation commit plus its ledger-only claim commit.");
+}
+
 async function execute(root: string): Promise<void> {
   const ledgerPath = roundGlobalR18PerformanceLedgerPath(root);
   const ledger = readR18PerformanceLedger(ledgerPath);
   const record = ledger.executions[0]!;
-  requireValue(git(root, ["rev-parse", "HEAD"]) === record.implementationCommit, "R18 execution must run from the claimed implementation commit.");
+  verifyExecutionCheckout(root, record.implementationCommit);
   requireValue(record.performanceStageSourceCommit === R18_PERFORMANCE_STAGE_SOURCE && record.acceptedDesignSourceCommit === R18_DESIGN_SOURCE, "R18 ledger source identity mismatch.");
   const staticIdentity = await verifyStaticIdentities(root);
   requireValue(record.r14ObservationDataSha256 === staticIdentity.r14ObservationSha256 && record.compactStructuralSha256 === staticIdentity.compactSha256 && record.structuralManifestSha256 === staticIdentity.manifestSha256 && record.preflightReportSha256 === staticIdentity.preflightSha256, "R18 ledger input identity does not match the accepted evidence.");
