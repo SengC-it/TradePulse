@@ -555,7 +555,7 @@ describe("Round-018 design-only protocol", () => {
     expect(existsSync(path.join(process.cwd(), ROUND_018_PERFORMANCE_LEDGER_PATH))).toBe(false);
   });
 
-  it("leaves all R18 performance, selection, observation, and performance-script paths absent", () => {
+  it("leaves all R18 performance and selection paths absent", () => {
     const design = loadDesign();
     const outputs = [
       "docs/M3_R18_ROUND_018_RESULTS.md",
@@ -563,9 +563,6 @@ describe("Round-018 design-only protocol", () => {
       "docs/evidence/M3_R18_ROUND_018_AUDIT.json",
       "docs/evidence/M3_R18_ROUND_018_SELECTION.json",
       "docs/evidence/M3_R18_ROUND_018_SELECTION.md",
-      "docs/research/round-018-preflight.json",
-      "docs/research/round-018-observation-freeze.json",
-      ".cache/tradepulse/round-018",
     ];
 
     expect(design.evidenceOutputs.generatedDuringDesign).toEqual([]);

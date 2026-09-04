@@ -21,8 +21,8 @@
   },
   "acceptedResearchSource": {
     "branch": "research/round-015-beta-alpha-decomposition",
-    "commit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
-    "requiredBaseHead": "e10d1bdc90f841ba647172c05b2a19717ec6b28b"
+    "commit": "feec11151b334a14754b1f720972c6e2b198960a",
+    "requiredBaseHead": "feec11151b334a14754b1f720972c6e2b198960a"
   },
   "researchBoundary": {
     "start": "2023-01-01T00:00:00.000Z",
@@ -198,7 +198,7 @@
     "terminationDecision": "ROUND-018 PERFORMANCE INELIGIBLE AT PREFLIGHT"
   },
   "baselineScoreProvenance": {
-    "acceptedSourceCommit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "acceptedSourceCommit": "feec11151b334a14754b1f720972c6e2b198960a",
     "componentNames": [
       "trendStrength",
       "pullbackQuality",
@@ -326,7 +326,7 @@
     "designDataScanExecuted": false
   },
   "frozenFolds": {
-    "sourceCommit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "sourceCommit": "feec11151b334a14754b1f720972c6e2b198960a",
     "sourcePath": "src/lib/research/folds.ts",
     "export": "RESEARCH_FOLDS",
     "sourceSha256": "f9017ab7b9326353535366465861f4ccd4e276ffd6fb49e61afed75e44e62b2a",
@@ -347,7 +347,7 @@
     "futureBoundaryChange": "FORBIDDEN"
   },
   "frozenRegimes": {
-    "sourceCommit": "e10d1bdc90f841ba647172c05b2a19717ec6b28b",
+    "sourceCommit": "feec11151b334a14754b1f720972c6e2b198960a",
     "sourcePath": "src/lib/strategy/regimes.ts",
     "function": "calculateBTCRegime",
     "sourceSha256": "6d5b17c7035c39f65b64cdc70153e0d9f576f587aa20d9f9c31199c5a655709e",
