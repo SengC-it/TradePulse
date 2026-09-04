@@ -85,22 +85,30 @@ fuzzy matching remain forbidden.
 ## Frozen validation contracts
 
 The accepted `RESEARCH_FOLDS` F1–F6, 24-hour purge, 24-hour embargo, and
-`calculateBTCRegime()` labels remain unchanged. G01–G07 are fail-closed
-definitions and G08–G15 remain the existing pre-performance economic
-standards, but all gates are `NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS`;
-no thresholds were tuned and no result can change a definition.
+`calculateBTCRegime()` labels remain unchanged. Because this design has no
+active hypothesis or candidate, Round-019 structural preflight is permanently
+inapplicable: `preflightAuthorized=false`, `round019Executable=false`, and
+the G01–G07 definition list is empty. No rejected prior-candle rule or
+candidate-breadth rule remains in the executable Round-019 gate configuration.
+
+G08–G15 remain repository-wide future research standards only. They are
+`NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS` for Round-019,
+`round019Executable=false`, and `performanceAuthorized=false`; they cannot
+trigger Round-019 performance. No thresholds were tuned and no result can
+change a definition.
 
 No economic label value is read, calculated, or inspected. The existing
 `bt-policy-003` settlement, fees, slippage, funding, and stress semantics are
 only referenced as a future contract and are not executed in this task.
 
-## One-shot governance and status
+## Evidence outputs, ledger, and status
 
-The future performance ledger remains absent. If a future design is ever
-authorized, performance count must come only from the round-global ledger,
-with one first-result lock, the original execution directory for crash
-continuation, completed-checkpoint reuse, fail-closed missing/corrupt
-checkpoints, and no selection rerun.
+Round-019 performance outputs and selection outputs are `NOT_APPLICABLE`.
+Their documented paths are schema references only, not reserved Round-019
+generation targets. A Round-019 ledger claim is `FORBIDDEN`; the ledger is
+absent and `performanceExecutionCount=0`. The one-shot round-global ledger
+rules remain historical governance reference and cannot authorize this
+terminated design.
 
 ```text
 performance                 NOT_AUTHORIZED / NOT_GENERATED

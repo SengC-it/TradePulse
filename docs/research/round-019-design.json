@@ -370,22 +370,19 @@
   "structuralPreflightGates": {
     "frozenBeforePreflight": true,
     "evaluationMode": "FAIL_CLOSED",
-    "evaluationStatus": "NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "evaluationStatus": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
     "performanceEligibility": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
-    "definitions": [
-      { "id": "G01_DATA_PROVENANCE", "hardGate": true, "requirement": "Exact accepted R14 population/manifest and baseline formal source identity; every formal control event has exactly one valid prior closed 1H candle identity from the accepted existing cache; missing, duplicate, malformed, or ambiguous identity is PROVENANCE_INCOMPLETE; no network or reconstructed source." },
-      { "id": "G02_POINT_IN_TIME", "hardGate": true, "requirement": "Candidate classification uses only signal-time identity and the immediately preceding fully closed 1H candle; prior closeTime and openTime must satisfy the frozen UTC identity; no future candle or label is read." },
-      { "id": "G03_AGGREGATE_BREADTH", "hardGate": true, "requirement": "Candidate H4 economically eligible label-status count is >= 500; status is inspected but economic value is not read during structural preflight." },
-      { "id": "G04_FOLD_BREADTH", "hardGate": true, "requirement": "Candidate H4 EXECUTED label-status count is >= 50 in each frozen validation fold F1-F6." },
-      { "id": "G05_SYMBOL_BREADTH", "hardGate": true, "requirement": "Candidate count is >= 20 for each of BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, and BNBUSDT." },
-      { "id": "G06_REGIME_BREADTH", "hardGate": true, "requirement": "Candidate count is >= 50 in each BTC_STRONG_BULL, BTC_NEUTRAL, and BTC_STRONG_BEAR stratum using the frozen regime function." },
-      { "id": "G07_STRUCTURAL_DISCRIMINATION", "hardGate": true, "requirement": "0 < candidateCount < controlCount; candidate equal to CONTROL fails closed as ROUND-019 PERFORMANCE INELIGIBLE — NON-DISCRIMINATIVE SELECTOR." }
-    ]
+    "preflightAuthorized": false,
+    "round019Executable": false,
+    "definitions": []
   },
   "frozenPerformanceGates": {
     "frozenBeforePerformance": true,
     "evaluatedDuringDesign": false,
-    "evaluationStatus": "NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "evaluationStatus": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "round019Executable": false,
+    "performanceAuthorized": false,
+    "scope": "REPOSITORY_WIDE_FUTURE_RESEARCH_STANDARD",
     "resultsMayNotChangeDefinitions": true,
     "definitions": [
       { "id": "G08_ABSOLUTE_H4_EDGE", "hardGate": true, "requirement": "candidate.meanNetForwardAtr > 0" },
@@ -437,16 +434,23 @@
   },
   "evidenceOutputs": {
     "generatedDuringDesign": [],
-    "reservedPerformanceOutputs": [
-      "docs/M3_R19_ROUND_019_RESULTS.md",
-      "docs/evidence/M3_R19_ROUND_019_SUMMARY.json",
-      "docs/evidence/M3_R19_ROUND_019_AUDIT.json"
-    ],
-    "reservedSelectionOutputs": [
-      "docs/evidence/M3_R19_ROUND_019_SELECTION.json",
-      "docs/evidence/M3_R19_ROUND_019_SELECTION.md"
-    ],
-    "reservedLedger": "docs/research/round-019-performance-ledger.json",
+    "performanceOutputs": {
+      "status": "NOT_APPLICABLE",
+      "schemaReferencePaths": [
+        "docs/M3_R19_ROUND_019_RESULTS.md",
+        "docs/evidence/M3_R19_ROUND_019_SUMMARY.json",
+        "docs/evidence/M3_R19_ROUND_019_AUDIT.json"
+      ]
+    },
+    "selectionOutputs": {
+      "status": "NOT_APPLICABLE",
+      "schemaReferencePaths": [
+        "docs/evidence/M3_R19_ROUND_019_SELECTION.json",
+        "docs/evidence/M3_R19_ROUND_019_SELECTION.md"
+      ]
+    },
+    "ledgerClaim": "FORBIDDEN",
+    "ledgerSchemaReferencePath": "docs/research/round-019-performance-ledger.json",
     "ledgerPresent": false
   },
   "designOnlyProhibitions": [

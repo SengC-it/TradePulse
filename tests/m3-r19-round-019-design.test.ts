@@ -269,33 +269,52 @@ describe("Round-019 design-only protocol", () => {
     expect(ROUND_019_PRIMARY_HORIZON_HOURS).toBe(4);
   });
 
-  it("keeps G01-G07 and G08-G15 frozen but unevaluated", () => {
+  it("makes the terminated Round-019 preflight permanently inapplicable", () => {
     const design = loadDesign();
     const structural = record(design.structuralPreflightGates);
     const performance = record(design.frozenPerformanceGates);
-    const structuralDefinitions = records(structural.definitions);
-    const performanceDefinitions = records(performance.definitions);
 
     expect(structural).toMatchObject({
       frozenBeforePreflight: true,
       evaluationMode: "FAIL_CLOSED",
-      evaluationStatus: "NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+      evaluationStatus: "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
       performanceEligibility: "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+      preflightAuthorized: false,
+      round019Executable: false,
     });
-    expect(structuralDefinitions.map((gate) => gate.id)).toEqual([
-      "G01_DATA_PROVENANCE", "G02_POINT_IN_TIME", "G03_AGGREGATE_BREADTH", "G04_FOLD_BREADTH",
-      "G05_SYMBOL_BREADTH", "G06_REGIME_BREADTH", "G07_STRUCTURAL_DISCRIMINATION",
-    ]);
+    expect(structural.definitions).toEqual([]);
+    expect(JSON.stringify(structural)).not.toContain("priorClosed1h");
+    expect(JSON.stringify(structural)).not.toMatch(/candidate(?:Count| breadth| fold| symbol| regime| discrimination)/i);
     expect(performance).toMatchObject({
       frozenBeforePerformance: true,
       evaluatedDuringDesign: false,
       resultsMayNotChangeDefinitions: true,
-      evaluationStatus: "NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+      evaluationStatus: "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+      round019Executable: false,
+      performanceAuthorized: false,
+      scope: "REPOSITORY_WIDE_FUTURE_RESEARCH_STANDARD",
     });
-    expect(performanceDefinitions.map((gate) => gate.id)).toEqual([
-      "G08_ABSOLUTE_H4_EDGE", "G09_H4_PROFIT_FACTOR", "G10_INCREMENTAL_H4_EDGE", "G11_FOLD_INCREMENTAL_ROBUSTNESS",
-      "G12_FOLD_ABSOLUTE_ROBUSTNESS", "G13_COST_STRESS", "G14_LATENCY_STRESS", "G15_DRAWDOWN_NON_DEGRADATION",
-    ]);
+    expect(records(performance.definitions)).toHaveLength(8);
+  });
+
+  it("marks all outputs and ledger claims as inapplicable or forbidden", () => {
+    const design = loadDesign();
+    const outputs = record(design.evidenceOutputs);
+    const execution = record(design.authoritativeExecutionGovernance);
+
+    expect(outputs).toMatchObject({
+      generatedDuringDesign: [],
+      performanceOutputs: { status: "NOT_APPLICABLE" },
+      selectionOutputs: { status: "NOT_APPLICABLE" },
+      ledgerClaim: "FORBIDDEN",
+      ledgerPresent: false,
+    });
+    expect(execution).toMatchObject({
+      performanceExecutionCount: 0,
+      performanceExecuted: false,
+      selectionExecuted: false,
+      ledgerMustBeAbsentDuringDesign: true,
+    });
   });
 
   it("proves design-only governance: no ledger, no economics, no new data, and no execution command", () => {
