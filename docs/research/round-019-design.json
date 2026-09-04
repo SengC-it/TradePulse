@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "m3-r19-round-019-design-001",
+  "schemaVersion": "m3-r19-round-019-design-002",
   "researchRoundId": "baseline-002-research-round-019",
   "phase": "DESIGN_ONLY",
   "dataClassification": "RESEARCH_AVAILABLE_SEEN_DATA",
@@ -136,7 +136,15 @@
         "sampleBreadthFailure": "NOT_EVALUATED",
         "transactionCostFailure": "NOT_EVALUATED"
       },
-      "r19Use": "NO_THESIS_LIFETIME_OR_FOLLOW_UP_CLASSIFICATION_REUSE"
+      "r19Use": "NO_THESIS_LIFETIME_OR_FOLLOW_UP_CLASSIFICATION_REUSE",
+      "calendarSessionReview": {
+        "sourceCommit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
+        "sourcePath": "docs/research/round-017-design.json",
+        "hypothesisId": "R17-SESSION-BOUNDARY-RETURN",
+        "mechanismFamily": "UTC_SESSION_BOUNDARY_STATE",
+        "status": "REJECTED_DESIGN",
+        "reason": "The accepted R17 design rejected calendar/session selection because it had no independently established breadth justification; R19 cannot promote the same family without new admissible evidence, which is forbidden in DESIGN_ONLY."
+      }
     },
     "r18": {
       "status": "COMPLETED_NEGATIVE_ECONOMIC_EVIDENCE",
@@ -170,31 +178,11 @@
     {
       "id": "R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE",
       "mechanismFamily": "DIRECTIONAL_EVIDENCE_CONFLICT_AT_ENTRY",
-      "status": "ACTIVE",
+      "status": "REJECTED_R13_MOMENTUM_FAMILY_OVERLAP",
       "researchQuestion": "Within the exact baseline-001 formal stream, does a signal preceded by an opposite-direction immediately prior closed 1H candle have incremental H4 net edge versus all formal controls?",
-      "falsifiableHypothesis": "A fixed decision-time counter-move context may identify absorption or rejection before the formal signal; it must improve the frozen primary and robustness metrics versus CONTROL without a post-result rule change.",
-      "economicRationale": "A counter-direction candle immediately before a formal directional event can represent opposing inventory being absorbed before directional acceptance, creating a distinct entry-context state.",
-      "whyItCouldCreateEdge": "The rule isolates a discrete event-context conflict rather than the magnitude of the baseline score; if the conflict reflects exhaustion followed by acceptance, its conditional distribution may differ from the unfiltered formal stream.",
-      "exactDecisionTimeVariablesRequired": [
-        "signalTime",
-        "symbol",
-        "direction",
-        "strategyVersion",
-        "formalSignal",
-        "priorClosed1h.openTime",
-        "priorClosed1h.closeTime",
-        "priorClosed1h.open",
-        "priorClosed1h.close"
-      ],
-      "pointInTimeAvailability": "Only the signal event and the exact preceding fully closed 1H candle are read; the prior candle must end at signalTime - 1_HOUR_MS and no candle after signalTime is eligible.",
-      "expectedSampleBreadth": "Potentially broad because the predicate is a binary adjacent-candle topology, but actual breadth is intentionally unknown until a separately authorized metadata-only preflight.",
-      "expectedRegimeSymbolCoverage": "All five frozen symbols and both directions remain in the population; all three frozen BTC regimes are reporting strata and must satisfy fixed breadth gates if present.",
-      "implementationComplexity": "Low: exact identity lookup plus one mirrored open/close comparison on the existing accepted closed-candle cache.",
-      "leakageRisk": "Low if exact prior identity, closed status, and signal-time cutoff are enforced; missing or ambiguous prior-candle provenance fails closed.",
-      "overlapWithR13R18": "Not an R13 feature-family model, not R14 replay logic, not R15 beta/alpha, not R16 microstructure, not R17 thesis lifecycle, and not R18 component positivity or score reweighting.",
-      "falsifiableFailureCondition": "G01-G07 failure, or failure of any frozen future H4 absolute, incremental, fold, cost, latency, or drawdown gate; no fallback cohort is permitted.",
-      "whyNotTuningOrHindsight": "Exactly one rule is frozen before preflight and performance; it has no numeric threshold, no scan, no optimizer, no parameter alternatives, and classification never reads labels or outcomes.",
-      "candidateRule": "CONTROL && ((direction === LONG && priorClosed1h.close < priorClosed1h.open) || (direction === SHORT && priorClosed1h.close > priorClosed1h.open))"
+      "rejectReason": "The prior-candle directional change is a short-horizon momentum/counter-momentum price-direction identity already represented by the R13 direction-adjusted 1H return/trend/momentum family. An exact formula difference does not establish a new mechanism family.",
+      "mechanismFamilyNoveltyReview": "REJECTED_AT_MECHANISM_FAMILY_LEVEL",
+      "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
     },
     {
       "id": "R19-STATE-TRANSITION-UPDATE",
@@ -202,16 +190,8 @@
       "status": "REJECTED_R17_OVERLAP",
       "researchQuestion": "Does a formal event immediately following a non-formal decision-time state contain different information from other formal events?",
       "economicRationale": "A state transition can mark new information, but it is too close to R17 first-versus-follow-up lifecycle classification.",
-      "whyItCouldCreateEdge": "A new formal state may represent an information update rather than persistence.",
-      "exactDecisionTimeVariablesRequired": ["symbol", "direction", "signalTime", "prior baseline decision-time state"],
       "pointInTimeAvailability": "Potentially PIT from the formal replay stream.",
-      "expectedSampleBreadth": "Unknown and likely fragmented by state transitions.",
-      "expectedRegimeSymbolCoverage": "Requires every frozen symbol and regime.",
-      "implementationComplexity": "Low to medium state-replay complexity.",
-      "leakageRisk": "Low technically, but high protocol-overlap risk.",
-      "overlapWithR13R18": "Structurally overlaps R17 thesis lifecycle and signal novelty work.",
-      "falsifiableFailureCondition": "Any overlap with R17 identity/lifetime semantics or structural breadth failure.",
-      "whyNotTuningOrHindsight": "Rejected before performance because novelty cannot be established without reusing R17 state semantics.",
+      "mechanismFamilyNoveltyReview": "REJECTED; reuses R17 lifecycle/state semantics.",
       "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
     },
     {
@@ -220,34 +200,18 @@
       "status": "REJECTED_R14_R15_OVERLAP",
       "researchQuestion": "Does alignment between formal signal direction and the existing broad BTC state add incremental information?",
       "economicRationale": "Broad market alignment can affect directional beta.",
-      "whyItCouldCreateEdge": "A directionally aligned market state may reduce adverse beta exposure.",
-      "exactDecisionTimeVariablesRequired": ["direction", "BTC regime", "symbol", "signalTime"],
       "pointInTimeAvailability": "PIT from the frozen regime function.",
-      "expectedSampleBreadth": "Likely broad but divided by market state.",
-      "expectedRegimeSymbolCoverage": "Regime stratification is available.",
-      "implementationComplexity": "Low.",
-      "leakageRisk": "Low, but market-relative identity is already consumed by R14/R15.",
-      "overlapWithR13R18": "Overlaps R13/R14 cross-symbol and R15 beta/alpha mechanisms.",
-      "falsifiableFailureCondition": "Novelty or independence cannot be demonstrated without repeating prior market-relative research.",
-      "whyNotTuningOrHindsight": "Rejected as a structural reuse, not because of a performance result.",
+      "mechanismFamilyNoveltyReview": "REJECTED; reuses R13/R14 market-relative context and R15 beta/alpha framing.",
       "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
     },
     {
       "id": "R19-SESSION-BOUNDARY-STATE",
       "mechanismFamily": "UTC_CALENDAR_SESSION_STATE",
-      "status": "REJECTED_R17_BREADTH_RISK",
+      "status": "REJECTED_PRIOR_ROUND_INADMISSIBLE_CALENDAR",
       "researchQuestion": "Do fixed UTC calendar states change the conditional behavior of baseline formal events?",
-      "economicRationale": "Participation and liquidity may vary by calendar state.",
-      "whyItCouldCreateEdge": "A persistent calendar composition could alter execution conditions.",
-      "exactDecisionTimeVariablesRequired": ["signalTime", "UTC calendar state"],
+      "economicRationale": "Participation and liquidity may vary by calendar state, but this is a calendar/session selection thesis.",
       "pointInTimeAvailability": "PIT from signalTime.",
-      "expectedSampleBreadth": "Likely fragmented and vulnerable to calendar concentration.",
-      "expectedRegimeSymbolCoverage": "Requires breadth across all symbols and regimes.",
-      "implementationComplexity": "Low.",
-      "leakageRisk": "Low technical leakage risk but high calendar selection risk.",
-      "overlapWithR13R18": "R17 already rejected a session-boundary direction for insufficient breadth justification.",
-      "falsifiableFailureCondition": "Insufficient independent breadth or dependence on post-result calendar selection.",
-      "whyNotTuningOrHindsight": "Rejected before performance; no calendar variant is allowed.",
+      "mechanismFamilyNoveltyReview": "No independent prior-round admissibility: accepted R17 explicitly rejected its session-boundary hypothesis for lack of established breadth justification. R19 DESIGN_ONLY has no new evidence that could cure that rejection.",
       "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
     },
     {
@@ -256,47 +220,42 @@
       "status": "REJECTED_R13_R14_R18_OVERLAP",
       "researchQuestion": "Does a formal event accompanied by a range-expansion context contain incremental information?",
       "economicRationale": "Range expansion can coincide with directional displacement.",
-      "whyItCouldCreateEdge": "A large displacement may distinguish accepted movement from ordinary events.",
-      "exactDecisionTimeVariablesRequired": ["signal candle range", "prior range", "signalTime"],
       "pointInTimeAvailability": "Potentially PIT from closed candles.",
-      "expectedSampleBreadth": "Unknown and likely sensitive to a range definition.",
-      "expectedRegimeSymbolCoverage": "Requires all frozen strata.",
-      "implementationComplexity": "Medium.",
-      "leakageRisk": "Low technically, but high threshold/definition drift risk.",
-      "overlapWithR13R18": "Would repackage R13/R14 price-volatility evidence or R18's rejected compression/expansion direction.",
-      "falsifiableFailureCondition": "Any need for a tuned range threshold or compression/expansion predicate.",
-      "whyNotTuningOrHindsight": "Rejected before performance to prevent a renamed range or volatility rescue.",
+      "mechanismFamilyNoveltyReview": "REJECTED; reuses R13/R14 price-volatility evidence or R18 compression/expansion repackaging.",
       "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
     }
   ],
-  "activeHypothesis": {
-    "id": "R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE",
-    "mechanismFamily": "DIRECTIONAL_EVIDENCE_CONFLICT_AT_ENTRY",
-    "exactlyOneActive": true,
-    "researchQuestion": "Within the exact baseline-001 formal stream, does a signal preceded by an opposite-direction immediately prior closed 1H candle have incremental H4 net edge versus all formal controls?",
-    "candidateRuleId": "FORMAL_SIGNAL_AFTER_OPPOSING_PRIOR_CLOSED_1H_BODY",
-    "noveltyClaim": "A single adjacent-candle body-direction conflict at decision time; no score, grade, lifecycle, beta, microstructure, compression, range threshold, or economic filter.",
-    "selectionBasis": [
-      "economic mechanism plausibility",
-      "structural novelty against R13-R18",
-      "point-in-time identity is exact and auditable",
-      "no outcome-dependent classification",
-      "low implementation complexity",
-      "no parameter search or fallback variant"
-    ]
+  "hypothesisDecision": {
+    "status": "ROUND-019 NO ADMISSIBLE NOVEL HYPOTHESIS",
+    "activeHypothesisCount": 0,
+    "exactlyOneActive": false,
+    "decisionBasis": "The prior-candle counter-move is rejected as R13 momentum-family overlap. The remaining inventoried families are expressly excluded by R13-R18 negative evidence, or (calendar/session) lack independent prior-round admissibility. No candidate can be frozen without violating the no-reuse/no-tuning boundary.",
+    "performanceEligibility": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "candidateClassification": "NOT_CREATED",
+    "noWeakReplacement": true
   },
+  "activeHypothesis": null,
   "sourceUniverse": {
     "estimandPopulation": "R14_NATIVE_HISTORICAL_OBSERVATION_UNIVERSE",
     "populationIdentity": "EXACT_ACCEPTED_R14_OBSERVATION_FREEZE_NATIVE_UNIVERSE",
     "observationDataPath": ".cache/tradepulse/round-014/observations.ndjson",
     "acceptedObservationCount": 244810,
+    "observationDataBytes": 1893811055,
     "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
     "manifestPath": "docs/research/round-014-observation-freeze.json",
     "manifestSha256": "79c8e56560cd6e1ed2de1772071bd0d92ecd2fac4b4ae065cf65f11f583b3e18",
+    "sourceStatus": "ACCEPTED_R14_NATIVE_OBSERVATION_FREEZE",
+    "coverage": {
+      "start": "2023-01-01T00:00:00.000Z",
+      "end": "2026-08-15T23:59:59.999Z",
+      "timeframe": "R14_NATIVE_OBSERVATION_STREAM",
+      "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"]
+    },
     "controlId": "R19-CONTROL-ALL-R14-NATIVE-BASELINE-001-FORMAL",
     "controlDefinition": "Every accepted R14-native observation whose exact accepted-source baseline-001 replay satisfies the frozen formal predicate.",
     "controlFormalPredicate": "candidate?.formalSignal && candidate.totalScore >= 70",
-    "candidateId": "R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE",
+    "candidateId": null,
+    "candidateStatus": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
     "universe": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
     "directions": ["LONG", "SHORT"],
     "strategyVersion": "baseline-001",
@@ -306,72 +265,25 @@
     "noNewMarketData": true
   },
   "candidateDefinition": {
-    "id": "FORMAL_SIGNAL_AFTER_OPPOSING_PRIOR_CLOSED_1H_BODY",
-    "definition": "Retain only an existing baseline-001 formal control event when the exact immediately preceding closed 1H candle body is opposite to the event direction.",
-    "pseudoExpression": "CONTROL && ((direction === LONG && priorClosed1h.close < priorClosed1h.open) || (direction === SHORT && priorClosed1h.close > priorClosed1h.open))",
-    "allConditions": [
-      "formal baseline-001 control membership",
-      "exact prior closed 1H candle identity",
-      "LONG requires prior close < prior open",
-      "SHORT requires prior close > prior open",
-      "doji is not a candidate",
-      "missing, duplicate, malformed, or ambiguous prior candle => PROVENANCE_INCOMPLETE"
-    ],
-    "exactIdentity": {
-      "observationId": "signalTime|symbol|direction",
-      "priorCandleCloseTime": "signalTime - 1_HOUR_MS",
-      "priorCandleOpenTime": "priorCandleCloseTime - 1_HOUR_MS + 1",
-      "decisionCutoff": "priorCandle.closeTime <= signalTime"
-    },
-    "variantCount": 1,
+    "id": null,
+    "status": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "definition": "No Round-019 candidate is frozen because the mechanism-family review found no admissible novel hypothesis.",
+    "variantCount": 0,
     "combinations": false,
     "parameterSweep": false,
     "optimizer": false,
-    "usesScoreComponents": false,
-    "usesTotalScoreThresholdAsCandidateRule": false,
-    "usesGrade": false,
+    "candidateClassification": "NOT_CREATED",
     "usesFutureOutcome": false,
-    "usesR17LifecycleState": false,
-    "usesR16Microstructure": false,
-    "usesCompressionOrExpansionState": false,
     "usesEconomicFilter": false,
-    "forbiddenAlternatives": [
-      "same-symbol/same-direction thesis lifetime filter",
-      "component positivity or component-count consensus",
-      "totalScore or grade threshold changes",
-      "range or compression threshold",
-      "volume/funding/cost rescue filter",
-      "nearest timestamp or fuzzy candle match",
-      "fallback rule when prior candle is missing"
-    ]
+    "noUnboundInputSource": true
   },
-  "decisionTimeFeatureFamily": {
-    "name": "CLOSED_CANDLE_BODY_DIRECTION_CONFLICT",
-    "source": "ACCEPTED_EXISTING_CLOSED_1H_CANDLE_CACHE_ONLY",
-    "sourceReader": "src/lib/research/m3-r13-round-013-data.ts",
-    "requiredCachePolicy": "EXACT_EXISTING_CACHE_IDENTITY_REQUIRED; NO_NETWORK_ACQUISITION",
-    "variables": [
-      "signalTime",
-      "symbol",
-      "direction",
-      "strategyVersion",
-      "formalSignal",
-      "priorClosed1h.openTime",
-      "priorClosed1h.closeTime",
-      "priorClosed1h.open",
-      "priorClosed1h.close"
-    ],
-    "notUsed": [
-      "R13 F01-F18 feature vector",
-      "R15 alpha/beta model features",
-      "R16 OPEN_INTEREST",
-      "R16 MARK_INDEX_BASIS",
-      "R16 TAKER_FLOW_PERSISTENCE",
-      "score component values",
-      "grade",
-      "forward label values"
-    ],
-    "missingOrAmbiguousSource": "PROVENANCE_INCOMPLETE_AND_G01_FAIL"
+  "activeInputSourceProvenance": {
+    "status": "NOT_APPLICABLE_NO_ACTIVE_HYPOTHESIS",
+    "source": null,
+    "networkAcquired": false,
+    "newMarketData": false,
+    "ambiguousCacheReference": false,
+    "reason": "No ACTIVE hypothesis was frozen; therefore no candidate-specific decision-time input source is authorized. Any future active hypothesis must provide concrete immutable path, manifest, hash, byte/count, symbol, timeframe, coverage, and dataset identity before performance eligibility."
   },
   "baselineFormalProvenance": {
     "acceptedSourceCommit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
@@ -380,8 +292,17 @@
       "sourcePaths": [
         "src/lib/strategy/candidate.ts",
         "src/lib/strategy/scoring.ts",
-        "src/lib/strategy/engine.ts"
+        "src/lib/strategy/engine.ts",
+        "src/lib/backtest/runner.ts"
       ],
+      "runtimeFilteringPath": {
+        "path": "src/lib/backtest/runner.ts",
+        "scope": "runSinglePeriod",
+        "anchors": [
+          "formalCandidates",
+          "candidate?.formalSignal && candidate.totalScore >= 70"
+        ]
+      },
       "changeAfterFreeze": "FORBIDDEN"
     },
     "workingTreeSubstitution": false,
@@ -390,7 +311,8 @@
       { "path": "src/lib/config/constants.ts", "gitBlobSha": "3bc0caa0963bc8d3b977de2ece6fec28a64dd1c9", "sha256": "f34b2225a7afad0bf18e2a8abf14fecdfb28dcba5c0245c689108db1339e15cc", "anchors": ["STRATEGY_VERSION = \"baseline-001\"", "RESEARCH_SYMBOLS"] },
       { "path": "src/lib/strategy/candidate.ts", "gitBlobSha": "b0ba0ed1db292f2bcac37bb6672e5d7c068590ae", "sha256": "076b8a3ac6b8b30c2eda12e8f7e02ef0fe4c071836bb78ffd2bab6449e85f079", "anchors": ["export function evaluateCandidate", "breakoutDistance"] },
       { "path": "src/lib/strategy/scoring.ts", "gitBlobSha": "53ebe011b288d834aa46da5175fa0a34f68a67fb", "sha256": "4d21258eea2ba7027098e0d8c69086a0bef1a1419353330b0a8451e2d397d27a", "anchors": ["export function scoreCandidate", "export function isFormalScore"] },
-      { "path": "src/lib/strategy/engine.ts", "gitBlobSha": "1a09de542a76e37848e51dc477ac35219d5685f2", "sha256": "a6eff41ee9efcfa9e800cc6b76699338e260e87043ed7421ff2812d44b6774c9", "anchors": ["export function evaluateStrategy", "formalSignal"] }
+      { "path": "src/lib/strategy/engine.ts", "gitBlobSha": "1a09de542a76e37848e51dc477ac35219d5685f2", "sha256": "a6eff41ee9efcfa9e800cc6b76699338e260e87043ed7421ff2812d44b6774c9", "anchors": ["export function evaluateStrategy", "formalSignal"] },
+      { "path": "src/lib/backtest/runner.ts", "gitBlobSha": "dad472de8d2e7e4b0f0a0943b51e257afaec8ac9", "sha256": "2f6bc2d733ef081cc2aea4b92165dc80f7f1754f1da1d4d09c03d32cc0ca4208", "anchors": ["formalCandidates", "candidate?.formalSignal && candidate.totalScore >= 70"] }
     ]
   },
   "frozenFolds": {
@@ -448,6 +370,8 @@
   "structuralPreflightGates": {
     "frozenBeforePreflight": true,
     "evaluationMode": "FAIL_CLOSED",
+    "evaluationStatus": "NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "performanceEligibility": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
     "definitions": [
       { "id": "G01_DATA_PROVENANCE", "hardGate": true, "requirement": "Exact accepted R14 population/manifest and baseline formal source identity; every formal control event has exactly one valid prior closed 1H candle identity from the accepted existing cache; missing, duplicate, malformed, or ambiguous identity is PROVENANCE_INCOMPLETE; no network or reconstructed source." },
       { "id": "G02_POINT_IN_TIME", "hardGate": true, "requirement": "Candidate classification uses only signal-time identity and the immediately preceding fully closed 1H candle; prior closeTime and openTime must satisfy the frozen UTC identity; no future candle or label is read." },
@@ -461,6 +385,7 @@
   "frozenPerformanceGates": {
     "frozenBeforePerformance": true,
     "evaluatedDuringDesign": false,
+    "evaluationStatus": "NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
     "resultsMayNotChangeDefinitions": true,
     "definitions": [
       { "id": "G08_ABSOLUTE_H4_EDGE", "hardGate": true, "requirement": "candidate.meanNetForwardAtr > 0" },

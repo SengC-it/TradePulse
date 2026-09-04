@@ -12,7 +12,6 @@ export const ROUND_019_PERFORMANCE_LOCK = "ROUND-019-FIRST-RESULT-LOCK" as const
 export const ROUND_019_MAX_AUTHORITATIVE_PERFORMANCE_EXECUTIONS = 1 as const;
 export const ROUND_019_PRIMARY_HORIZON_HOURS = 4 as const;
 export const ROUND_019_BACKTEST_POLICY_VERSION = "bt-policy-003" as const;
-export const ROUND_019_HOUR_MS = 3_600_000 as const;
 
 export const R19_SYMBOLS = Object.freeze([
   "BTCUSDT",
@@ -47,55 +46,24 @@ export const R19_FROZEN_FOLD_BOUNDARIES: Readonly<Record<R19FoldId, R19FoldBound
   F6: { research: { start: "2023-01-01T00:00:00.000Z", end: "2026-03-31T23:59:59.999Z" }, validation: { start: "2026-04-01T00:00:00.000Z", end: ROUND_019_RESEARCH_END_ISO } },
 });
 
-export const ROUND_019_ACTIVE_HYPOTHESIS_ID = "R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE" as const;
-export const ROUND_019_MECHANISM_FAMILY = "DIRECTIONAL_EVIDENCE_CONFLICT_AT_ENTRY" as const;
+export const ROUND_019_ACTIVE_HYPOTHESIS_ID = null;
+export const ROUND_019_MECHANISM_FAMILY = "NO_ADMISSIBLE_NOVEL_HYPOTHESIS" as const;
 export const ROUND_019_CONTROL_ID = "R19-CONTROL-ALL-R14-NATIVE-BASELINE-001-FORMAL" as const;
-export const ROUND_019_CANDIDATE_ID = "R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE" as const;
-export const ROUND_019_CANDIDATE_RULE_ID = "FORMAL_SIGNAL_AFTER_OPPOSING_PRIOR_CLOSED_1H_BODY" as const;
+export const ROUND_019_CANDIDATE_ID = null;
+export const ROUND_019_CANDIDATE_RULE_ID = null;
+export const ROUND_019_DESIGN_DECISION = "ROUND-019 NO ADMISSIBLE NOVEL HYPOTHESIS" as const;
 
 export const ROUND_019_FORMAL_PREDICATE = "candidate?.formalSignal && candidate.totalScore >= 70" as const;
-export const ROUND_019_CANDIDATE_RULE = Object.freeze({
-  expression: "CONTROL && ((direction === LONG && priorClosed1h.close < priorClosed1h.open) || (direction === SHORT && priorClosed1h.close > priorClosed1h.open))",
-  exactPriorIdentity: "priorClosed1h.closeTime === signalTime - 1_HOUR_MS && priorClosed1h.openTime === priorClosed1h.closeTime - 1_HOUR_MS + 1",
-  doji: "priorClosed1h.close === priorClosed1h.open => NOT_CANDIDATE",
-  variables: Object.freeze([
-    "signalTime",
-    "symbol",
-    "direction",
-    "strategyVersion",
-    "formalSignal",
-    "priorClosed1h.openTime",
-    "priorClosed1h.closeTime",
-    "priorClosed1h.open",
-    "priorClosed1h.close",
+
+export const ROUND_019_FORMAL_PROVENANCE = Object.freeze({
+  path: "src/lib/backtest/runner.ts",
+  gitBlobSha: "dad472de8d2e7e4b0f0a0943b51e257afaec8ac9",
+  sha256: "2f6bc2d733ef081cc2aea4b92165dc80f7f1754f1da1d4d09c03d32cc0ca4208",
+  anchors: Object.freeze([
+    "formalCandidates",
+    "candidate?.formalSignal && candidate.totalScore >= 70",
   ]),
 } as const);
-
-export type R19CounterMoveInput = Readonly<{
-  direction: R19Direction;
-  priorOpen: number;
-  priorClose: number;
-}>;
-
-export type R19PriorCandleIdentityInput = Readonly<{
-  signalTime: number;
-  priorOpenTime: number;
-  priorCloseTime: number;
-}>;
-
-export function isR19CounterMoveEntryContext(input: R19CounterMoveInput): boolean {
-  if (!Number.isFinite(input.priorOpen) || !Number.isFinite(input.priorClose)) return false;
-  if (input.priorOpen === input.priorClose) return false;
-  return input.direction === "LONG"
-    ? input.priorClose < input.priorOpen
-    : input.priorClose > input.priorOpen;
-}
-
-export function hasExactR19PriorCandleIdentity(input: R19PriorCandleIdentityInput): boolean {
-  if (![input.signalTime, input.priorOpenTime, input.priorCloseTime].every(Number.isSafeInteger)) return false;
-  return input.priorCloseTime === input.signalTime - ROUND_019_HOUR_MS
-    && input.priorOpenTime === input.priorCloseTime - ROUND_019_HOUR_MS + 1;
-}
 
 export type Round019DesignOnlyStatus = Readonly<{
   phase: typeof ROUND_019_PHASE;

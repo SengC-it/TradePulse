@@ -1,169 +1,118 @@
-# TradePulse Round-019 — Design-Only Research Freeze
+# TradePulse Round-019 — Design-Only Novelty and Provenance Closure
 
 Status: `DESIGN_ONLY`
 
 Accepted research source: `research/round-015-beta-alpha-decomposition` at
 `c5abf95b199faa6fc8530fc356c03528aceb5c95`.
 
-Round-019 is a historical development study. It is not an authorization to
-run performance, selection, production scanning, shadow activation, or
-automatic trading.
+Round-019 is a historical design review only. No preflight, performance,
+selection, ledger claim, forward-economic inspection, new market-data
+acquisition, production change, shadow activation, scheduler activation, or
+automatic trading is authorized.
 
-## Product and research boundaries
+## Decision
 
-TradePulse remains signal-advisory-only. Private Binance APIs, order
-placement, account execution, leverage, sizing, and automatic trading remain
-absent. Production, baseline-001, and the accepted research-chain source are
-unchanged. The historical boundary is the existing seen-data boundary:
-`2023-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`, with UTC epoch
-millisecond arithmetic only.
+The prior active hypothesis
+`R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE` is rejected as
+`REJECTED_R13_MOMENTUM_FAMILY_OVERLAP`. Its prior-candle direction conflict is
+a short-horizon directional price/momentum identity already covered by the
+R13 direction-adjusted 1H return/trend/momentum family. An exact formula
+difference is not a new mechanism family.
 
-Round-019 design work may inspect prior evidence metadata and accepted source
-provenance. It does not read or calculate economic values, inspect forward
-returns, acquire new market data, or create a performance ledger.
+The strict inventory leaves no admissible novel replacement. The frozen
+decision is:
 
-## R13–R18 evidence review
+`ROUND-019 NO ADMISSIBLE NOVEL HYPOTHESIS`
 
-| Round | Evidence interpretation | Round-019 handling |
-| --- | --- | --- |
-| R13 | The frozen feature-family forward-edge study is negative evidence about that model family and its robustness/cost requirements. | Do not reuse the R13 feature family or wrap it in a new label. |
-| R14 | The exact replay preserves the same formal source and settlement protocol; it is not a new signal architecture. | Use only the accepted native population and label/provenance contract. |
-| R15 | The beta/alpha decomposition did not establish an admissible candidate; model and robustness requirements remain unresolved. | Do not carry forward beta models, alpha features, or their tuning space. |
-| R16 | The derivatives microstructure study is negative evidence with recorded information-coverage limitations; it did not authorize a microstructure carry-forward. | `OPEN_INTEREST`, `MARK_INDEX_BASIS`, and `TAKER_FLOW_PERSISTENCE` are explicitly excluded. |
-| R17 | The study terminated as data-ineligible, so it is not an economic result. | Do not reuse thesis lifetime, first/follow-up, or lifecycle classification. |
-| R18 | The component-consensus study is negative economic evidence for that selector family. | Do not retest component counts, score/grade thresholds, weights, or compression/expansion repackaging. |
+No weak candidate is created. `activeHypothesis` is `null`, the candidate is
+not created, and no candidate-specific input source is authorized.
 
-The review distinguishes information insufficiency from model/edge failure,
-stability, breadth, and transaction-cost concerns. R17 is the data-completeness
-case; the completed negative studies are not converted into a positive claim
-or a reason to tune a prior model.
+## Mechanism-family review
 
-## Hypothesis inventory and decision
+The inventory rejects the following before any execution:
 
-Five structurally distinct families were considered. Exactly one is active;
-the other four are rejected before any preflight or performance work.
+- R13 momentum/directional price context: the prior-candle counter-move is
+  `REJECTED_R13_MOMENTUM_FAMILY_OVERLAP`.
+- R17 lifecycle/state transition: rejected as reuse of thesis-state semantics.
+- R14/R15 market-relative alignment: rejected as market-relative/beta-alpha
+  reuse.
+- Calendar/session state: rejected because accepted R17 explicitly rejected
+  `R17-SESSION-BOUNDARY-RETURN` for lack of independently established breadth
+  justification. R19 DESIGN_ONLY cannot create the missing evidence.
+- Range/expansion context: rejected as R13/R14 price-volatility or R18
+  compression/expansion repackaging.
 
-| ID | Mechanism family | Status | Reason |
-| --- | --- | --- | --- |
-| `R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE` | `DIRECTIONAL_EVIDENCE_CONFLICT_AT_ENTRY` | `ACTIVE` | A decision-time event-context test that is independent of prior round model families. |
-| `R19-STATE-TRANSITION-UPDATE` | `DECISION_TIME_FORMAL_STATE_TRANSITION` | `REJECTED_R17_OVERLAP` | Reuses the R17 lifecycle/state-transition problem. |
-| `R19-MARKET-RELATIVE-CONFIRMATION` | `EXISTING_BTC_REGIME_ALIGNMENT` | `REJECTED_R14_R15_OVERLAP` | Reuses broad regime/beta alignment rather than a distinct event mechanism. |
-| `R19-SESSION-BOUNDARY-STATE` | `UTC_CALENDAR_SESSION_STATE` | `REJECTED_R17_BREADTH_RISK` | Calendar partitioning has no admissible breadth case without result-dependent selection. |
-| `R19-RANGE-EXPANSION-CONTEXT` | `CLOSED_CANDLE_RANGE_EXPANSION` | `REJECTED_R13_R14_R18_OVERLAP` | It would repackage the prior feature/expansion/component families. |
+This review also excludes 1H/4H/12H/24H directional-return variants,
+candle-body momentum or reversal recodings, EMA/trend/momentum, volatility,
+range/compression, volume, taker flow, symbol-vs-BTC movement, funding,
+cross-symbol breadth, R15 beta/alpha, R16 microstructure, R17 lifecycle/state
+deduplication, R18 component consensus/reweighting, score/grade threshold
+changes, regime rescue, horizon rescue, and unqualified calendar/session
+selection. No active mechanism family remains that is both economically
+credible and independently admissible within the frozen source boundary.
 
-The sole active research question is:
+## Frozen control and formal provenance
 
-> Within the exact baseline-001 formal stream, does a signal preceded by an
-> opposite-direction immediately prior closed 1H candle have incremental H4
-> net edge versus all formal controls?
+The exact control remains the complete accepted baseline-001 formal stream:
 
-### Active candidate rule
+`candidate?.formalSignal && candidate.totalScore >= 70`
 
-The control is the complete exact baseline-001 formal stream from the native
-accepted R14 universe. The candidate retains one of those control events only
-when the immediately preceding fully closed 1H candle has the opposite body
-direction:
+The authoritative runtime filtering path is
+`src/lib/backtest/runner.ts`, in `runSinglePeriod`, at the
+`formalCandidates` filtering expression. Its accepted-source identity is
+bound in `round-019-design.json`:
 
-```text
-CONTROL && ((direction === LONG && priorClosed1h.close < priorClosed1h.open) ||
-            (direction === SHORT && priorClosed1h.close > priorClosed1h.open))
-```
+- Git blob SHA: `dad472de8d2e7e4b0f0a0943b51e257afaec8ac9`
+- raw SHA-256: `2f6bc2d733ef081cc2aea4b92165dc80f7f1754f1da1d4d09c03d32cc0ca4208`
+- anchors: `formalCandidates` and
+  `candidate?.formalSignal && candidate.totalScore >= 70`
 
-The prior candle must satisfy the exact identity
-`priorClosed1h.closeTime === signalTime - 1_HOUR_MS` and
-`priorClosed1h.openTime === priorClosed1h.closeTime - 1_HOUR_MS + 1`.
-Doji candles are not candidates. Missing, duplicate, malformed, ambiguous, or
-non-exact candle provenance fails closed. No score component, grade, total
-score threshold, lifecycle state, microstructure field, compression/range
-threshold, economic filter, future label, parameter, sweep, optimizer, or
-fallback classification is allowed.
+The accepted candidate/scoring/engine/constants source blobs remain bound as
+well. Tests compare every bound blob and anchor against the accepted commit;
+working-tree substitution is not permitted.
 
-This is a counter-direction event-context mechanism. It is not R13 feature
-modeling, R14 replay logic, R15 beta/alpha decomposition, R16 derivatives
-microstructure, R17 thesis deduplication, or R18 score-component consensus.
+The frozen population identity remains the accepted R14-native observation
+freeze: five symbols, LONG/SHORT, baseline-001, the existing manifest and
+observation-data hashes, and the seen-data boundary
+`2023-01-01T00:00:00.000Z` through `2026-08-15T23:59:59.999Z`. Because there is
+no active hypothesis, `activeInputSourceProvenance` is explicitly
+`NOT_APPLICABLE_NO_ACTIVE_HYPOTHESIS`, with no vague cache reference. Any
+future active design would first have to bind a concrete immutable path,
+manifest, status, hash, byte/count, symbol, timeframe, coverage, and dataset
+identity; network acquisition, backfill, substitution, nearest matching, and
+fuzzy matching remain forbidden.
 
-## Frozen population and provenance
+## Frozen validation contracts
 
-- Population: the exact accepted R14-native baseline-001 observation universe.
-- Control: every baseline-001 formal event in that population, using the
-  accepted formal predicate `candidate?.formalSignal && candidate.totalScore >= 70`.
-- Candidate: the single active rule above; all baseline symbols and both
-  directions remain in scope.
-- Strategy version: `baseline-001`.
-- Primary horizon and label semantics: the existing R14-native H4 label under
-  unchanged `bt-policy-003`.
-- Decision-time inputs are only formal-event identity and the exact prior
-  closed candle body identity/open/close.
-- Existing accepted cache identity is required. Network acquisition,
-  reconstructed labels, nearest/fuzzy timestamps, and subset repair are
-  forbidden.
+The accepted `RESEARCH_FOLDS` F1–F6, 24-hour purge, 24-hour embargo, and
+`calculateBTCRegime()` labels remain unchanged. G01–G07 are fail-closed
+definitions and G08–G15 remain the existing pre-performance economic
+standards, but all gates are `NOT_EVALUATED_NO_ADMISSIBLE_NOVEL_HYPOTHESIS`;
+no thresholds were tuned and no result can change a definition.
 
-The source blobs for the formal predicate, frozen folds, regime function,
-baseline constants, and accepted data/manifest are bound by the hashes in
-`round-019-design.json`. The working tree cannot substitute for those accepted
-source identities.
+No economic label value is read, calculated, or inspected. The existing
+`bt-policy-003` settlement, fees, slippage, funding, and stress semantics are
+only referenced as a future contract and are not executed in this task.
 
-## Frozen validation protocol
+## One-shot governance and status
 
-The existing `RESEARCH_FOLDS` F1–F6 are reused byte-for-byte from the accepted
-source. Their validation method is purged walk-forward with a fixed 24-hour
-purge and 24-hour embargo; fold boundaries may not be redefined. BTC regime
-labels are the accepted `calculateBTCRegime()` labels
-`BTC_STRONG_BULL`, `BTC_NEUTRAL`, and `BTC_STRONG_BEAR`, used only for fixed
-reporting/breadth stratification. Regime thresholds cannot change after the
-freeze.
-
-The structural gates are frozen before any result exists:
-
-- `G01_DATA_PROVENANCE`: exact population, formal source, and prior-candle
-  identity/provenance are complete and unambiguous.
-- `G02_POINT_IN_TIME`: only the signal event and its exact preceding closed
-  1H candle are eligible.
-- `G03_AGGREGATE_BREADTH`: at least 500 economically eligible H4 label-status
-  records in the candidate cohort.
-- `G04_FOLD_BREADTH`: at least 50 eligible H4 records in each F1–F6
-  validation fold.
-- `G05_SYMBOL_BREADTH`: at least 20 candidate events for every frozen symbol.
-- `G06_REGIME_BREADTH`: at least 50 candidate events in every frozen BTC
-  regime stratum.
-- `G07_STRUCTURAL_DISCRIMINATION`: candidate count is strictly greater than
-  zero and strictly less than control count.
-
-G08–G15 are also frozen before performance: absolute H4 edge, profit factor,
-incremental edge, fold robustness, cost stress, latency stress, and drawdown
-non-degradation. They are not evaluated during design, and no future result
-may change their definitions.
-
-## Metrics and settlement contract
-
-The design freezes the existing H4 target and reporting metric names only.
-No economic metric is calculated, read, or inspected in this phase. Future
-performance, if separately authorized, must use the existing settlement,
-fees, slippage, funding, and latency treatment. H8/H12/H24 remain reporting
-only and cannot become a selection basis.
-
-## One-shot execution governance
-
-The future performance execution is governed by a round-global first-result
-lock with at most one authoritative execution. Its ledger is
-`docs/research/round-019-performance-ledger.json` and must remain absent in
-this design phase. Any future execution count must be derived from that
-ledger, not supplied by a caller. An alternate execution directory is
-forbidden; crash continuation requires the original ledger execution ID and
-frozen execution directory. Completed checkpoints must be reused, never
-recomputed; missing or corrupt completed checkpoints abort. Selection cannot
-be rerun, and evidence publication must use the existing final-marker rule.
-
-No Round-019 performance, selection, ledger claim, preflight, economic
-evaluation, or evidence output is authorized by this document.
-
-## Frozen status
+The future performance ledger remains absent. If a future design is ever
+authorized, performance count must come only from the round-global ledger,
+with one first-result lock, the original execution directory for crash
+continuation, completed-checkpoint reuse, fail-closed missing/corrupt
+checkpoints, and no selection rerun.
 
 ```text
 performance                 NOT_AUTHORIZED / NOT_GENERATED
 performanceExecutionCount   0
 performanceLedgerPresent    false
+performanceExecuted         false
 selection                   NOT_EXECUTED
+selectionExecuted           false
+economicValuesRead          false
+economicValuesCalculated    false
+economicValuesInspected     false
+newMarketDataFetched        false
 Production                  UNCHANGED
 baseline-001                UNCHANGED
 baseline-002                NOT_FROZEN
@@ -172,7 +121,7 @@ M4                          NOT_STARTED
 automaticTrading            false
 ```
 
-The machine-readable freeze is `docs/research/round-019-design.json`; the
-design-only protocol helpers are in
-`src/lib/research/m3-r19-round-019-protocol.ts`. Reserved performance and
-selection outputs are intentionally absent.
+The machine-readable decision and provenance freeze is
+`docs/research/round-019-design.json`; protocol constants and design-only
+status validation are in
+`src/lib/research/m3-r19-round-019-protocol.ts`.
