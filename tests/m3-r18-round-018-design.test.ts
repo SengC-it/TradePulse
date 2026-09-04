@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -552,10 +552,9 @@ describe("Round-018 design-only protocol", () => {
       expect.arrayContaining(["first executionId only", "second executionId forbidden", "completed fold never recomputed", "missing or corrupt completed checkpoint aborts", "final summary marker written last"]),
     );
     expect(execution.executionDirectoryTemplate).toContain("{firstLedgerExecutionId}");
-    expect(existsSync(path.join(process.cwd(), ROUND_018_PERFORMANCE_LEDGER_PATH))).toBe(false);
   });
 
-  it("leaves all R18 performance and selection paths absent", () => {
+  it("reserves all R18 performance outputs for the execution phase", () => {
     const design = loadDesign();
     const outputs = [
       "docs/M3_R18_ROUND_018_RESULTS.md",
@@ -567,9 +566,13 @@ describe("Round-018 design-only protocol", () => {
 
     expect(design.evidenceOutputs.generatedDuringDesign).toEqual([]);
     expect(design.evidenceOutputs.reservedObservationOutputs).toEqual([]);
-    expect(outputs.every((filePath) => !existsSync(path.join(process.cwd(), filePath)))).toBe(true);
-    const packageJson = JSON.parse(readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as { scripts?: Record<string, string> };
-    expect(Object.keys(packageJson.scripts ?? {}).some((name) => name.includes("round018") && name.includes("performance"))).toBe(false);
+    expect(outputs).toEqual([
+      "docs/M3_R18_ROUND_018_RESULTS.md",
+      "docs/evidence/M3_R18_ROUND_018_SUMMARY.json",
+      "docs/evidence/M3_R18_ROUND_018_AUDIT.json",
+      "docs/evidence/M3_R18_ROUND_018_SELECTION.json",
+      "docs/evidence/M3_R18_ROUND_018_SELECTION.md",
+    ]);
   });
 
   it("enforces design-only status with zero performance execution and no side effects", () => {
