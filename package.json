@@ -66,6 +66,8 @@
     "round018:observation-freeze": "node --experimental-strip-types --no-warnings scripts/m3-r18-observation-freeze.ts",
     "round018:preflight": "node --experimental-strip-types --no-warnings scripts/m3-r18-preflight.ts",
     "round018:runtime-import-smoke": "node --experimental-strip-types --no-warnings scripts/m3-r18-runtime-import-smoke.ts",
+    "research:round018:performance": "node --experimental-strip-types --no-warnings scripts/m3-r18-performance.ts",
+    "research:round018:performance-runtime-import-smoke": "node --experimental-strip-types --no-warnings scripts/m3-r18-performance-runtime-import-smoke.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "check": "npm run verify"
   },

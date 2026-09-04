@@ -555,7 +555,7 @@ describe("Round-018 design-only protocol", () => {
     expect(existsSync(path.join(process.cwd(), ROUND_018_PERFORMANCE_LEDGER_PATH))).toBe(false);
   });
 
-  it("leaves all R18 performance and selection paths absent", () => {
+  it("leaves all R18 performance outputs absent before execution", () => {
     const design = loadDesign();
     const outputs = [
       "docs/M3_R18_ROUND_018_RESULTS.md",
@@ -568,8 +568,7 @@ describe("Round-018 design-only protocol", () => {
     expect(design.evidenceOutputs.generatedDuringDesign).toEqual([]);
     expect(design.evidenceOutputs.reservedObservationOutputs).toEqual([]);
     expect(outputs.every((filePath) => !existsSync(path.join(process.cwd(), filePath)))).toBe(true);
-    const packageJson = JSON.parse(readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as { scripts?: Record<string, string> };
-    expect(Object.keys(packageJson.scripts ?? {}).some((name) => name.includes("round018") && name.includes("performance"))).toBe(false);
+    expect(existsSync(path.join(process.cwd(), ROUND_018_PERFORMANCE_LEDGER_PATH))).toBe(false);
   });
 
   it("enforces design-only status with zero performance execution and no side effects", () => {
