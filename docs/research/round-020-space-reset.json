@@ -840,6 +840,7 @@
   ],
   "ranking": {
     "methodology": "structural-only ordinal review performed without reading forward economic values",
+    "method": "EQUAL_WEIGHT_ARITHMETIC_MEAN",
     "scoringScale": "0-5 per dimension",
     "scoringDimensions": [
       "mechanismNovelty",
@@ -851,6 +852,24 @@
       "expectedInformationIndependence",
       "costRobustnessPlausibility"
     ],
+    "dimensionWeights": {
+      "mechanismNovelty": 1,
+      "economicPlausibility": 1,
+      "pointInTimeIntegrity": 1,
+      "expectedBreadth": 1,
+      "dataProvenanceQuality": 1,
+      "implementationFeasibility": 1,
+      "expectedInformationIndependence": 1,
+      "costRobustnessPlausibility": 1
+    },
+    "formula": "round(sum(dimensionScores) / 8, 3)",
+    "rounding": "nearest 0.001; deterministic arithmetic mean of the eight integer scores",
+    "tieBreak": "mechanismFamilyId lexical ascending after descending overallResearchPriority",
+    "recommendationEligibility": [
+      "ADMISSIBLE_EXISTING_DATA",
+      "ADMISSIBLE_NEW_DATA_REQUIRED"
+    ],
+    "generatedNotHandEntered": true,
     "usesForwardEconomicValues": false,
     "usesHistoricalEconomicResults": false,
     "orderedFamilies": [
@@ -858,50 +877,57 @@
         "rank": 1,
         "mechanismFamilyId": "FORCED_DELEVERAGING_LIQUIDATION_STATE",
         "admissibility": "ADMISSIBLE_NEW_DATA_REQUIRED",
+        "eligibleForRecommendation": true,
         "dimensionScores": {"mechanismNovelty": 5, "economicPlausibility": 4, "pointInTimeIntegrity": 2, "expectedBreadth": 3, "dataProvenanceQuality": 1, "implementationFeasibility": 2, "expectedInformationIndependence": 5, "costRobustnessPlausibility": 3},
-        "overallResearchPriority": 4.1
+        "overallResearchPriority": 3.125
       },
       {
         "rank": 2,
         "mechanismFamilyId": "POSITIONING_CROWDING_STATE",
         "admissibility": "ADMISSIBLE_NEW_DATA_REQUIRED",
+        "eligibleForRecommendation": true,
         "dimensionScores": {"mechanismNovelty": 4, "economicPlausibility": 4, "pointInTimeIntegrity": 2, "expectedBreadth": 3, "dataProvenanceQuality": 1, "implementationFeasibility": 2, "expectedInformationIndependence": 4, "costRobustnessPlausibility": 3},
-        "overallResearchPriority": 3.6
+        "overallResearchPriority": 2.875
       },
       {
         "rank": 3,
-        "mechanismFamilyId": "CROSS_EXCHANGE_FRAGMENTATION",
+        "mechanismFamilyId": "OPTIONS_IMPLIED_STATE",
         "admissibility": "ADMISSIBLE_NEW_DATA_REQUIRED",
-        "dimensionScores": {"mechanismNovelty": 5, "economicPlausibility": 4, "pointInTimeIntegrity": 1, "expectedBreadth": 2, "dataProvenanceQuality": 1, "implementationFeasibility": 1, "expectedInformationIndependence": 4, "costRobustnessPlausibility": 2},
-        "overallResearchPriority": 3.1
+        "eligibleForRecommendation": true,
+        "dimensionScores": {"mechanismNovelty": 5, "economicPlausibility": 4, "pointInTimeIntegrity": 2, "expectedBreadth": 1, "dataProvenanceQuality": 1, "implementationFeasibility": 1, "expectedInformationIndependence": 5, "costRobustnessPlausibility": 2},
+        "overallResearchPriority": 2.625
       },
       {
         "rank": 4,
-        "mechanismFamilyId": "OPTIONS_IMPLIED_STATE",
+        "mechanismFamilyId": "CROSS_EXCHANGE_FRAGMENTATION",
         "admissibility": "ADMISSIBLE_NEW_DATA_REQUIRED",
-        "dimensionScores": {"mechanismNovelty": 5, "economicPlausibility": 4, "pointInTimeIntegrity": 2, "expectedBreadth": 1, "dataProvenanceQuality": 1, "implementationFeasibility": 1, "expectedInformationIndependence": 5, "costRobustnessPlausibility": 2},
-        "overallResearchPriority": 2.9
+        "eligibleForRecommendation": true,
+        "dimensionScores": {"mechanismNovelty": 5, "economicPlausibility": 4, "pointInTimeIntegrity": 1, "expectedBreadth": 2, "dataProvenanceQuality": 1, "implementationFeasibility": 1, "expectedInformationIndependence": 4, "costRobustnessPlausibility": 2},
+        "overallResearchPriority": 2.5
       },
       {
         "rank": 5,
         "mechanismFamilyId": "ON_CHAIN_CAPITAL_FLOW",
         "admissibility": "REJECTED_POINT_IN_TIME_RISK",
+        "eligibleForRecommendation": false,
         "dimensionScores": {"mechanismNovelty": 5, "economicPlausibility": 3, "pointInTimeIntegrity": 0, "expectedBreadth": 1, "dataProvenanceQuality": 0, "implementationFeasibility": 1, "expectedInformationIndependence": 5, "costRobustnessPlausibility": 2},
-        "overallResearchPriority": 1.8
+        "overallResearchPriority": 2.125
       },
       {
         "rank": 6,
         "mechanismFamilyId": "EXTERNAL_EVENT_INFORMATION_SHOCK",
         "admissibility": "REJECTED_POINT_IN_TIME_RISK",
+        "eligibleForRecommendation": false,
         "dimensionScores": {"mechanismNovelty": 4, "economicPlausibility": 3, "pointInTimeIntegrity": 0, "expectedBreadth": 1, "dataProvenanceQuality": 0, "implementationFeasibility": 2, "expectedInformationIndependence": 4, "costRobustnessPlausibility": 1},
-        "overallResearchPriority": 1.6
+        "overallResearchPriority": 1.875
       },
       {
         "rank": 7,
         "mechanismFamilyId": "SPOT_PERPETUAL_LEAD_LAG_DISLOCATION",
         "admissibility": "REJECTED_PRIOR_MECHANISM_OVERLAP",
+        "eligibleForRecommendation": false,
         "dimensionScores": {"mechanismNovelty": 1, "economicPlausibility": 3, "pointInTimeIntegrity": 1, "expectedBreadth": 2, "dataProvenanceQuality": 1, "implementationFeasibility": 2, "expectedInformationIndependence": 0, "costRobustnessPlausibility": 1},
-        "overallResearchPriority": 0.9
+        "overallResearchPriority": 1.375
       }
     ]
   },

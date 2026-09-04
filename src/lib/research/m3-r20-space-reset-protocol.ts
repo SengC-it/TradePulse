@@ -43,6 +43,94 @@ export const R20_ADMISSIBILITY_STATUSES = Object.freeze([
 
 export type R20AdmissibilityStatus = (typeof R20_ADMISSIBILITY_STATUSES)[number];
 
+export const R20_RANKING_METHOD = "EQUAL_WEIGHT_ARITHMETIC_MEAN" as const;
+
+export const R20_RANKING_DIMENSIONS = Object.freeze([
+  "mechanismNovelty",
+  "economicPlausibility",
+  "pointInTimeIntegrity",
+  "expectedBreadth",
+  "dataProvenanceQuality",
+  "implementationFeasibility",
+  "expectedInformationIndependence",
+  "costRobustnessPlausibility",
+] as const);
+
+export type R20StructuralDimension = (typeof R20_RANKING_DIMENSIONS)[number];
+
+export type R20StructuralDimensionScores = Readonly<Record<R20StructuralDimension, number>>;
+
+export const R20_RANKING_DIMENSION_WEIGHTS = Object.freeze({
+  mechanismNovelty: 1,
+  economicPlausibility: 1,
+  pointInTimeIntegrity: 1,
+  expectedBreadth: 1,
+  dataProvenanceQuality: 1,
+  implementationFeasibility: 1,
+  expectedInformationIndependence: 1,
+  costRobustnessPlausibility: 1,
+} as const);
+
+export const R20_RECOMMENDATION_ELIGIBILITY = Object.freeze([
+  "ADMISSIBLE_EXISTING_DATA",
+  "ADMISSIBLE_NEW_DATA_REQUIRED",
+] as const);
+
+export type R20ResearchFamilyForRanking = Readonly<{
+  mechanismFamilyId: string;
+  admissibility: R20AdmissibilityStatus;
+  dimensionScores: R20StructuralDimensionScores;
+}>;
+
+export type R20RankedResearchFamily = R20ResearchFamilyForRanking & Readonly<{
+  rank: number;
+  overallResearchPriority: number;
+  eligibleForRecommendation: boolean;
+}>;
+
+function isR20RecommendationEligible(status: R20AdmissibilityStatus): boolean {
+  return R20_RECOMMENDATION_ELIGIBILITY.some((eligibleStatus) => eligibleStatus === status);
+}
+
+function hasExactlyEightValidDimensionScores(scores: R20StructuralDimensionScores): boolean {
+  const keys = Object.keys(scores);
+  return keys.length === R20_RANKING_DIMENSIONS.length
+    && R20_RANKING_DIMENSIONS.every((dimension) => {
+      const value = scores[dimension];
+      return Number.isInteger(value) && value >= 0 && value <= 5;
+    })
+    && keys.every((key) => R20_RANKING_DIMENSIONS.includes(key as R20StructuralDimension));
+}
+
+export function calculateR20StructuralPriority(
+  dimensionScores: R20StructuralDimensionScores,
+): number {
+  if (!hasExactlyEightValidDimensionScores(dimensionScores)) {
+    throw new Error("Round-020 ranking requires exactly eight integer dimensions in the range 0..5");
+  }
+
+  const sum = R20_RANKING_DIMENSIONS.reduce(
+    (total, dimension) => total + dimensionScores[dimension] * R20_RANKING_DIMENSION_WEIGHTS[dimension],
+    0,
+  );
+  return Math.round((sum / R20_RANKING_DIMENSIONS.length) * 1000) / 1000;
+}
+
+export function rankR20ResearchFamilies(
+  families: readonly R20ResearchFamilyForRanking[],
+): R20RankedResearchFamily[] {
+  return families
+    .map((family) => ({
+      ...family,
+      overallResearchPriority: calculateR20StructuralPriority(family.dimensionScores),
+      eligibleForRecommendation: isR20RecommendationEligible(family.admissibility),
+      rank: 0,
+    }))
+    .sort((left, right) => right.overallResearchPriority - left.overallResearchPriority
+      || left.mechanismFamilyId.localeCompare(right.mechanismFamilyId))
+    .map((family, index) => ({ ...family, rank: index + 1 }));
+}
+
 export const R20_DATA_SURFACE_STATUSES = Object.freeze([
   "EXISTING_FROZEN_AVAILABLE",
   "EXISTING_BUT_CONSUMED",

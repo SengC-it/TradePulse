@@ -9,6 +9,10 @@ import {
   R20_FORBIDDEN_OPERATIONS,
   R20_MECHANISM_FAMILY_IDS,
   R20_MECHANISM_LEDGER_STATUSES,
+  R20_RANKING_DIMENSIONS,
+  R20_RANKING_DIMENSION_WEIGHTS,
+  R20_RANKING_METHOD,
+  R20_RECOMMENDATION_ELIGIBILITY,
   R20_RECOMMENDED_NEXT_FAMILY,
   R20_SPACE_RESET_STATUS,
   ROUND_020_ACCEPTED_SOURCE,
@@ -20,12 +24,15 @@ import {
   ROUND_020_RESEARCH_END_ISO,
   ROUND_020_RESEARCH_ROUND_ID,
   ROUND_020_RESEARCH_START_ISO,
+  calculateR20StructuralPriority,
   hasAtMostOneRecommendation,
   hasConcreteProvenanceForExistingDataSurface,
   isRound020DesignOnlyRecord,
   isRound020SpaceResetStatus,
+  rankR20ResearchFamilies,
   rankingUsesNoEconomicFields,
 } from "@/lib/research/m3-r20-space-reset-protocol";
+import type { R20StructuralDimensionScores } from "@/lib/research/m3-r20-space-reset-protocol";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -89,6 +96,16 @@ function collectKeys(value: unknown, output: string[] = []): string[] {
     }
   }
   return output;
+}
+
+function makeDimensionScores(values: readonly number[]): R20StructuralDimensionScores {
+  if (values.length !== R20_RANKING_DIMENSIONS.length) {
+    throw new Error("Expected exactly eight ranking values");
+  }
+
+  return Object.fromEntries(
+    R20_RANKING_DIMENSIONS.map((dimension, index) => [dimension, values[index]]),
+  ) as R20StructuralDimensionScores;
 }
 
 describe("Round-020 research-space reset", () => {
@@ -262,6 +279,93 @@ describe("Round-020 research-space reset", () => {
     expect(ranking.usesForwardEconomicValues).toBe(false);
     expect(ranking.usesHistoricalEconomicResults).toBe(false);
     expect(records(ranking.orderedFamilies)).toHaveLength(7);
+  });
+
+  it("freezes eight equal-weight dimensions and recomputes every priority", () => {
+    const ranking = record(loadDesign().ranking);
+    const dimensions = ranking.scoringDimensions as string[];
+    const weights = record(ranking.dimensionWeights);
+
+    expect(ranking.method).toBe(R20_RANKING_METHOD);
+    expect(dimensions).toEqual([...R20_RANKING_DIMENSIONS]);
+    expect(Object.keys(weights)).toEqual([...R20_RANKING_DIMENSIONS]);
+    expect(weights).toEqual(R20_RANKING_DIMENSION_WEIGHTS);
+    expect(Object.values(weights)).toEqual(R20_RANKING_DIMENSIONS.map(() => 1));
+    expect(ranking.formula).toBe("round(sum(dimensionScores) / 8, 3)");
+    expect(ranking.rounding).toBe("nearest 0.001; deterministic arithmetic mean of the eight integer scores");
+    expect(ranking.tieBreak).toBe("mechanismFamilyId lexical ascending after descending overallResearchPriority");
+    expect(ranking.recommendationEligibility).toEqual([...R20_RECOMMENDATION_ELIGIBILITY]);
+    expect(ranking.generatedNotHandEntered).toBe(true);
+
+    for (const family of records(ranking.orderedFamilies)) {
+      const scores = record(family.dimensionScores);
+      expect(Object.keys(scores)).toHaveLength(8);
+      expect(Object.keys(scores)).toEqual([...R20_RANKING_DIMENSIONS]);
+      expect(Object.values(scores).every((value) => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 5)).toBe(true);
+      expect(family.overallResearchPriority).toBe(
+        calculateR20StructuralPriority(scores as never),
+      );
+    }
+  });
+
+  it("orders all seven families by calculated score and fixed lexical tie-break", () => {
+    const ranking = record(loadDesign().ranking);
+    const ordered = records(ranking.orderedFamilies);
+    const priorities = ordered.map((family) => Number(family.overallResearchPriority));
+
+    expect(ordered.map((family) => Number(family.rank))).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    for (let index = 1; index < ordered.length; index += 1) {
+      const previous = ordered[index - 1];
+      const current = ordered[index];
+      expect(priorities[index - 1]).toBeGreaterThanOrEqual(priorities[index]);
+      if (priorities[index - 1] === priorities[index]) {
+        expect(String(previous.mechanismFamilyId).localeCompare(String(current.mechanismFamilyId))).toBeLessThan(0);
+      }
+    }
+    expect(ordered.map((family) => family.mechanismFamilyId)).toEqual([
+      "FORCED_DELEVERAGING_LIQUIDATION_STATE",
+      "POSITIONING_CROWDING_STATE",
+      "OPTIONS_IMPLIED_STATE",
+      "CROSS_EXCHANGE_FRAGMENTATION",
+      "ON_CHAIN_CAPITAL_FLOW",
+      "EXTERNAL_EVENT_INFORMATION_SHOCK",
+      "SPOT_PERPETUAL_LEAD_LAG_DISLOCATION",
+    ]);
+  });
+
+  it("uses a deterministic lexical tie-break for equal structural priorities", () => {
+    const ranked = rankR20ResearchFamilies([
+      {
+        mechanismFamilyId: "Z_FAMILY",
+        admissibility: "ADMISSIBLE_EXISTING_DATA",
+        dimensionScores: makeDimensionScores([3, 3, 3, 3, 3, 3, 3, 3]),
+      },
+      {
+        mechanismFamilyId: "A_FAMILY",
+        admissibility: "ADMISSIBLE_NEW_DATA_REQUIRED",
+        dimensionScores: makeDimensionScores([3, 3, 3, 3, 3, 3, 3, 3]),
+      },
+    ]);
+
+    expect(ranked.map((family) => family.mechanismFamilyId)).toEqual(["A_FAMILY", "Z_FAMILY"]);
+    expect(ranked.every((family) => family.overallResearchPriority === 3)).toBe(true);
+  });
+
+  it("restricts recommendation eligibility and selects the highest-ranked eligible family", () => {
+    const design = loadDesign();
+    const ranking = record(design.ranking);
+    const ordered = records(ranking.orderedFamilies);
+    const eligible = ordered.filter((family) => R20_RECOMMENDATION_ELIGIBILITY.includes(
+      String(family.admissibility) as never,
+    ));
+    const decision = record(design.decision);
+
+    expect(eligible.length).toBeGreaterThan(0);
+    expect(eligible[0].mechanismFamilyId).toBe(decision.recommendedNextFamily);
+    expect(ordered.filter((family) => !family.eligibleForRecommendation)
+      .every((family) => !R20_RECOMMENDATION_ELIGIBILITY.includes(String(family.admissibility) as never))).toBe(true);
+    expect(ordered.filter((family) => R20_RECOMMENDATION_ELIGIBILITY.includes(String(family.admissibility) as never))
+      .every((family) => family.eligibleForRecommendation === true)).toBe(true);
   });
 
   it("proves the reset performed no economic inspection or new-data acquisition", () => {

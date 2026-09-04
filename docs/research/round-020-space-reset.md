@@ -122,8 +122,34 @@ Ranking uses only eight predeclared structural dimensions, each on a 0–5
 ordinal scale: mechanism novelty, economic plausibility, point-in-time
 integrity, expected breadth, data provenance quality, implementation
 feasibility, expected information independence, and cost-robustness
-plausibility. The ranking explicitly sets
-`usesForwardEconomicValues=false` and `usesHistoricalEconomicResults=false`.
+plausibility. The frozen ranking contract is:
+
+```text
+method                 EQUAL_WEIGHT_ARITHMETIC_MEAN
+dimension weights       1 for each of the eight dimensions
+formula                round(sum(dimensionScores) / 8, 3)
+rounding               nearest 0.001
+tie-break              mechanismFamilyId lexical ascending
+recommendation         ADMISSIBLE_EXISTING_DATA or ADMISSIBLE_NEW_DATA_REQUIRED only
+generatedNotHandEntered true
+```
+
+The deterministic recalculation is:
+
+| Rank | Mechanism family | Admissibility | Priority | Recommendation eligible |
+| ---: | --- | --- | ---: | --- |
+| 1 | `FORCED_DELEVERAGING_LIQUIDATION_STATE` | `ADMISSIBLE_NEW_DATA_REQUIRED` | 3.125 | yes |
+| 2 | `POSITIONING_CROWDING_STATE` | `ADMISSIBLE_NEW_DATA_REQUIRED` | 2.875 | yes |
+| 3 | `OPTIONS_IMPLIED_STATE` | `ADMISSIBLE_NEW_DATA_REQUIRED` | 2.625 | yes |
+| 4 | `CROSS_EXCHANGE_FRAGMENTATION` | `ADMISSIBLE_NEW_DATA_REQUIRED` | 2.500 | yes |
+| 5 | `ON_CHAIN_CAPITAL_FLOW` | `REJECTED_POINT_IN_TIME_RISK` | 2.125 | no |
+| 6 | `EXTERNAL_EVENT_INFORMATION_SHOCK` | `REJECTED_POINT_IN_TIME_RISK` | 1.875 | no |
+| 7 | `SPOT_PERPETUAL_LEAD_LAG_DISLOCATION` | `REJECTED_PRIOR_MECHANISM_OVERLAP` | 1.375 | no |
+
+Rejected families remain visible for audit but cannot be recommended. The
+ranking explicitly sets `usesForwardEconomicValues=false` and
+`usesHistoricalEconomicResults=false`; the structural priority is not an
+economic result.
 
 ## Governance state
 
