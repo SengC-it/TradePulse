@@ -29,6 +29,29 @@ export const R21_DATA_DESIGN_SYMBOLS = Object.freeze([
 export const R21_DATA_DESIGN_START_ISO = "2023-01-01T00:00:00.000Z" as const;
 export const R21_DATA_DESIGN_END_ISO = "2026-08-15T23:59:59.999Z" as const;
 
+export const R21_USDM_MARKET_DATA_DOC_URL =
+  "https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data" as const;
+export const R21_USDM_CONNECTOR_EVIDENCE_COMMIT =
+  "d30576a6d8e6edb706c8b013eb11167b58e9c33a" as const;
+export const R21_USDM_CONNECTOR_EVIDENCE_PATH = "binance/um_futures/market.py" as const;
+export const R21_USDM_CONNECTOR_EVIDENCE_DATE = "2022-08-29" as const;
+export const R21_USDM_ENDPOINTS = Object.freeze([
+  "/futures/data/globalLongShortAccountRatio",
+  "/futures/data/topLongShortAccountRatio",
+  "/futures/data/topLongShortPositionRatio",
+] as const);
+export const R21_USDM_PERIODS = Object.freeze([
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "2h",
+  "4h",
+  "6h",
+  "12h",
+  "1d",
+] as const);
+
 export const R21_DATA_DESIGN_HYPOTHESIS_ID = "R21-TOP-TRADER-POSITION-CONCENTRATION-UNWIND" as const;
 export const R21_DATA_DESIGN_MECHANISM_FAMILY = "POSITIONING_CROWDING_STATE" as const;
 export const R21_DATA_DESIGN_DIRECTIONAL_THESIS = "CONTRARIAN CROWD-UNWIND" as const;
@@ -119,11 +142,19 @@ export type R21DataDesignEvaluation = Readonly<{
 export type R21DataDesignGateInputs = Readonly<{
   acceptedSourceCommit: string;
   sourceFamily: string;
-  officialFieldMappingProven: boolean;
-  usdMDocumentationProven: boolean;
-  contemporaneousAvailabilityProven: boolean;
-  nativeCadenceMinutes: number | null;
-  nativeCadenceProven: boolean;
+  archiveFieldMappingProven: boolean;
+  usdMEndpointDocumentationProven: boolean;
+  usdMSemanticSeriesProven: boolean;
+  usdMSupportedPeriodsProven: boolean;
+  usdMPeriodTimestampSemanticsProven: boolean;
+  historicalEndpointExistenceProven: boolean;
+  periodEndTimestampSemanticsProven: boolean;
+  archiveNextDayReleaseProven: boolean;
+  archiveToLiveSeriesEquivalenceProven: boolean;
+  publicationLatencyUpperBoundProven: boolean;
+  decisionTimeAvailabilityRuleProven: boolean;
+  archiveNativeCadenceMinutes: number | null;
+  archiveNativeCadenceProven: boolean;
   symbolUniverseComplete: boolean;
   observationContractComplete: boolean;
   duplicateContractComplete: boolean;
@@ -215,7 +246,19 @@ export function isR21DataDesignOnlyGovernance(governance: R21DataDesignGovernanc
 }
 
 export function evaluateR21DataDesignGates(input: R21DataDesignGateInputs): R21DataDesignEvaluation {
-  const cadenceEligible = isR21CadenceEligible(input.nativeCadenceMinutes, input.nativeCadenceProven);
+  const cadenceEligible = isR21CadenceEligible(input.archiveNativeCadenceMinutes, input.archiveNativeCadenceProven);
+  const liveSeriesDocumentationProven =
+    input.usdMEndpointDocumentationProven &&
+    input.usdMSemanticSeriesProven &&
+    input.usdMSupportedPeriodsProven &&
+    input.usdMPeriodTimestampSemanticsProven;
+  const contemporaneousAvailabilityProven =
+    input.historicalEndpointExistenceProven &&
+    input.periodEndTimestampSemanticsProven &&
+    input.archiveNextDayReleaseProven &&
+    input.archiveToLiveSeriesEquivalenceProven &&
+    input.publicationLatencyUpperBoundProven &&
+    input.decisionTimeAvailabilityRuleProven;
   const gateResults: R21DataDesignGateResult[] = [
     {
       id: "A01_ACCEPTED_SOURCE",
@@ -229,18 +272,26 @@ export function evaluateR21DataDesignGates(input: R21DataDesignGateInputs): R21D
     },
     {
       id: "A03_OFFICIAL_FIELD_MAPPING",
-      status: input.officialFieldMappingProven && input.usdMDocumentationProven ? "PASS" : "FAIL",
-      reason: "All three primitive mappings and their USD-M market semantics require Tier-1 proof.",
+      status: input.archiveFieldMappingProven ? "PASS" : "FAIL",
+      reason: input.archiveFieldMappingProven
+        ? "Exact archive-field-to-live-series mapping is proven by Tier-1 evidence."
+        : liveSeriesDocumentationProven
+          ? "USD-M live-series semantics are proven, but exact Binance Vision archive-field-to-live-series mapping lacks Tier-1 proof."
+          : "USD-M live-series documentation is incomplete and exact archive-field mapping is not proven.",
     },
     {
       id: "A04_CONTEMPORANEOUS_PIT_AVAILABILITY",
-      status: input.contemporaneousAvailabilityProven ? "PASS" : "FAIL",
-      reason: "Archive release metadata must prove availability at each decision time; current existence is insufficient.",
+      status: contemporaneousAvailabilityProven ? "PASS" : "FAIL",
+      reason: contemporaneousAvailabilityProven
+        ? "Historical endpoint existence, archive/live equivalence, and the availability-lag contract are proven."
+        : "The USD-M series existed before the target start and period-end timestamps are documented, but no Tier-1 proof establishes exact archive/live-series equivalence plus a historical publication-latency bound sufficient to guarantee publicationAvailableTime <= decisionTime.",
     },
     {
       id: "A05_NATIVE_CADENCE_AND_HORIZON",
       status: cadenceEligible ? "PASS" : "FAIL",
-      reason: "A native cadence at or below one hour must be authoritatively proven before freezing 1h/4h.",
+      reason: cadenceEligible
+        ? "The archive native cadence is authoritatively proven at or below one hour."
+        : "Live endpoint period options are proven, but the native cadence of the Binance Vision USD-M metrics archive is not yet proven by Tier-1 archive documentation without reading market-data payloads.",
     },
     {
       id: "A06_COVERAGE_AND_CONTINUITY_CONTRACT",

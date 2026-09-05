@@ -53,8 +53,14 @@
       "globalAccountLongShortRatio": "count_long_short_ratio"
     },
     "mappingMayNotBeInferredFromFieldName": true,
-    "sourceFieldMappingStatus": "UNPROVEN_FAIL_CLOSED",
+    "archiveFieldMappingProven": false,
+    "liveSeriesSemanticMappingProven": true,
+    "sourceFieldMappingStatus": "ARCHIVE_FIELD_MAPPING_UNPROVEN_FAIL_CLOSED",
     "officialMappingEvidence": [],
+    "officialMappingEvidenceScope": "EXACT_ARCHIVE_FIELD_MAPPING_ONLY",
+    "liveSeriesSemanticEvidence": [
+      "https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data"
+    ],
     "requiredTier1Proof": [
       "official Binance documentation defining each exact field",
       "official binance/binance-public-data source, changelog, or schema record",
@@ -73,11 +79,61 @@
     ],
     "issuesAndCommunityEvidence": "RISK_EVIDENCE_ONLY_NOT_PROOF",
     "thirdPartyProviders": "NOT_ADMISSIBLE",
-    "currentStatus": "NO_TIER1_FIELD_OR_PIT_PROOF_IN_ACCEPTED_SOURCE"
+    "currentStatus": "NO_TIER1_ARCHIVE_FIELD_MAPPING_OR_PIT_AVAILABILITY_PROOF_IN_ACCEPTED_SOURCE"
+  },
+  "tier1Evidence": {
+    "liveUsdMSeriesDocumentation": {
+      "status": "PROVEN_TIER1",
+      "url": "https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data",
+      "market": "USD-M / USDS-M Futures",
+      "endpoints": [
+        "/futures/data/globalLongShortAccountRatio",
+        "/futures/data/topLongShortAccountRatio",
+        "/futures/data/topLongShortPositionRatio"
+      ],
+      "symbolExample": "BTCUSDT",
+      "supportedPeriods": ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"],
+      "periodEndTimestampSemantics": "End time of the period",
+      "seriesSemantics": {
+        "topTraderAccountRatio": "top-trader account-count long/short ratio",
+        "topTraderPositionRatio": "top-trader position-size long/short ratio",
+        "globalAccountRatio": "all-trader account long/short ratio"
+      },
+      "historicalQueryLimit": "LATEST_30_DAYS",
+      "payloadReadInThisStage": false
+    },
+    "historicalUsdMEndpointExistence": {
+      "status": "PROVEN_TIER1",
+      "repository": "binance/binance-futures-connector-python",
+      "commit": "d30576a6d8e6edb706c8b013eb11167b58e9c33a",
+      "date": "2022-08-29",
+      "path": "binance/um_futures/market.py",
+      "url": "https://github.com/binance/binance-futures-connector-python/blob/d30576a6d8e6edb706c8b013eb11167b58e9c33a/binance/um_futures/market.py",
+      "endpoints": [
+        "/futures/data/topLongShortPositionRatio",
+        "/futures/data/globalLongShortAccountRatio",
+        "/futures/data/topLongShortAccountRatio"
+      ],
+      "targetStart": "2023-01-01T00:00:00.000Z",
+      "preTargetStartEndpointExistence": true,
+      "provesArchiveMapping": false,
+      "provesPublicationLatency": false,
+      "provesArchiveNativeCadence": false
+    }
   },
   "usdMContract": {
     "requiredMarket": "USD-M / USDS-M Futures",
-    "usdMDocumentationStatus": "UNPROVEN_FAIL_CLOSED",
+    "usdMDocumentationStatus": "ENDPOINT_AND_SERIES_SEMANTICS_PROVEN",
+    "usdMEndpointDocumentationProven": true,
+    "usdMSemanticSeriesProven": true,
+    "usdMSupportedPeriodsProven": true,
+    "usdMPeriodTimestampSemanticsProven": true,
+    "historicalUsdMEndpointExistenceProven": true,
+    "historicalEndpointEvidenceDate": "2022-08-29",
+    "historicalEndpointEvidenceCommit": "d30576a6d8e6edb706c8b013eb11167b58e9c33a",
+    "preTargetStartEndpointExistence": true,
+    "liveEndpointMinimumSupportedPeriod": "5m",
+    "liveEndpointPeriodOptionsProven": true,
     "coinMDocumentationStatus": "ANALOGOUS_REFERENCE_ONLY",
     "coinMDocsMaySubstitute": false,
     "proofMustBeMarketSpecific": true
@@ -89,6 +145,12 @@
     "sameSymbolAndTimestampRequired": true,
     "allThreePrimitivesSameObservationRequired": true,
     "contemporaneousPublicAvailabilityStatus": "UNPROVEN_FAIL_CLOSED",
+    "historicalEndpointExistenceProven": true,
+    "periodEndTimestampSemanticsProven": true,
+    "archiveNextDayReleaseProven": true,
+    "archiveToLiveSeriesEquivalenceProven": false,
+    "publicationLatencyUpperBoundProven": false,
+    "decisionTimeAvailabilityRuleProven": false,
     "currentDownloadTimeProvesHistoricalAvailability": false,
     "currentLastModifiedProvesHistoricalAvailability": false,
     "currentObjectExistenceProvesHistoricalAvailability": false,
@@ -107,9 +169,17 @@
     "monthlyArchiveRelease": "FIRST_MONDAY_OF_MONTH",
     "archiveReleaseIsNotMetricAvailability": true,
     "archiveReleaseDoesNotProveContemporaneousPIT": true,
-    "historicalAvailabilityProofStatus": "UNPROVEN_FAIL_CLOSED"
+    "historicalAvailabilityProofStatus": "UNPROVEN_FAIL_CLOSED",
+    "historicalEndpointExistenceProven": true,
+    "periodEndTimestampSemanticsProven": true,
+    "archiveNextDayReleaseProven": true,
+    "archiveToLiveSeriesEquivalenceProven": false,
+    "publicationLatencyUpperBoundProven": false,
+    "decisionTimeAvailabilityRuleProven": false
   },
   "cadenceAndHorizonContract": {
+    "liveEndpointMinimumSupportedPeriod": "5m",
+    "liveEndpointPeriodOptionsProven": true,
     "nativeCadenceEvidenceStatus": "UNPROVEN_FAIL_CLOSED",
     "nativeCadenceMinutes": null,
     "decisionCadence": null,
@@ -251,17 +321,17 @@
     {
       "id": "A03_OFFICIAL_FIELD_MAPPING",
       "status": "FAIL",
-      "definition": "Exact three-field USD-M mapping requires Tier-1 proof; field names alone are not proof"
+      "definition": "USD-M live-series semantics are proven, but exact Binance Vision archive-field-to-live-series mapping lacks Tier-1 proof"
     },
     {
       "id": "A04_CONTEMPORANEOUS_PIT_AVAILABILITY",
       "status": "FAIL",
-      "definition": "Historical public availability at decision time is not proven by current archive metadata"
+      "definition": "The USD-M series existed before the target start and period-end timestamps are documented, but exact archive/live-series equivalence plus a historical publication-latency bound sufficient to guarantee publicationAvailableTime <= decisionTime is not proven"
     },
     {
       "id": "A05_NATIVE_CADENCE_AND_HORIZON",
       "status": "FAIL",
-      "definition": "Native cadence is not authoritatively proven, so 1h/4h cannot be frozen"
+      "definition": "Live endpoint period options are proven, but the native cadence of the Binance Vision USD-M metrics archive is not yet proven by Tier-1 archive documentation without reading market-data payloads"
     },
     {
       "id": "A06_COVERAGE_AND_CONTINUITY_CONTRACT",
@@ -336,6 +406,6 @@
     "dataAcquisitionAuthorized": false,
     "performanceAuthorized": false,
     "selectionAuthorized": false,
-    "reason": "A03, A04, and A05 require authoritative Tier-1 evidence that is not present in the accepted source; fail closed before acquisition."
+    "reason": "A03, A04, and A05 retain fail-closed status: live USD-M endpoint semantics and pre-target endpoint existence are proven, but archive field mapping, archive/live equivalence with publication-latency bounds, and archive native cadence remain unproven."
   }
 }

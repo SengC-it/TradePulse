@@ -35,7 +35,8 @@ The sole admissible source family is
 Bybit, OKX, third-party mirrors, and self-built historical inference are not
 admissible.
 
-The candidate field names are frozen as metadata only:
+The candidate archive field names are frozen as metadata only; they are not an
+assertion that Binance Vision archive columns have been mapped:
 
 | R21 primitive | Candidate archive field |
 | --- | --- |
@@ -43,15 +44,37 @@ The candidate field names are frozen as metadata only:
 | `topTraderPositionLongShortRatio` | `sum_toptrader_long_short_ratio` |
 | `globalAccountLongShortRatio` | `count_long_short_ratio` |
 
-The mapping is **UNPROVEN_FAIL_CLOSED**. A field name is not a semantic proof.
-Acceptance requires exact Tier-1 evidence from official Binance documentation,
-the official `binance/binance-public-data` repository, official archive
-listing/object metadata, or official checksum/update records. No such exact
-three-field USD-M mapping evidence is present in the accepted source.
+The exact archive-field mapping remains **UNPROVEN_FAIL_CLOSED**. A field name is
+not a semantic proof. The R21 artifact now separates the following facts:
+
+- `liveSeriesSemanticMappingProven=true`;
+- `archiveFieldMappingProven=false`;
+- `sourceFieldMappingStatus=ARCHIVE_FIELD_MAPPING_UNPROVEN_FAIL_CLOSED`.
+
+The current official Binance USDⓈ-M market-data documentation is Tier-1 evidence
+for the live endpoint and series semantics:
+
+- <https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data>;
+- endpoints: `/futures/data/globalLongShortAccountRatio`,
+  `/futures/data/topLongShortAccountRatio`, and
+  `/futures/data/topLongShortPositionRatio`;
+- market: USD-M / USDS-M Futures; example symbol: `BTCUSDT`;
+- supported periods: `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `6h`, `12h`, `1d`;
+- timestamp: end time of the period;
+- the current REST historical query is limited to the latest 30 days.
+
+The official `binance/binance-futures-connector-python` commit
+`d30576a6d8e6edb706c8b013eb11167b58e9c33a` dated `2022-08-29`, file
+`binance/um_futures/market.py`, is Tier-1 evidence that the three USD-M
+endpoints existed before the target start. It does not prove archive column
+mapping, archive/live-series equivalence, historical publication latency, or
+archive native cadence. GitHub issues, third-party README files, and field names
+remain insufficient for those proofs.
 
 The market contract is USD-M / USDS-M Futures. Coin-M documentation is only an
-analogous reference and cannot satisfy the USD-M proof. The current status is
-`UNPROVEN_FAIL_CLOSED`.
+analogous reference and cannot satisfy the USD-M proof. The current live-series
+documentation status is `ENDPOINT_AND_SERIES_SEMANTICS_PROVEN`; the archive
+field mapping status remains `UNPROVEN_FAIL_CLOSED`.
 
 ## Point-in-time and archive release rules
 
@@ -79,9 +102,25 @@ Current object existence, current `Last-Modified`, or a current download time
 cannot prove historical PIT availability. The PIT status is
 `UNPROVEN_FAIL_CLOSED`.
 
+The following evidence is recorded separately:
+
+- historical endpoint existence: proven (`2022-08-29`, before `2023-01-01`);
+- period-end timestamp semantics: proven by the live documentation;
+- daily archive release semantics: proven as next-day metadata;
+- archive/live-series equivalence: not proven;
+- a historical publication-latency upper bound: not proven;
+- a decision-time availability rule sufficient for
+  `publicationAvailableTime <= decisionTime`: not proven.
+
+Archive release metadata cannot prove contemporaneous decision-time availability;
+historical endpoint existence, archive/live equivalence, and a defensible
+availability-lag contract are separate proof obligations.
+
 ## Cadence and horizon
 
-The native source cadence is not authoritatively proven in the accepted source.
+The live endpoint period options are proven, including a minimum supported period
+of `5m`. The native cadence of the Binance Vision USD-M metrics archive is not
+authoritatively proven in the accepted source.
 Therefore the decision cadence and holding horizon are deliberately not frozen
 in this stage. The conditional rule is frozen before any forward or economic
 value read:
@@ -91,7 +130,8 @@ value read:
 - otherwise the design is ineligible;
 - no horizon sweep or result-dependent horizon choice is allowed.
 
-Current values are `nativeCadenceMinutes=null`,
+Current values are `liveEndpointMinimumSupportedPeriod=5m`,
+`archiveNativeCadenceMinutes=null`,
 `decisionCadence=null`, `primaryHoldingHorizon=null`, and status
 `UNPROVEN_FAIL_CLOSED`.
 
@@ -149,9 +189,9 @@ historical backfill.
 | --- | --- | --- |
 | A01 accepted source | PASS | Exact accepted source is `7710eae9…` |
 | A02 single source family | PASS | Only official Binance Vision USD-M metrics archive |
-| A03 official field mapping | FAIL | Exact USD-M field semantics lack Tier-1 proof |
-| A04 contemporaneous PIT availability | FAIL | Historical publication availability is unproven |
-| A05 native cadence and horizon | FAIL | Cadence is unproven, so 1h/4h cannot be frozen |
+| A03 official field mapping | FAIL | USD-M live-series semantics are proven, but exact Binance Vision archive-field-to-live-series mapping lacks Tier-1 proof |
+| A04 contemporaneous PIT availability | FAIL | Endpoint existence and period-end semantics are proven, but archive/live equivalence and a historical publication-latency bound sufficient for decision-time availability are unproven |
+| A05 native cadence and horizon | FAIL | Live endpoint periods are proven, but archive native cadence is unproven, so 1h/4h cannot be frozen |
 | A06 coverage and continuity contract | PASS | Identity, duplicate, missingness, and thresholds are frozen |
 | A07 reproducibility contract | PASS | Object/checksum/revision/manifest rules are frozen |
 | A08 zero economic read | PASS | No forward or economic value is read or calculated |

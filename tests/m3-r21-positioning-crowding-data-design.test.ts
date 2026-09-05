@@ -20,6 +20,12 @@ import {
   R21_DATA_DESIGN_SYMBOLS,
   R21_DATA_DESIGN_START_ISO,
   R21_DATA_DESIGN_END_ISO,
+  R21_USDM_CONNECTOR_EVIDENCE_COMMIT,
+  R21_USDM_CONNECTOR_EVIDENCE_DATE,
+  R21_USDM_CONNECTOR_EVIDENCE_PATH,
+  R21_USDM_MARKET_DATA_DOC_URL,
+  R21_USDM_ENDPOINTS,
+  R21_USDM_PERIODS,
   classifyR21MetricRow,
   evaluateR21DataDesignGates,
   isR21CadenceEligible,
@@ -62,11 +68,19 @@ function baselineGateInput() {
   return {
     acceptedSourceCommit: R21_DATA_DESIGN_ACCEPTED_SOURCE,
     sourceFamily: R21_DATA_DESIGN_SOURCE_FAMILY,
-    officialFieldMappingProven: false,
-    usdMDocumentationProven: false,
-    contemporaneousAvailabilityProven: false,
-    nativeCadenceMinutes: null,
-    nativeCadenceProven: false,
+    archiveFieldMappingProven: false,
+    usdMEndpointDocumentationProven: true,
+    usdMSemanticSeriesProven: true,
+    usdMSupportedPeriodsProven: true,
+    usdMPeriodTimestampSemanticsProven: true,
+    historicalEndpointExistenceProven: true,
+    periodEndTimestampSemanticsProven: true,
+    archiveNextDayReleaseProven: true,
+    archiveToLiveSeriesEquivalenceProven: false,
+    publicationLatencyUpperBoundProven: false,
+    decisionTimeAvailabilityRuleProven: false,
+    archiveNativeCadenceMinutes: null,
+    archiveNativeCadenceProven: false,
     symbolUniverseComplete: true,
     observationContractComplete: true,
     duplicateContractComplete: true,
@@ -136,19 +150,49 @@ describe("Round-021 positioning crowding data-acquisition design", () => {
     expect(source.sourceFamily).toBe(R21_DATA_DESIGN_SOURCE_FAMILY);
     expect(source.alternativeProvidersAllowed).toBe(false);
     expect(source.mappingMayNotBeInferredFromFieldName).toBe(true);
-    expect(source.sourceFieldMappingStatus).toBe("UNPROVEN_FAIL_CLOSED");
+    expect(source.archiveFieldMappingProven).toBe(false);
+    expect(source.liveSeriesSemanticMappingProven).toBe(true);
+    expect(source.sourceFieldMappingStatus).toBe("ARCHIVE_FIELD_MAPPING_UNPROVEN_FAIL_CLOSED");
     expect(source.officialMappingEvidence).toEqual([]);
     expect(source.networkAcquired).toBe(false);
     expect(source.marketDataPayloadDownloaded).toBe(false);
   });
 
-  it("requires market-specific USD-M proof and rejects Coin-M substitution", () => {
+  it("records Tier-1 USD-M live-series semantics without claiming archive mapping", () => {
     const usdM = record(loadDesign().usdMContract);
     expect(usdM.requiredMarket).toBe("USD-M / USDS-M Futures");
-    expect(usdM.usdMDocumentationStatus).toBe("UNPROVEN_FAIL_CLOSED");
+    expect(usdM.usdMDocumentationStatus).toBe("ENDPOINT_AND_SERIES_SEMANTICS_PROVEN");
+    expect(usdM.usdMEndpointDocumentationProven).toBe(true);
+    expect(usdM.usdMSemanticSeriesProven).toBe(true);
+    expect(usdM.usdMSupportedPeriodsProven).toBe(true);
+    expect(usdM.usdMPeriodTimestampSemanticsProven).toBe(true);
+    expect(usdM.liveEndpointMinimumSupportedPeriod).toBe("5m");
+    expect(usdM.liveEndpointPeriodOptionsProven).toBe(true);
     expect(usdM.coinMDocumentationStatus).toBe("ANALOGOUS_REFERENCE_ONLY");
     expect(usdM.coinMDocsMaySubstitute).toBe(false);
     expect(usdM.proofMustBeMarketSpecific).toBe(true);
+  });
+
+  it("binds the official live-series and historical endpoint evidence exactly", () => {
+    const evidence = record(loadDesign().tier1Evidence);
+    const live = record(evidence.liveUsdMSeriesDocumentation);
+    const historical = record(evidence.historicalUsdMEndpointExistence);
+
+    expect(live.status).toBe("PROVEN_TIER1");
+    expect(live.url).toBe(R21_USDM_MARKET_DATA_DOC_URL);
+    expect(live.endpoints).toEqual([...R21_USDM_ENDPOINTS]);
+    expect(live.supportedPeriods).toEqual([...R21_USDM_PERIODS]);
+    expect(live.periodEndTimestampSemantics).toBe("End time of the period");
+    expect(live.payloadReadInThisStage).toBe(false);
+
+    expect(historical.status).toBe("PROVEN_TIER1");
+    expect(historical.commit).toBe(R21_USDM_CONNECTOR_EVIDENCE_COMMIT);
+    expect(historical.date).toBe(R21_USDM_CONNECTOR_EVIDENCE_DATE);
+    expect(historical.path).toBe(R21_USDM_CONNECTOR_EVIDENCE_PATH);
+    expect(historical.preTargetStartEndpointExistence).toBe(true);
+    expect(historical.provesArchiveMapping).toBe(false);
+    expect(historical.provesPublicationLatency).toBe(false);
+    expect(historical.provesArchiveNativeCadence).toBe(false);
   });
 
   it("freezes PIT rules without treating current metadata as historical proof", () => {
@@ -156,6 +200,12 @@ describe("Round-021 positioning crowding data-acquisition design", () => {
     expect(pit.sourceObservationTimeRule).toBe("sourceObservationTime <= decisionTime");
     expect(pit.publicationAvailableTimeRule).toBe("publicationAvailableTime <= decisionTime");
     expect(pit.contemporaneousPublicAvailabilityStatus).toBe("UNPROVEN_FAIL_CLOSED");
+    expect(pit.historicalEndpointExistenceProven).toBe(true);
+    expect(pit.periodEndTimestampSemanticsProven).toBe(true);
+    expect(pit.archiveNextDayReleaseProven).toBe(true);
+    expect(pit.archiveToLiveSeriesEquivalenceProven).toBe(false);
+    expect(pit.publicationLatencyUpperBoundProven).toBe(false);
+    expect(pit.decisionTimeAvailabilityRuleProven).toBe(false);
     expect(pit.currentDownloadTimeProvesHistoricalAvailability).toBe(false);
     expect(pit.currentLastModifiedProvesHistoricalAvailability).toBe(false);
     expect(pit.currentObjectExistenceProvesHistoricalAvailability).toBe(false);
@@ -176,10 +226,15 @@ describe("Round-021 positioning crowding data-acquisition design", () => {
     expect(release.monthlyArchiveRelease).toBe("FIRST_MONDAY_OF_MONTH");
     expect(release.archiveReleaseIsNotMetricAvailability).toBe(true);
     expect(release.archiveReleaseDoesNotProveContemporaneousPIT).toBe(true);
+    expect(release.historicalEndpointExistenceProven).toBe(true);
+    expect(release.archiveToLiveSeriesEquivalenceProven).toBe(false);
+    expect(release.publicationLatencyUpperBoundProven).toBe(false);
   });
 
   it("does not freeze cadence or horizon without authoritative cadence evidence", () => {
     const cadence = record(loadDesign().cadenceAndHorizonContract);
+    expect(cadence.liveEndpointMinimumSupportedPeriod).toBe("5m");
+    expect(cadence.liveEndpointPeriodOptionsProven).toBe(true);
     expect(cadence.nativeCadenceEvidenceStatus).toBe("UNPROVEN_FAIL_CLOSED");
     expect(cadence.nativeCadenceMinutes).toBeNull();
     expect(cadence.decisionCadence).toBeNull();
@@ -192,6 +247,27 @@ describe("Round-021 positioning crowding data-acquisition design", () => {
     expect(isR21CadenceEligible(60, true)).toBe(true);
     expect(isR21CadenceEligible(60, false)).toBe(false);
     expect(isR21CadenceEligible(61, true)).toBe(false);
+  });
+
+  it("does not promote live endpoint evidence into archive proof", () => {
+    const evaluation = evaluateR21DataDesignGates({
+      ...baselineGateInput(),
+      archiveFieldMappingProven: false,
+      archiveToLiveSeriesEquivalenceProven: false,
+      publicationLatencyUpperBoundProven: false,
+      decisionTimeAvailabilityRuleProven: false,
+      archiveNativeCadenceMinutes: 5,
+      archiveNativeCadenceProven: false,
+    });
+    const a03 = evaluation.gateResults.find((gate) => gate.id === "A03_OFFICIAL_FIELD_MAPPING");
+    const a04 = evaluation.gateResults.find((gate) => gate.id === "A04_CONTEMPORANEOUS_PIT_AVAILABILITY");
+    const a05 = evaluation.gateResults.find((gate) => gate.id === "A05_NATIVE_CADENCE_AND_HORIZON");
+    expect(a03?.status).toBe("FAIL");
+    expect(a03?.reason).toContain("archive-field-to-live-series mapping");
+    expect(a04?.status).toBe("FAIL");
+    expect(a04?.reason).toContain("publication-latency bound");
+    expect(a05?.status).toBe("FAIL");
+    expect(a05?.reason).toContain("native cadence of the Binance Vision USD-M metrics archive");
   });
 
   it("freezes metadata-only object matrix fields and forbids payload reads", () => {
@@ -265,11 +341,12 @@ describe("Round-021 positioning crowding data-acquisition design", () => {
   it("shows that a fully proven future contract is deterministic without running it", () => {
     const evaluation = evaluateR21DataDesignGates({
       ...baselineGateInput(),
-      officialFieldMappingProven: true,
-      usdMDocumentationProven: true,
-      contemporaneousAvailabilityProven: true,
-      nativeCadenceMinutes: 60,
-      nativeCadenceProven: true,
+      archiveFieldMappingProven: true,
+      archiveToLiveSeriesEquivalenceProven: true,
+      publicationLatencyUpperBoundProven: true,
+      decisionTimeAvailabilityRuleProven: true,
+      archiveNativeCadenceMinutes: 60,
+      archiveNativeCadenceProven: true,
     });
     expect(evaluation.gateResults.every((gate) => gate.status === "PASS")).toBe(true);
     expect(evaluation.finalDecision).toBe("ROUND-021 DATA ACQUISITION DESIGN ACCEPTED");
