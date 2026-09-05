@@ -151,7 +151,7 @@ const report = {
     start: R20_LIQUIDATION_PREFLIGHT_START_ISO,
     end: R20_LIQUIDATION_PREFLIGHT_END_ISO,
   },
-  metadataEvidenceItemCount: 8,
+  metadataEvidenceItemCount: metadataEvidenceSources.length,
   metadataEvidenceSources,
   metadataSnapshotObservedAt: null,
   metadataSnapshotSha256: null,

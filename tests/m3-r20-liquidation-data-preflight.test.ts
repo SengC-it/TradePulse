@@ -53,6 +53,7 @@ type R20PreflightReport = {
   qualifyingRepresentations: string[];
   representationSelectionStatus: string;
   metadataEvidenceItemCount: number;
+  metadataEvidenceSources: unknown[];
   replayableMetadataProbeExecuted: boolean;
   gateResults: Array<{ id: string; status: string }>;
   finalDecision: string;
@@ -418,7 +419,7 @@ describe("Round-020 liquidation data acquisition preflight", () => {
     const report = loadReport();
     expect(report.preflightParentCommit).toBe(ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE);
     expect(report.preflightExecutionCommit).toBe(ROUND_020_LIQUIDATION_PREFLIGHT_EXECUTION_COMMIT);
-    expect(report.metadataEvidenceItemCount).toBe(8);
+    expect(report.metadataEvidenceItemCount).toBe(report.metadataEvidenceSources.length);
     expect(report.replayableMetadataProbeExecuted).toBe(false);
     expect(readFileSync(reportPath, "utf8")).not.toContain('"metadataProbes"');
   });

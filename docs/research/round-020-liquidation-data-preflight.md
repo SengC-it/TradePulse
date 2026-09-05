@@ -3,7 +3,7 @@
 - Final decision: **ROUND-020 DATA ACQUISITION INELIGIBLE**
 - Source: `TARDIS_BINANCE_USDT_FUTURES_LIQUIDATIONS`
 - Representations evaluated independently: normalized CSV and raw Binance forceOrder replay
-- Metadata evidence items: 8
+- Metadata evidence items: 5
 - Replayable metadata probe executed: false
 - Market-event body requests: 0
 - Market-event bytes downloaded: 0
