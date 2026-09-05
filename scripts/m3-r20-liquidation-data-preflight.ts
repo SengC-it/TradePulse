@@ -7,6 +7,7 @@ import {
   ROUND_020_LIQUIDATION_PREFLIGHT_RESEARCH_ROUND_ID,
   ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE,
   ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_RESEARCH_SOURCE,
+  ROUND_020_LIQUIDATION_PREFLIGHT_EXECUTION_COMMIT,
   ROUND_020_LIQUIDATION_PREFLIGHT_BRANCH,
   R20_LIQUIDATION_PREFLIGHT_END_ISO,
   R20_LIQUIDATION_PREFLIGHT_EXCHANGE_ID,
@@ -35,6 +36,36 @@ const metadataTargetAvailability = {
   XRPUSDT: { availableSince: "2020-01-06T00:00:00.000Z", availableTo: null, liquidationDatasetAdvertised: true },
   BNBUSDT: { availableSince: "2020-02-10T00:00:00.000Z", availableTo: null, liquidationDatasetAdvertised: true },
 } as const;
+
+const metadataEvidenceSources = [
+  ...[
+    "https://docs.tardis.dev/faq/data",
+    "https://docs.tardis.dev/downloadable-csv-files/data-types",
+    "https://docs.tardis.dev/downloadable-csv-files",
+    "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams",
+  ].map((url) => ({
+    kind: "DOCUMENTATION_SOURCE",
+    url,
+    evidenceStatus: "DOCUMENTED_METADATA_EVIDENCE",
+  })),
+  {
+    kind: "EXCHANGE_METADATA_SNAPSHOT",
+    url: R20_LIQUIDATION_PREFLIGHT_METADATA_ENDPOINT,
+    httpStatus: 200,
+    evidenceStatus: "PRIOR_METADATA_SNAPSHOT_NOT_REPLAYABLE",
+    retrievedAt: null,
+    responseSha256: null,
+    selectedFields: [
+      "exchangeId",
+      "channel",
+      "datasetType",
+      "formats",
+      "exportedFrom",
+      "exportedUntil",
+      "targetSymbolAvailability",
+    ],
+  },
+] as const;
 
 const input: R20LiquidationPreflightInput = {
   acceptedSourceIntegrity: true,
@@ -107,7 +138,8 @@ const report = {
     },
     contentUnchanged: true,
   },
-  preflightCommit: process.env.ROUND_020_PREFLIGHT_COMMIT ?? ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE,
+  preflightParentCommit: ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE,
+  preflightExecutionCommit: ROUND_020_LIQUIDATION_PREFLIGHT_EXECUTION_COMMIT,
   branch: ROUND_020_LIQUIDATION_PREFLIGHT_BRANCH,
   sourceId: R20_LIQUIDATION_PREFLIGHT_SOURCE_ID,
   representationEvaluated: [...R20_LIQUIDATION_PREFLIGHT_REPRESENTATIONS],
@@ -119,14 +151,12 @@ const report = {
     start: R20_LIQUIDATION_PREFLIGHT_START_ISO,
     end: R20_LIQUIDATION_PREFLIGHT_END_ISO,
   },
-  metadataProbes: {
-    count: 8,
-    documentationUrls: [
-      "https://docs.tardis.dev/faq/data",
-      "https://docs.tardis.dev/downloadable-csv-files/data-types",
-      "https://docs.tardis.dev/downloadable-csv-files",
-      "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams",
-    ],
+  metadataEvidenceItemCount: 8,
+  metadataEvidenceSources,
+  metadataSnapshotObservedAt: null,
+  metadataSnapshotSha256: null,
+  replayableMetadataProbeExecuted: false,
+  metadataSnapshot: {
     endpoint: R20_LIQUIDATION_PREFLIGHT_METADATA_ENDPOINT,
     endpointStatus: 200,
     exchangeId: R20_LIQUIDATION_PREFLIGHT_EXCHANGE_ID,
@@ -143,21 +173,24 @@ const report = {
   marketEventBodyRequests: 0,
   marketEventBytesDownloaded: 0,
   rawMarketEventsRead: false,
-  identityContractSatisfied: false,
-  pitContractSatisfied: false,
+  identityContractSatisfied: evaluation.representationResults.some((result) => result.identitySatisfied),
+  pitContractSatisfied: evaluation.representationResults.some((result) => result.pitSatisfied),
   coverageContractSatisfied: true,
-  gapContractSatisfied: false,
-  sideContractSatisfied: false,
-  revisionContractSatisfied: false,
-  entitlementContractSatisfied: false,
+  gapContractSatisfied: evaluation.representationResults.some((result) => result.gapSatisfied),
+  sideContractSatisfied: evaluation.representationResults.some((result) => result.sideSchemaSatisfied),
+  revisionContractSatisfied: evaluation.representationResults.some((result) => result.revisionSatisfied),
+  entitlementContractSatisfied: evaluation.representationResults.some((result) => result.entitlementSatisfied),
   representationEvidence: input.representations,
+  representationResults: evaluation.representationResults,
+  qualifyingRepresentations: evaluation.qualifyingRepresentations,
+  representationSelectionStatus: evaluation.representationSelectionStatus,
   gateResults: evaluation.gateResults,
-  targetCoverageSummary: "Tardis metadata advertises liquidations for all five frozen perpetual symbols before 2023-01-01 and export availability through 2026-09-05; exact daily-file matrix was not probed.",
-  pitTimestampConclusion: "FAIL: normalized timestamp/local_timestamp and raw replay publication/arrival provenance were not jointly proven without event payload access.",
+  targetCoverageSummary: "ADVERTISED_TARGET_COVERAGE: Tardis metadata advertises liquidations for all five frozen perpetual symbols before 2023-01-01 and export availability through 2026-09-05; exact daily-file matrix was not probed and is not asserted.",
+  pitTimestampConclusion: "FAIL: neither representation currently proves event/publication or arrival provenance and replay leakage exclusion without event payload access.",
   exactIdentityConclusion: "FAIL: normalized id may be empty and raw forceOrder immutable id/source sequence was not proven; frozen fallback was not weakened.",
-  gapDisconnectConclusion: "FAIL: Tardis sampled/snapshot semantics are retained, but normalized and raw disconnect/gap provenance was not proven.",
-  sideSchemaConclusion: "FAIL: buy=>short-liquidated and sell=>long-liquidated plus quantity mapping were not jointly proven for both representations.",
-  revisionIntegrityConclusion: "FAIL: archive revision/checksum/replay reproducibility policy was not proven before acquisition.",
+  gapDisconnectConclusion: "FAIL: Tardis sampled/snapshot semantics are retained, but neither representation currently proves disconnect/gap provenance.",
+  sideSchemaConclusion: "FAIL: neither representation currently proves buy=>short-liquidated, sell=>long-liquidated, and quantity mapping together.",
+  revisionIntegrityConclusion: "FAIL: neither representation currently proves archive revision/checksum/replay reproducibility policy before acquisition.",
   entitlementConclusion: "FAIL: vendor data entitlement was not verified; no credential was read or serialized.",
   finalDecision: evaluation.finalDecision,
   recommendedRepresentation: evaluation.recommendedRepresentation,
@@ -189,11 +222,11 @@ const report = {
 };
 
 writeFileSync(path.join(root, ROUND_020_LIQUIDATION_PREFLIGHT_JSON_PATH), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-writeFileSync(path.join(root, ROUND_020_LIQUIDATION_PREFLIGHT_MARKDOWN_PATH), `# Round-020 liquidation data acquisition preflight\n\n- Final decision: **${report.finalDecision}**\n- Source: \`${report.sourceId}\`\n- Representations evaluated: normalized CSV and raw Binance forceOrder replay\n- Metadata probes: ${report.metadataProbes.count}\n- Market-event body requests: 0\n- Market-event bytes downloaded: 0\n- Raw market events read: false\n\n## Mandatory gates\n\n${report.gateResults.map((gate) => `- ${gate.id}: **${gate.status}** — ${gate.reason}`).join("\n")}\n\n## Fail-closed conclusions\n\nTarget availability metadata is present, but immutable event identity, publication-time replay provenance, disconnect/gap evidence, side/quantity mapping, revision reproducibility, and entitlement are not all proven for both allowed representations. UNKNOWN or FAIL is ineligible; no event payload was read.\n\nProduction is unchanged. Performance, selection, candidate creation, economic inspection, and new market-data acquisition were not executed.\n`, "utf8");
+writeFileSync(path.join(root, ROUND_020_LIQUIDATION_PREFLIGHT_MARKDOWN_PATH), `# Round-020 liquidation data acquisition preflight\n\n- Final decision: **${report.finalDecision}**\n- Source: \`${report.sourceId}\`\n- Representations evaluated independently: normalized CSV and raw Binance forceOrder replay\n- Metadata evidence items: ${report.metadataEvidenceItemCount}\n- Replayable metadata probe executed: ${report.replayableMetadataProbeExecuted}\n- Market-event body requests: 0\n- Market-event bytes downloaded: 0\n- Raw market events read: false\n- Preflight parent commit: \`${report.preflightParentCommit}\`\n- Preflight execution commit: \`${report.preflightExecutionCommit}\`\n\n## Coverage semantics\n\n**P02_ADVERTISED_TARGET_COVERAGE** uses only exchange metadata advertised coverage. The exact daily-file matrix was not probed and is not asserted.\n\n## Mandatory gates\n\n${report.gateResults.map((gate) => `- ${gate.id}: **${gate.status}** — ${gate.reason}`).join("\n")}\n\n## Representation results\n\n${report.representationResults.map((result) => `- ${result.representation}: fullyQualified=${result.fullyQualified}; pit=${result.pitSatisfied}; identity=${result.identitySatisfied}; gap=${result.gapSatisfied}; sideSchema=${result.sideSchemaSatisfied}; revision=${result.revisionSatisfied}; entitlement=${result.entitlementSatisfied}`).join("\n")}\n\n- Qualifying representations: ${report.qualifyingRepresentations.length === 0 ? "none" : report.qualifyingRepresentations.join(", ")}\n- Selection status: ${report.representationSelectionStatus}\n- Recommended representation: ${report.recommendedRepresentation ?? "null"}\n\n## Fail-closed conclusions\n\nThe current metadata evidence does not qualify either representation. UNKNOWN or FAIL is ineligible; no event payload was read. A future preflight must evaluate each representation independently and may recommend only one uniquely qualifying representation; two qualifying representations without a frozen tie-break remain fail-closed.\n\nProduction is unchanged. Performance, selection, candidate creation, economic inspection, and new market-data acquisition were not executed.\n`, "utf8");
 
 console.log(JSON.stringify({
   finalDecision: report.finalDecision,
-  metadataProbeCount: report.metadataProbes.count,
+  metadataEvidenceItemCount: report.metadataEvidenceItemCount,
   marketEventBodyRequests: report.marketEventBodyRequests,
   marketEventBytesDownloaded: report.marketEventBytesDownloaded,
   rawMarketEventsRead: report.rawMarketEventsRead,

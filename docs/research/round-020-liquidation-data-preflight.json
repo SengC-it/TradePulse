@@ -20,7 +20,8 @@
     },
     "contentUnchanged": true
   },
-  "preflightCommit": "bff63214c9a31c516816d8756e560475a86e1746",
+  "preflightParentCommit": "bff63214c9a31c516816d8756e560475a86e1746",
+  "preflightExecutionCommit": "a0fca0f86a53fbe989eed653aa31bdb25356134d",
   "branch": "research/round-020-liquidation-data-preflight",
   "sourceId": "TARDIS_BINANCE_USDT_FUTURES_LIQUIDATIONS",
   "representationEvaluated": [
@@ -41,14 +42,50 @@
     "start": "2023-01-01T00:00:00.000Z",
     "end": "2026-08-15T23:59:59.999Z"
   },
-  "metadataProbes": {
-    "count": 8,
-    "documentationUrls": [
-      "https://docs.tardis.dev/faq/data",
-      "https://docs.tardis.dev/downloadable-csv-files/data-types",
-      "https://docs.tardis.dev/downloadable-csv-files",
-      "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams"
-    ],
+  "metadataEvidenceItemCount": 8,
+  "metadataEvidenceSources": [
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://docs.tardis.dev/faq/data",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://docs.tardis.dev/downloadable-csv-files/data-types",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://docs.tardis.dev/downloadable-csv-files",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "EXCHANGE_METADATA_SNAPSHOT",
+      "url": "https://api.tardis.dev/v1/exchanges/binance-futures",
+      "httpStatus": 200,
+      "evidenceStatus": "PRIOR_METADATA_SNAPSHOT_NOT_REPLAYABLE",
+      "retrievedAt": null,
+      "responseSha256": null,
+      "selectedFields": [
+        "exchangeId",
+        "channel",
+        "datasetType",
+        "formats",
+        "exportedFrom",
+        "exportedUntil",
+        "targetSymbolAvailability"
+      ]
+    }
+  ],
+  "metadataSnapshotObservedAt": null,
+  "metadataSnapshotSha256": null,
+  "replayableMetadataProbeExecuted": false,
+  "metadataSnapshot": {
     "endpoint": "https://api.tardis.dev/v1/exchanges/binance-futures",
     "endpointStatus": 200,
     "exchangeId": "binance-futures",
@@ -138,6 +175,30 @@
       "rawPayloadIdentityMayBeMissing": true
     }
   ],
+  "representationResults": [
+    {
+      "representation": "TARDIS_NORMALIZED_LIQUIDATIONS_CSV",
+      "pitSatisfied": false,
+      "identitySatisfied": false,
+      "gapSatisfied": false,
+      "sideSchemaSatisfied": false,
+      "revisionSatisfied": false,
+      "entitlementSatisfied": false,
+      "fullyQualified": false
+    },
+    {
+      "representation": "TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY",
+      "pitSatisfied": false,
+      "identitySatisfied": false,
+      "gapSatisfied": false,
+      "sideSchemaSatisfied": false,
+      "revisionSatisfied": false,
+      "entitlementSatisfied": false,
+      "fullyQualified": false
+    }
+  ],
+  "qualifyingRepresentations": [],
+  "representationSelectionStatus": "NO_QUALIFYING_REPRESENTATION",
   "gateResults": [
     {
       "id": "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY",
@@ -145,42 +206,42 @@
       "reason": "Accepted research/design identity and design-only governance must remain exact."
     },
     {
-      "id": "P02_TARGET_COVERAGE",
+      "id": "P02_ADVERTISED_TARGET_COVERAGE",
       "status": "PASS",
-      "reason": "Metadata must cover liquidations for all five symbols and the complete frozen period."
+      "reason": "ADVERTISED_TARGET_COVERAGE: exchange metadata advertises all five symbols and the frozen period; exact daily-file existence is not asserted."
     },
     {
       "id": "P03_POINT_IN_TIME_TIMESTAMP_PROVENANCE",
       "status": "FAIL",
-      "reason": "Event and publication/arrival timestamp semantics must both be frozen for normalized and raw representations."
+      "reason": "At least one independently evaluated representation must prove event/publication timestamp semantics and replay leakage exclusion."
     },
     {
       "id": "P04_EXACT_EVENT_IDENTITY",
       "status": "FAIL",
-      "reason": "Every representation must prove immutable event identity or source sequence; empty normalized id cannot be replaced by a weaker identity."
+      "reason": "At least one independently evaluated representation must prove immutable event identity or source sequence; no weaker fallback is allowed."
     },
     {
       "id": "P05_COMPLETENESS_SNAPSHOT_GAP_SEMANTICS",
       "status": "FAIL",
-      "reason": "Snapshot sampling remains SAMPLED_EVENT_STREAM and disconnect/gap provenance must be proven for both representations."
+      "reason": "At least one independently evaluated representation must preserve sampled-stream semantics and prove gap/disconnect handling."
     },
     {
       "id": "P06_SIDE_QUANTITY_SCHEMA_CONTRACT",
       "status": "FAIL",
-      "reason": "Liquidation side, execution side, price, quantity, and forceOrder-to-normalized mapping must be source-documented."
+      "reason": "At least one independently evaluated representation must prove liquidation side, execution side, price, quantity, and mapping semantics."
     },
     {
       "id": "P07_REVISION_ARCHIVE_LICENSE_REPRODUCIBILITY_ENTITLEMENT",
       "status": "FAIL",
-      "reason": "Revision/checksum/reproducibility policy and access entitlement must be verified before acquisition."
+      "reason": "At least one independently evaluated representation must prove revision/checksum/reproducibility policy and entitlement."
     }
   ],
-  "targetCoverageSummary": "Tardis metadata advertises liquidations for all five frozen perpetual symbols before 2023-01-01 and export availability through 2026-09-05; exact daily-file matrix was not probed.",
-  "pitTimestampConclusion": "FAIL: normalized timestamp/local_timestamp and raw replay publication/arrival provenance were not jointly proven without event payload access.",
+  "targetCoverageSummary": "ADVERTISED_TARGET_COVERAGE: Tardis metadata advertises liquidations for all five frozen perpetual symbols before 2023-01-01 and export availability through 2026-09-05; exact daily-file matrix was not probed and is not asserted.",
+  "pitTimestampConclusion": "FAIL: neither representation currently proves event/publication or arrival provenance and replay leakage exclusion without event payload access.",
   "exactIdentityConclusion": "FAIL: normalized id may be empty and raw forceOrder immutable id/source sequence was not proven; frozen fallback was not weakened.",
-  "gapDisconnectConclusion": "FAIL: Tardis sampled/snapshot semantics are retained, but normalized and raw disconnect/gap provenance was not proven.",
-  "sideSchemaConclusion": "FAIL: buy=>short-liquidated and sell=>long-liquidated plus quantity mapping were not jointly proven for both representations.",
-  "revisionIntegrityConclusion": "FAIL: archive revision/checksum/replay reproducibility policy was not proven before acquisition.",
+  "gapDisconnectConclusion": "FAIL: Tardis sampled/snapshot semantics are retained, but neither representation currently proves disconnect/gap provenance.",
+  "sideSchemaConclusion": "FAIL: neither representation currently proves buy=>short-liquidated, sell=>long-liquidated, and quantity mapping together.",
+  "revisionIntegrityConclusion": "FAIL: neither representation currently proves archive revision/checksum/replay reproducibility policy before acquisition.",
   "entitlementConclusion": "FAIL: vendor data entitlement was not verified; no credential was read or serialized.",
   "finalDecision": "ROUND-020 DATA ACQUISITION INELIGIBLE",
   "recommendedRepresentation": null,
@@ -210,7 +271,7 @@
   ],
   "gateIds": [
     "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY",
-    "P02_TARGET_COVERAGE",
+    "P02_ADVERTISED_TARGET_COVERAGE",
     "P03_POINT_IN_TIME_TIMESTAMP_PROVENANCE",
     "P04_EXACT_EVENT_IDENTITY",
     "P05_COMPLETENESS_SNAPSHOT_GAP_SEMANTICS",

@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE,
+  ROUND_020_LIQUIDATION_PREFLIGHT_EXECUTION_COMMIT,
   ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_RESEARCH_SOURCE,
   ROUND_020_LIQUIDATION_PREFLIGHT_BASE_BRANCH,
   ROUND_020_LIQUIDATION_PREFLIGHT_BRANCH,
@@ -30,11 +31,14 @@ import {
   type R20LiquidationMetadataCoverage,
   type R20LiquidationPreflightInput,
   type R20LiquidationRepresentationEvidence,
+  type R20LiquidationRepresentationResult,
 } from "@/lib/research/m3-r20-liquidation-data-preflight-protocol";
 
 type R20PreflightReport = {
   acceptedResearchSource: { commit: string };
   acceptedDesignMerge: string;
+  preflightParentCommit: string;
+  preflightExecutionCommit: string;
   sourceId: string;
   representationEvaluated: string[];
   target: { venue: string; exchangeId: string; symbols: string[]; start: string; end: string };
@@ -45,6 +49,11 @@ type R20PreflightReport = {
   pitContractSatisfied: boolean;
   coverageContractSatisfied: boolean;
   representationEvidence: R20LiquidationRepresentationEvidence[];
+  representationResults: R20LiquidationRepresentationResult[];
+  qualifyingRepresentations: string[];
+  representationSelectionStatus: string;
+  metadataEvidenceItemCount: number;
+  replayableMetadataProbeExecuted: boolean;
   gateResults: Array<{ id: string; status: string }>;
   finalDecision: string;
   recommendedRepresentation: string | null;
@@ -139,6 +148,24 @@ function baseInput(overrides: Partial<R20LiquidationPreflightInput> = {}): R20Li
     automaticTrading: false,
     ...overrides,
   };
+}
+
+function fullyQualifiedRepresentation(
+  name: R20LiquidationRepresentationEvidence["representation"],
+): R20LiquidationRepresentationEvidence {
+  return representation(name, {
+    immutableEventIdentityProven: true,
+    eventTimestampProven: true,
+    publicationTimestampProven: true,
+    fallbackTimestampRuleProven: true,
+    dailySegmentationRuleProven: true,
+    replayLeakageExcluded: true,
+    gapEvidenceProven: true,
+    sideMappingProven: true,
+    quantityMappingProven: true,
+    revisionPolicyProven: true,
+    entitlementVerified: true,
+  });
 }
 
 describe("Round-020 liquidation data acquisition preflight", () => {
@@ -260,7 +287,7 @@ describe("Round-020 liquidation data acquisition preflight", () => {
     expect(report.recommendedRepresentation).toBeNull();
     expect(report.gateResults.map((gate) => gate.id)).toEqual([...R20_LIQUIDATION_PREFLIGHT_GATE_IDS]);
     expect(report.gateResults.find((gate) => gate.id === "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY")?.status).toBe("PASS");
-    expect(report.gateResults.find((gate) => gate.id === "P02_TARGET_COVERAGE")?.status).toBe("PASS");
+    expect(report.gateResults.find((gate) => gate.id === "P02_ADVERTISED_TARGET_COVERAGE")?.status).toBe("PASS");
     expect(report.gateResults.slice(2).every((gate) => gate.status === "FAIL")).toBe(true);
   });
 
@@ -342,5 +369,65 @@ describe("Round-020 liquidation data acquisition preflight", () => {
     expect(report.governance.performanceExecuted).toBe(false);
     expect(report.governance.selectionExecuted).toBe(false);
     expect(report.governance.newMarketDataFetched).toBe(false);
+  });
+
+  it("evaluates raw as the unique qualifying representation when CSV fails", () => {
+    const raw = fullyQualifiedRepresentation("TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY");
+    const result = evaluateR20LiquidationPreflight(baseInput({
+      representations: [representation("TARDIS_NORMALIZED_LIQUIDATIONS_CSV"), raw],
+    }));
+    expect(result.qualifyingRepresentations).toEqual(["TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY"]);
+    expect(result.recommendedRepresentation).toBe("TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY");
+    expect(result.representationSelectionStatus).toBe("ONE_QUALIFYING_REPRESENTATION");
+    expect(result.finalDecision).toBe("ROUND-020 DATA ACQUISITION PREFLIGHT PASS");
+  });
+
+  it("evaluates CSV as the unique qualifying representation when raw fails", () => {
+    const csv = fullyQualifiedRepresentation("TARDIS_NORMALIZED_LIQUIDATIONS_CSV");
+    const result = evaluateR20LiquidationPreflight(baseInput({
+      representations: [csv, representation("TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY")],
+    }));
+    expect(result.qualifyingRepresentations).toEqual(["TARDIS_NORMALIZED_LIQUIDATIONS_CSV"]);
+    expect(result.recommendedRepresentation).toBe("TARDIS_NORMALIZED_LIQUIDATIONS_CSV");
+    expect(result.representationSelectionStatus).toBe("ONE_QUALIFYING_REPRESENTATION");
+    expect(result.finalDecision).toBe("ROUND-020 DATA ACQUISITION PREFLIGHT PASS");
+  });
+
+  it("returns no recommendation when both representations fail", () => {
+    const result = evaluateR20LiquidationPreflight(baseInput());
+    expect(result.qualifyingRepresentations).toEqual([]);
+    expect(result.recommendedRepresentation).toBeNull();
+    expect(result.representationSelectionStatus).toBe("NO_QUALIFYING_REPRESENTATION");
+    expect(result.finalDecision).toBe("ROUND-020 DATA ACQUISITION INELIGIBLE");
+  });
+
+  it("fails closed when both representations qualify without a frozen tie-break", () => {
+    const result = evaluateR20LiquidationPreflight(baseInput({
+      representations: [
+        fullyQualifiedRepresentation("TARDIS_NORMALIZED_LIQUIDATIONS_CSV"),
+        fullyQualifiedRepresentation("TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY"),
+      ],
+    }));
+    expect(result.qualifyingRepresentations).toHaveLength(2);
+    expect(result.recommendedRepresentation).toBeNull();
+    expect(result.representationSelectionStatus).toBe("AMBIGUOUS_NO_FROZEN_TIE_BREAK");
+    expect(result.finalDecision).toBe("ROUND-020 DATA ACQUISITION INELIGIBLE");
+  });
+
+  it("records parent and execution identity separately and does not call evidence items probes", () => {
+    const report = loadReport();
+    expect(report.preflightParentCommit).toBe(ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE);
+    expect(report.preflightExecutionCommit).toBe(ROUND_020_LIQUIDATION_PREFLIGHT_EXECUTION_COMMIT);
+    expect(report.metadataEvidenceItemCount).toBe(8);
+    expect(report.replayableMetadataProbeExecuted).toBe(false);
+    expect(readFileSync(reportPath, "utf8")).not.toContain('"metadataProbes"');
+  });
+
+  it("labels P02 as advertised coverage and does not assert exact daily file existence", () => {
+    const report = loadReport();
+    expect(report.gateResults.find((gate) => gate.id === "P02_ADVERTISED_TARGET_COVERAGE")?.status).toBe("PASS");
+    expect(report.coverageContractSatisfied).toBe(true);
+    expect(readFileSync(reportPath, "utf8")).toContain("ADVERTISED_TARGET_COVERAGE");
+    expect(readFileSync(reportPath, "utf8")).toContain('"exactDailyFileMatrixProbed": false');
   });
 });

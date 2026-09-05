@@ -3,6 +3,7 @@ export const ROUND_020_LIQUIDATION_PREFLIGHT_RESEARCH_ROUND_ID = "baseline-002-r
 export const ROUND_020_LIQUIDATION_PREFLIGHT_PHASE = "DATA_ACQUISITION_PREFLIGHT" as const;
 export const ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_RESEARCH_SOURCE = "e9a0b39622401b7b512043417545afe33c98a99a" as const;
 export const ROUND_020_LIQUIDATION_PREFLIGHT_ACCEPTED_DESIGN_MERGE = "bff63214c9a31c516816d8756e560475a86e1746" as const;
+export const ROUND_020_LIQUIDATION_PREFLIGHT_EXECUTION_COMMIT = "a0fca0f86a53fbe989eed653aa31bdb25356134d" as const;
 export const ROUND_020_LIQUIDATION_PREFLIGHT_BASE_BRANCH = "research/round-015-beta-alpha-decomposition" as const;
 export const ROUND_020_LIQUIDATION_PREFLIGHT_BRANCH = "research/round-020-liquidation-data-preflight" as const;
 export const ROUND_020_LIQUIDATION_PREFLIGHT_DESIGN_JSON_PATH = "docs/research/round-020-liquidation-data-design.json" as const;
@@ -32,7 +33,7 @@ export const R20_LIQUIDATION_PREFLIGHT_END_ISO = "2026-08-15T23:59:59.999Z" as c
 
 export const R20_LIQUIDATION_PREFLIGHT_GATE_IDS = Object.freeze([
   "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY",
-  "P02_TARGET_COVERAGE",
+  "P02_ADVERTISED_TARGET_COVERAGE",
   "P03_POINT_IN_TIME_TIMESTAMP_PROVENANCE",
   "P04_EXACT_EVENT_IDENTITY",
   "P05_COMPLETENESS_SNAPSHOT_GAP_SEMANTICS",
@@ -93,6 +94,17 @@ export type R20LiquidationRepresentationEvidence = Readonly<{
   rawPayloadIdentityMayBeMissing: boolean;
 }>;
 
+export type R20LiquidationRepresentationResult = Readonly<{
+  representation: R20LiquidationPreflightRepresentation;
+  pitSatisfied: boolean;
+  identitySatisfied: boolean;
+  gapSatisfied: boolean;
+  sideSchemaSatisfied: boolean;
+  revisionSatisfied: boolean;
+  entitlementSatisfied: boolean;
+  fullyQualified: boolean;
+}>;
+
 export type R20LiquidationPreflightInput = Readonly<{
   acceptedSourceIntegrity: boolean;
   recommendedSourceUnchanged: boolean;
@@ -117,6 +129,9 @@ export type R20LiquidationPreflightInput = Readonly<{
 
 export type R20LiquidationPreflightEvaluation = Readonly<{
   gateResults: readonly R20LiquidationPreflightGate[];
+  representationResults: readonly R20LiquidationRepresentationResult[];
+  qualifyingRepresentations: readonly R20LiquidationPreflightRepresentation[];
+  representationSelectionStatus: "NO_QUALIFYING_REPRESENTATION" | "ONE_QUALIFYING_REPRESENTATION" | "AMBIGUOUS_NO_FROZEN_TIE_BREAK";
   finalDecision: R20LiquidationPreflightFinalDecision;
   recommendedRepresentation: R20LiquidationPreflightRepresentation | null;
 }>;
@@ -207,12 +222,60 @@ function findRepresentation(
   return evidence.find((row) => row.representation === representation);
 }
 
+function evaluateRepresentation(
+  row: R20LiquidationRepresentationEvidence | undefined,
+  representation: R20LiquidationPreflightRepresentation,
+): R20LiquidationRepresentationResult {
+  const pitSatisfied = row !== undefined
+    && row.eventTimestampProven
+    && row.publicationTimestampProven
+    && row.fallbackTimestampRuleProven
+    && row.dailySegmentationRuleProven
+    && row.replayLeakageExcluded;
+  const identitySatisfied = row !== undefined
+    && (row.immutableEventIdentityProven || row.sourceSequenceProven)
+    && (!row.normalizedIdMayBeEmpty || row.sourceSequenceProven || row.immutableEventIdentityProven);
+  const gapSatisfied = row !== undefined
+    && row.gapEvidenceProven
+    && row.completenessStatus === "SAMPLED_EVENT_STREAM";
+  const sideSchemaSatisfied = row !== undefined && row.sideMappingProven && row.quantityMappingProven;
+  const revisionSatisfied = row !== undefined && row.revisionPolicyProven;
+  const entitlementSatisfied = row !== undefined && row.entitlementVerified;
+  return {
+    representation,
+    pitSatisfied,
+    identitySatisfied,
+    gapSatisfied,
+    sideSchemaSatisfied,
+    revisionSatisfied,
+    entitlementSatisfied,
+    fullyQualified: pitSatisfied
+      && identitySatisfied
+      && gapSatisfied
+      && sideSchemaSatisfied
+      && revisionSatisfied
+      && entitlementSatisfied,
+  };
+}
+
 export function evaluateR20LiquidationPreflight(
   input: R20LiquidationPreflightInput,
 ): R20LiquidationPreflightEvaluation {
   const normalized = findRepresentation(input.representations, "TARDIS_NORMALIZED_LIQUIDATIONS_CSV");
   const raw = findRepresentation(input.representations, "TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY");
   const representationSetIsExact = input.representations.length === 2 && normalized !== undefined && raw !== undefined;
+  const representationResults = R20_LIQUIDATION_PREFLIGHT_REPRESENTATIONS.map((representation) => evaluateRepresentation(
+    findRepresentation(input.representations, representation),
+    representation,
+  ));
+  const qualifyingRepresentations = representationResults
+    .filter((result) => result.fullyQualified)
+    .map((result) => result.representation);
+  const representationSelectionStatus = qualifyingRepresentations.length === 0
+    ? "NO_QUALIFYING_REPRESENTATION"
+    : qualifyingRepresentations.length === 1
+      ? "ONE_QUALIFYING_REPRESENTATION"
+      : "AMBIGUOUS_NO_FROZEN_TIE_BREAK";
   const gates: R20LiquidationPreflightGate[] = [
     {
       id: "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY",
@@ -224,34 +287,34 @@ export function evaluateR20LiquidationPreflight(
       reason: "Accepted research/design identity and design-only governance must remain exact.",
     },
     {
-      id: "P02_TARGET_COVERAGE",
+      id: "P02_ADVERTISED_TARGET_COVERAGE",
       status: isR20LiquidationTargetCoverageSatisfied(input.coverage) ? "PASS" : "FAIL",
-      reason: "Metadata must cover liquidations for all five symbols and the complete frozen period.",
+      reason: "ADVERTISED_TARGET_COVERAGE: exchange metadata advertises all five symbols and the frozen period; exact daily-file existence is not asserted.",
     },
     {
       id: "P03_POINT_IN_TIME_TIMESTAMP_PROVENANCE",
-      status: representationSetIsExact && isR20LiquidationPointInTimeContractSatisfied(input.representations) ? "PASS" : "FAIL",
-      reason: "Event and publication/arrival timestamp semantics must both be frozen for normalized and raw representations.",
+      status: representationSetIsExact && representationResults.some((result) => result.pitSatisfied) ? "PASS" : "FAIL",
+      reason: "At least one independently evaluated representation must prove event/publication timestamp semantics and replay leakage exclusion.",
     },
     {
       id: "P04_EXACT_EVENT_IDENTITY",
-      status: representationSetIsExact && isR20LiquidationExactIdentityContractSatisfied(input.representations) ? "PASS" : "FAIL",
-      reason: "Every representation must prove immutable event identity or source sequence; empty normalized id cannot be replaced by a weaker identity.",
+      status: representationSetIsExact && representationResults.some((result) => result.identitySatisfied) ? "PASS" : "FAIL",
+      reason: "At least one independently evaluated representation must prove immutable event identity or source sequence; no weaker fallback is allowed.",
     },
     {
       id: "P05_COMPLETENESS_SNAPSHOT_GAP_SEMANTICS",
-      status: representationSetIsExact && isR20LiquidationGapContractSatisfied(input.representations) ? "PASS" : "FAIL",
-      reason: "Snapshot sampling remains SAMPLED_EVENT_STREAM and disconnect/gap provenance must be proven for both representations.",
+      status: representationSetIsExact && representationResults.some((result) => result.gapSatisfied) ? "PASS" : "FAIL",
+      reason: "At least one independently evaluated representation must preserve sampled-stream semantics and prove gap/disconnect handling.",
     },
     {
       id: "P06_SIDE_QUANTITY_SCHEMA_CONTRACT",
-      status: representationSetIsExact && isR20LiquidationSideSchemaContractSatisfied(input.representations) ? "PASS" : "FAIL",
-      reason: "Liquidation side, execution side, price, quantity, and forceOrder-to-normalized mapping must be source-documented.",
+      status: representationSetIsExact && representationResults.some((result) => result.sideSchemaSatisfied) ? "PASS" : "FAIL",
+      reason: "At least one independently evaluated representation must prove liquidation side, execution side, price, quantity, and mapping semantics.",
     },
     {
       id: "P07_REVISION_ARCHIVE_LICENSE_REPRODUCIBILITY_ENTITLEMENT",
-      status: representationSetIsExact && isR20LiquidationRevisionEntitlementContractSatisfied(input.representations) ? "PASS" : "FAIL",
-      reason: "Revision/checksum/reproducibility policy and access entitlement must be verified before acquisition.",
+      status: representationSetIsExact && representationResults.some((result) => result.revisionSatisfied && result.entitlementSatisfied) ? "PASS" : "FAIL",
+      reason: "At least one independently evaluated representation must prove revision/checksum/reproducibility policy and entitlement.",
     },
   ];
   const allPassed = gates.every((gate) => gate.status === "PASS")
@@ -268,13 +331,17 @@ export function evaluateR20LiquidationPreflight(
     && input.baseline002Status === "NOT_FROZEN"
     && input.m3JStatus === "BLOCKED"
     && input.m4Status === "NOT_STARTED"
-    && input.automaticTrading === false;
+    && input.automaticTrading === false
+    && qualifyingRepresentations.length === 1;
   return {
     gateResults: gates,
+    representationResults,
+    qualifyingRepresentations,
+    representationSelectionStatus,
     finalDecision: allPassed
       ? "ROUND-020 DATA ACQUISITION PREFLIGHT PASS"
       : "ROUND-020 DATA ACQUISITION INELIGIBLE",
-    recommendedRepresentation: allPassed ? "TARDIS_NORMALIZED_LIQUIDATIONS_CSV" : null,
+    recommendedRepresentation: qualifyingRepresentations.length === 1 ? qualifyingRepresentations[0] : null,
   };
 }
 
