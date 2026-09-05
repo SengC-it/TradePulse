@@ -7,6 +7,9 @@ export const ROUND_021_BRANCH = "research/round-021-positioning-crowding-design"
 export const ROUND_021_BASE_BRANCH = "research/round-015-beta-alpha-decomposition" as const;
 export const ROUND_021_DESIGN_JSON_PATH = "docs/research/round-021-positioning-crowding-design.json" as const;
 export const ROUND_021_DESIGN_MARKDOWN_PATH = "docs/research/round-021-positioning-crowding-design.md" as const;
+export const R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH = "docs/research/round-020-space-reset.json" as const;
+export const R21_AUTHORITATIVE_MECHANISM_LEDGER_FIELD = "mechanismFamilyLedger[].mechanismFamilyId" as const;
+export const R21_ROUND020_CLOSURE_PATH = "docs/research/round-020-liquidation-data-preflight.json" as const;
 export const ROUND_021_RESEARCH_START_ISO = "2023-01-01T00:00:00.000Z" as const;
 export const ROUND_021_RESEARCH_END_ISO = "2026-08-15T23:59:59.999Z" as const;
 
@@ -67,23 +70,41 @@ export const R21_DESIGN_GATE_IDS = Object.freeze([
 export type R21DesignGateId = (typeof R21_DESIGN_GATE_IDS)[number];
 
 export const R21_EXCLUDED_PRIOR_INFORMATION_FAMILIES = Object.freeze([
-  "R13_DIRECTIONAL_RETURN_TREND_MOMENTUM",
-  "R13_R14_CANDLE_BODY_DIRECTION_REVERSAL",
-  "R14_VOLATILITY_RANGE_COMPRESSION",
-  "R14_VOLUME",
-  "R15_BETA_ALPHA",
-  "R16_AGGREGATE_OPEN_INTEREST",
-  "R16_FUNDING_CARRY",
-  "R16_TAKER_FLOW",
-  "R16_PRICE_RETURN_MOMENTUM",
-  "R16_EMA_ATR_VOLATILITY_BASIS",
-  "R16_SYMBOL_RELATIVE_TO_BTC",
-  "R17_LIFECYCLE_STATE_DEDUP",
-  "R18_COMPONENT_CONSENSUS_REWEIGHTING",
-  "R18_SCORE_GRADE_THRESHOLD",
-  "R18_REGIME_OR_HORIZON_RESCUE",
-  "R20_FORCED_LIQUIDATION_EVENT",
+  "R13_TREND",
+  "R13_EMA_STATE",
+  "R13_SHORT_MEDIUM_RETURN_MOMENTUM",
+  "R13_VOLATILITY_ATR",
+  "R13_VOLUME",
+  "R13_TAKER_IMBALANCE",
+  "R13_SYMBOL_VS_BTC_RELATIVE_RETURN",
+  "R13_FUNDING",
+  "R13_CROSS_SYMBOL_BREADTH",
+  "R13_RIDGE_FEATURE_COMBINATION_FORWARD_EDGE",
+  "R14_EXACT_R13_REPLAY",
+  "R15_BETA_ALPHA_DECOMPOSITION",
+  "R15_MARKET_RELATIVE_DIRECTIONAL_STRUCTURE",
+  "R16_OPEN_INTEREST",
+  "R16_MARK_INDEX_BASIS",
+  "R16_TAKER_FLOW_PERSISTENCE",
+  "R17_THESIS_LIFECYCLE",
+  "R17_FIRST_FOLLOW_UP_STATE",
+  "R17_DEDUP_PERSISTENCE",
+  "R17_SESSION_CALENDAR",
+  "R18_SCORE_COMPONENT_CONSENSUS",
+  "R18_5_OF_5_CONSENSUS",
+  "R18_4_OF_5_CONSENSUS",
+  "R18_3_OF_5_CONSENSUS",
+  "R18_SCORE_THRESHOLD",
+  "R18_GRADE",
+  "R18_COMPONENT_REWEIGHTING",
+  "R18_COMPRESSION_EXPANSION_REPACKAGING",
+  "R19_PRIOR_CANDLE_COUNTER_MOVE",
+  "R19_STATE_TRANSITION",
+  "R19_MARKET_RELATIVE_CONFIRMATION",
+  "R19_CALENDAR_SESSION",
+  "R19_RANGE_EXPANSION",
 ] as const);
+export const R21_ROUND020_LIQUIDATION_MECHANISM_FAMILY = "FORCED_DELEVERAGING_LIQUIDATION_STATE" as const;
 
 export type R21DesignGovernance = Readonly<{
   newMarketDataFetched: false;
@@ -154,10 +175,68 @@ export function classifyR21PositionCrowding(input: R21PositioningRatios): R21Adv
   return "NO_SIGNAL";
 }
 
+export type R21Round020ClosureBinding = Readonly<{
+  sourceCommit: string;
+  sourcePath: string;
+  mechanismFamilyId: string;
+  finalDecision: string;
+  recommendedRepresentation: null;
+}>;
+
+export type R21AuthoritativeLedgerCoverage = Readonly<{
+  authoritativeIds: readonly string[];
+  coveredIds: readonly string[];
+  missingIds: readonly string[];
+  duplicateIds: readonly string[];
+  unknownIds: readonly string[];
+  complete: boolean;
+}>;
+
+export function auditR21AuthoritativeLedgerCoverage(
+  authoritativeIds: readonly string[],
+  coveredIds: readonly string[],
+): R21AuthoritativeLedgerCoverage {
+  const authoritativeSet = new Set(authoritativeIds);
+  const coveredSet = new Set(coveredIds);
+  const counts = new Map<string, number>();
+  for (const id of coveredIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+
+  const missingIds = authoritativeIds.filter((id) => !coveredSet.has(id));
+  const duplicateIds = [...counts.entries()]
+    .filter(([, count]) => count !== 1)
+    .map(([id]) => id);
+  const unknownIds = coveredIds.filter((id) => !authoritativeSet.has(id));
+  const complete = authoritativeIds.length > 0
+    && coveredIds.length === authoritativeIds.length
+    && missingIds.length === 0
+    && duplicateIds.length === 0
+    && unknownIds.length === 0
+    && coveredSet.size === authoritativeSet.size;
+
+  return {
+    authoritativeIds,
+    coveredIds,
+    missingIds,
+    duplicateIds,
+    unknownIds,
+    complete,
+  };
+}
+
+export function isR21Round020ClosureComplete(binding: R21Round020ClosureBinding): boolean {
+  return binding.sourceCommit === ROUND_021_ACCEPTED_SOURCE
+    && binding.sourcePath === R21_ROUND020_CLOSURE_PATH
+    && binding.mechanismFamilyId === R21_ROUND020_LIQUIDATION_MECHANISM_FAMILY
+    && binding.finalDecision === "ROUND-020 DATA ACQUISITION INELIGIBLE"
+    && binding.recommendedRepresentation === null;
+}
+
 export type R21DesignGateInput = Readonly<{
   acceptedSourceCommit: string;
   mechanismFamily: string;
-  mechanismFamilyIndependent: boolean;
+  authoritativePriorLedgerIds: readonly string[];
+  coveredAuthoritativeIds: readonly string[];
+  round020Closure: R21Round020ClosureBinding;
   activeHypothesisCount: number;
   hypothesisId: string;
   directionalThesis: string;
@@ -179,6 +258,8 @@ export type R21DesignGate = Readonly<{
 
 export type R21DesignEvaluation = Readonly<{
   gateResults: readonly R21DesignGate[];
+  authoritativePriorLedgerCoverageComplete: boolean;
+  round020ClosureCoverageComplete: boolean;
   finalDecision:
     | "ROUND-021 POSITIONING CROWDING HYPOTHESIS DESIGN ACCEPTED"
     | "ROUND-021 NO ADMISSIBLE POSITIONING CROWDING HYPOTHESIS";
@@ -206,6 +287,11 @@ export function isR21DesignOnlyGovernance(status: R21DesignGovernance): boolean 
 }
 
 export function evaluateR21DesignGates(input: R21DesignGateInput): R21DesignEvaluation {
+  const ledgerCoverage = auditR21AuthoritativeLedgerCoverage(
+    input.authoritativePriorLedgerIds,
+    input.coveredAuthoritativeIds,
+  );
+  const round020ClosureCoverageComplete = isR21Round020ClosureComplete(input.round020Closure);
   const exactInputs = input.signalInputs.length === R21_SIGNAL_INPUTS.length
     && new Set(input.signalInputs).size === R21_SIGNAL_INPUTS.length
     && R21_SIGNAL_INPUTS.every((name) => input.signalInputs.includes(name));
@@ -217,8 +303,10 @@ export function evaluateR21DesignGates(input: R21DesignGateInput): R21DesignEval
     },
     {
       id: "D02_NOVEL_FAMILY",
-      status: input.mechanismFamily === ROUND_021_MECHANISM_FAMILY && input.mechanismFamilyIndependent ? "PASS" : "FAIL",
-      reason: "Position-size distribution and participant crowding are distinct from R13-R20 signal families.",
+      status: input.mechanismFamily === ROUND_021_MECHANISM_FAMILY
+        && ledgerCoverage.complete
+        && round020ClosureCoverageComplete ? "PASS" : "FAIL",
+      reason: "D02 requires exact accepted R13-R19 ledger coverage and a separately bound, closed Round-020 liquidation record; no self-attested independence flag is sufficient.",
     },
     {
       id: "D03_ONE_HYPOTHESIS",
@@ -251,6 +339,8 @@ export function evaluateR21DesignGates(input: R21DesignGateInput): R21DesignEval
   const accepted = gateResults.every((gate) => gate.status === "PASS");
   return {
     gateResults,
+    authoritativePriorLedgerCoverageComplete: ledgerCoverage.complete,
+    round020ClosureCoverageComplete,
     finalDecision: accepted
       ? "ROUND-021 POSITIONING CROWDING HYPOTHESIS DESIGN ACCEPTED"
       : "ROUND-021 NO ADMISSIBLE POSITIONING CROWDING HYPOTHESIS",

@@ -4,10 +4,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   R21_DIRECTIONS,
-  R21_EXCLUDED_PRIOR_INFORMATION_FAMILIES,
+  R21_AUTHORITATIVE_MECHANISM_LEDGER_FIELD,
+  R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH,
   R21_LONG_CROWD_PREDICATE,
   R21_PRIMARY_HOLDING_HORIZON,
   R21_PUBLICATION_PROVENANCE_STATUS,
+  R21_ROUND020_CLOSURE_PATH,
+  R21_ROUND020_LIQUIDATION_MECHANISM_FAMILY,
+  type R21Round020ClosureBinding,
   R21_SIGNAL_INPUTS,
   R21_SHORT_CROWD_PREDICATE,
   R21_SOURCE_FAMILY,
@@ -27,8 +31,10 @@ import {
   R21_DECISION_CADENCE,
   R21_DESIGN_GATE_IDS,
   R21_DESIGN_GOVERNANCE,
+  auditR21AuthoritativeLedgerCoverage,
   classifyR21PositionCrowding,
   evaluateR21DesignGates,
+  isR21Round020ClosureComplete,
   isR21DesignOnlyGovernance,
 } from "@/lib/research/m3-r21-positioning-crowding-design-protocol";
 
@@ -205,14 +211,42 @@ describe("Round-021 positioning crowding design-only protocol", () => {
     expect(inputs).not.toContain("liquidations");
   });
 
-  it("documents mechanism-family independence from all prior excluded families", () => {
+  it("binds D02 to every exact accepted R13-R19 ledger ID and the separate R20 closure", () => {
     const design = loadDesign();
+    const acceptedLedger = acceptedObject(R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH);
+    const authoritativeIds = records(acceptedLedger.mechanismFamilyLedger)
+      .map((item) => String(item.mechanismFamilyId));
+    const binding = record(design.historicalMechanismLedgerBinding);
     const exclusion = records(design.priorInformationFamilyExclusion);
-    const excluded = new Set(exclusion.map((item) => item.family));
+    const coveredIds = exclusion.map((item) => String(item.authoritativeMechanismFamilyId));
+    const coverage = auditR21AuthoritativeLedgerCoverage(authoritativeIds, coveredIds);
+    const closure = record(design.round020ClosureBinding) as R21Round020ClosureBinding;
 
-    for (const family of R21_EXCLUDED_PRIOR_INFORMATION_FAMILIES) {
-      expect(excluded.has(family), family).toBe(true);
-    }
+    expect(binding.sourceCommit).toBe(ROUND_021_ACCEPTED_SOURCE);
+    expect(binding.sourcePath).toBe(R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH);
+    expect(binding.ledgerField).toBe(R21_AUTHORITATIVE_MECHANISM_LEDGER_FIELD);
+    expect(binding.authoritativePriorMechanismFamilyIds).toEqual(authoritativeIds);
+    expect(coverage.authoritativeIds.length).toBeGreaterThan(0);
+    expect(coverage.coveredIds).toHaveLength(coverage.authoritativeIds.length);
+    expect(new Set(coverage.coveredIds).size).toBe(new Set(coverage.authoritativeIds).size);
+    expect(coverage.missingIds).toEqual([]);
+    expect(coverage.duplicateIds).toEqual([]);
+    expect(coverage.unknownIds).toEqual([]);
+    expect(coverage.complete).toBe(true);
+    expect(exclusion.every((item) => !Object.hasOwn(item, "family"))).toBe(true);
+    expect(authoritativeIds.filter((id) => id.startsWith("R19_"))).toHaveLength(5);
+    expect(coveredIds.filter((id) => id.startsWith("R19_"))).toEqual(
+      authoritativeIds.filter((id) => id.startsWith("R19_")),
+    );
+
+    expect(closure).toMatchObject({
+      sourceCommit: ROUND_021_ACCEPTED_SOURCE,
+      sourcePath: R21_ROUND020_CLOSURE_PATH,
+      mechanismFamilyId: R21_ROUND020_LIQUIDATION_MECHANISM_FAMILY,
+      finalDecision: "ROUND-020 DATA ACQUISITION INELIGIBLE",
+      recommendedRepresentation: null,
+    });
+    expect(isR21Round020ClosureComplete(closure)).toBe(true);
     expect(record(design.mechanismFamilyReview)).toMatchObject({
       id: ROUND_021_MECHANISM_FAMILY,
       status: "NOVEL_AT_MECHANISM_FAMILY_LEVEL",
@@ -220,6 +254,22 @@ describe("Round-021 positioning crowding design-only protocol", () => {
       notAContinuationHypothesis: true,
     });
     expect(JSON.stringify(design.mechanismFamilyReview)).toMatch(/participant position-size distribution/i);
+  });
+
+  it("fails D02 when any authoritative prior ID is missing or replaced by an alias", () => {
+    const acceptedLedger = acceptedObject(R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH);
+    const authoritativeIds = records(acceptedLedger.mechanismFamilyLedger)
+      .map((item) => String(item.mechanismFamilyId));
+    const missing = auditR21AuthoritativeLedgerCoverage(authoritativeIds, authoritativeIds.slice(1));
+    const replaced = auditR21AuthoritativeLedgerCoverage(
+      authoritativeIds,
+      ["R19_PRIOR_CANDLE_COUNTER_MOVE_ALIAS", ...authoritativeIds.slice(1)],
+    );
+
+    expect(missing.complete).toBe(false);
+    expect(missing.missingIds).toEqual([authoritativeIds[0]]);
+    expect(replaced.complete).toBe(false);
+    expect(replaced.unknownIds).toEqual(["R19_PRIOR_CANDLE_COUNTER_MOVE_ALIAS"]);
   });
 
   it("freezes the five-symbol target and authoritative boundary", () => {
@@ -269,13 +319,20 @@ describe("Round-021 positioning crowding design-only protocol", () => {
   it("keeps D01-D07 exact and all design gates passing", () => {
     const design = loadDesign();
     const gates = records(design.designGates);
+    const acceptedLedger = acceptedObject(R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH);
+    const authoritativePriorLedgerIds = records(acceptedLedger.mechanismFamilyLedger)
+      .map((item) => String(item.mechanismFamilyId));
+    const coveredAuthoritativeIds = records(design.priorInformationFamilyExclusion)
+      .map((item) => String(item.authoritativeMechanismFamilyId));
     expect(gates.map((gate) => gate.id)).toEqual([...R21_DESIGN_GATE_IDS]);
     expect(gates.every((gate) => gate.status === "PASS")).toBe(true);
 
     const evaluation = evaluateR21DesignGates({
       acceptedSourceCommit: ROUND_021_ACCEPTED_SOURCE,
       mechanismFamily: ROUND_021_MECHANISM_FAMILY,
-      mechanismFamilyIndependent: true,
+      authoritativePriorLedgerIds,
+      coveredAuthoritativeIds,
+      round020Closure: record(design.round020ClosureBinding) as R21Round020ClosureBinding,
       activeHypothesisCount: 1,
       hypothesisId: ROUND_021_HYPOTHESIS_ID,
       directionalThesis: ROUND_021_DIRECTIONAL_THESIS,
@@ -289,6 +346,8 @@ describe("Round-021 positioning crowding design-only protocol", () => {
       governance: R21_DESIGN_GOVERNANCE,
     });
     expect(evaluation.gateResults.map((gate) => gate.status)).toEqual(new Array(7).fill("PASS"));
+    expect(evaluation.authoritativePriorLedgerCoverageComplete).toBe(true);
+    expect(evaluation.round020ClosureCoverageComplete).toBe(true);
     expect(evaluation.finalDecision).toBe("ROUND-021 POSITIONING CROWDING HYPOTHESIS DESIGN ACCEPTED");
     expect(evaluation.nextStage).toBe("DATA_ACQUISITION_DESIGN");
   });

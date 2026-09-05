@@ -78,10 +78,28 @@ publicationAvailableTime <= decisionTime
 
 Decision cadence and primary holding horizon remain `NOT_YET_FROZEN_PENDING_SOURCE_CADENCE`; exactly one horizon must be frozen before any forward/economic value is read, and no horizon sweep is allowed.
 
+## Historical mechanism-ledger audit
+
+The R13-R19 novelty audit is bound to the accepted artifact
+`docs/research/round-020-space-reset.json` at commit
+`3b12136faf9219070609174ca4af226c07f15a9e`. Its authoritative identity field is
+`mechanismFamilyLedger[].mechanismFamilyId`; the 33 IDs from that field are copied
+into `historicalMechanismLedgerBinding.authoritativePriorMechanismFamilyIds` and
+each is covered exactly once by
+`priorInformationFamilyExclusion[].authoritativeMechanismFamilyId`. The test reads
+the accepted artifact itself and checks the exact set, duplicate count, missing
+count, and unknown-ID count. Alias IDs cannot satisfy this audit.
+
+Round-020 is covered separately, without reopening it, by
+`docs/research/round-020-liquidation-data-preflight.json` at the same accepted
+source commit. Its required identity is
+`FORCED_DELEVERAGING_LIQUIDATION_STATE` with final decision
+`ROUND-020 DATA ACQUISITION INELIGIBLE` and `recommendedRepresentation=null`.
+
 ## Frozen design gates
 
 - **D01 SOURCE_INTEGRITY — PASS:** exact accepted source commit is frozen.
-- **D02 NOVEL_FAMILY — PASS:** the family is independent at mechanism-family level.
+- **D02 NOVEL_FAMILY — PASS:** exact accepted R13-R19 ledger coverage, separate closed R20 coverage, and `POSITIONING_CROWDING_STATE` are required; a self-attested independence flag is not sufficient.
 - **D03 ONE_HYPOTHESIS — PASS:** exactly one active hypothesis exists.
 - **D04 ZERO_TUNED_STRUCTURE — PASS:** only the P/A/G ordinal/sign predicate is allowed.
 - **D05 DATA_CONTRACT — PASS:** exactly three primitives are frozen; mapping remains an explicit proof obligation.
