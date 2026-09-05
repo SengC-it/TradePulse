@@ -199,6 +199,8 @@ function sourceText(): string {
     // research boundary with dedicated offline suites.
     // Round-018 structural preflight machinery is a separate bounded
     // research boundary with dedicated offline suites.
+    // Round-020 liquidation data preflight machinery is a separate metadata-only
+    // boundary with a dedicated fail-closed suite.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -213,6 +215,7 @@ function sourceText(): string {
       !name.startsWith("m3-r16-round-016-") &&
       !name.startsWith("m3-r17-round-017-") &&
       !name.startsWith("m3-r18-round-018-") &&
+      !name.startsWith("m3-r20-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&
