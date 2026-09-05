@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "m3-r22-alert-intelligence-design-001",
+  "researchRoundId": "baseline-002-research-round-022",
+  "phase": "ALERT_INTELLIGENCE_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "32617afd2bf576465ddec04dccff7c93e47639e7",
+    "requiredBaseHead": "32617afd2bf576465ddec04dccff7c93e47639e7"
+  },
+  "branch": "research/round-022-alert-intelligence-design",
+  "scope": {
+    "product": "SIGNAL_ADVISORY_ONLY",
+    "inputSnapshots": [
+      "signal",
+      "qualitySnapshot",
+      "marketContext",
+      "riskAdvisory",
+      "historicalReviewMetadata"
+    ],
+    "outputDirections": ["LONG", "SHORT", "NO_SIGNAL"],
+    "outputQualityGrades": ["A", "B", "C", "IGNORE"],
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "noAutomaticTrading": true,
+    "noOrderPlacement": true,
+    "noPositionCalculation": true,
+    "noLeverageAdvice": true,
+    "noAutomaticStopsOrTargets": true,
+    "noFundManagement": true,
+    "productionUiChanged": false
+  },
+  "alertIntelligenceContract": {
+    "implementation": "src/lib/research/alert-intelligence-protocol.ts::buildR22AlertIntelligence",
+    "inputs": {
+      "signal": ["direction", "exactIdentity", "triggerExplanation"],
+      "qualitySnapshot": ["status", "grade", "score", "explanations"],
+      "marketContext": ["status", "regime", "alignment", "explanation"],
+      "riskAdvisory": ["status", "level", "explanation"],
+      "historicalReviewMetadata": ["status", "reviewStatus", "contextSummary"]
+    },
+    "outputs": [
+      "alertSummary",
+      "direction",
+      "qualityGrade",
+      "qualityScorePassthrough",
+      "priority",
+      "notificationImportance",
+      "attentionRank",
+      "confidence",
+      "riskExplanation",
+      "historicalContext",
+      "humanReviewNotes",
+      "explanation",
+      "humanDecisionRequired",
+      "automaticTrading"
+    ],
+    "directionIsUnchanged": true,
+    "qualityIsNotRecomputed": true,
+    "historicalReviewIsMetadataOnly": true
+  },
+  "alertPrioritization": {
+    "levels": ["P1", "P2", "P3", "IGNORE"],
+    "notificationImportance": ["HIGH", "NORMAL", "LOW", "DO_NOT_NOTIFY"],
+    "attentionRanks": {"P1": 1, "P2": 2, "P3": 3, "IGNORE": null},
+    "rules": {
+      "P1": "Complete identity + quality A + SUPPORTIVE context + STANDARD risk.",
+      "P2": "Complete core inputs where P1 does not apply.",
+      "P3": "Quality, context, or risk input is missing or invalid.",
+      "IGNORE": "NO_SIGNAL or incomplete identity."
+    },
+    "rankingInputs": ["identityCompleteness", "qualityGrade", "contextAlignment", "riskLevel"],
+    "futureOutcomeOrdering": false,
+    "economicOrdering": false
+  },
+  "explanationContract": {
+    "whyTriggered": "Existing upstream trigger explanation; no new predicate.",
+    "currentEnvironment": "Existing market-context regime/alignment explanation.",
+    "risk": "Existing risk-advisory explanation without sizing or execution.",
+    "historicalReference": "Identity-only historical review metadata or explicit unavailable state."
+  },
+  "failClosed": {
+    "missingIdentity": "SUPPRESSED_IGNORE_DO_NOT_NOTIFY",
+    "missingQualitySnapshot": "DEGRADED_LOW_CONFIDENCE_P3",
+    "missingMarketContext": "DEGRADED_LOW_CONFIDENCE_P3",
+    "missingRiskAdvisory": "DEGRADED_LOW_CONFIDENCE_P3",
+    "missingHistoricalReview": "DISCLOSED_UNAVAILABLE_NO_OUTCOME_INFERENCE"
+  },
+  "emailWebPresentation": {
+    "status": "DATA_SHAPE_ONLY",
+    "consumerSchema": "R22AlertIntelligenceResult",
+    "productionUiChanged": false,
+    "smtpChanged": false,
+    "routeChanged": false,
+    "schedulerChanged": false,
+    "executionControlsAllowed": false
+  },
+  "forbiddenOperations": [
+    "IMPLEMENTATION",
+    "PERFORMANCE",
+    "BACKTEST",
+    "SELECTION",
+    "ECONOMIC_EVALUATION",
+    "FORWARD_RETURN_READ",
+    "NEW_MARKET_DATA_ACQUISITION",
+    "AUTOMATIC_TRADING",
+    "POSITION_SIZING",
+    "LEVERAGE_ADVICE",
+    "AUTOMATIC_STOP_LOSS",
+    "AUTOMATIC_TAKE_PROFIT",
+    "FUND_MANAGEMENT"
+  ],
+  "governance": {
+    "designOnly": true,
+    "implementationAuthorized": false,
+    "performanceExecuted": false,
+    "backtestExecuted": false,
+    "selectionExecuted": false,
+    "economicEvaluationExecuted": false,
+    "newMarketDataFetched": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false,
+    "humanDecisionRequired": true
+  },
+  "evidenceOutputs": {
+    "designArtifacts": [
+      "docs/research/round-022-alert-intelligence-design.md",
+      "docs/research/round-022-alert-intelligence-contract.json",
+      "src/lib/research/alert-intelligence-protocol.ts",
+      "tests/round-022-alert-intelligence-protocol.test.ts"
+    ],
+    "productionUiChanges": "NONE",
+    "performanceOutputs": "NOT_CREATED",
+    "backtestOutputs": "NOT_CREATED",
+    "selectionOutputs": "NOT_CREATED",
+    "performanceLedger": "ABSENT"
+  },
+  "decision": {
+    "finalDecision": "ROUND-022 ALERT INTELLIGENCE DESIGN ONLY",
+    "implementationAuthorized": false,
+    "performanceAuthorized": false,
+    "backtestAuthorized": false,
+    "selectionAuthorized": false,
+    "economicEvaluationAuthorized": false,
+    "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+  }
+}
