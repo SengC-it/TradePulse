@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "m3-r22-historical-review-design-001",
+  "researchRoundId": "baseline-002-research-round-022",
+  "phase": "HISTORICAL_SIGNAL_REVIEW_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "9358efc5b78a4f57560c44fa8a7315f08cc59092",
+    "requiredBaseHead": "9358efc5b78a4f57560c44fa8a7315f08cc59092"
+  },
+  "branch": "research/round-022-historical-review-design",
+  "purpose": "Review exact historical advisory identity and an existing non-economic quality snapshot without reading outcomes or changing signal generation.",
+  "scope": {
+    "directionValues": ["LONG", "SHORT", "NO_SIGNAL"],
+    "reviewableDirections": ["LONG", "SHORT"],
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "designOnly": true,
+    "signalQualityScoreChanged": false,
+    "signalEngineChanged": false,
+    "newPersistenceAuthorized": false,
+    "productionActivationAuthorized": false
+  },
+  "dataAccess": {
+    "currentPhase": "NO_DATA_READ",
+    "futureAdvisorySource": "public.tp_signal_advisories",
+    "futureSourceUse": "EXACT_ADVISORY_IDENTITY_METADATA_ONLY",
+    "futureSourceRequiresSeparateApproval": true,
+    "networkAcquisition": false,
+    "marketDataLoader": false,
+    "cacheReconstruction": false,
+    "outcomeTablesConsumed": false
+  },
+  "identity": {
+    "fields": [
+      "signalId",
+      "symbol",
+      "direction",
+      "signalTime",
+      "strategyId",
+      "strategyVersion"
+    ],
+    "canonicalOrder": [
+      "signalId",
+      "symbol",
+      "direction",
+      "signalTime",
+      "strategyId",
+      "strategyVersion"
+    ],
+    "matching": "EXACT_CASE_SENSITIVE_DETERMINISTIC",
+    "missingIdentityStatus": "IDENTITY_INVALID",
+    "forbiddenMatching": [
+      "FUZZY_MATCH",
+      "NEAREST_TIMESTAMP",
+      "PRICE_MATCH",
+      "SIGNAL_RECONSTRUCTION",
+      "IDENTITY_SUBSTITUTION"
+    ],
+    "noSignalStatus": "NOT_REVIEWABLE"
+  },
+  "qualitySnapshot": {
+    "source": "EXISTING_SIGNAL_QUALITY_ADVISORY_RESULT",
+    "consumeOnly": true,
+    "recompute": false,
+    "qualityGradeValues": ["A", "B", "C", "IGNORE"],
+    "fields": [
+      "qualityGrade",
+      "qualityScore",
+      "marketContext",
+      "riskLevel",
+      "explanations"
+    ],
+    "missingSnapshotStatus": "QUALITY_SNAPSHOT_MISSING",
+    "doesNotChangeSignalDirection": true,
+    "doesNotAuthorizeExecution": true
+  },
+  "reviewStatus": {
+    "values": [
+      "IDENTITY_VERIFIED",
+      "QUALITY_SNAPSHOT_AVAILABLE",
+      "QUALITY_SNAPSHOT_MISSING",
+      "IDENTITY_INVALID",
+      "NOT_REVIEWABLE"
+    ],
+    "statusIsOutcome": false,
+    "statusDoesNotImplyProfitability": true
+  },
+  "idempotency": {
+    "schemaVersionIncluded": true,
+    "keyFormula": "JSON.stringify([schemaVersion, signalId, symbol, direction, signalTime, strategyId, strategyVersion])",
+    "conflictRule": "FAIL_CLOSED",
+    "writePathAuthorized": false
+  },
+  "forbiddenInputs": [
+    "PnL",
+    "profitFactor",
+    "drawdown",
+    "expectancy",
+    "R",
+    "winLoss",
+    "forwardReturn",
+    "futurePrice",
+    "tp_signal_results",
+    "backtestArtifacts",
+    "performanceEvidence",
+    "newMarketData"
+  ],
+  "governance": {
+    "designOnly": true,
+    "performanceExecuted": false,
+    "backtestExecuted": false,
+    "selectionExecuted": false,
+    "economicEvaluationExecuted": false,
+    "economicValuesRead": false,
+    "newMarketDataFetched": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false,
+    "humanDecisionRequired": true
+  },
+  "designGates": [
+    {
+      "id": "D01_EXACT_IDENTITY",
+      "status": "PASS",
+      "definition": "Review identity is the exact six-field advisory tuple with no fuzzy substitution."
+    },
+    {
+      "id": "D02_DIRECTION_BOUNDARY",
+      "status": "PASS",
+      "definition": "LONG and SHORT are reviewable; NO_SIGNAL is explicitly not reviewable."
+    },
+    {
+      "id": "D03_QUALITY_SNAPSHOT_ONLY",
+      "status": "PASS",
+      "definition": "Existing quality grade/score may be displayed but is never recalculated or changed."
+    },
+    {
+      "id": "D04_NO_OUTCOME_DATA",
+      "status": "PASS",
+      "definition": "No PnL, forward return, market-event, backtest, or performance value is read."
+    },
+    {
+      "id": "D05_IDEMPOTENT_REVIEW_KEY",
+      "status": "PASS",
+      "definition": "The schema-versioned exact identity tuple deterministically addresses one review."
+    },
+    {
+      "id": "D06_ADVISORY_BOUNDARY",
+      "status": "PASS",
+      "definition": "The layer cannot place orders, size positions, manage risk, or change signal direction."
+    },
+    {
+      "id": "D07_DESIGN_ONLY_GOVERNANCE",
+      "status": "PASS",
+      "definition": "No preflight, data acquisition, performance, selection, production, or scheduler operation is authorized."
+    }
+  ],
+  "evidenceOutputs": {
+    "designMarkdown": "docs/research/round-022-historical-review-design.md",
+    "contractJson": "docs/research/round-022-historical-review-contract.json",
+    "protocol": "src/lib/research/historical-review-protocol.ts",
+    "tests": "tests/round-022-historical-review-protocol.test.ts",
+    "performanceOutputs": "NOT_CREATED",
+    "backtestOutputs": "NOT_CREATED",
+    "selectionOutputs": "NOT_CREATED",
+    "performanceLedger": "ABSENT"
+  },
+  "decision": {
+    "finalDecision": "ROUND-022 HISTORICAL SIGNAL REVIEW DESIGN ONLY",
+    "performanceAuthorized": false,
+    "backtestAuthorized": false,
+    "selectionAuthorized": false,
+    "economicEvaluationAuthorized": false,
+    "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+  }
+}
