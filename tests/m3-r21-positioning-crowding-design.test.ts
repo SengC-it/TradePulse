@@ -257,6 +257,7 @@ describe("Round-021 positioning crowding design-only protocol", () => {
   });
 
   it("fails D02 when any authoritative prior ID is missing or replaced by an alias", () => {
+    const design = loadDesign();
     const acceptedLedger = acceptedObject(R21_AUTHORITATIVE_MECHANISM_LEDGER_PATH);
     const authoritativeIds = records(acceptedLedger.mechanismFamilyLedger)
       .map((item) => String(item.mechanismFamilyId));
@@ -270,6 +271,27 @@ describe("Round-021 positioning crowding design-only protocol", () => {
     expect(missing.missingIds).toEqual([authoritativeIds[0]]);
     expect(replaced.complete).toBe(false);
     expect(replaced.unknownIds).toEqual(["R19_PRIOR_CANDLE_COUNTER_MOVE_ALIAS"]);
+
+    const evaluation = evaluateR21DesignGates({
+      acceptedSourceCommit: ROUND_021_ACCEPTED_SOURCE,
+      mechanismFamily: ROUND_021_MECHANISM_FAMILY,
+      authoritativePriorLedgerIds: authoritativeIds,
+      coveredAuthoritativeIds: authoritativeIds.slice(1),
+      round020Closure: record(design.round020ClosureBinding) as R21Round020ClosureBinding,
+      activeHypothesisCount: 1,
+      hypothesisId: ROUND_021_HYPOTHESIS_ID,
+      directionalThesis: ROUND_021_DIRECTIONAL_THESIS,
+      longPredicate: R21_LONG_CROWD_PREDICATE,
+      shortPredicate: R21_SHORT_CROWD_PREDICATE,
+      zeroTunedStructure: true,
+      signalInputs: R21_SIGNAL_INPUTS,
+      sourceFieldMappingStatus: R21_SOURCE_FIELD_MAPPING_STATUS,
+      publicationProvenanceStatus: R21_PUBLICATION_PROVENANCE_STATUS,
+      performanceAuthorized: false,
+      governance: R21_DESIGN_GOVERNANCE,
+    });
+    expect(evaluation.gateResults.find((gate) => gate.id === "D02_NOVEL_FAMILY")?.status).toBe("FAIL");
+    expect(evaluation.finalDecision).toBe("ROUND-021 NO ADMISSIBLE POSITIONING CROWDING HYPOTHESIS");
   });
 
   it("freezes the five-symbol target and authoritative boundary", () => {
