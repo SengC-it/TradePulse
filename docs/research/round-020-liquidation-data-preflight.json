@@ -1,0 +1,281 @@
+{
+  "schemaVersion": "m3-r20-liquidation-data-preflight-001",
+  "researchRoundId": "baseline-002-research-round-020",
+  "phase": "DATA_ACQUISITION_PREFLIGHT",
+  "acceptedResearchSource": {
+    "commit": "e9a0b39622401b7b512043417545afe33c98a99a",
+    "branch": "research/round-020-liquidation-data-design"
+  },
+  "acceptedDesignMerge": "bff63214c9a31c516816d8756e560475a86e1746",
+  "acceptedDesignArtifacts": {
+    "json": {
+      "path": "docs/research/round-020-liquidation-data-design.json",
+      "acceptedGitBlobSha1": "921752f15ddb7a9c18558703f5181ffce2e7e8cf",
+      "sha256": "ce4dfd1f49643b249fae0735f3693b3e208b9062f468b30fa63dee11aeaa6a21"
+    },
+    "markdown": {
+      "path": "docs/research/round-020-liquidation-data-design.md",
+      "acceptedGitBlobSha1": "9e60df35676731fdb97b98d7b0f062e0fadca30a",
+      "sha256": "5973ebfe65e21c99497327fad66b447441ea2e394c2657b84f73b59917c3961a"
+    },
+    "contentUnchanged": true
+  },
+  "preflightParentCommit": "bff63214c9a31c516816d8756e560475a86e1746",
+  "preflightExecutionCommit": "a0fca0f86a53fbe989eed653aa31bdb25356134d",
+  "branch": "research/round-020-liquidation-data-preflight",
+  "sourceId": "TARDIS_BINANCE_USDT_FUTURES_LIQUIDATIONS",
+  "representationEvaluated": [
+    "TARDIS_NORMALIZED_LIQUIDATIONS_CSV",
+    "TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY"
+  ],
+  "target": {
+    "venue": "BINANCE_USDM",
+    "exchangeId": "binance-futures",
+    "marketType": "USD_M_PERPETUALS",
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "BNBUSDT"
+    ],
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z"
+  },
+  "metadataEvidenceItemCount": 5,
+  "metadataEvidenceSources": [
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://docs.tardis.dev/faq/data",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://docs.tardis.dev/downloadable-csv-files/data-types",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://docs.tardis.dev/downloadable-csv-files",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "DOCUMENTATION_SOURCE",
+      "url": "https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams",
+      "evidenceStatus": "DOCUMENTED_METADATA_EVIDENCE"
+    },
+    {
+      "kind": "EXCHANGE_METADATA_SNAPSHOT",
+      "url": "https://api.tardis.dev/v1/exchanges/binance-futures",
+      "httpStatus": 200,
+      "evidenceStatus": "PRIOR_METADATA_SNAPSHOT_NOT_REPLAYABLE",
+      "retrievedAt": null,
+      "responseSha256": null,
+      "selectedFields": [
+        "exchangeId",
+        "channel",
+        "datasetType",
+        "formats",
+        "exportedFrom",
+        "exportedUntil",
+        "targetSymbolAvailability"
+      ]
+    }
+  ],
+  "metadataSnapshotObservedAt": null,
+  "metadataSnapshotSha256": null,
+  "replayableMetadataProbeExecuted": false,
+  "metadataSnapshot": {
+    "endpoint": "https://api.tardis.dev/v1/exchanges/binance-futures",
+    "endpointStatus": 200,
+    "exchangeId": "binance-futures",
+    "channel": "forceOrder",
+    "datasetType": "liquidations",
+    "formats": [
+      "csv"
+    ],
+    "exportedFrom": "2019-11-17T00:00:00.000Z",
+    "exportedUntil": "2026-09-05T00:00:00.000Z",
+    "targetSymbolAvailability": {
+      "BTCUSDT": {
+        "availableSince": "2019-11-17T00:00:00.000Z",
+        "availableTo": null,
+        "liquidationDatasetAdvertised": true
+      },
+      "ETHUSDT": {
+        "availableSince": "2019-11-27T00:00:00.000Z",
+        "availableTo": null,
+        "liquidationDatasetAdvertised": true
+      },
+      "SOLUSDT": {
+        "availableSince": "2020-09-14T00:00:00.000Z",
+        "availableTo": null,
+        "liquidationDatasetAdvertised": true
+      },
+      "XRPUSDT": {
+        "availableSince": "2020-01-06T00:00:00.000Z",
+        "availableTo": null,
+        "liquidationDatasetAdvertised": true
+      },
+      "BNBUSDT": {
+        "availableSince": "2020-02-10T00:00:00.000Z",
+        "availableTo": null,
+        "liquidationDatasetAdvertised": true
+      }
+    },
+    "exactDailyFileMatrixProbed": false,
+    "apiKeySerialized": false,
+    "entitlementVerified": false
+  },
+  "marketEventBodyRequests": 0,
+  "marketEventBytesDownloaded": 0,
+  "rawMarketEventsRead": false,
+  "identityContractSatisfied": false,
+  "pitContractSatisfied": false,
+  "coverageContractSatisfied": true,
+  "gapContractSatisfied": false,
+  "sideContractSatisfied": false,
+  "revisionContractSatisfied": false,
+  "entitlementContractSatisfied": false,
+  "representationEvidence": [
+    {
+      "representation": "TARDIS_NORMALIZED_LIQUIDATIONS_CSV",
+      "immutableEventIdentityProven": false,
+      "sourceSequenceProven": false,
+      "eventTimestampProven": false,
+      "publicationTimestampProven": false,
+      "fallbackTimestampRuleProven": false,
+      "dailySegmentationRuleProven": false,
+      "replayLeakageExcluded": false,
+      "gapEvidenceProven": false,
+      "sideMappingProven": false,
+      "quantityMappingProven": false,
+      "revisionPolicyProven": false,
+      "entitlementVerified": false,
+      "completenessStatus": "SAMPLED_EVENT_STREAM",
+      "normalizedIdMayBeEmpty": true,
+      "rawPayloadIdentityMayBeMissing": false
+    },
+    {
+      "representation": "TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY",
+      "immutableEventIdentityProven": false,
+      "sourceSequenceProven": false,
+      "eventTimestampProven": false,
+      "publicationTimestampProven": false,
+      "fallbackTimestampRuleProven": false,
+      "dailySegmentationRuleProven": false,
+      "replayLeakageExcluded": false,
+      "gapEvidenceProven": false,
+      "sideMappingProven": false,
+      "quantityMappingProven": false,
+      "revisionPolicyProven": false,
+      "entitlementVerified": false,
+      "completenessStatus": "SAMPLED_EVENT_STREAM",
+      "normalizedIdMayBeEmpty": false,
+      "rawPayloadIdentityMayBeMissing": true
+    }
+  ],
+  "representationResults": [
+    {
+      "representation": "TARDIS_NORMALIZED_LIQUIDATIONS_CSV",
+      "pitSatisfied": false,
+      "identitySatisfied": false,
+      "gapSatisfied": false,
+      "sideSchemaSatisfied": false,
+      "revisionSatisfied": false,
+      "entitlementSatisfied": false,
+      "fullyQualified": false
+    },
+    {
+      "representation": "TARDIS_RAW_BINANCE_FORCE_ORDER_REPLAY",
+      "pitSatisfied": false,
+      "identitySatisfied": false,
+      "gapSatisfied": false,
+      "sideSchemaSatisfied": false,
+      "revisionSatisfied": false,
+      "entitlementSatisfied": false,
+      "fullyQualified": false
+    }
+  ],
+  "qualifyingRepresentations": [],
+  "representationSelectionStatus": "NO_QUALIFYING_REPRESENTATION",
+  "gateResults": [
+    {
+      "id": "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY",
+      "status": "PASS",
+      "reason": "Accepted research/design identity and design-only governance must remain exact."
+    },
+    {
+      "id": "P02_ADVERTISED_TARGET_COVERAGE",
+      "status": "PASS",
+      "reason": "ADVERTISED_TARGET_COVERAGE: exchange metadata advertises all five symbols and the frozen period; exact daily-file existence is not asserted."
+    },
+    {
+      "id": "P03_POINT_IN_TIME_TIMESTAMP_PROVENANCE",
+      "status": "FAIL",
+      "reason": "At least one independently evaluated representation must prove event/publication timestamp semantics and replay leakage exclusion."
+    },
+    {
+      "id": "P04_EXACT_EVENT_IDENTITY",
+      "status": "FAIL",
+      "reason": "At least one independently evaluated representation must prove immutable event identity or source sequence; no weaker fallback is allowed."
+    },
+    {
+      "id": "P05_COMPLETENESS_SNAPSHOT_GAP_SEMANTICS",
+      "status": "FAIL",
+      "reason": "At least one independently evaluated representation must preserve sampled-stream semantics and prove gap/disconnect handling."
+    },
+    {
+      "id": "P06_SIDE_QUANTITY_SCHEMA_CONTRACT",
+      "status": "FAIL",
+      "reason": "At least one independently evaluated representation must prove liquidation side, execution side, price, quantity, and mapping semantics."
+    },
+    {
+      "id": "P07_REVISION_ARCHIVE_LICENSE_REPRODUCIBILITY_ENTITLEMENT",
+      "status": "FAIL",
+      "reason": "At least one independently evaluated representation must prove revision/checksum/reproducibility policy and entitlement."
+    }
+  ],
+  "targetCoverageSummary": "ADVERTISED_TARGET_COVERAGE: Tardis metadata advertises liquidations for all five frozen perpetual symbols before 2023-01-01 and export availability through 2026-09-05; exact daily-file matrix was not probed and is not asserted.",
+  "pitTimestampConclusion": "FAIL: neither representation currently proves event/publication or arrival provenance and replay leakage exclusion without event payload access.",
+  "exactIdentityConclusion": "FAIL: normalized id may be empty and raw forceOrder immutable id/source sequence was not proven; frozen fallback was not weakened.",
+  "gapDisconnectConclusion": "FAIL: Tardis sampled/snapshot semantics are retained, but neither representation currently proves disconnect/gap provenance.",
+  "sideSchemaConclusion": "FAIL: neither representation currently proves buy=>short-liquidated, sell=>long-liquidated, and quantity mapping together.",
+  "revisionIntegrityConclusion": "FAIL: neither representation currently proves archive revision/checksum/replay reproducibility policy before acquisition.",
+  "entitlementConclusion": "FAIL: vendor data entitlement was not verified; no credential was read or serialized.",
+  "finalDecision": "ROUND-020 DATA ACQUISITION INELIGIBLE",
+  "recommendedRepresentation": null,
+  "governance": {
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "candidateCreated": false,
+    "economicValuesRead": false,
+    "economicValuesCalculated": false,
+    "economicValuesInspected": false,
+    "newMarketDataFetched": false,
+    "performanceExecuted": false,
+    "selectionExecuted": false,
+    "productionUnchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false
+  },
+  "designArtifactPath": "docs/research/round-020-liquidation-data-design.json",
+  "forbiddenOperations": [
+    "HISTORICAL_LIQUIDATION_PAYLOAD_READ",
+    "PERFORMANCE",
+    "SELECTION",
+    "ECONOMIC_NUMERIC_READ",
+    "NEW_MARKET_DATA_ACQUISITION"
+  ],
+  "gateIds": [
+    "P01_ACCEPTED_SOURCE_DESIGN_INTEGRITY",
+    "P02_ADVERTISED_TARGET_COVERAGE",
+    "P03_POINT_IN_TIME_TIMESTAMP_PROVENANCE",
+    "P04_EXACT_EVENT_IDENTITY",
+    "P05_COMPLETENESS_SNAPSHOT_GAP_SEMANTICS",
+    "P06_SIDE_QUANTITY_SCHEMA_CONTRACT",
+    "P07_REVISION_ARCHIVE_LICENSE_REPRODUCIBILITY_ENTITLEMENT"
+  ]
+}

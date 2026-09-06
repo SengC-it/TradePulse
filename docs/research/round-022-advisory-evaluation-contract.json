@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "m3-r22-advisory-evaluation-design-001",
+  "researchRoundId": "baseline-002-research-round-022",
+  "phase": "ADVISORY_EVALUATION_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "d5ead14573153c24de7d6d37bd63086f9475cde5",
+    "requiredBaseHead": "d5ead14573153c24de7d6d37bd63086f9475cde5"
+  },
+  "branch": "research/round-022-advisory-evaluation-design",
+  "scope": {
+    "product": "SIGNAL_ADVISORY_ONLY",
+    "evaluationTarget": [
+      "SIGNAL_QUALITY",
+      "HISTORICAL_REVIEW_METADATA",
+      "ALERT_INTELLIGENCE_PRESENTATION"
+    ],
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "productionUiChanged": false,
+    "strategyOrSignalGenerationChanged": false
+  },
+  "observationContract": {
+    "implementation": "src/lib/research/advisory-evaluation-protocol.ts::evaluateR22AdvisoryObservation",
+    "inputs": [
+      "signal.direction",
+      "signal.identityKey",
+      "qualitySnapshot.available",
+      "qualitySnapshot.grade",
+      "marketContext.available",
+      "riskAdvisory.available",
+      "historicalReview.status",
+      "historicalReview.identityMetadataPresent",
+      "presentation metadata",
+      "human review metadata"
+    ],
+    "identityOnlyHistoricalReview": true,
+    "presentTimeMetadataOnly": true,
+    "economicFieldsAllowed": false
+  },
+  "advisoryQualityMetrics": {
+    "metrics": [
+      "signalClarity",
+      "explanationCompleteness",
+      "riskVisibility",
+      "contextCompleteness"
+    ],
+    "binaryMapping": "true=1, false=0",
+    "batchAggregation": "arithmetic mean over evaluable observations only",
+    "missingValuePolicy": "NOT_EVALUABLE_NO_ZERO_IMPUTATION"
+  },
+  "noiseReductionMetrics": {
+    "metrics": [
+      "unnecessaryAlertRate",
+      "ignoreRatio",
+      "duplicateAlertRate"
+    ],
+    "formulas": {
+      "unnecessaryAlertRate": "unnecessaryAlertObservations / evaluableObservations",
+      "ignoreRatio": "notificationDisposition=IGNORED / evaluableObservations",
+      "duplicateAlertRate": "notificationDisposition=DUPLICATE_SKIPPED / evaluableObservations"
+    },
+    "generationInfluence": false
+  },
+  "humanReviewEfficiencyMetrics": {
+    "metrics": [
+      "reviewCompleteness",
+      "informationSufficiency",
+      "decisionLatencyProxyMs"
+    ],
+    "formulas": {
+      "reviewCompleteness": "completedReviews / evaluableObservations",
+      "informationSufficiency": "informationSufficientReviews / evaluableObservations",
+      "decisionLatencyProxyMs": "mean(nonNegativeDecisionLatencyProxyMs)"
+    },
+    "latencyMeaning": "human-review UX proxy only; not execution or economic latency",
+    "missingLatency": "NOT_EVALUABLE"
+  },
+  "stabilityMetric": {
+    "name": "sameInputSameOutput",
+    "rule": "repeat evaluation of identical observation must produce byte-equivalent output",
+    "statuses": ["STABLE", "NOT_STABLE", "NOT_EVALUABLE"]
+  },
+  "failClosed": {
+    "missingSignal": "NOT_EVALUABLE",
+    "noSignal": "NOT_EVALUABLE_NO_SIGNAL_NOT_AN_ALERT",
+    "missingQualitySnapshot": "NOT_EVALUABLE",
+    "missingMarketContext": "NOT_EVALUABLE",
+    "missingRiskAdvisory": "NOT_EVALUABLE",
+    "missingHistoricalReviewMetadata": "NOT_EVALUABLE",
+    "missingPresentationObservation": "NOT_EVALUABLE",
+    "missingHumanReviewObservation": "NOT_EVALUABLE",
+    "missingDecisionLatencyProxy": "NOT_EVALUABLE",
+    "zeroImputation": false,
+    "falseEvaluationOnMissingData": false
+  },
+  "allowedToObserve": [
+    "advisory presentation metadata",
+    "identity-only historical review metadata",
+    "human review completion metadata",
+    "human information sufficiency metadata",
+    "decision latency proxy metadata"
+  ],
+  "forbiddenToInfluence": [
+    "signal generation",
+    "signal direction",
+    "Signal Quality Score",
+    "Quality Grade",
+    "risk advisory generation",
+    "strategy parameters",
+    "selection",
+    "performance",
+    "trading decisions",
+    "scheduler",
+    "cron",
+    "email delivery"
+  ],
+  "forbiddenInputs": [
+    "PnL",
+    "profit",
+    "loss",
+    "forward return",
+    "performance result",
+    "economic outcome",
+    "future market data"
+  ],
+  "governance": {
+    "designOnly": true,
+    "implementationAuthorized": false,
+    "performanceExecuted": false,
+    "backtestExecuted": false,
+    "selectionExecuted": false,
+    "economicEvaluationExecuted": false,
+    "economicValuesRead": false,
+    "forwardReturnRead": false,
+    "newMarketDataFetched": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false,
+    "humanDecisionRequired": true
+  },
+  "evidenceOutputs": {
+    "designArtifacts": [
+      "docs/research/round-022-advisory-evaluation-design.md",
+      "docs/research/round-022-advisory-evaluation-contract.json",
+      "src/lib/research/advisory-evaluation-protocol.ts",
+      "tests/round-022-advisory-evaluation-protocol.test.ts"
+    ],
+    "productionChanges": "NONE",
+    "performanceOutputs": "NOT_CREATED",
+    "backtestOutputs": "NOT_CREATED",
+    "selectionOutputs": "NOT_CREATED",
+    "performanceLedger": "ABSENT"
+  },
+  "decision": {
+    "finalDecision": "ROUND-022 ADVISORY EVALUATION DESIGN ONLY",
+    "implementationAuthorized": false,
+    "performanceAuthorized": false,
+    "backtestAuthorized": false,
+    "selectionAuthorized": false,
+    "economicEvaluationAuthorized": false,
+    "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+  }
+}

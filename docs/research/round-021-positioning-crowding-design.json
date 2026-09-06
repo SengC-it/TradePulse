@@ -1,0 +1,268 @@
+{
+  "schemaVersion": "m3-r21-positioning-crowding-design-001",
+  "researchRoundId": "baseline-002-research-round-021",
+  "phase": "HYPOTHESIS_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "3b12136faf9219070609174ca4af226c07f15a9e",
+    "requiredBaseHead": "3b12136faf9219070609174ca4af226c07f15a9e"
+  },
+  "acceptedRound020Closure": {
+    "sourcePath": "docs/research/round-020-liquidation-data-preflight.json",
+    "sourceCommit": "3b12136faf9219070609174ca4af226c07f15a9e",
+    "preflightExecutionCommit": "a0fca0f86a53fbe989eed653aa31bdb25356134d",
+    "preflightHeadIncluded": "0ebf4f04286a458ae434bc9aff837a5fd10a2f9e",
+    "finalDecision": "ROUND-020 DATA ACQUISITION INELIGIBLE",
+    "recommendedRepresentation": null,
+    "liquidationPayloadRead": false,
+    "closureStatus": "ACCEPTED_NEGATIVE_EVIDENCE_NO_REOPEN"
+  },
+  "researchBoundary": {
+    "venue": "BINANCE_USDM",
+    "market": "USD_M_PERPETUALS",
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "classification": "RESEARCH_AVAILABLE_SEEN_DATA",
+    "timezoneArithmetic": "UTC_EPOCH_MILLISECONDS_ONLY"
+  },
+  "mechanismFamilyReview": {
+    "id": "POSITIONING_CROWDING_STATE",
+    "status": "NOVEL_AT_MECHANISM_FAMILY_LEVEL",
+    "activeHypothesisCount": 1,
+    "notAContinuationHypothesis": true,
+    "authoritativePriorLedgerCoverageComplete": true,
+    "round020ClosureCoverageComplete": true,
+    "coverageDerivation": "deterministic exact-set comparison against the accepted artifact; self-attested independence is insufficient",
+    "rationale": "Participant position-size distribution is a state of who is positioned and how concentrated their positions are; it is not aggregate exposure, carry, aggressor flow, price direction, forced execution, lifecycle deduplication, or component reweighting."
+  },
+  "hypothesisInventory": [
+    {
+      "id": "R21-TOP-TRADER-POSITION-CONCENTRATION-UNWIND",
+      "status": "ACTIVE",
+      "mechanismFamily": "POSITIONING_CROWDING_STATE",
+      "directionalThesis": "CONTRARIAN CROWD-UNWIND",
+      "researchQuestion": "Does a one-sided concentration of top-trader position size, ordered more strongly than top-trader account participation and the global account population, identify future contrarian unwind pressure?",
+      "falsifiable": true,
+      "candidateCount": null,
+      "performanceStatus": "NOT_AUTHORIZED"
+    }
+  ],
+  "signalDefinition": {
+    "primitiveInputs": [
+      "topTraderAccountLongShortRatio",
+      "topTraderPositionLongShortRatio",
+      "globalAccountLongShortRatio"
+    ],
+    "ratioDomain": "Every ratio must be finite and strictly greater than zero.",
+    "transforms": {
+      "A": "ln(topTraderAccountLongShortRatio)",
+      "P": "ln(topTraderPositionLongShortRatio)",
+      "G": "ln(globalAccountLongShortRatio)"
+    },
+    "predicates": {
+      "LONG_CROWD": {
+        "condition": "P > 0 && P > A && A > G",
+        "crowdedSide": "LONG",
+        "advisoryDirection": "SHORT"
+      },
+      "SHORT_CROWD": {
+        "condition": "P < 0 && P < A && A < G",
+        "crowdedSide": "SHORT",
+        "advisoryDirection": "LONG"
+      },
+      "otherwise": "NO_SIGNAL"
+    },
+    "zeroTunedOrdinalStructure": true,
+    "tunableMagnitudeThreshold": null,
+    "scoreWeighting": null,
+    "percentile": null,
+    "topN": null,
+    "symbolSpecificThreshold": null,
+    "horizonRescue": null
+  },
+  "historicalMechanismLedgerBinding": {
+    "sourceCommit": "3b12136faf9219070609174ca4af226c07f15a9e",
+    "sourcePath": "docs/research/round-020-space-reset.json",
+    "ledgerField": "mechanismFamilyLedger[].mechanismFamilyId",
+    "sourceStatus": "ACCEPTED_AUTHORITATIVE_R13_R19_LEDGER",
+    "coverageScope": ["R13", "R14", "R15", "R16", "R17", "R18", "R19"],
+    "authoritativePriorMechanismFamilyIds": [
+      "R13_TREND",
+      "R13_EMA_STATE",
+      "R13_SHORT_MEDIUM_RETURN_MOMENTUM",
+      "R13_VOLATILITY_ATR",
+      "R13_VOLUME",
+      "R13_TAKER_IMBALANCE",
+      "R13_SYMBOL_VS_BTC_RELATIVE_RETURN",
+      "R13_FUNDING",
+      "R13_CROSS_SYMBOL_BREADTH",
+      "R13_RIDGE_FEATURE_COMBINATION_FORWARD_EDGE",
+      "R14_EXACT_R13_REPLAY",
+      "R15_BETA_ALPHA_DECOMPOSITION",
+      "R15_MARKET_RELATIVE_DIRECTIONAL_STRUCTURE",
+      "R16_OPEN_INTEREST",
+      "R16_MARK_INDEX_BASIS",
+      "R16_TAKER_FLOW_PERSISTENCE",
+      "R17_THESIS_LIFECYCLE",
+      "R17_FIRST_FOLLOW_UP_STATE",
+      "R17_DEDUP_PERSISTENCE",
+      "R17_SESSION_CALENDAR",
+      "R18_SCORE_COMPONENT_CONSENSUS",
+      "R18_5_OF_5_CONSENSUS",
+      "R18_4_OF_5_CONSENSUS",
+      "R18_3_OF_5_CONSENSUS",
+      "R18_SCORE_THRESHOLD",
+      "R18_GRADE",
+      "R18_COMPONENT_REWEIGHTING",
+      "R18_COMPRESSION_EXPANSION_REPACKAGING",
+      "R19_PRIOR_CANDLE_COUNTER_MOVE",
+      "R19_STATE_TRANSITION",
+      "R19_MARKET_RELATIVE_CONFIRMATION",
+      "R19_CALENDAR_SESSION",
+      "R19_RANGE_EXPANSION"
+    ]
+  },
+  "round020ClosureBinding": {
+    "sourceCommit": "3b12136faf9219070609174ca4af226c07f15a9e",
+    "sourcePath": "docs/research/round-020-liquidation-data-preflight.json",
+    "sourceStatus": "ACCEPTED_NEGATIVE_EVIDENCE_NO_REOPEN",
+    "mechanismFamilyId": "FORCED_DELEVERAGING_LIQUIDATION_STATE",
+    "finalDecision": "ROUND-020 DATA ACQUISITION INELIGIBLE",
+    "recommendedRepresentation": null
+  },
+  "priorInformationFamilyExclusion": [
+    {"authoritativeMechanismFamilyId": "R13_TREND", "status": "EXCLUDED", "reason": "No trend input."},
+    {"authoritativeMechanismFamilyId": "R13_EMA_STATE", "status": "EXCLUDED", "reason": "No EMA state input."},
+    {"authoritativeMechanismFamilyId": "R13_SHORT_MEDIUM_RETURN_MOMENTUM", "status": "EXCLUDED", "reason": "No directional return or momentum input."},
+    {"authoritativeMechanismFamilyId": "R13_VOLATILITY_ATR", "status": "EXCLUDED", "reason": "No volatility or ATR input."},
+    {"authoritativeMechanismFamilyId": "R13_VOLUME", "status": "EXCLUDED", "reason": "No volume input."},
+    {"authoritativeMechanismFamilyId": "R13_TAKER_IMBALANCE", "status": "EXCLUDED", "reason": "No taker imbalance input."},
+    {"authoritativeMechanismFamilyId": "R13_SYMBOL_VS_BTC_RELATIVE_RETURN", "status": "EXCLUDED", "reason": "No symbol-versus-BTC relative return input."},
+    {"authoritativeMechanismFamilyId": "R13_FUNDING", "status": "EXCLUDED", "reason": "No funding input."},
+    {"authoritativeMechanismFamilyId": "R13_CROSS_SYMBOL_BREADTH", "status": "EXCLUDED", "reason": "No cross-symbol breadth input."},
+    {"authoritativeMechanismFamilyId": "R13_RIDGE_FEATURE_COMBINATION_FORWARD_EDGE", "status": "EXCLUDED", "reason": "No R13 feature-combination forward-edge model."},
+    {"authoritativeMechanismFamilyId": "R14_EXACT_R13_REPLAY", "status": "EXCLUDED", "reason": "No exact R13 replay."},
+    {"authoritativeMechanismFamilyId": "R15_BETA_ALPHA_DECOMPOSITION", "status": "EXCLUDED", "reason": "No beta/alpha decomposition."},
+    {"authoritativeMechanismFamilyId": "R15_MARKET_RELATIVE_DIRECTIONAL_STRUCTURE", "status": "EXCLUDED", "reason": "No market-relative directional structure."},
+    {"authoritativeMechanismFamilyId": "R16_OPEN_INTEREST", "status": "EXCLUDED", "reason": "Position distribution is not aggregate open interest."},
+    {"authoritativeMechanismFamilyId": "R16_MARK_INDEX_BASIS", "status": "EXCLUDED", "reason": "No mark-index basis input."},
+    {"authoritativeMechanismFamilyId": "R16_TAKER_FLOW_PERSISTENCE", "status": "EXCLUDED", "reason": "Position distribution is not taker-flow persistence."},
+    {"authoritativeMechanismFamilyId": "R17_THESIS_LIFECYCLE", "status": "EXCLUDED", "reason": "No thesis lifecycle state."},
+    {"authoritativeMechanismFamilyId": "R17_FIRST_FOLLOW_UP_STATE", "status": "EXCLUDED", "reason": "No first/follow-up state."},
+    {"authoritativeMechanismFamilyId": "R17_DEDUP_PERSISTENCE", "status": "EXCLUDED", "reason": "No deduplication persistence state."},
+    {"authoritativeMechanismFamilyId": "R17_SESSION_CALENDAR", "status": "EXCLUDED", "reason": "No session-calendar selection."},
+    {"authoritativeMechanismFamilyId": "R18_SCORE_COMPONENT_CONSENSUS", "status": "EXCLUDED", "reason": "No score-component consensus."},
+    {"authoritativeMechanismFamilyId": "R18_5_OF_5_CONSENSUS", "status": "EXCLUDED", "reason": "No 5-of-5 consensus."},
+    {"authoritativeMechanismFamilyId": "R18_4_OF_5_CONSENSUS", "status": "EXCLUDED", "reason": "No 4-of-5 consensus."},
+    {"authoritativeMechanismFamilyId": "R18_3_OF_5_CONSENSUS", "status": "EXCLUDED", "reason": "No 3-of-5 consensus."},
+    {"authoritativeMechanismFamilyId": "R18_SCORE_THRESHOLD", "status": "EXCLUDED", "reason": "No score threshold."},
+    {"authoritativeMechanismFamilyId": "R18_GRADE", "status": "EXCLUDED", "reason": "No grade classification."},
+    {"authoritativeMechanismFamilyId": "R18_COMPONENT_REWEIGHTING", "status": "EXCLUDED", "reason": "No component reweighting."},
+    {"authoritativeMechanismFamilyId": "R18_COMPRESSION_EXPANSION_REPACKAGING", "status": "EXCLUDED", "reason": "No compression-expansion repackaging."},
+    {"authoritativeMechanismFamilyId": "R19_PRIOR_CANDLE_COUNTER_MOVE", "status": "EXCLUDED", "reason": "No prior-candle counter-move input."},
+    {"authoritativeMechanismFamilyId": "R19_STATE_TRANSITION", "status": "EXCLUDED", "reason": "No state-transition input."},
+    {"authoritativeMechanismFamilyId": "R19_MARKET_RELATIVE_CONFIRMATION", "status": "EXCLUDED", "reason": "No market-relative confirmation."},
+    {"authoritativeMechanismFamilyId": "R19_CALENDAR_SESSION", "status": "EXCLUDED", "reason": "No calendar-session selection."},
+    {"authoritativeMechanismFamilyId": "R19_RANGE_EXPANSION", "status": "EXCLUDED", "reason": "No range-expansion input."}
+  ],
+  "sourceContract": {
+    "preferredSourceFamily": "BINANCE_VISION_USDM_METRICS_ARCHIVE",
+    "candidateMetricNames": [
+      "count_toptrader_long_short_ratio",
+      "sum_toptrader_long_short_ratio",
+      "count_long_short_ratio"
+    ],
+    "sourceFieldMappingStatus": "REQUIRES_SOURCE_DOCUMENTATION_PROOF",
+    "mappingMustProve": [
+      "top trader account long/short ratio",
+      "top trader position long/short ratio",
+      "global account long/short ratio"
+    ],
+    "mappingMayNotBeInferredFromFieldName": true,
+    "networkAcquired": false,
+    "marketDataPayloadDownloaded": false,
+    "futureAcquisitionMustBindImmutableIdentity": true
+  },
+  "pointInTimeContract": {
+    "sourceSnapshotTimeRule": "sourceSnapshotTime <= decisionTime",
+    "publicationAvailableTimeRule": "publicationAvailableTime <= decisionTime",
+    "publicationProvenanceStatus": "REQUIRES_DATA_ACQUISITION_DESIGN_PROOF",
+    "currentDownloadTimeMayProveHistoricalAvailability": false,
+    "currentLastModifiedMayProveHistoricalAvailability": false,
+    "currentFileExistenceMayProveHistoricalAvailability": false,
+    "unprovenPublicationProvenance": "FAIL_CLOSED_NO_PERFORMANCE"
+  },
+  "cadenceAndHorizon": {
+    "decisionCadence": "NOT_YET_FROZEN_PENDING_SOURCE_CADENCE",
+    "primaryHoldingHorizon": "NOT_YET_FROZEN_PENDING_SOURCE_CADENCE",
+    "freezeStage": "BEFORE_FORWARD_OR_ECONOMIC_VALUE_READ",
+    "primaryHorizonCount": null,
+    "horizonSweep": false
+  },
+  "designGates": [
+    {"id": "D01_SOURCE_INTEGRITY", "status": "PASS", "definition": "Accepted source commit equals 3b12136faf9219070609174ca4af226c07f15a9e."},
+    {"id": "D02_NOVEL_FAMILY", "status": "PASS", "definition": "PASS only when exact accepted R13-R19 ledger coverage is complete, the separate accepted Round-020 liquidation closure is complete, and mechanismFamily=POSITIONING_CROWDING_STATE; a self-attested independence flag is insufficient."},
+    {"id": "D03_ONE_HYPOTHESIS", "status": "PASS", "definition": "Exactly one active hypothesis is frozen."},
+    {"id": "D04_ZERO_TUNED_STRUCTURE", "status": "PASS", "definition": "Only P/A/G sign and ordinal ordering is used; no tunable threshold or weight exists."},
+    {"id": "D05_DATA_CONTRACT", "status": "PASS", "definition": "Exactly three positioning primitives are frozen and archive mapping remains unproven until the next design stage."},
+    {"id": "D06_PIT_FAIL_CLOSED", "status": "PASS", "definition": "Publication provenance is explicitly unproven and therefore performance remains unauthorized."},
+    {"id": "D07_GOVERNANCE", "status": "PASS", "definition": "No acquisition, preflight, performance, selection, economics, scheduler, shadow, or production operation is authorized."}
+  ],
+  "decision": {
+    "finalDecision": "ROUND-021 POSITIONING CROWDING HYPOTHESIS DESIGN ACCEPTED",
+    "activeHypothesis": "R21-TOP-TRADER-POSITION-CONCENTRATION-UNWIND",
+    "nextStage": "DATA_ACQUISITION_DESIGN",
+    "performanceAuthorized": false,
+    "selectionAuthorized": false
+  },
+  "evidenceOutputs": {
+    "designArtifacts": [
+      "docs/research/round-021-positioning-crowding-design.json",
+      "docs/research/round-021-positioning-crowding-design.md",
+      "src/lib/research/m3-r21-positioning-crowding-design-protocol.ts",
+      "tests/m3-r21-positioning-crowding-design.test.ts"
+    ],
+    "preflightOutputs": "NOT_CREATED",
+    "performanceOutputs": "NOT_CREATED",
+    "selectionOutputs": "NOT_CREATED",
+    "ledgerClaim": "FORBIDDEN",
+    "performanceLedgerPresent": false
+  },
+  "governance": {
+    "newMarketDataFetched": false,
+    "marketDataPayloadDownloaded": false,
+    "preflightExecuted": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "performanceAuthorized": false,
+    "performanceExecuted": false,
+    "selectionExecuted": false,
+    "economicValuesRead": false,
+    "economicValuesCalculated": false,
+    "economicValuesInspected": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false
+  },
+  "forbiddenOperations": [
+    "DATA_ACQUISITION",
+    "DATA_ACQUISITION_PREFLIGHT",
+    "BACKTEST",
+    "PERFORMANCE",
+    "SELECTION",
+    "OPTIMIZER",
+    "FORWARD_RETURN_JOIN",
+    "PROFITABILITY_ANALYSIS",
+    "NEW_MARKET_DATA_ACQUISITION"
+  ],
+  "forbiddenArtifactsAtDesignStage": [
+    "scripts/m3-r21-positioning-crowding-acquire.ts",
+    "scripts/m3-r21-positioning-crowding-preflight.ts",
+    "scripts/m3-r21-positioning-crowding-performance.ts",
+    "docs/research/round-021-performance-ledger.json"
+  ]
+}
