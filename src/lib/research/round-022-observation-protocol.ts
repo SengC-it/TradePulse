@@ -7,6 +7,13 @@ export const R22_OBSERVATION_BRANCH = "research/round-022-observation-design" as
 export const R22_OBSERVATION_WINDOW_DAYS = 30 as const;
 export const R22_OBSERVATION_WINDOW_MS = R22_OBSERVATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
+export const R22_SIGNAL_TIME_SEMANTICS = Object.freeze({
+  meaning: "source market event time / closed-candle time",
+  source: "src/lib/signal-advisory/scan.ts",
+  derivation: "candle.closeTime",
+  not: ["evaluation execution time", "alert rendering time", "notification time"],
+} as const);
+
 export const R22_OBSERVATION_DIRECTIONS = Object.freeze([
   "LONG",
   "SHORT",
@@ -39,7 +46,8 @@ export type R22ObservationGateStatus = (typeof R22_OBSERVATION_GATE_STATUSES)[nu
 export type R22SnapshotProvenance = Readonly<{
   sourceRef: string | null;
   sourceHash: string | null;
-  snapshotTime: string | null;
+  informationAsOf: string | null;
+  capturedAt: string | null;
   provenanceStatus: "VERIFIED" | "MISSING";
   mutability: "IMMUTABLE" | "MUTABLE" | "UNKNOWN";
 }>;
@@ -276,11 +284,11 @@ function snapshotIsPITSafe(snapshot: R22SnapshotProvenance, record: R22Observati
     && snapshot.mutability === "IMMUTABLE"
     && nonEmpty(snapshot.sourceRef)
     && nonEmpty(snapshot.sourceHash)
-    && canonicalIsoTimestamp(snapshot.snapshotTime)
+    && canonicalIsoTimestamp(snapshot.informationAsOf)
+    && canonicalIsoTimestamp(snapshot.capturedAt)
     && canonicalIsoTimestamp(record.signalTime)
     && canonicalIsoTimestamp(record.advisoryCreationTime)
-    && timestampAtOrBefore(snapshot.snapshotTime, record.signalTime)
-    && timestampAtOrBefore(snapshot.snapshotTime, record.advisoryCreationTime);
+    && timestampAtOrBefore(snapshot.informationAsOf, record.signalTime);
 }
 
 function notEvaluable(

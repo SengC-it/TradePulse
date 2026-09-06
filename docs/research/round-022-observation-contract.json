@@ -56,7 +56,21 @@
     "noSignalInterpretation": "pipeline count only; not success or failure"
   },
   "pitAndProvenanceContract": {
-    "rule": "Every required snapshotTime must be <= signalTime and <= advisoryCreationTime.",
+    "signalTimeSemantics": {
+      "meaning": "source market event time / closed-candle time",
+      "source": "src/lib/signal-advisory/scan.ts",
+      "derivation": "candle.closeTime",
+      "not": ["evaluation execution time", "alert rendering time", "notification time"]
+    },
+    "snapshotTimestampSemantics": {
+      "informationAsOf": "latest effective source-data cutoff used by the artifact; must be <= signalTime",
+      "capturedAt": "truthful wall-clock time when the artifact was computed, constructed, or persisted; must be canonical and immutable",
+      "rules": [
+        "informationAsOf <= signalTime",
+        "capturedAt is validated independently and may be later than signalTime",
+        "capturedAt must never be backdated to satisfy the point-in-time rule"
+      ]
+    },
     "sourceIdentityRequired": true,
     "sourceHashRequired": true,
     "immutableSnapshotRequired": true,
@@ -82,7 +96,7 @@
     {
       "field": "identityKey",
       "sourceModuleOrPersistence": "src/lib/signal-advisory/identity.ts; public.tp_signal_advisories.signal_id",
-      "captureTime": "signal creation / advisory persistence",
+      "capturedAt": "signal creation / advisory persistence",
       "mutability": "IMMUTABLE",
       "required": true,
       "status": "AVAILABLE_SOURCE"
@@ -90,7 +104,7 @@
     {
       "field": "signalTime",
       "sourceModuleOrPersistence": "src/lib/signal-advisory/scan.ts; public.tp_signal_advisories.signal_time",
-      "captureTime": "advisory persistence",
+      "capturedAt": "advisory persistence",
       "mutability": "IMMUTABLE",
       "required": true,
       "status": "AVAILABLE_SOURCE"
@@ -98,7 +112,7 @@
     {
       "field": "direction",
       "sourceModuleOrPersistence": "src/lib/signal-advisory/types.ts; public.tp_signal_advisories.direction",
-      "captureTime": "advisory persistence",
+      "capturedAt": "advisory persistence",
       "mutability": "IMMUTABLE",
       "required": true,
       "status": "AVAILABLE_SOURCE"
@@ -106,7 +120,7 @@
     {
       "field": "qualitySnapshot",
       "sourceModuleOrPersistence": "src/lib/signal-quality/evaluator.ts",
-      "captureTime": "decision-time snapshot capture not persisted",
+      "capturedAt": "decision-time snapshot capture not persisted; may be after signalTime",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -114,7 +128,7 @@
     {
       "field": "marketContext",
       "sourceModuleOrPersistence": "src/lib/signal-quality/evaluator.ts; existing market_regime is not the full R22 snapshot",
-      "captureTime": "decision-time snapshot capture not persisted",
+      "capturedAt": "decision-time snapshot capture not persisted; may be after signalTime",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -122,7 +136,7 @@
     {
       "field": "riskAdvisory",
       "sourceModuleOrPersistence": "src/lib/signal-quality/evaluator.ts",
-      "captureTime": "decision-time snapshot capture not persisted",
+      "capturedAt": "decision-time snapshot capture not persisted; may be after signalTime",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -130,7 +144,7 @@
     {
       "field": "historicalReviewMetadata",
       "sourceModuleOrPersistence": "src/lib/research/historical-review-protocol.ts; public.tp_signal_advisories identity",
-      "captureTime": "identity-only metadata capture not persisted as an R22 snapshot",
+      "capturedAt": "identity-only metadata capture not persisted as an R22 snapshot; may be after signalTime",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -138,7 +152,7 @@
     {
       "field": "alertIntelligence",
       "sourceModuleOrPersistence": "src/lib/alert-intelligence/index.ts; src/lib/research/alert-intelligence-protocol.ts",
-      "captureTime": "presentation-time output is not persisted with provenance",
+      "capturedAt": "presentation-time output is not persisted with provenance; may be after signalTime",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -146,7 +160,7 @@
     {
       "field": "presentation",
       "sourceModuleOrPersistence": "Email/Web presentation consumers are outside this design source set",
-      "captureTime": "presentation observation source not persisted",
+      "capturedAt": "presentation observation source not persisted; may be after signalTime",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -154,7 +168,7 @@
     {
       "field": "notificationDisposition",
       "sourceModuleOrPersistence": "src/lib/signal-advisory/store.ts; public.tp_signal_advisories delivery registry",
-      "captureTime": "per-notification observation not persisted for all dispositions",
+      "capturedAt": "per-notification observation not persisted for all dispositions",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -162,7 +176,7 @@
     {
       "field": "humanReviewMetadata",
       "sourceModuleOrPersistence": "No current R22 human-review observation persistence source",
-      "captureTime": "review start/submission capture not persisted",
+      "capturedAt": "review start/submission capture not persisted",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"
@@ -170,7 +184,7 @@
     {
       "field": "decisionLatencyProxyMs",
       "sourceModuleOrPersistence": "Future human-review observation instrumentation only",
-      "captureTime": "review submission",
+      "capturedAt": "review submission",
       "mutability": "IMMUTABLE_REQUIRED",
       "required": true,
       "status": "INSTRUMENTATION_REQUIRED"

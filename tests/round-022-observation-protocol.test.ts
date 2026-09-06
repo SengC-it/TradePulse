@@ -4,6 +4,7 @@ import {
   R22_OBSERVATION_GATES,
   R22_OBSERVATION_GOVERNANCE,
   R22_OBSERVATION_FORBIDDEN_FIELD_NAMES,
+  R22_SIGNAL_TIME_SEMANTICS,
   R22_OBSERVATION_WINDOW_DAYS,
   deriveR22ReviewLatencyProxyMs,
   isR22ObservationDesignEligible,
@@ -17,13 +18,18 @@ import {
 const signalTime = "2026-01-01T00:00:00.000Z";
 const advisoryCreationTime = "2026-01-01T00:01:00.000Z";
 
-function snapshot(name: string): R22SnapshotProvenance {
+function snapshot(
+  name: string,
+  overrides: Partial<R22SnapshotProvenance> = {},
+): R22SnapshotProvenance {
   return {
     sourceRef: `accepted/${name}`,
     sourceHash: `sha256-${name}`,
-    snapshotTime: "2025-12-31T23:59:00.000Z",
+    informationAsOf: "2025-12-31T23:59:00.000Z",
+    capturedAt: "2026-01-01T00:02:00.000Z",
     provenanceStatus: "VERIFIED",
     mutability: "IMMUTABLE",
+    ...overrides,
   };
 }
 
@@ -51,6 +57,11 @@ function validRecord(overrides: Partial<R22ObservationRecord> = {}): R22Observat
 describe("Round-022 prospective observation protocol", () => {
   it("freezes the exact accepted source and design-only governance", () => {
     expect(R22_OBSERVATION_ACCEPTED_SOURCE).toBe("60b003a80e231ace69e4fc4d4217a7d22724ce1b");
+    expect(R22_SIGNAL_TIME_SEMANTICS).toMatchObject({
+      meaning: "source market event time / closed-candle time",
+      source: "src/lib/signal-advisory/scan.ts",
+      derivation: "candle.closeTime",
+    });
     expect(R22_OBSERVATION_GOVERNANCE).toMatchObject({
       designOnly: true,
       observationExecuted: false,
@@ -181,10 +192,41 @@ describe("Round-022 prospective observation protocol", () => {
     expect(validateR22ObservationRecord(validRecord({ advisoryCreationTime: null })).reason).toBe("MISSING_TIMESTAMP_PROVENANCE");
   });
 
-  it("rejects timestamp inversion and missing immutable snapshot provenance", () => {
+  it("accepts truthful post-signal capture when information cutoff is point-in-time safe", () => {
+    const result = validateR22ObservationRecord(validRecord({
+      snapshots: {
+        quality: snapshot("quality", { capturedAt: "2026-01-01T00:00:02.000Z" }),
+        marketContext: snapshot("context", { capturedAt: "2026-01-01T00:00:02.000Z" }),
+        riskAdvisory: snapshot("risk", { capturedAt: "2026-01-01T00:00:02.000Z" }),
+        historicalReview: snapshot("historical", { capturedAt: "2026-01-01T00:00:03.000Z" }),
+        alertIntelligence: snapshot("intelligence", { capturedAt: "2026-01-01T00:00:04.000Z" }),
+        presentation: snapshot("presentation", { capturedAt: "2026-01-01T00:00:05.000Z" }),
+      },
+    }));
+
+    expect(result).toMatchObject({ status: "OBSERVABLE", reason: "NONE" });
+  });
+
+  it("rejects a future information cutoff and missing immutable snapshot provenance", () => {
     expect(validateR22ObservationRecord(validRecord({
-      snapshots: { ...validRecord().snapshots, quality: snapshot("quality-late") },
-      signalTime: "2025-12-31T23:58:00.000Z",
+      snapshots: {
+        ...validRecord().snapshots,
+        quality: snapshot("quality-future", { informationAsOf: "2026-01-01T00:00:00.001Z" }),
+      },
+    })).reason).toBe("MISSING_SNAPSHOT_PROVENANCE");
+
+    expect(validateR22ObservationRecord(validRecord({
+      snapshots: { ...validRecord().snapshots, quality: snapshot("quality-invalid", { capturedAt: null }) },
+    })).reason).toBe("MISSING_SNAPSHOT_PROVENANCE");
+
+    expect(validateR22ObservationRecord(validRecord({
+      snapshots: { ...validRecord().snapshots, quality: snapshot("quality-missing-cutoff", { informationAsOf: null }) },
+    })).reason).toBe("MISSING_SNAPSHOT_PROVENANCE");
+    expect(validateR22ObservationRecord(validRecord({
+      snapshots: { ...validRecord().snapshots, quality: snapshot("quality-missing-source", { sourceRef: null }) },
+    })).reason).toBe("MISSING_SNAPSHOT_PROVENANCE");
+    expect(validateR22ObservationRecord(validRecord({
+      snapshots: { ...validRecord().snapshots, quality: snapshot("quality-mutable", { mutability: "MUTABLE" }) },
     })).reason).toBe("MISSING_SNAPSHOT_PROVENANCE");
 
     expect(validateR22ObservationRecord(validRecord({

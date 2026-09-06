@@ -102,13 +102,37 @@ reported separately as `noSignalCount`.
 
 ## Point-in-time and provenance contract
 
+`signalTime` is the source market event time / closed-candle time. The accepted
+repository derives it in `src/lib/signal-advisory/scan.ts` from
+`candle.closeTime`. It is not evaluation execution time, alert rendering time,
+or notification time.
+
 Every required snapshot must carry a concrete source reference, source hash,
-immutable status, and capture time. For each advisory:
+immutable status, an information cutoff, and a truthful capture timestamp. The
+two timestamp meanings are intentionally separate:
+
+- `informationAsOf` is the latest effective source-data cutoff used by the
+  artifact. For every market/context-dependent snapshot it must satisfy
+  `informationAsOf <= signalTime`.
+- `capturedAt` is the real wall-clock time when the artifact was computed,
+  constructed, or persisted. It must be canonical and immutable, must not be
+  backdated, and is allowed to be later than `signalTime`.
+
+For example, a signal at `00:00:00Z` may have quality captured at
+`00:00:02Z`, Alert Intelligence captured at `00:00:04Z`, and presentation
+captured at `00:00:05Z`, provided each artifact's `informationAsOf` is no later
+than the signal time. Presentation and Alert Intelligence are downstream
+artifacts; their capture timestamps must not be rewritten to the market event
+time.
+
+The validator therefore requires:
 
 ```text
-snapshotTime <= signalTime
-snapshotTime <= advisoryCreationTime
+informationAsOf <= signalTime
+capturedAt is a canonical immutable timestamp
 ```
+
+It does not require `capturedAt <= signalTime`.
 
 The required snapshots are quality, market context, risk advisory,
 identity-only historical review metadata, alert intelligence, and presentation.
@@ -131,17 +155,17 @@ pretend that existing fields are equivalent.
 
 ## Repository provenance inventory
 
-| Field | Source module / persistence | Capture time | Mutability | Requirement | Status |
+| Field | Source module / persistence | `capturedAt` semantics | Mutability | Requirement | Status |
 | --- | --- | --- | --- | --- | --- |
 | `identityKey` | `src/lib/signal-advisory/identity.ts`; `tp_signal_advisories.signal_id` | signal/advisory persistence | immutable | required | available source |
-| `signalTime` | `src/lib/signal-advisory/scan.ts`; `tp_signal_advisories.signal_time` | advisory persistence | immutable | required | available source |
+| `signalTime` | `src/lib/signal-advisory/scan.ts`; `tp_signal_advisories.signal_time` | `candle.closeTime` persisted as market-event time | immutable | required | available source |
 | `direction` | `src/lib/signal-advisory/types.ts`; `tp_signal_advisories.direction` | advisory persistence | immutable | required | available source |
-| quality snapshot | `src/lib/signal-quality/evaluator.ts` | decision-time capture not persisted | immutable required | required | instrumentation required |
-| market context | `src/lib/signal-quality/evaluator.ts` | decision-time capture not persisted | immutable required | required | instrumentation required |
-| risk advisory | `src/lib/signal-quality/evaluator.ts` | decision-time capture not persisted | immutable required | required | instrumentation required |
-| historical review metadata | `src/lib/research/historical-review-protocol.ts` | identity-only capture not persisted as R22 snapshot | immutable required | required | instrumentation required |
-| alert intelligence | `src/lib/alert-intelligence/index.ts` | presentation output not persisted with provenance | immutable required | required | instrumentation required |
-| presentation | future email/web observation source | presentation observation not persisted | immutable required | required | instrumentation required |
+| quality snapshot | `src/lib/signal-quality/evaluator.ts` | `informationAsOf`/`capturedAt` not persisted; capture may be after `signalTime` | immutable required | required | instrumentation required |
+| market context | `src/lib/signal-quality/evaluator.ts` | `informationAsOf`/`capturedAt` not persisted; capture may be after `signalTime` | immutable required | required | instrumentation required |
+| risk advisory | `src/lib/signal-quality/evaluator.ts` | `informationAsOf`/`capturedAt` not persisted; capture may be after `signalTime` | immutable required | required | instrumentation required |
+| historical review metadata | `src/lib/research/historical-review-protocol.ts` | identity-only `informationAsOf`/`capturedAt` not persisted as R22 snapshot | immutable required | required | instrumentation required |
+| alert intelligence | `src/lib/alert-intelligence/index.ts` | downstream `capturedAt` not persisted with provenance; capture may be after `signalTime` | immutable required | required | instrumentation required |
+| presentation | future email/web observation source | downstream `capturedAt` not persisted; capture may be after `signalTime` | immutable required | required | instrumentation required |
 | notification disposition | `src/lib/signal-advisory/store.ts`; delivery registry | per-notification record incomplete | immutable required | required | instrumentation required |
 | human review metadata | no current R22 persistence source | review start/submission not persisted | immutable required | required | instrumentation required |
 | decision latency proxy | future human-review instrumentation | review submission | immutable required | required | instrumentation required |
