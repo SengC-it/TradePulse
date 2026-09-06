@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "m3-r22-o05-notification-identity-design-001",
+  "roundId": "baseline-002-research-round-022",
+  "phase": "O05_NOTIFICATION_IDENTITY_REMEDIATION_DESIGN_ONLY",
+  "acceptedSource": "6152eb8b3c497e0322c61526743f8b76669f3745",
+  "baseBranch": "research/round-015-beta-alpha-decomposition",
+  "branch": "research/round-022-o05-notification-identity-design",
+  "designOnly": true,
+  "scope": "Remediate O05 notification evidence identity without changing signal, delivery, retry, SQL, scheduler, API, UI, or production behavior.",
+  "runtimeAudit": {
+    "files": [
+      {
+        "path": "src/lib/signal-advisory/types.ts",
+        "role": "SignalClaimResult and SignalAdvisoryStore.claimSignal contract",
+        "anchors": ["SignalClaimResult", "claimSignal(advisory, scanId, now)", "scanRunKey"]
+      },
+      {
+        "path": "src/lib/signal-advisory/store.ts",
+        "role": "advisory insert, retry RPC call, and delivery status persistence",
+        "anchors": ["advisoryRow", "attempt_count: 1", "tp_retry_signal_advisory", "p_signal_id", "p_scan_id", "p_now"]
+      },
+      {
+        "path": "src/lib/signal-advisory/scan.ts",
+        "role": "claim outcome branching and sendSignalEmail boundary",
+        "anchors": ["buildHourlyScanRunKey", "claimSignal(advisory, begin.scanId, nowIso)", "SKIPPED_DUPLICATE", "SKIPPED_EXPIRED", "sendSignalEmail"]
+      },
+      {
+        "path": "supabase/migrations/20260823000000_signal_advisory.sql",
+        "role": "database retry compare-and-set semantics",
+        "anchors": ["tp_signal_advisories", "attempt_count integer", "tp_retry_signal_advisory", "attempt_count = attempt_count + 1", "RETRY_CLAIMED", "SKIPPED_EXPIRED", "SKIPPED_DUPLICATE"]
+      }
+    ],
+    "signalClaimResult": ["CLAIMED", "RETRY_CLAIMED", "SKIPPED_DUPLICATE", "SKIPPED_EXPIRED"],
+    "attemptCount": {
+      "initialInsert": 1,
+      "retryCompareAndSet": "FAILED and p_now < signal_valid_until and attempt_count < 2; increments by one",
+      "skipPaths": "SKIPPED_DUPLICATE and SKIPPED_EXPIRED do not mutate attempt_count",
+      "currentMetadataGap": "The retry RPC returns only the outcome string and skip paths return no attempt count."
+    },
+    "scanIdentity": {
+      "scanId": "Stable public.tp_scan_runs.id for the logical scan run; reused by scan-run retry",
+      "runKey": "Deterministic hourly run key used to find the scan row; notification identity uses the authoritative scanId",
+      "signalId": "public.tp_signal_advisories.signal_id primary key"
+    }
+  },
+  "identity": {
+    "model": "DECISION_EVENT_BASED",
+    "chosen": true,
+    "decisionEvent": "Every claim outcome is one notification decision event, including skipped decisions.",
+    "channel": "EMAIL",
+    "decisionType": "Exact SignalClaimResult value",
+    "namespace": "R22_O05_NOTIFICATION_DECISION",
+    "preimage": ["namespace", "scanId", "signalId", "channel", "decisionType"],
+    "formula": "SHA-256(stableJson({namespace,scanId,signalId,channel,decisionType}))",
+    "idPrefix": "notification-decision:",
+    "doesNotUse": ["wall-clock time", "random UUID", "email message id", "attemptSequence"],
+    "collisionAnalysis": {
+      "differentScanRuns": "Different scanId values produce different identities.",
+      "initialAndRetry": "CLAIMED and RETRY_CLAIMED remain distinct even for the same scanId and signalId.",
+      "skipOutcomes": "SKIPPED_DUPLICATE and SKIPPED_EXPIRED remain distinct.",
+      "replay": "The same scanId, signalId, channel, and outcome reproduce the same identity and are an idempotent replay."
+    }
+  },
+  "deliveryAndDecision": {
+    "deliveryAttempt": "A delivery attempt exists only after CLAIMED or RETRY_CLAIMED and immediately before sendSignalEmail().",
+    "decisionEvent": "All four claim outcomes are decision events.",
+    "deliveryStartEvent": "DELIVERY_ATTEMPTED",
+    "terminalEvents": ["DELIVERED", "DELIVERY_FAILED"],
+    "deliveryAndTerminalLink": "Both terminal outcomes reference the same notificationDecisionId.",
+    "terminalIdFormula": "SHA-256(stableJson({namespace:R22_O05_NOTIFICATION_TERMINAL,notificationDecisionId}))",
+    "terminalIdPrefix": "notification-terminal:",
+    "terminalUniqueness": "One terminal identity per notificationDecisionId; a delivery attempt cannot be both delivered and failed.",
+    "skipMapping": {
+      "SKIPPED_DUPLICATE": "DUPLICATE_SKIPPED; no email attempt",
+      "SKIPPED_EXPIRED": "SUPPRESSED with suppressionReason=EXPIRED; no email attempt"
+    },
+    "deliveryFailure": "Technical delivery failure is a separate terminal event linked to the same delivery attempt decision.",
+    "ignored": "IGNORED remains INSTRUMENTATION_UNRESOLVED unless explicit human or UI evidence exists."
+  },
+  "attemptSequence": {
+    "role": "Diagnostic delivery-attempt metadata only; not an identity component.",
+    "CLAIMED": {"value": 1, "source": "advisoryRow() insert sets attempt_count=1"},
+    "RETRY_CLAIMED": {"value": 2, "source": "retry RPC compare-and-set increments attempt_count; future metadata must expose post-CAS state"},
+    "SKIPPED_DUPLICATE": {"value": null, "source": "Not applicable to a skipped decision"},
+    "SKIPPED_EXPIRED": {"value": null, "source": "Not applicable to a skipped decision"}
+  },
+  "proposedMetadataEnvelope": {
+    "status": "DESIGN_ONLY",
+    "fields": {
+      "outcome": "Exact current SignalClaimResult",
+      "scanId": "Stable tp_scan_runs.id passed to claimSignal",
+      "signalId": "Advisory signal_id",
+      "channel": "EMAIL",
+      "notificationDecisionId": "Deterministically derived from scanId, signalId, channel, and outcome",
+      "attemptSequence": "1 for CLAIMED, 2 for RETRY_CLAIMED, null for skip outcomes",
+      "attemptSequenceSource": "Authoritative source or NOT_APPLICABLE_SKIP"
+    },
+    "behaviorPreservation": true,
+    "runtimeChangeInThisTask": false
+  },
+  "gates": [
+    {"id": "N01", "status": "PASS", "rule": "All four runtime claim outcomes are explicitly enumerated."},
+    {"id": "N02", "status": "PASS", "rule": "attempt_count semantics are proven for initial insert, retry CAS, and non-mutating skips."},
+    {"id": "N03", "status": "PASS", "rule": "Delivery start and terminal evidence share the delivery claim decision identity."},
+    {"id": "N04", "status": "PASS", "rule": "Every claim outcome has deterministic identity from authoritative scan and claim fields."},
+    {"id": "N05", "status": "PASS", "rule": "Logical replay is idempotent and does not use capture time or randomness."},
+    {"id": "N06", "status": "PASS", "rule": "The frozen identity preimages separate runs, outcomes, and terminal events."},
+    {"id": "N07", "status": "PASS", "rule": "The proposed envelope is additive and behavior-preserving; implementation remains future work."}
+  ],
+  "o05": {
+    "runtimeStatus": "INSTRUMENTATION_REQUIRED",
+    "designStatus": "DESIGN_READY",
+    "reason": "The design supplies deterministic decision identity without guessing unavailable attemptSequence values."
+  },
+  "governance": {
+    "observationExecuted": false,
+    "historicalBackfillExecuted": false,
+    "instrumentationImplemented": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "economicValuesRead": false,
+    "forwardReturnRead": false,
+    "newMarketDataFetched": false,
+    "productionUnchanged": true,
+    "baseline002": "NOT_FROZEN",
+    "m3J": "BLOCKED",
+    "m4": "NOT_STARTED",
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "observationAuthorized": false,
+    "performanceAuthorized": false
+  },
+  "finalDecision": {
+    "decision": "O05 REMEDIATION DESIGN READY",
+    "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE",
+    "implementationAuthorized": false
+  }
+}
