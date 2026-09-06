@@ -7,31 +7,29 @@ Status: `DESIGN ONLY`
 - Branch: `research/round-022-observation-instrumentation-design`
 - Production: unchanged
 
-This document designs, but does not implement, a future append-only observation
-sidecar for the existing signal-advisory product. It does not execute
-observation, add telemetry, add an API, change the UI, add a migration, or
-change email, scheduler, signal generation, Quality, Grade, Priority, or the
-human decision boundary.
+This remediation changes only the four Round-022 design artifacts. It does
+not implement instrumentation, add telemetry, add an API, add a migration,
+change the UI or notification path, or execute observation, performance,
+backtest, selection, economic evaluation, or market-data acquisition.
 
 ## Product and research boundary
 
-TradePulse remains signal advisory only:
+TradePulse remains signal-advisory only:
 
 - `humanDecisionRequired=true`
 - `automaticTrading=false`
 - no order, position, leverage, stop-loss execution, or account management
 - no performance, backtest, selection, economic evaluation, or new market data
 
-The observation is prospective and non-economic. A future accepted
-implementation may observe completeness, provenance, stability,
-understandability, notification disposition, and human-review usability. It may
-not feed observations back into signal generation or presentation priority.
+The observation sidecar is prospective, non-economic, append-only evidence. It
+cannot feed observations back into signal generation, delivery, Quality, Grade,
+Priority, or the human decision boundary.
 
 ## Timestamp causality
 
-The existing signal path defines `signalTime` as the closed-candle market event
-time (`candle.closeTime`) in `src/lib/signal-advisory/scan.ts`. It is not a
-capture time. The design freezes these causal invariants:
+The existing signal path defines `signalTime` as the closed-candle market-event
+time (`candle.closeTime`). It is not a capture or presentation time. The
+authoritative causal invariants are:
 
 ```text
 informationAsOf <= signalTime <= capturedAt
@@ -40,132 +38,170 @@ signalTime <= notification.observedAt
 signalTime <= reviewStartedAt <= reviewSubmittedAt
 ```
 
-`capturedAt` is the real server wall-clock time at artifact construction or
-append. It may be after `signalTime` and must never be backdated or derived from
-`signalTime`. `informationAsOf` is the server-resolved source cutoff and cannot
-be supplied by a user. All timestamps are canonical UTC ISO-8601 values.
+`capturedAt` is the truthful server wall-clock timestamp at artifact
+construction/persistence. It may be after `signalTime` and must never be
+backdated. `informationAsOf` is a server-resolved source cutoff and is never
+user supplied. Any inversion is `NOT_EVALUABLE`; timestamps are never silently
+corrected.
 
-The repository currently has reliable source timestamps for signal time and
-advisory persistence (`src/lib/signal-advisory/scan.ts` and
-`src/lib/signal-advisory/store.ts`). It does not currently persist the R22
-snapshot capture, notification-observation, or human-review timestamps. Those
-current capture statuses are therefore explicitly `UNRESOLVED_CURRENT_SOURCE`;
-the future capture points and fail-closed rules are nevertheless fully
-specified. No current absence is silently treated as evidence.
+## Snapshot content and evidence hashes
 
-## Snapshot provenance
+Each snapshot contains `evidenceId` (the physical row identity), `artifactId`
+(the snapshot logical identity), `artifactType`, `schemaVersion`,
+`advisoryIdentity`, `informationAsOf`, `capturedAt`, `sourceRef`, `payload`,
+`contentHash`, `evidenceHash`, and a deterministic `idempotencyKey`.
 
-Each of the following is a separate immutable artifact:
+`contentHash` identifies the same logical snapshot. Its exact canonical
+preimage is:
 
-- Quality Snapshot
-- Market Context
-- Risk Advisory
-- Historical Review metadata
-- Alert Intelligence
-- Presentation
+```text
+schemaVersion + artifactType + advisoryIdentity + informationAsOf
+  + sourceRef + payload
+```
 
-Every artifact contains `artifactType`, `schemaVersion`, `advisoryIdentity`,
-`informationAsOf`, `capturedAt`, `sourceRef`, `sourceHash`, and a metadata-only
-`payload`. It also carries an `artifactId`, `idempotencyKey`, optional
-`supersedesArtifactId`, server timestamp-authority proof, and an `APPEND`
-operation marker.
+It excludes `capturedAt`, `evidenceId`, `artifactId`, `idempotencyKey`,
+`evidenceHash`, and `supersedesArtifactId`. It uses stable canonical JSON,
+UTF-8, and SHA-256. `payload` is accepted only when it is canonical JSON:
+null, boolean, string, finite number, array, or plain object recursively.
+`undefined`, functions, symbols, bigint, Date, Map, Set, class instances,
+NaN, Infinity, and -Infinity are `NOT_EVALUABLE`.
 
-The hash contract uses the existing `stableStringify` helper in
-`src/lib/research/utils.ts`: recursively sorted object keys, preserved array
-order, UTF-8 encoding, and SHA-256. The preimage includes the schema version,
-artifact type, advisory identity, information cutoff, capture time, source
-reference, timestamp-authority proof, and canonical metadata payload. The hash
-itself is excluded to avoid a circular preimage. Reordering object keys cannot
-change the hash; changing identity, provenance, timestamp, schema, or payload
-must change it.
+`evidenceHash` validates the saved evidence envelope. Its exact canonical
+preimage is:
 
-Snapshots are append-only. A correction or new schema version appends a new
-artifact and may point to the prior artifact with `supersedesArtifactId`; it
-never updates, overwrites, or deletes the prior row. A retry with the same
-idempotency key is an idempotent replay, not a replacement. A missing,
-malformed, hash-mismatched, mutable, or causally invalid artifact is
-`NOT_EVALUABLE`.
+```text
+contentHash + capturedAt + timestampAuthority + artifactId
+```
 
-## Notification provenance
+Therefore two captures of the same logical snapshot may have the same
+`contentHash` and idempotency key but different evidence hashes when their
+truthful server capture times differ.
 
-Notification identity is separate from advisory identity. A future observation
-must retain `notificationObservationId`, advisory identity, channel,
-`attemptSequence`, server `observedAt`, and disposition. The objective
-dispositions are `DELIVERED`, `SUPPRESSED`, and `DUPLICATE_SKIPPED`; duplicate
-skips remain evidence and are never deleted by deduplication.
+The snapshot idempotency key is:
 
-`IGNORED` is not inferred from a click, a non-trade, no reply, abandonment, or
-any future/economic result. It is observable only with explicit human/UI
-evidence. Without that evidence the disposition is
-`INSTRUMENTATION_UNRESOLVED`, not an invented ignored count.
+```text
+SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)
+```
 
-The current delivery registry in `src/lib/signal-advisory/store.ts` does not
-persist this complete per-notification vocabulary, so O05 remains
-`INSTRUMENTATION_REQUIRED` at runtime.
+If an append succeeded but its acknowledgement was lost, a retry produces the
+same key and returns `IDEMPOTENT_REPLAY`; it never appends a second row or
+updates the first row. If the first append did not succeed, a retry may use a
+new real server `capturedAt`, without backdating.
 
-## Human review and UX design
+## Six snapshot artifacts
 
-The future review observation contains `reviewObservationId`, advisory
-identity, server-captured `reviewStartedAt` and `reviewSubmittedAt`,
-`reviewComplete`, `informationSufficient`, and explicit user-supplied
-`unnecessaryAlert`. The latter is never inferred from a market outcome.
+The six immutable artifact types remain:
 
-The start action creates a server review id and appends a start event. Submit
-appends a submit event; page refresh retries the same idempotency key. An
-abandoned review has no fabricated submit event and is `NOT_EVALUABLE`.
-Multiple explicit reviews are separate immutable observations linked to the
-same advisory. No name, email body, IP, device, location, free text, or
-portfolio data is collected.
+1. `QUALITY_SNAPSHOT`
+2. `MARKET_CONTEXT`
+3. `RISK_ADVISORY`
+4. `HISTORICAL_REVIEW_METADATA`
+5. `ALERT_INTELLIGENCE`
+6. `PRESENTATION`
 
-The existing `tp_advisory_reviews` / signal-review store is an economic review
-surface with entry/exit/result fields. It is not reused for R22 human-review
-observations. This design adds no migration.
+Only metadata and provenance are allowed. Economic fields and future outcomes
+are forbidden.
 
-## Minimal persistence design
+## Notification provenance and O05
 
-The future implementation should use one discriminated append-only
-`tp_observation_evidence` table, service-side only, rather than modifying the
-existing advisory delivery row or reusing the economic review table. The row
-model has an evidence primary key, advisory identity reference, evidence kind,
-artifact/schema fields, server timestamps, source/hash fields, notification
-fields, review fields, supersession link, unique idempotency key, and a
-metadata-only payload. RLS must deny anon/authenticated direct access and
-permit only the server-side writer/read path. This is a design choice, not a
-database migration in this PR.
+The runtime facts were checked against:
 
-## Idempotency and failure isolation
+- `src/lib/signal-advisory/scan.ts`
+- `src/lib/signal-advisory/store.ts`
+- the existing retry procedure
 
-- snapshot retry: `advisoryIdentity|artifactType|schemaVersion|sourceHash`
-- email delivery retry: `advisoryIdentity|EMAIL|attemptSequence`
-- duplicate skip retry: `advisoryIdentity|channel|attemptSequence`
-- page refresh: server-issued `reviewObservationId`
-- review retry: `reviewObservationId`
+The exact disposition mappings are:
 
-Instrumentation is a sidecar. If its writer fails, it records a safe
-`INSTRUMENTATION_FAILURE` classification where possible and does not alter the
-signal engine, email delivery, scheduler, cron, Quality, Grade, Priority, or
-human decision output. Future missing evidence is `NOT_EVALUABLE`; it is never
-fabricated, imputed, or backfilled.
+| Runtime fact | Observation event | Evidence source |
+| --- | --- | --- |
+| `CLAIMED` followed by successful send | `DELIVERED` | `SERVER_DELIVERY_EVENT` |
+| `RETRY_CLAIMED` followed by successful send | `DELIVERED` | `SERVER_DELIVERY_EVENT` |
+| `SKIPPED_DUPLICATE` | `DUPLICATE_SKIPPED` | `SERVER_DUPLICATE_SKIP_EVENT` |
+| `SKIPPED_EXPIRED` | `SUPPRESSED`, reason `EXPIRED` | `SERVER_EXPIRED_SKIP_EVENT` |
+| SMTP/configuration failure | `DELIVERY_FAILED` / `NOTIFICATION_DELIVERY_FAILED` | `SERVER_DELIVERY_FAILURE_EVENT` |
 
-The schema rejects forbidden economic fields, including PnL, profit/loss,
-return, forward return, future price/candle, win/loss labels, take-profit or
-stop-loss hits, Profit Factor, Sharpe, Calmar, drawdown, expected return, and
-trade outcome. No economic value is read, calculated, or inspected here.
+Delivery failures retain `SMTP_AUTH_FAILED`, `SMTP_DELIVERY_FAILED`, or
+`EMAIL_CONFIGURATION_INVALID`. They are technical evidence, not
+`IGNORED`, `SUPPRESSED`, or `DUPLICATE_SKIPPED`, and are excluded from the
+normal notification-noise denominator unless a later contract explicitly
+authorizes inclusion.
 
-## Gate and governance status
+`IGNORED` remains strict: it is observable only from explicit human/UI
+evidence. No click absence, reply absence, non-trade, page close, later price,
+or economic outcome can imply `IGNORED`; otherwise the status is
+`INSTRUMENTATION_UNRESOLVED`.
 
-O03–O06 remain runtime `INSTRUMENTATION_REQUIRED`; this design does not claim
-that instrumentation already exists. Their design status is `DESIGN_READY`:
+The authoritative attempt sequence is `tp_signal_advisories.attempt_count`.
+The initial advisory row assigns `1`; `tp_retry_signal_advisory` increments it
+under compare-and-set for `RETRY_CLAIMED`. However, the current
+`claimSignal()` contract returns only the claim status and does not return
+`attempt_count` for `SKIPPED_DUPLICATE`, `SKIPPED_EXPIRED`, or a delivery
+failure observation. The design therefore cannot prove a complete
+`attemptSequence` at every O05 capture point without inventing a read or
+assuming a value. O05 is intentionally:
 
-| Gate | Runtime status | Design status | Meaning |
+```text
+runtimeStatus = INSTRUMENTATION_REQUIRED
+designStatus = DESIGN_INELIGIBLE
+```
+
+The next implementation must return or atomically expose the authoritative
+sequence before O05 can become design-eligible. This PR does not modify that
+runtime path.
+
+## Human-review event identity
+
+`reviewObservationId` identifies one review session/group only. Each immutable
+row has its own `evidenceId` and `eventType`:
+
+```text
+REVIEW_STARTED
+REVIEW_SUBMITTED
+```
+
+The keys are intentionally distinct:
+
+```text
+REVIEW|reviewObservationId|START
+REVIEW|reviewObservationId|SUBMIT
+```
+
+The start event contains only the server-captured start time. The submit event
+contains server-captured start and submit times plus explicit human labels.
+Both obey `signalTime <= reviewStartedAt <= reviewSubmittedAt`. A refresh
+replays the event-specific key; it cannot collide with the other event. An
+abandonment has no fabricated submit event and is `NOT_EVALUABLE`.
+
+## Persistence identity
+
+The future single append-only `tp_observation_evidence` table has exactly one
+physical primary key:
+
+```text
+PRIMARY KEY (evidence_id)
+```
+
+Logical/group identities are separate:
+
+- `artifact_id` unique for snapshot rows
+- `notification_observation_id` unique for notification rows
+- `(review_observation_id, event_type)` unique for review rows
+- `idempotency_key` unique across all rows
+
+These are future PostgreSQL constraints only. No migration is created here.
+The table remains service-side only with RLS denying direct anonymous and
+authenticated access.
+
+## Gates and governance
+
+Runtime statuses remain unchanged. Design statuses are:
+
+| Gate | Runtime | Design | Reason |
 | --- | --- | --- | --- |
-| O03 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | causal server timestamp capture points are specified |
-| O04 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | six immutable snapshot provenance records are specified |
-| O05 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | disposition evidence and explicit-ignored rule are specified |
-| O06 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | server review timestamps and human labels are specified |
-
-O01, O02, O07, O08, and O09 remain as previously frozen by the R22
-Observation Design. No gate is upgraded by this design artifact.
+| O03 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | causal timestamp rules are frozen |
+| O04 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | snapshot identity, hashes, and canonical payload are frozen |
+| O05 | `INSTRUMENTATION_REQUIRED` | `DESIGN_INELIGIBLE` | current claim path does not expose authoritative attempt sequence at every event |
+| O06 | `INSTRUMENTATION_REQUIRED` | `DESIGN_READY` | independent start/submit event identity is frozen |
 
 ```text
 observationExecuted=false
@@ -186,10 +222,10 @@ automaticTrading=false
 
 Final design decision:
 
-`ROUND-022 OBSERVATION INSTRUMENTATION DESIGN READY`
+```text
+ROUND-022 OBSERVATION INSTRUMENTATION DESIGN INELIGIBLE
+nextStage=STOP
+```
 
-`nextStage=STOP_PENDING_DESIGN_ACCEPTANCE`
-
-The next stage is not authorized by this branch. Implementation requires a
-separate approved task, followed by runtime gate revalidation before any
-observation starts.
+No implementation, observation execution, or later research stage is
+authorized by this branch.

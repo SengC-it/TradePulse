@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "m3-r22-observation-instrumentation-design-001",
+  "schemaVersion": "m3-r22-observation-instrumentation-design-002",
   "roundId": "baseline-002-research-round-022",
   "phase": "OBSERVATION_INSTRUMENTATION_DESIGN_ONLY",
   "acceptedSource": {
@@ -62,7 +62,7 @@
       "producerModule": "future R22 instrumentation at each snapshot producer",
       "capturePoint": "server-resolved source cutoff before snapshot construction",
       "persistenceDestination": "future tp_observation_evidence.information_as_of",
-      "idempotencyKey": "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+      "idempotencyKey": "SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)",
       "immutability": "IMMUTABLE",
       "serverAuthoritative": true,
       "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
@@ -73,7 +73,7 @@
       "producerModule": "future R22 instrumentation at snapshot append",
       "capturePoint": "server wall-clock now at construction/persistence, not derived from signalTime",
       "persistenceDestination": "future tp_observation_evidence.captured_at",
-      "idempotencyKey": "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+      "idempotencyKey": "SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)",
       "immutability": "IMMUTABLE",
       "serverAuthoritative": true,
       "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
@@ -84,7 +84,7 @@
       "producerModule": "future notification sidecar around src/lib/signal-advisory/scan.ts",
       "capturePoint": "server records delivery, suppression, or duplicate-skip event",
       "persistenceDestination": "future tp_observation_evidence.observed_at",
-      "idempotencyKey": "advisoryIdentity|channel|attemptSequence",
+      "idempotencyKey": "advisoryIdentity|channel|attemptSequence; authoritative source currently unresolved",
       "immutability": "IMMUTABLE",
       "serverAuthoritative": true,
       "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
@@ -95,7 +95,7 @@
       "producerModule": "future human-review start action",
       "capturePoint": "server captures review start; user cannot submit timestamp",
       "persistenceDestination": "future tp_observation_evidence.review_started_at",
-      "idempotencyKey": "reviewObservationId",
+      "idempotencyKey": "REVIEW|reviewObservationId|START",
       "immutability": "IMMUTABLE",
       "serverAuthoritative": true,
       "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
@@ -106,7 +106,7 @@
       "producerModule": "future human-review submit action",
       "capturePoint": "server captures submit; user supplies labels only",
       "persistenceDestination": "future tp_observation_evidence.review_submitted_at",
-      "idempotencyKey": "reviewObservationId",
+      "idempotencyKey": "REVIEW|reviewObservationId|SUBMIT",
       "immutability": "IMMUTABLE",
       "serverAuthoritative": true,
       "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
@@ -115,13 +115,17 @@
   ],
   "snapshotProvenance": {
     "requiredFields": [
+      "evidenceId",
+      "artifactId",
       "artifactType",
       "schemaVersion",
       "advisoryIdentity",
       "informationAsOf",
       "capturedAt",
       "sourceRef",
-      "sourceHash",
+      "contentHash",
+      "evidenceHash",
+      "idempotencyKey",
       "payload"
     ],
     "artifactTypes": [
@@ -136,13 +140,19 @@
       "algorithm": "SHA-256",
       "encoding": "UTF-8",
       "canonicalSerialization": "existing src/lib/research/utils.ts stableStringify; recursively sorted object keys; arrays preserve order; non-finite numbers rejected",
-      "preimage": "schemaVersion + artifactType + advisoryIdentity + informationAsOf + capturedAt + sourceRef + timestampAuthority + metadata-only payload",
-      "sourceHashIsExcludedFromPreimage": true
+      "contentHashPreimage": "schemaVersion + artifactType + advisoryIdentity + informationAsOf + sourceRef + metadata-only payload",
+      "evidenceHashPreimage": "contentHash + capturedAt + timestampAuthority + artifactId",
+      "capturedAtExcludedFromContentHash": true,
+      "artifactIdExcludedFromContentHash": true,
+      "idempotencyKeyExcludedFromContentHash": true,
+      "supersedesArtifactIdExcludedFromContentHash": true
     },
     "appendOnly": {
-      "artifactId": "required and never reused",
+      "evidenceId": "physical primary key; required and never reused",
+      "artifactId": "snapshot logical identifier; unique for snapshot rows and never reused",
       "supersedesArtifactId": "optional link to a new version; never UPDATE or overwrite",
-      "retry": "same idempotency key is an idempotent replay, not a replacement"
+      "retry": "same idempotency key is an idempotent replay, not a replacement",
+      "differentCaptureTime": "same contentHash and idempotencyKey may have a different evidenceHash only when a first append was not acknowledged"
     },
     "missingOrInvalid": "NOT_EVALUABLE"
   },
@@ -156,21 +166,34 @@
       "observedAt",
       "disposition"
     ],
-    "dispositions": ["DELIVERED", "SUPPRESSED", "DUPLICATE_SKIPPED", "IGNORED"],
+    "dispositions": ["DELIVERED", "SUPPRESSED", "DUPLICATE_SKIPPED", "DELIVERY_FAILED", "IGNORED"],
     "evidenceSources": {
       "DELIVERED": "SERVER_DELIVERY_EVENT",
-      "SUPPRESSED": "SERVER_SUPPRESSION_EVENT",
-      "DUPLICATE_SKIPPED": "SERVER_DEDUP_EVENT",
+      "SUPPRESSED": "SERVER_EXPIRED_SKIP_EVENT when claim=SKIPPED_EXPIRED",
+      "DUPLICATE_SKIPPED": "SERVER_DUPLICATE_SKIP_EVENT when claim=SKIPPED_DUPLICATE",
+      "DELIVERY_FAILED": "SERVER_DELIVERY_FAILURE_EVENT / NOTIFICATION_DELIVERY_FAILED",
       "IGNORED": "EXPLICIT_HUMAN_OR_UI"
     },
+    "suppressedSemantic": "SUPPRESSED is only reason=EXPIRED and maps exactly to claim=SKIPPED_EXPIRED; otherwise INSTRUMENTATION_UNRESOLVED",
+    "runtimeMapping": {
+      "CLAIMED": "sendSignalEmail result/catch after initial attempt_count=1",
+      "RETRY_CLAIMED": "sendSignalEmail result/catch after tp_retry_signal_advisory increments attempt_count",
+      "SKIPPED_DUPLICATE": "exact claim result; no attempt_count is returned",
+      "SKIPPED_EXPIRED": "exact claim result; no attempt_count is returned"
+    },
+    "attemptSequenceSource": "tp_signal_advisories.attempt_count; current claimSignal() does not return it for skip/failure evidence, so O05 is DESIGN_INELIGIBLE",
+    "deliveryFailureCodes": ["SMTP_AUTH_FAILED", "SMTP_DELIVERY_FAILED", "EMAIL_CONFIGURATION_INVALID"],
+    "deliveryFailureDenominator": "excluded from normal notification-noise denominator until a future contract authorizes inclusion",
     "ignoredRule": "IGNORED is not inferred from click, non-trade, no-reply, abandonment, or any economic/result field. Without explicit human/UI evidence it is INSTRUMENTATION_UNRESOLVED."
   },
   "humanReview": {
     "requiredFields": [
+      "evidenceId",
       "reviewObservationId",
+      "eventType",
       "advisoryIdentity",
       "reviewStartedAt",
-      "reviewSubmittedAt",
+      "reviewSubmittedAt (SUBMIT event only)",
       "reviewComplete",
       "informationSufficient",
       "unnecessaryAlert"
@@ -178,9 +201,15 @@
     "ordering": "signalTime <= reviewStartedAt <= reviewSubmittedAt",
     "userMaySubmit": ["reviewComplete", "informationSufficient", "unnecessaryAlert"],
     "serverMustCapture": ["reviewStartedAt", "reviewSubmittedAt"],
+    "eventIdentity": {
+      "reviewObservationId": "session/group identity only",
+      "start": "evidenceId + eventType=REVIEW_STARTED + REVIEW|reviewObservationId|START",
+      "submit": "evidenceId + eventType=REVIEW_SUBMITTED + REVIEW|reviewObservationId|SUBMIT",
+      "startKeyDiffersFromSubmitKey": true
+    },
     "ux": {
       "start": "append one server-start event and issue reviewObservationId",
-      "submit": "append one server-submit event; refresh retries the same idempotency key",
+      "submit": "append one server-submit event; refresh retries only the submit key",
       "abandonment": "no fabricated submission; missing submission is NOT_EVALUABLE",
       "multipleReviews": "each explicit review is a new immutable observation linked to the advisory"
     },
@@ -188,21 +217,34 @@
   },
   "persistence": {
     "model": "future single discriminated append-only tp_observation_evidence table; no migration in this task",
-    "primaryKey": "evidence_id / artifactId / notificationObservationId / reviewObservationId",
+    "primaryKey": "evidence_id",
+    "logicalIdentifiers": {
+      "snapshot": "artifact_id; unique where event_kind=SNAPSHOT",
+      "notification": "notification_observation_id; unique where event_kind=NOTIFICATION",
+      "review": "(review_observation_id,event_type); unique where event_kind=REVIEW"
+    },
     "advisoryIdentity": "FK-compatible reference to public.tp_signal_advisories.signal_id",
-    "uniqueConstraints": ["idempotency_key", "artifact_id"],
+    "uniqueConstraints": [
+      "idempotency_key",
+      "artifact_id WHERE event_kind=SNAPSHOT",
+      "notification_observation_id WHERE event_kind=NOTIFICATION",
+      "(review_observation_id,event_type) WHERE event_kind=REVIEW"
+    ],
     "rls": "enabled; anon and authenticated direct access denied; service-side writer/read path only",
     "retention": "future approved retention policy; no update/delete during the fixed observation window",
     "schemaVersion": "mandatory",
     "timestamps": "server UTC timestamptz; immutable",
-    "hash": "server-computed SHA-256"
+    "hash": "server-computed contentHash and evidenceHash SHA-256"
   },
   "idempotency": {
-    "snapshotRetry": "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+    "snapshotContentHash": "SHA-256(stableJson(schemaVersion,artifactType,advisoryIdentity,informationAsOf,sourceRef,payload))",
+    "snapshotEvidenceHash": "SHA-256(stableJson(contentHash,capturedAt,timestampAuthority,artifactId))",
+    "snapshotRetry": "SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)",
     "emailDeliveryRetry": "advisoryIdentity|EMAIL|attemptSequence",
     "duplicateSkippedRetry": "advisoryIdentity|channel|attemptSequence",
-    "pageRefresh": "reviewObservationId issued at review start",
-    "reviewRetry": "reviewObservationId"
+    "pageRefresh": "reviewObservationId is group identity; each event has independent evidenceId",
+    "reviewStartRetry": "REVIEW|reviewObservationId|START",
+    "reviewSubmitRetry": "REVIEW|reviewObservationId|SUBMIT"
   },
   "failureIsolation": {
     "writer": "sidecar append-only observation writer",
@@ -220,7 +262,7 @@
     {"id": "O02", "runtimeStatus": "PASS", "designStatus": "PASS"},
     {"id": "O03", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
     {"id": "O04", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
-    {"id": "O05", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
+    {"id": "O05", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_INELIGIBLE", "reason": "claimSignal() does not return authoritative attempt_count for skip/failure evidence"},
     {"id": "O06", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
     {"id": "O07", "runtimeStatus": "PASS", "designStatus": "PASS"},
     {"id": "O08", "runtimeStatus": "PASS", "designStatus": "PASS"},
@@ -257,6 +299,6 @@
     "humanDecisionRequired": true,
     "automaticTrading": false
   },
-  "finalDesignDecision": "ROUND-022 OBSERVATION INSTRUMENTATION DESIGN READY",
-  "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+  "finalDesignDecision": "ROUND-022 OBSERVATION INSTRUMENTATION DESIGN INELIGIBLE",
+  "nextStage": "STOP"
 }

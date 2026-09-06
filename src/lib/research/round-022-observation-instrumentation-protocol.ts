@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 import { stableStringify } from "./utils.ts";
 
-export const R22_OBSERVATION_INSTRUMENTATION_SCHEMA_VERSION = "m3-r22-observation-instrumentation-design-001" as const;
+export const R22_OBSERVATION_INSTRUMENTATION_SCHEMA_VERSION = "m3-r22-observation-instrumentation-design-002" as const;
 export const R22_OBSERVATION_INSTRUMENTATION_ROUND_ID = "baseline-002-research-round-022" as const;
 export const R22_OBSERVATION_INSTRUMENTATION_PHASE = "OBSERVATION_INSTRUMENTATION_DESIGN_ONLY" as const;
 export const R22_OBSERVATION_INSTRUMENTATION_ACCEPTED_SOURCE = "3df85901f36e1f6feced5ad3b3f4a8329c731250" as const;
@@ -25,17 +25,36 @@ export const R22_NOTIFICATION_DISPOSITIONS = Object.freeze([
   "DELIVERED",
   "SUPPRESSED",
   "DUPLICATE_SKIPPED",
+  "DELIVERY_FAILED",
   "IGNORED",
 ] as const);
 export type R22NotificationDisposition = (typeof R22_NOTIFICATION_DISPOSITIONS)[number];
 
 export const R22_NOTIFICATION_EVIDENCE_SOURCES = Object.freeze([
   "SERVER_DELIVERY_EVENT",
-  "SERVER_SUPPRESSION_EVENT",
-  "SERVER_DEDUP_EVENT",
+  "SERVER_EXPIRED_SKIP_EVENT",
+  "SERVER_DUPLICATE_SKIP_EVENT",
+  "SERVER_DELIVERY_FAILURE_EVENT",
   "EXPLICIT_HUMAN_OR_UI",
 ] as const);
 export type R22NotificationEvidenceSource = (typeof R22_NOTIFICATION_EVIDENCE_SOURCES)[number];
+
+export const R22_NOTIFICATION_DELIVERY_FAILURE_EVENT = "NOTIFICATION_DELIVERY_FAILED" as const;
+export const R22_NOTIFICATION_FAILURE_CODES = Object.freeze([
+  "SMTP_AUTH_FAILED",
+  "SMTP_DELIVERY_FAILED",
+  "EMAIL_CONFIGURATION_INVALID",
+] as const);
+export type R22NotificationFailureCode = (typeof R22_NOTIFICATION_FAILURE_CODES)[number];
+
+export const R22_NOTIFICATION_ATTEMPT_SEQUENCE_SOURCE = Object.freeze({
+  initialClaim: "tp_signal_advisories.attempt_count=1 in advisoryRow()",
+  retryClaim: "public.tp_retry_signal_advisory increments attempt_count under CAS and returns RETRY_CLAIMED",
+  duplicateSkip: "claimSignal() returns SKIPPED_DUPLICATE but does not return attempt_count",
+  expiredSkip: "claimSignal() returns SKIPPED_EXPIRED but does not return attempt_count",
+  currentStatus: "UNRESOLVED_CURRENT_SOURCE",
+  designConsequence: "O05_DESIGN_INELIGIBLE_UNTIL_AUTHORITATIVE_ATTEMPT_SEQUENCE_IS_RETURNED",
+} as const);
 
 export const R22_OBSERVATION_GATE_DESIGN_STATUSES = Object.freeze([
   "DESIGN_READY",
@@ -113,7 +132,7 @@ export const R22_TIMESTAMP_DESIGNS = Object.freeze([
     producerModule: "future R22 snapshot instrumentation at each existing quality/context/risk/review producer",
     capturePoint: "server resolves the source-data cutoff before constructing the snapshot",
     persistenceDestination: "future append-only tp_observation_evidence.information_as_of",
-    idempotencyKey: "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+    idempotencyKey: "SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)",
     immutability: "IMMUTABLE",
     serverAuthoritative: true,
     currentCaptureStatus: "UNRESOLVED_CURRENT_SOURCE",
@@ -124,7 +143,7 @@ export const R22_TIMESTAMP_DESIGNS = Object.freeze([
     producerModule: "future R22 snapshot instrumentation at artifact construction/persistence",
     capturePoint: "server wall-clock now immediately before append; not derived from signalTime",
     persistenceDestination: "future append-only tp_observation_evidence.captured_at",
-    idempotencyKey: "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+    idempotencyKey: "SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)",
     immutability: "IMMUTABLE",
     serverAuthoritative: true,
     currentCaptureStatus: "UNRESOLVED_CURRENT_SOURCE",
@@ -135,7 +154,7 @@ export const R22_TIMESTAMP_DESIGNS = Object.freeze([
     producerModule: "future notification observation sidecar around src/lib/signal-advisory/scan.ts delivery/dedup events",
     capturePoint: "server records the delivery, suppression, or duplicate-skip event when it occurs",
     persistenceDestination: "future append-only tp_observation_evidence.observed_at",
-    idempotencyKey: "advisoryIdentity|channel|attemptSequence",
+    idempotencyKey: "advisoryIdentity|channel|attemptSequence; authoritative source currently unresolved",
     immutability: "IMMUTABLE",
     serverAuthoritative: true,
     currentCaptureStatus: "UNRESOLVED_CURRENT_SOURCE",
@@ -146,7 +165,7 @@ export const R22_TIMESTAMP_DESIGNS = Object.freeze([
     producerModule: "future human-review instrumentation at the review start action",
     capturePoint: "server records the review-start action; the user cannot submit the timestamp",
     persistenceDestination: "future append-only tp_observation_evidence.review_started_at",
-    idempotencyKey: "reviewObservationId",
+    idempotencyKey: "REVIEW|reviewObservationId|START",
     immutability: "IMMUTABLE",
     serverAuthoritative: true,
     currentCaptureStatus: "UNRESOLVED_CURRENT_SOURCE",
@@ -157,7 +176,7 @@ export const R22_TIMESTAMP_DESIGNS = Object.freeze([
     producerModule: "future human-review instrumentation at the review submit action",
     capturePoint: "server records the submit action; the user submits labels only",
     persistenceDestination: "future append-only tp_observation_evidence.review_submitted_at",
-    idempotencyKey: "reviewObservationId",
+    idempotencyKey: "REVIEW|reviewObservationId|SUBMIT",
     immutability: "IMMUTABLE",
     serverAuthoritative: true,
     currentCaptureStatus: "UNRESOLVED_CURRENT_SOURCE",
@@ -183,6 +202,7 @@ export type R22TimestampAuthority = Readonly<{
 }>;
 
 export type R22SnapshotArtifact = Readonly<{
+  evidenceId: string;
   artifactId: string;
   artifactType: R22SnapshotArtifactType;
   schemaVersion: string;
@@ -190,8 +210,9 @@ export type R22SnapshotArtifact = Readonly<{
   informationAsOf: string;
   capturedAt: string;
   sourceRef: string;
-  sourceHash: string;
-  payload: Readonly<Record<string, unknown>>;
+  contentHash: string;
+  evidenceHash: string;
+  payload: unknown;
   idempotencyKey: string;
   supersedesArtifactId: string | null;
   timestampAuthority: R22TimestampAuthority;
@@ -212,15 +233,22 @@ export type R22SnapshotValidation = Readonly<{
     | "CAPTURE_BEFORE_SIGNAL"
     | "CAPTURE_BEFORE_INFORMATION_AS_OF"
     | "TIMESTAMP_AUTHORITY_INVALID"
-    | "SOURCE_HASH_INVALID"
-    | "SOURCE_HASH_MISMATCH"
+    | "NON_CANONICAL_PAYLOAD"
+    | "CONTENT_HASH_INVALID"
+    | "CONTENT_HASH_MISMATCH"
+    | "EVIDENCE_HASH_INVALID"
+    | "EVIDENCE_HASH_MISMATCH"
+    | "IDEMPOTENCY_KEY_MISMATCH"
     | "FORBIDDEN_ECONOMIC_FIELD"
     | "APPEND_ONLY_VIOLATION";
   forbiddenField: string | null;
-  expectedSourceHash: string | null;
+  expectedContentHash: string | null;
+  expectedEvidenceHash: string | null;
+  expectedIdempotencyKey: string | null;
 }>;
 
 export type R22NotificationObservation = Readonly<{
+  evidenceId: string;
   notificationObservationId: string;
   advisoryIdentity: R22AdvisoryIdentity;
   channel: "EMAIL" | "WEB";
@@ -228,6 +256,8 @@ export type R22NotificationObservation = Readonly<{
   observedAt: string;
   disposition: R22NotificationDisposition;
   evidenceSource: R22NotificationEvidenceSource | null;
+  suppressionReason: "EXPIRED" | null;
+  deliveryFailureCode: R22NotificationFailureCode | null;
   idempotencyKey: string;
 }>;
 
@@ -241,19 +271,24 @@ export type R22NotificationValidation = Readonly<{
     | "NOTIFICATION_BEFORE_SIGNAL"
     | "INVALID_ATTEMPT_SEQUENCE"
     | "MISSING_EVIDENCE_SOURCE"
+    | "NOTIFICATION_IDEMPOTENCY_KEY_MISMATCH"
+    | "SUPPRESSION_REASON_REQUIRED"
+    | "DELIVERY_FAILURE_CODE_REQUIRED"
     | "IGNORED_NOT_EXPLICITLY_OBSERVED";
   disposition: R22NotificationDisposition | "INSTRUMENTATION_UNRESOLVED";
 }>;
 
 export type R22HumanReviewObservation = Readonly<{
+  evidenceId: string;
   reviewObservationId: string;
+  eventType: "REVIEW_STARTED" | "REVIEW_SUBMITTED";
   advisoryIdentity: R22AdvisoryIdentity;
   reviewStartedAt: string;
-  reviewSubmittedAt: string;
-  reviewComplete: boolean;
-  informationSufficient: boolean;
-  unnecessaryAlert: boolean;
-  labelSource: "EXPLICIT_HUMAN_LABEL";
+  reviewSubmittedAt: string | null;
+  reviewComplete: boolean | null;
+  informationSufficient: boolean | null;
+  unnecessaryAlert: boolean | null;
+  labelSource: "EXPLICIT_HUMAN_LABEL" | null;
   idempotencyKey: string;
 }>;
 
@@ -266,12 +301,16 @@ export type R22HumanReviewValidation = Readonly<{
     | "INVALID_TIMESTAMP"
     | "REVIEW_BEFORE_SIGNAL"
     | "REVIEW_TIMESTAMP_INVERSION"
-    | "MISSING_HUMAN_LABEL_SOURCE";
+    | "MISSING_HUMAN_LABEL_SOURCE"
+    | "INVALID_EVENT_TYPE"
+    | "REVIEW_IDEMPOTENCY_KEY_MISMATCH"
+    | "START_FIELDS_MUST_BE_EMPTY"
+    | "SUBMIT_FIELDS_REQUIRED";
 }>;
 
 export type R22AppendOnlyWriteValidation = Readonly<{
   status: "APPEND" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE";
-  reason: "NONE" | "IDEMPOTENCY_REPLAY" | "ARTIFACT_ID_REUSE" | "SUPERSEDES_SELF";
+  reason: "NONE" | "IDEMPOTENCY_REPLAY" | "EVIDENCE_ID_REUSE" | "SUPERSEDES_SELF" | "MISSING_EVIDENCE_ID";
 }>;
 
 export type R22InstrumentationGate = Readonly<{
@@ -300,9 +339,9 @@ export const R22_INSTRUMENTATION_GATES: readonly R22InstrumentationGate[] = Obje
   {
     id: "O05",
     runtimeStatus: "INSTRUMENTATION_REQUIRED",
-    designStatus: "DESIGN_READY",
+    designStatus: "DESIGN_INELIGIBLE",
     currentCaptureStatus: "UNRESOLVED_CURRENT_SOURCE",
-    rule: "Delivery, suppression, and duplicate-skip events are independently recorded; IGNORED requires explicit human/UI evidence.",
+    rule: "Runtime disposition mappings are known, but claimSignal() does not return authoritative attempt_count for skip/failure evidence; O05 is ineligible until the sequence is returned at the capture point.",
   },
   {
     id: "O06",
@@ -316,24 +355,68 @@ export const R22_INSTRUMENTATION_GATES: readonly R22InstrumentationGate[] = Obje
 export const R22_PERSISTENCE_DESIGN = Object.freeze({
   table: "future tp_observation_evidence; no migration in this design-only task",
   model: "one discriminated append-only evidence table with typed event columns and metadata-only payload",
-  primaryKey: "evidence_id / artifactId, notificationObservationId, or reviewObservationId",
+  primaryKey: "evidence_id",
+  logicalIdentifiers: {
+    snapshot: "artifact_id; unique where event_kind=SNAPSHOT",
+    notification: "notification_observation_id; unique where event_kind=NOTIFICATION",
+    review: "(review_observation_id,event_type); unique where event_kind=REVIEW",
+  },
   advisoryIdentity: "foreign-key-compatible with public.tp_signal_advisories.signal_id when the event is advisory-scoped",
-  uniqueConstraints: ["idempotency_key", "artifact_id"],
+  uniqueConstraints: [
+    "idempotency_key",
+    "artifact_id WHERE event_kind=SNAPSHOT",
+    "notification_observation_id WHERE event_kind=NOTIFICATION",
+    "(review_observation_id,event_type) WHERE event_kind=REVIEW",
+  ],
   serviceBoundary: "server-side service role writer only; no browser or direct authenticated write",
   retention: "retain immutable evidence according to the future approved retention policy; no overwrite/delete in the observation window",
   timestamps: "server UTC timestamptz columns; capturedAt and informationAsOf are immutable",
   schemaVersion: "mandatory on every row",
-  hash: "sourceHash is SHA-256 over the frozen canonical preimage",
+  hash: "contentHash is the stable logical snapshot hash; evidenceHash covers the saved evidence identity and capture timestamp",
   rls: "enabled; anon and authenticated direct access denied; service-side writer/read path only",
 });
 
 export const R22_IDEMPOTENCY_DESIGN = Object.freeze({
-  snapshotRetry: "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+  snapshotContentHash: "SHA-256(stableJson(schemaVersion,artifactType,advisoryIdentity,informationAsOf,sourceRef,payload))",
+  snapshotEvidenceHash: "SHA-256(stableJson(contentHash,capturedAt,timestampAuthority,artifactId))",
+  snapshotRetry: "SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)",
   notificationDeliveryRetry: "advisoryIdentity|EMAIL|attemptSequence",
   duplicateSkippedRetry: "advisoryIdentity|channel|attemptSequence",
-  pageRefresh: "reviewObservationId issued at review start",
-  reviewRetry: "reviewObservationId; same submit is an idempotent replay",
+  pageRefresh: "reviewObservationId is the session/group identity; each event has its own evidenceId",
+  reviewStartRetry: "REVIEW|reviewObservationId|START",
+  reviewSubmitRetry: "REVIEW|reviewObservationId|SUBMIT",
 });
+
+export const R22_NOTIFICATION_RUNTIME_MAPPING = Object.freeze({
+  CLAIMED: {
+    event: "DELIVERED_OR_DELIVERY_FAILED",
+    source: "src/lib/signal-advisory/scan.ts sendSignalEmail() result/catch",
+    attemptSequence: "tp_signal_advisories.attempt_count=1 from advisoryRow()",
+  },
+  RETRY_CLAIMED: {
+    event: "DELIVERED_OR_DELIVERY_FAILED",
+    source: "src/lib/signal-advisory/scan.ts sendSignalEmail() result/catch after tp_retry_signal_advisory()",
+    attemptSequence: "tp_retry_signal_advisory() CAS increments tp_signal_advisories.attempt_count",
+  },
+  SKIPPED_DUPLICATE: {
+    event: "DUPLICATE_SKIPPED",
+    source: "claimSignal() exact claim result SKIPPED_DUPLICATE",
+    attemptSequence: "not returned by current claimSignal()",
+  },
+  SKIPPED_EXPIRED: {
+    event: "SUPPRESSED",
+    suppressionReason: "EXPIRED",
+    source: "claimSignal() exact claim result SKIPPED_EXPIRED",
+    attemptSequence: "not returned by current claimSignal()",
+  },
+  deliveryFailure: {
+    event: R22_NOTIFICATION_DELIVERY_FAILURE_EVENT,
+    codes: R22_NOTIFICATION_FAILURE_CODES,
+    countedAsNormalNoise: false,
+  },
+  ignored: "INSTRUMENTATION_UNRESOLVED unless explicit human/UI evidence exists",
+  designStatus: "O05_DESIGN_INELIGIBLE",
+} as const);
 
 export const R22_FAILURE_ISOLATION = Object.freeze({
   architecture: "sidecar append-only observation writer",
@@ -379,8 +462,8 @@ export const R22_OBSERVATION_INSTRUMENTATION_GOVERNANCE: R22ObservationInstrumen
 });
 
 export const R22_OBSERVATION_INSTRUMENTATION_FINAL_DECISION = Object.freeze({
-  decision: "ROUND-022 OBSERVATION INSTRUMENTATION DESIGN READY",
-  nextStage: "STOP_PENDING_DESIGN_ACCEPTANCE",
+  decision: "ROUND-022 OBSERVATION INSTRUMENTATION DESIGN INELIGIBLE",
+  nextStage: "STOP",
   performanceAuthorized: false,
   observationAuthorized: false,
 });
@@ -433,24 +516,81 @@ function findForbiddenField(value: unknown, path = "payload"): string | null {
   return null;
 }
 
-type R22SnapshotHashPreimage = Readonly<Pick<
+type R22SnapshotContentHashPreimage = Readonly<Pick<
   R22SnapshotArtifact,
-  "artifactType" | "schemaVersion" | "advisoryIdentity" | "informationAsOf" | "capturedAt" | "sourceRef" | "payload" | "timestampAuthority"
+  "artifactType" | "schemaVersion" | "advisoryIdentity" | "informationAsOf" | "sourceRef" | "payload"
 >>;
 
-export function calculateR22SnapshotSourceHash(input: R22SnapshotHashPreimage): string {
-  return createHash("sha256")
-    .update(stableStringify({
-      schemaVersion: input.schemaVersion,
-      artifactType: input.artifactType,
-      advisoryIdentity: input.advisoryIdentity,
-      informationAsOf: input.informationAsOf,
-      capturedAt: input.capturedAt,
-      sourceRef: input.sourceRef,
-      timestampAuthority: input.timestampAuthority,
-      payload: input.payload,
-    }), "utf8")
-    .digest("hex");
+type R22SnapshotEvidenceHashPreimage = Readonly<Pick<
+  R22SnapshotArtifact,
+  "contentHash" | "capturedAt" | "timestampAuthority" | "artifactId"
+>>;
+
+function sha256Utf8(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+export function calculateR22SnapshotContentHash(input: R22SnapshotContentHashPreimage): string {
+  return sha256Utf8(stableStringify({
+    schemaVersion: input.schemaVersion,
+    artifactType: input.artifactType,
+    advisoryIdentity: input.advisoryIdentity,
+    informationAsOf: input.informationAsOf,
+    sourceRef: input.sourceRef,
+    payload: input.payload,
+  }));
+}
+
+export function calculateR22SnapshotEvidenceHash(input: R22SnapshotEvidenceHashPreimage): string {
+  return sha256Utf8(stableStringify({
+    contentHash: input.contentHash,
+    capturedAt: input.capturedAt,
+    timestampAuthority: input.timestampAuthority,
+    artifactId: input.artifactId,
+  }));
+}
+
+export function calculateR22SnapshotIdempotencyKey(input: Readonly<{
+  signalId: string;
+  artifactType: R22SnapshotArtifactType;
+  schemaVersion: string;
+  informationAsOf: string;
+  contentHash: string;
+}>): string {
+  return sha256Utf8([
+    "SNAPSHOT",
+    input.signalId,
+    input.artifactType,
+    input.schemaVersion,
+    input.informationAsOf,
+    input.contentHash,
+  ].join("|"));
+}
+
+export function calculateR22NotificationIdempotencyKey(input: Readonly<{
+  signalId: string;
+  channel: R22NotificationObservation["channel"];
+  attemptSequence: number;
+}>): string {
+  return ["NOTIFICATION", input.signalId, input.channel, String(input.attemptSequence)].join("|");
+}
+
+export function calculateR22HumanReviewIdempotencyKey(
+  reviewObservationId: string,
+  eventType: R22HumanReviewObservation["eventType"],
+): string {
+  return ["REVIEW", reviewObservationId, eventType === "REVIEW_STARTED" ? "START" : "SUBMIT"].join("|");
+}
+
+function isCanonicalJsonValue(value: unknown): boolean {
+  if (value === null) return true;
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.every(isCanonicalJsonValue);
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  return Object.values(value as Record<string, unknown>).every(isCanonicalJsonValue);
 }
 
 export function validateR22SnapshotArtifact(
@@ -458,17 +598,21 @@ export function validateR22SnapshotArtifact(
 ): R22SnapshotValidation {
   const fail = (
     reason: R22SnapshotValidation["reason"],
-    expectedSourceHash: string | null = null,
+    expectedContentHash: string | null = null,
     forbiddenField: string | null = null,
+    expectedEvidenceHash: string | null = null,
+    expectedIdempotencyKey: string | null = null,
   ): R22SnapshotValidation => ({
     status: "NOT_EVALUABLE",
     artifactId: artifact.artifactId,
     reason,
     forbiddenField,
-    expectedSourceHash,
+    expectedContentHash,
+    expectedEvidenceHash,
+    expectedIdempotencyKey,
   });
 
-  if (!nonEmpty(artifact.artifactId) || !identityValid(artifact.advisoryIdentity)) {
+  if (!nonEmpty(artifact.evidenceId) || !nonEmpty(artifact.artifactId) || !identityValid(artifact.advisoryIdentity)) {
     return fail("MISSING_IDENTITY");
   }
   if (!R22_SNAPSHOT_ARTIFACT_TYPES.includes(artifact.artifactType)) {
@@ -477,9 +621,10 @@ export function validateR22SnapshotArtifact(
   if (artifact.schemaVersion !== R22_OBSERVATION_INSTRUMENTATION_SCHEMA_VERSION) {
     return fail("INVALID_SCHEMA_VERSION");
   }
-  if (!nonEmpty(artifact.sourceRef) || !nonEmpty(artifact.idempotencyKey) || !artifact.payload) {
+  if (!nonEmpty(artifact.sourceRef) || !nonEmpty(artifact.idempotencyKey)) {
     return fail("MISSING_PROVENANCE");
   }
+  if (!isCanonicalJsonValue(artifact.payload)) return fail("NON_CANONICAL_PAYLOAD");
   if (!canonicalIsoTimestamp(artifact.advisoryIdentity.signalTime)
     || !canonicalIsoTimestamp(artifact.informationAsOf)
     || !canonicalIsoTimestamp(artifact.capturedAt)) {
@@ -503,10 +648,25 @@ export function validateR22SnapshotArtifact(
   }
   const forbiddenField = findForbiddenField(artifact.payload);
   if (forbiddenField !== null) return fail("FORBIDDEN_ECONOMIC_FIELD", null, forbiddenField);
-  if (!/^[a-f0-9]{64}$/i.test(artifact.sourceHash)) return fail("SOURCE_HASH_INVALID");
-  const expectedSourceHash = calculateR22SnapshotSourceHash(artifact);
-  if (expectedSourceHash !== artifact.sourceHash.toLowerCase()) {
-    return fail("SOURCE_HASH_MISMATCH", expectedSourceHash);
+  if (!/^[a-f0-9]{64}$/i.test(artifact.contentHash)) return fail("CONTENT_HASH_INVALID");
+  const expectedContentHash = calculateR22SnapshotContentHash(artifact);
+  if (expectedContentHash !== artifact.contentHash.toLowerCase()) {
+    return fail("CONTENT_HASH_MISMATCH", expectedContentHash);
+  }
+  if (!/^[a-f0-9]{64}$/i.test(artifact.evidenceHash)) return fail("EVIDENCE_HASH_INVALID", expectedContentHash);
+  const expectedEvidenceHash = calculateR22SnapshotEvidenceHash(artifact);
+  if (expectedEvidenceHash !== artifact.evidenceHash.toLowerCase()) {
+    return fail("EVIDENCE_HASH_MISMATCH", expectedContentHash, null, expectedEvidenceHash);
+  }
+  const expectedIdempotencyKey = calculateR22SnapshotIdempotencyKey({
+    signalId: artifact.advisoryIdentity.signalId,
+    artifactType: artifact.artifactType,
+    schemaVersion: artifact.schemaVersion,
+    informationAsOf: artifact.informationAsOf,
+    contentHash: artifact.contentHash,
+  });
+  if (expectedIdempotencyKey !== artifact.idempotencyKey) {
+    return fail("IDEMPOTENCY_KEY_MISMATCH", expectedContentHash, null, expectedEvidenceHash, expectedIdempotencyKey);
   }
   if (artifact.persistenceOperation !== "APPEND"
     || (artifact.supersedesArtifactId !== null && artifact.supersedesArtifactId === artifact.artifactId)) {
@@ -517,26 +677,33 @@ export function validateR22SnapshotArtifact(
     artifactId: artifact.artifactId,
     reason: "NONE",
     forbiddenField: null,
-    expectedSourceHash,
+    expectedContentHash,
+    expectedEvidenceHash,
+    expectedIdempotencyKey,
   };
 }
 
 export function validateR22AppendOnlyWrite(input: Readonly<{
-  artifact: Pick<R22SnapshotArtifact, "artifactId" | "idempotencyKey" | "supersedesArtifactId" | "persistenceOperation">;
-  existingArtifactIds: ReadonlySet<string>;
+  record: Readonly<{
+    evidenceId: string;
+    idempotencyKey: string;
+    supersedesEvidenceId: string | null;
+    persistenceOperation: "APPEND";
+  }>;
+  existingEvidenceIds: ReadonlySet<string>;
   existingIdempotencyKeys: ReadonlySet<string>;
 }>): R22AppendOnlyWriteValidation {
-  if (input.artifact.persistenceOperation !== "APPEND") {
-    return { status: "NOT_EVALUABLE", reason: "ARTIFACT_ID_REUSE" };
+  if (!nonEmpty(input.record.evidenceId)) {
+    return { status: "NOT_EVALUABLE", reason: "MISSING_EVIDENCE_ID" };
   }
-  if (input.artifact.supersedesArtifactId === input.artifact.artifactId) {
+  if (input.record.supersedesEvidenceId === input.record.evidenceId) {
     return { status: "NOT_EVALUABLE", reason: "SUPERSEDES_SELF" };
   }
-  if (input.existingIdempotencyKeys.has(input.artifact.idempotencyKey)) {
+  if (input.existingIdempotencyKeys.has(input.record.idempotencyKey)) {
     return { status: "IDEMPOTENT_REPLAY", reason: "IDEMPOTENCY_REPLAY" };
   }
-  if (input.existingArtifactIds.has(input.artifact.artifactId)) {
-    return { status: "NOT_EVALUABLE", reason: "ARTIFACT_ID_REUSE" };
+  if (input.existingEvidenceIds.has(input.record.evidenceId)) {
+    return { status: "NOT_EVALUABLE", reason: "EVIDENCE_ID_REUSE" };
   }
   return { status: "APPEND", reason: "NONE" };
 }
@@ -548,7 +715,7 @@ export function validateR22NotificationObservation(
     notificationObservationId: observation.notificationObservationId,
     disposition: observation.disposition,
   } as const;
-  if (!nonEmpty(observation.notificationObservationId) || !identityValid(observation.advisoryIdentity)) {
+  if (!nonEmpty(observation.evidenceId) || !nonEmpty(observation.notificationObservationId) || !identityValid(observation.advisoryIdentity)) {
     return { ...base, status: "NOT_EVALUABLE", reason: "MISSING_IDENTITY" };
   }
   if (!canonicalIsoTimestamp(observation.advisoryIdentity.signalTime)
@@ -564,12 +731,29 @@ export function validateR22NotificationObservation(
   if (!nonEmpty(observation.idempotencyKey)) {
     return { ...base, status: "NOT_EVALUABLE", reason: "MISSING_EVIDENCE_SOURCE" };
   }
+  const expectedIdempotencyKey = calculateR22NotificationIdempotencyKey({
+    signalId: observation.advisoryIdentity.signalId,
+    channel: observation.channel,
+    attemptSequence: observation.attemptSequence,
+  });
+  if (observation.idempotencyKey !== expectedIdempotencyKey) {
+    return { ...base, status: "NOT_EVALUABLE", reason: "NOTIFICATION_IDEMPOTENCY_KEY_MISMATCH" };
+  }
   const expectedEvidence: Record<R22NotificationDisposition, R22NotificationEvidenceSource> = {
     DELIVERED: "SERVER_DELIVERY_EVENT",
-    SUPPRESSED: "SERVER_SUPPRESSION_EVENT",
-    DUPLICATE_SKIPPED: "SERVER_DEDUP_EVENT",
+    SUPPRESSED: "SERVER_EXPIRED_SKIP_EVENT",
+    DUPLICATE_SKIPPED: "SERVER_DUPLICATE_SKIP_EVENT",
+    DELIVERY_FAILED: "SERVER_DELIVERY_FAILURE_EVENT",
     IGNORED: "EXPLICIT_HUMAN_OR_UI",
   };
+  if (observation.disposition === "SUPPRESSED" && observation.suppressionReason !== "EXPIRED") {
+    return { ...base, status: "NOT_EVALUABLE", reason: "SUPPRESSION_REASON_REQUIRED" };
+  }
+  if (observation.disposition === "DELIVERY_FAILED"
+    && (observation.deliveryFailureCode === null
+      || !R22_NOTIFICATION_FAILURE_CODES.includes(observation.deliveryFailureCode))) {
+    return { ...base, status: "NOT_EVALUABLE", reason: "DELIVERY_FAILURE_CODE_REQUIRED" };
+  }
   if (observation.evidenceSource !== expectedEvidence[observation.disposition]) {
     if (observation.disposition === "IGNORED") {
       return {
@@ -588,22 +772,45 @@ export function validateR22HumanReviewObservation(
   observation: R22HumanReviewObservation,
 ): R22HumanReviewValidation {
   const base = { reviewObservationId: observation.reviewObservationId } as const;
-  if (!nonEmpty(observation.reviewObservationId) || !identityValid(observation.advisoryIdentity)) {
+  if (!nonEmpty(observation.evidenceId) || !nonEmpty(observation.reviewObservationId) || !identityValid(observation.advisoryIdentity)) {
     return { ...base, status: "NOT_EVALUABLE", reason: "MISSING_IDENTITY" };
+  }
+  if (observation.eventType !== "REVIEW_STARTED" && observation.eventType !== "REVIEW_SUBMITTED") {
+    return { ...base, status: "NOT_EVALUABLE", reason: "INVALID_EVENT_TYPE" };
   }
   if (!canonicalIsoTimestamp(observation.advisoryIdentity.signalTime)
     || !canonicalIsoTimestamp(observation.reviewStartedAt)
-    || !canonicalIsoTimestamp(observation.reviewSubmittedAt)) {
+    || (observation.reviewSubmittedAt !== null && !canonicalIsoTimestamp(observation.reviewSubmittedAt))) {
     return { ...base, status: "NOT_EVALUABLE", reason: "INVALID_TIMESTAMP" };
   }
   if (!timestampAtOrBefore(observation.advisoryIdentity.signalTime, observation.reviewStartedAt)) {
     return { ...base, status: "NOT_EVALUABLE", reason: "REVIEW_BEFORE_SIGNAL" };
   }
-  if (!timestampAtOrBefore(observation.reviewStartedAt, observation.reviewSubmittedAt)) {
+  if (observation.reviewSubmittedAt !== null
+    && !timestampAtOrBefore(observation.reviewStartedAt, observation.reviewSubmittedAt)) {
     return { ...base, status: "NOT_EVALUABLE", reason: "REVIEW_TIMESTAMP_INVERSION" };
   }
-  if (observation.labelSource !== "EXPLICIT_HUMAN_LABEL") {
-    return { ...base, status: "NOT_EVALUABLE", reason: "MISSING_HUMAN_LABEL_SOURCE" };
+  const expectedIdempotencyKey = calculateR22HumanReviewIdempotencyKey(
+    observation.reviewObservationId,
+    observation.eventType,
+  );
+  if (observation.idempotencyKey !== expectedIdempotencyKey) {
+    return { ...base, status: "NOT_EVALUABLE", reason: "REVIEW_IDEMPOTENCY_KEY_MISMATCH" };
+  }
+  if (observation.eventType === "REVIEW_STARTED") {
+    if (observation.reviewSubmittedAt !== null
+      || observation.reviewComplete !== null
+      || observation.informationSufficient !== null
+      || observation.unnecessaryAlert !== null
+      || observation.labelSource !== null) {
+      return { ...base, status: "NOT_EVALUABLE", reason: "START_FIELDS_MUST_BE_EMPTY" };
+    }
+  } else if (observation.reviewSubmittedAt === null
+    || typeof observation.reviewComplete !== "boolean"
+    || typeof observation.informationSufficient !== "boolean"
+    || typeof observation.unnecessaryAlert !== "boolean"
+    || observation.labelSource !== "EXPLICIT_HUMAN_LABEL") {
+    return { ...base, status: "NOT_EVALUABLE", reason: "SUBMIT_FIELDS_REQUIRED" };
   }
   return { ...base, status: "OBSERVABLE", reason: "NONE" };
 }
