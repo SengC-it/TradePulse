@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "m3-r22-observation-instrumentation-design-001",
+  "roundId": "baseline-002-research-round-022",
+  "phase": "OBSERVATION_INSTRUMENTATION_DESIGN_ONLY",
+  "acceptedSource": {
+    "repository": "SengC-it/TradePulse",
+    "baseBranch": "research/round-015-beta-alpha-decomposition",
+    "sha": "3df85901f36e1f6feced5ad3b3f4a8329c731250"
+  },
+  "boundary": {
+    "designOnly": true,
+    "observationExecuted": false,
+    "instrumentationImplemented": false,
+    "performance": false,
+    "backtest": false,
+    "selection": false,
+    "economicEvaluation": false,
+    "newMarketDataFetched": false,
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "productionUnchanged": true
+  },
+  "purpose": "Design a future append-only, point-in-time-safe, non-economic observation sidecar for signal advisory quality, context, risk, historical metadata, alert intelligence, presentation, notification disposition, and human review.",
+  "signalTime": {
+    "source": "src/lib/signal-advisory/scan.ts",
+    "meaning": "closed-candle market-event time derived from candle.closeTime",
+    "not": ["evaluation time", "capture time", "presentation time", "notification time"]
+  },
+  "timestampCausality": {
+    "snapshot": "informationAsOf <= signalTime <= capturedAt",
+    "advisory": "signalTime <= advisoryCreationTime",
+    "notification": "signalTime <= notification.observedAt",
+    "humanReview": "signalTime <= reviewStartedAt <= reviewSubmittedAt",
+    "capturedAt": "truthful server wall-clock time; canonical UTC; may be after signalTime; never backdated",
+    "failure": "any inversion is NOT_EVALUABLE and is never silently corrected"
+  },
+  "timestampCaptureDesign": [
+    {
+      "timestampName": "signalTime",
+      "producerModule": "src/lib/signal-advisory/scan.ts",
+      "capturePoint": "buildAdvisory() closed candle closeTime",
+      "persistenceDestination": "public.tp_signal_advisories.signal_time",
+      "idempotencyKey": "signalId",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "AVAILABLE_SOURCE",
+      "designStatus": "DESIGN_READY"
+    },
+    {
+      "timestampName": "advisoryCreationTime",
+      "producerModule": "src/lib/signal-advisory/store.ts",
+      "capturePoint": "server-side advisory insert/database created_at",
+      "persistenceDestination": "public.tp_signal_advisories.created_at",
+      "idempotencyKey": "signal_id",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "AVAILABLE_SOURCE",
+      "designStatus": "DESIGN_READY"
+    },
+    {
+      "timestampName": "informationAsOf",
+      "producerModule": "future R22 instrumentation at each snapshot producer",
+      "capturePoint": "server-resolved source cutoff before snapshot construction",
+      "persistenceDestination": "future tp_observation_evidence.information_as_of",
+      "idempotencyKey": "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
+      "designStatus": "DESIGN_READY"
+    },
+    {
+      "timestampName": "capturedAt",
+      "producerModule": "future R22 instrumentation at snapshot append",
+      "capturePoint": "server wall-clock now at construction/persistence, not derived from signalTime",
+      "persistenceDestination": "future tp_observation_evidence.captured_at",
+      "idempotencyKey": "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
+      "designStatus": "DESIGN_READY"
+    },
+    {
+      "timestampName": "notification.observedAt",
+      "producerModule": "future notification sidecar around src/lib/signal-advisory/scan.ts",
+      "capturePoint": "server records delivery, suppression, or duplicate-skip event",
+      "persistenceDestination": "future tp_observation_evidence.observed_at",
+      "idempotencyKey": "advisoryIdentity|channel|attemptSequence",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
+      "designStatus": "DESIGN_READY"
+    },
+    {
+      "timestampName": "reviewStartedAt",
+      "producerModule": "future human-review start action",
+      "capturePoint": "server captures review start; user cannot submit timestamp",
+      "persistenceDestination": "future tp_observation_evidence.review_started_at",
+      "idempotencyKey": "reviewObservationId",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
+      "designStatus": "DESIGN_READY"
+    },
+    {
+      "timestampName": "reviewSubmittedAt",
+      "producerModule": "future human-review submit action",
+      "capturePoint": "server captures submit; user supplies labels only",
+      "persistenceDestination": "future tp_observation_evidence.review_submitted_at",
+      "idempotencyKey": "reviewObservationId",
+      "immutability": "IMMUTABLE",
+      "serverAuthoritative": true,
+      "currentCaptureStatus": "UNRESOLVED_CURRENT_SOURCE",
+      "designStatus": "DESIGN_READY"
+    }
+  ],
+  "snapshotProvenance": {
+    "requiredFields": [
+      "artifactType",
+      "schemaVersion",
+      "advisoryIdentity",
+      "informationAsOf",
+      "capturedAt",
+      "sourceRef",
+      "sourceHash",
+      "payload"
+    ],
+    "artifactTypes": [
+      "QUALITY_SNAPSHOT",
+      "MARKET_CONTEXT",
+      "RISK_ADVISORY",
+      "HISTORICAL_REVIEW_METADATA",
+      "ALERT_INTELLIGENCE",
+      "PRESENTATION"
+    ],
+    "hash": {
+      "algorithm": "SHA-256",
+      "encoding": "UTF-8",
+      "canonicalSerialization": "existing src/lib/research/utils.ts stableStringify; recursively sorted object keys; arrays preserve order; non-finite numbers rejected",
+      "preimage": "schemaVersion + artifactType + advisoryIdentity + informationAsOf + capturedAt + sourceRef + timestampAuthority + metadata-only payload",
+      "sourceHashIsExcludedFromPreimage": true
+    },
+    "appendOnly": {
+      "artifactId": "required and never reused",
+      "supersedesArtifactId": "optional link to a new version; never UPDATE or overwrite",
+      "retry": "same idempotency key is an idempotent replay, not a replacement"
+    },
+    "missingOrInvalid": "NOT_EVALUABLE"
+  },
+  "notificationProvenance": {
+    "identityIsSeparateFromAdvisory": true,
+    "requiredFields": [
+      "notificationObservationId",
+      "advisoryIdentity",
+      "channel",
+      "attemptSequence",
+      "observedAt",
+      "disposition"
+    ],
+    "dispositions": ["DELIVERED", "SUPPRESSED", "DUPLICATE_SKIPPED", "IGNORED"],
+    "evidenceSources": {
+      "DELIVERED": "SERVER_DELIVERY_EVENT",
+      "SUPPRESSED": "SERVER_SUPPRESSION_EVENT",
+      "DUPLICATE_SKIPPED": "SERVER_DEDUP_EVENT",
+      "IGNORED": "EXPLICIT_HUMAN_OR_UI"
+    },
+    "ignoredRule": "IGNORED is not inferred from click, non-trade, no-reply, abandonment, or any economic/result field. Without explicit human/UI evidence it is INSTRUMENTATION_UNRESOLVED."
+  },
+  "humanReview": {
+    "requiredFields": [
+      "reviewObservationId",
+      "advisoryIdentity",
+      "reviewStartedAt",
+      "reviewSubmittedAt",
+      "reviewComplete",
+      "informationSufficient",
+      "unnecessaryAlert"
+    ],
+    "ordering": "signalTime <= reviewStartedAt <= reviewSubmittedAt",
+    "userMaySubmit": ["reviewComplete", "informationSufficient", "unnecessaryAlert"],
+    "serverMustCapture": ["reviewStartedAt", "reviewSubmittedAt"],
+    "ux": {
+      "start": "append one server-start event and issue reviewObservationId",
+      "submit": "append one server-submit event; refresh retries the same idempotency key",
+      "abandonment": "no fabricated submission; missing submission is NOT_EVALUABLE",
+      "multipleReviews": "each explicit review is a new immutable observation linked to the advisory"
+    },
+    "dataMinimization": ["no name", "no email body", "no IP", "no device", "no location", "no free text", "no portfolio data"]
+  },
+  "persistence": {
+    "model": "future single discriminated append-only tp_observation_evidence table; no migration in this task",
+    "primaryKey": "evidence_id / artifactId / notificationObservationId / reviewObservationId",
+    "advisoryIdentity": "FK-compatible reference to public.tp_signal_advisories.signal_id",
+    "uniqueConstraints": ["idempotency_key", "artifact_id"],
+    "rls": "enabled; anon and authenticated direct access denied; service-side writer/read path only",
+    "retention": "future approved retention policy; no update/delete during the fixed observation window",
+    "schemaVersion": "mandatory",
+    "timestamps": "server UTC timestamptz; immutable",
+    "hash": "server-computed SHA-256"
+  },
+  "idempotency": {
+    "snapshotRetry": "advisoryIdentity|artifactType|schemaVersion|sourceHash",
+    "emailDeliveryRetry": "advisoryIdentity|EMAIL|attemptSequence",
+    "duplicateSkippedRetry": "advisoryIdentity|channel|attemptSequence",
+    "pageRefresh": "reviewObservationId issued at review start",
+    "reviewRetry": "reviewObservationId"
+  },
+  "failureIsolation": {
+    "writer": "sidecar append-only observation writer",
+    "instrumentationFailure": "record INSTRUMENTATION_FAILURE with safe error class and identity only",
+    "mustNotAffect": ["signal generation", "email delivery", "scheduler", "cron", "quality", "grade", "priority", "human decision"],
+    "missingEvidence": "NOT_EVALUABLE; never fabricated, imputed, or backfilled"
+  },
+  "forbiddenFields": [
+    "PnL", "profit", "loss", "return", "forwardReturn", "futurePrice", "futureCandle", "win", "lossLabel",
+    "takeProfitHit", "stopLossHit", "profitFactor", "Sharpe", "Calmar", "drawdown", "expectedReturn",
+    "tradeOutcome", "economicOutcome", "realizedPnL", "unrealizedPnL"
+  ],
+  "gates": [
+    {"id": "O01", "runtimeStatus": "PASS", "designStatus": "PASS"},
+    {"id": "O02", "runtimeStatus": "PASS", "designStatus": "PASS"},
+    {"id": "O03", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
+    {"id": "O04", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
+    {"id": "O05", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
+    {"id": "O06", "runtimeStatus": "INSTRUMENTATION_REQUIRED", "designStatus": "DESIGN_READY"},
+    {"id": "O07", "runtimeStatus": "PASS", "designStatus": "PASS"},
+    {"id": "O08", "runtimeStatus": "PASS", "designStatus": "PASS"},
+    {"id": "O09", "runtimeStatus": "PASS", "designStatus": "PASS"}
+  ],
+  "artifactsCreatedByThisTask": [
+    "docs/research/round-022-observation-instrumentation-design.md",
+    "docs/research/round-022-observation-instrumentation-contract.json",
+    "src/lib/research/round-022-observation-instrumentation-protocol.ts",
+    "tests/round-022-observation-instrumentation-protocol.test.ts"
+  ],
+  "implementationBoundary": {
+    "instrumentationImplemented": false,
+    "databaseMigration": false,
+    "telemetryWriter": false,
+    "apiRoute": false,
+    "ui": false,
+    "emailChange": false,
+    "schedulerChange": false
+  },
+  "governance": {
+    "observationExecuted": false,
+    "historicalBackfillExecuted": false,
+    "instrumentationImplemented": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "economicValuesRead": false,
+    "forwardReturnRead": false,
+    "newMarketDataFetched": false,
+    "Production": "unchanged",
+    "baseline-002": "NOT_FROZEN",
+    "M3-J": "BLOCKED",
+    "M4": "NOT_STARTED",
+    "humanDecisionRequired": true,
+    "automaticTrading": false
+  },
+  "finalDesignDecision": "ROUND-022 OBSERVATION INSTRUMENTATION DESIGN READY",
+  "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+}
