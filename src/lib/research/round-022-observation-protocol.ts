@@ -91,8 +91,14 @@ export type R22ObservationFailureReason =
   | "MISSING_IDENTITY"
   | "MISSING_TIMESTAMP_PROVENANCE"
   | "MISSING_SNAPSHOT_PROVENANCE"
+  | "INFORMATION_AFTER_SIGNAL"
+  | "CAPTURE_BEFORE_SIGNAL"
+  | "CAPTURE_BEFORE_INFORMATION_AS_OF"
+  | "ADVISORY_CREATION_BEFORE_SIGNAL"
   | "MISSING_NOTIFICATION_PROVENANCE"
+  | "NOTIFICATION_BEFORE_SIGNAL"
   | "MISSING_HUMAN_REVIEW_PROVENANCE"
+  | "REVIEW_BEFORE_SIGNAL"
   | "REVIEW_TIMESTAMP_INVERSION"
   | "INVALID_TIMESTAMP";
 
@@ -279,16 +285,32 @@ function timestampAtOrBefore(value: string, upperBound: string): boolean {
   return Date.parse(value) <= Date.parse(upperBound);
 }
 
-function snapshotIsPITSafe(snapshot: R22SnapshotProvenance, record: R22ObservationRecord): boolean {
-  return snapshot.provenanceStatus === "VERIFIED"
-    && snapshot.mutability === "IMMUTABLE"
-    && nonEmpty(snapshot.sourceRef)
-    && nonEmpty(snapshot.sourceHash)
-    && canonicalIsoTimestamp(snapshot.informationAsOf)
-    && canonicalIsoTimestamp(snapshot.capturedAt)
-    && canonicalIsoTimestamp(record.signalTime)
-    && canonicalIsoTimestamp(record.advisoryCreationTime)
-    && timestampAtOrBefore(snapshot.informationAsOf, record.signalTime);
+function snapshotValidationFailure(
+  snapshot: R22SnapshotProvenance,
+  record: R22ObservationRecord,
+): Exclude<R22ObservationFailureReason, "NONE"> | null {
+  if (
+    snapshot.provenanceStatus !== "VERIFIED"
+    || snapshot.mutability !== "IMMUTABLE"
+    || !nonEmpty(snapshot.sourceRef)
+    || !nonEmpty(snapshot.sourceHash)
+    || !canonicalIsoTimestamp(snapshot.informationAsOf)
+    || !canonicalIsoTimestamp(snapshot.capturedAt)
+    || !canonicalIsoTimestamp(record.signalTime)
+    || !canonicalIsoTimestamp(record.advisoryCreationTime)
+  ) {
+    return "MISSING_SNAPSHOT_PROVENANCE";
+  }
+  if (!timestampAtOrBefore(snapshot.informationAsOf, record.signalTime)) {
+    return "INFORMATION_AFTER_SIGNAL";
+  }
+  if (!timestampAtOrBefore(snapshot.informationAsOf, snapshot.capturedAt)) {
+    return "CAPTURE_BEFORE_INFORMATION_AS_OF";
+  }
+  if (!timestampAtOrBefore(record.signalTime, snapshot.capturedAt)) {
+    return "CAPTURE_BEFORE_SIGNAL";
+  }
+  return null;
 }
 
 function notEvaluable(
@@ -320,10 +342,16 @@ export function validateR22ObservationRecord(
   if (!canonicalIsoTimestamp(record.signalTime) || !canonicalIsoTimestamp(record.advisoryCreationTime)) {
     return notEvaluable(record, "MISSING_TIMESTAMP_PROVENANCE");
   }
+  if (!timestampAtOrBefore(record.signalTime, record.advisoryCreationTime)) {
+    return notEvaluable(record, "ADVISORY_CREATION_BEFORE_SIGNAL");
+  }
 
   const snapshots = Object.values(record.snapshots);
-  if (snapshots.some((snapshot) => !snapshotIsPITSafe(snapshot, record))) {
-    return notEvaluable(record, "MISSING_SNAPSHOT_PROVENANCE");
+  for (const snapshot of snapshots) {
+    const failure = snapshotValidationFailure(snapshot, record);
+    if (failure !== null) {
+      return notEvaluable(record, failure);
+    }
   }
 
   if (record.cohort === "NOTIFICATION") {
@@ -335,12 +363,17 @@ export function validateR22ObservationRecord(
     ) {
       return notEvaluable(record, "MISSING_NOTIFICATION_PROVENANCE");
     }
+    if (!timestampAtOrBefore(record.signalTime, record.notification.observedAt)) {
+      return notEvaluable(record, "NOTIFICATION_BEFORE_SIGNAL");
+    }
   }
 
   if (record.cohort === "HUMAN_REVIEW") {
     if (
       record.humanReview === null
       || !nonEmpty(record.humanReview.reviewObservationId)
+      || record.humanReview.reviewStartedAt === null
+      || record.humanReview.reviewSubmittedAt === null
       || record.humanReview.reviewComplete === null
       || record.humanReview.informationSufficient === null
       || record.humanReview.unnecessaryAlert === null
@@ -352,6 +385,9 @@ export function validateR22ObservationRecord(
       return notEvaluable(record, latency.reason === "REVIEW_TIMESTAMP_INVERSION"
         ? "REVIEW_TIMESTAMP_INVERSION"
         : "MISSING_HUMAN_REVIEW_PROVENANCE");
+    }
+    if (!timestampAtOrBefore(record.signalTime, record.humanReview.reviewStartedAt)) {
+      return notEvaluable(record, "REVIEW_BEFORE_SIGNAL");
     }
   }
 

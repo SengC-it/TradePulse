@@ -66,11 +66,14 @@
       "informationAsOf": "latest effective source-data cutoff used by the artifact; must be <= signalTime",
       "capturedAt": "truthful wall-clock time when the artifact was computed, constructed, or persisted; must be canonical and immutable",
       "rules": [
-        "informationAsOf <= signalTime",
-        "capturedAt is validated independently and may be later than signalTime",
+        "informationAsOf <= signalTime <= capturedAt",
+        "capturedAt must be >= informationAsOf",
         "capturedAt must never be backdated to satisfy the point-in-time rule"
       ]
     },
+    "advisoryCreationOrdering": "signalTime <= advisoryCreationTime",
+    "notificationOrdering": "signalTime <= notification.observedAt",
+    "humanReviewOrdering": "signalTime <= reviewStartedAt <= reviewSubmittedAt",
     "sourceIdentityRequired": true,
     "sourceHashRequired": true,
     "immutableSnapshotRequired": true,

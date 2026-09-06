@@ -207,13 +207,58 @@ describe("Round-022 prospective observation protocol", () => {
     expect(result).toMatchObject({ status: "OBSERVABLE", reason: "NONE" });
   });
 
+  it("rejects capture before the signal and capture before the information cutoff", () => {
+    expect(validateR22ObservationRecord(validRecord({
+      snapshots: {
+        ...validRecord().snapshots,
+        quality: snapshot("quality-before-signal", { capturedAt: "2025-12-31T23:59:59.999Z" }),
+      },
+    })).reason).toBe("CAPTURE_BEFORE_SIGNAL");
+    expect(validateR22ObservationRecord(validRecord({
+      snapshots: {
+        ...validRecord().snapshots,
+        quality: snapshot("quality-before-cutoff", {
+          informationAsOf: "2025-12-31T23:59:00.000Z",
+          capturedAt: "2025-12-31T23:58:59.999Z",
+        }),
+      },
+    })).reason).toBe("CAPTURE_BEFORE_INFORMATION_AS_OF");
+  });
+
+  it("rejects advisory, notification, and review timestamps before signalTime", () => {
+    expect(validateR22ObservationRecord(validRecord({
+      advisoryCreationTime: "2025-12-31T23:59:59.999Z",
+    })).reason).toBe("ADVISORY_CREATION_BEFORE_SIGNAL");
+
+    expect(validateR22ObservationRecord(validRecord({
+      cohort: "NOTIFICATION",
+      notification: {
+        notificationObservationId: "notification-before-signal",
+        observedAt: "2025-12-31T23:59:59.999Z",
+        disposition: "DELIVERED",
+      },
+    })).reason).toBe("NOTIFICATION_BEFORE_SIGNAL");
+
+    expect(validateR22ObservationRecord(validRecord({
+      cohort: "HUMAN_REVIEW",
+      humanReview: {
+        reviewObservationId: "review-before-signal",
+        reviewStartedAt: "2025-12-31T23:59:59.999Z",
+        reviewSubmittedAt: "2026-01-01T00:00:01.000Z",
+        reviewComplete: true,
+        informationSufficient: true,
+        unnecessaryAlert: false,
+      },
+    })).reason).toBe("REVIEW_BEFORE_SIGNAL");
+  });
+
   it("rejects a future information cutoff and missing immutable snapshot provenance", () => {
     expect(validateR22ObservationRecord(validRecord({
       snapshots: {
         ...validRecord().snapshots,
         quality: snapshot("quality-future", { informationAsOf: "2026-01-01T00:00:00.001Z" }),
       },
-    })).reason).toBe("MISSING_SNAPSHOT_PROVENANCE");
+    })).reason).toBe("INFORMATION_AFTER_SIGNAL");
 
     expect(validateR22ObservationRecord(validRecord({
       snapshots: { ...validRecord().snapshots, quality: snapshot("quality-invalid", { capturedAt: null }) },

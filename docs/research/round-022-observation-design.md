@@ -128,11 +128,18 @@ time.
 The validator therefore requires:
 
 ```text
-informationAsOf <= signalTime
-capturedAt is a canonical immutable timestamp
+informationAsOf <= signalTime <= capturedAt
+capturedAt >= informationAsOf
+signalTime <= advisoryCreationTime
+signalTime <= notification.observedAt
+signalTime <= reviewStartedAt <= reviewSubmittedAt
 ```
 
-It does not require `capturedAt <= signalTime`.
+It does not require `capturedAt <= signalTime` or `capturedAt <= advisoryCreationTime`.
+If `capturedAt < signalTime`, `capturedAt < informationAsOf`,
+`advisoryCreationTime < signalTime`, `notification.observedAt < signalTime`, or
+`reviewStartedAt < signalTime`, the record is `NOT_EVALUABLE`; timestamps are
+never silently corrected.
 
 The required snapshots are quality, market context, risk advisory,
 identity-only historical review metadata, alert intelligence, and presentation.
