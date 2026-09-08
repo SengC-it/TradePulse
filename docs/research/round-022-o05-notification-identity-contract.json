@@ -93,9 +93,11 @@
     "terminalIdPrefix": "notification-terminal:",
     "terminalUniqueness": "One terminal identity per notificationDecisionId; a delivery attempt cannot be both delivered and failed.",
     "terminalConflict": {
-      "sameTerminalEventIdSameOutcome": "IDEMPOTENT_REPLAY",
+      "terminalPayload": ["terminalOutcome", "failureCode"],
+      "sameTerminalEventIdSamePayload": "IDEMPOTENT_REPLAY only when terminalOutcome and failureCode are exactly equal, including failureCode=null for DELIVERED",
+      "sameTerminalEventIdDifferentPayload": "TERMINAL_CONFLICT and NOT_EVALUABLE, including different failure codes for DELIVERY_FAILED",
       "sameTerminalEventIdOppositeOutcome": "TERMINAL_CONFLICT and NOT_EVALUABLE",
-      "writePolicy": "No update, overwrite, or last-write-wins."
+      "writePolicy": "No update, overwrite, latest-value selection, or failure-code merge."
     },
     "skipMapping": {
       "SKIPPED_DUPLICATE": "DUPLICATE_SKIPPED; no email attempt",
@@ -131,7 +133,7 @@
     {"id": "N03", "status": "PASS", "rule": "DELIVERY_ATTEMPTED is immediately before send; DELIVERED is after send resolution and before persistence; DELIVERY_FAILED requires a rejected send stage."},
     {"id": "N04", "status": "PASS", "rule": "Every claim outcome has deterministic identity from authoritative scan and claim fields."},
     {"id": "N05", "status": "PASS", "rule": "Logical replay is idempotent and does not use capture time or randomness."},
-    {"id": "N06", "status": "PASS", "rule": "Same-outcome terminal replay is idempotent; an opposite outcome for the same terminal identity is TERMINAL_CONFLICT and NOT_EVALUABLE with no overwrite."},
+    {"id": "N06", "status": "PASS", "rule": "Exact terminal payload {terminalOutcome,failureCode} is required for idempotent replay; any different payload for the same terminal identity is TERMINAL_CONFLICT and NOT_EVALUABLE with no overwrite."},
     {"id": "N07", "status": "PASS", "rule": "A resolved send remains DELIVERED when persistence fails; the separate technical evidence is excluded from the notification-noise denominator."}
   ],
   "o05": {

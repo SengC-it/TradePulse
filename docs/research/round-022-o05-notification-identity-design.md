@@ -126,10 +126,21 @@ prevents one attempt from acquiring two terminal identities. The proposed
 `attemptSequence` is retained as diagnostic metadata only: `1` for
 `CLAIMED`, `2` for `RETRY_CLAIMED`, and `null` for skips.
 
-Terminal identity is append-only. A same `terminalEventId` with the same outcome
-is `IDEMPOTENT_REPLAY`. A same `terminalEventId` with the opposite outcome is
-`TERMINAL_CONFLICT` and `NOT_EVALUABLE`; it must not update, overwrite, or use
-last-write-wins behavior.
+Terminal identity is append-only. The authoritative terminal payload is:
+
+```text
+terminalPayload = {
+  terminalOutcome,
+  failureCode
+}
+```
+
+"Same terminal outcome" alone is insufficient for replay. A same
+`terminalEventId` is `IDEMPOTENT_REPLAY` only when both `terminalOutcome` and
+`failureCode` are exactly equal, including `failureCode=null` for `DELIVERED`.
+Any different terminal payload—including two `DELIVERY_FAILED` events with
+different failure codes—is `TERMINAL_CONFLICT` and `NOT_EVALUABLE`; it must not
+update, overwrite, choose the latest value, or merge failure codes.
 
 ### Same-scan lease retry
 
@@ -169,7 +180,7 @@ semantics, send decisions, or signal generation merely to produce evidence.
 | N03 | `PASS` | `DELIVERY_ATTEMPTED` is immediately before send; `DELIVERED` is after send resolution and before persistence; `DELIVERY_FAILED` requires a rejected send stage. |
 | N04 | `PASS` | Every claim outcome has deterministic identity from authoritative scan and claim fields. |
 | N05 | `PASS` | Same logical replay is idempotent without time or randomness. |
-| N06 | `PASS` | Same-outcome terminal replay is idempotent; an opposite outcome for the same terminal identity is `TERMINAL_CONFLICT` and `NOT_EVALUABLE` with no overwrite. |
+| N06 | `PASS` | Exact terminal payload `{terminalOutcome, failureCode}` is required for idempotent replay; any different payload for the same terminal identity is `TERMINAL_CONFLICT` and `NOT_EVALUABLE` with no overwrite. |
 | N07 | `PASS` | A resolved send remains `DELIVERED` when persistence fails; the separate technical evidence is excluded from the notification-noise denominator. |
 
 Therefore:

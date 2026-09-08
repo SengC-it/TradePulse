@@ -177,6 +177,38 @@ describe("Round-022 O05 notification identity remediation design", () => {
     expect(calculateR22O05TerminalEventId(decisionId)).toBe(delivered.terminalEventId);
   });
 
+  it("requires exact terminal payload equality for failure replay", () => {
+    const decisionId = buildR22O05ClaimMetadata({
+      scanId,
+      signalId,
+      decisionType: "CLAIMED",
+    }).notificationDecisionId;
+    const authFailure = buildR22O05TerminalEvent({
+      notificationDecisionId: decisionId,
+      terminalOutcome: "DELIVERY_FAILED",
+      failureCode: "SMTP_AUTH_FAILED",
+    });
+    const sameAuthFailure = buildR22O05TerminalEvent({
+      notificationDecisionId: decisionId,
+      terminalOutcome: "DELIVERY_FAILED",
+      failureCode: "SMTP_AUTH_FAILED",
+    });
+    const deliveryFailure = buildR22O05TerminalEvent({
+      notificationDecisionId: decisionId,
+      terminalOutcome: "DELIVERY_FAILED",
+      failureCode: "SMTP_DELIVERY_FAILED",
+    });
+
+    expect(validateR22O05TerminalTransition(authFailure, sameAuthFailure)).toEqual({
+      status: "IDEMPOTENT_REPLAY",
+      reason: "IDEMPOTENT_REPLAY",
+    });
+    expect(validateR22O05TerminalTransition(authFailure, deliveryFailure)).toEqual({
+      status: "NOT_EVALUABLE",
+      reason: "TERMINAL_CONFLICT",
+    });
+  });
+
   it("records delivery truth at the send boundary and isolates persistence failure", () => {
     expect(deriveR22O05DeliveryTruth({ sendSignalEmail: "RESOLVED", markSignalSent: "SUCCEEDED" })).toMatchObject({
       status: "VALID",

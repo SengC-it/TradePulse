@@ -159,13 +159,14 @@ export const R22_O05_DELIVERY_MODEL = Object.freeze({
   scanErrorClassifier: R22_O05_SCAN_ERROR_CLASSIFIER,
   terminalIdentityFormula: "SHA-256(stableJson({namespace:R22_O05_NOTIFICATION_TERMINAL,notificationDecisionId}))",
   terminalUniqueness: "One terminal identity per notificationDecisionId; the same delivery attempt cannot be both delivered and failed.",
-  terminalConflict: "A second terminal with the same terminalEventId and a different outcome is TERMINAL_CONFLICT and NOT_EVALUABLE; no update, overwrite, or last-write-wins.",
+  terminalConflict: "A second terminal with the same terminalEventId and a different terminal payload {terminalOutcome,failureCode} is TERMINAL_CONFLICT and NOT_EVALUABLE; no update, overwrite, latest-value selection, or failure-code merge.",
   skipMapping: {
     SKIPPED_DUPLICATE: "DUPLICATE_SKIPPED",
     SKIPPED_EXPIRED: "SUPPRESSED with suppressionReason=EXPIRED",
   },
   deliveryFailure: "DELIVERY_FAILED is authoritative only for a rejected sendSignalEmail() stage; persistence failures after resolution are separate technical evidence.",
   registryPersistenceFailure: `${R22_O05_REGISTRY_PERSISTENCE_FAILURE_CODE} is technical evidence after a resolved send and is not DELIVERY_FAILED or a normal notification-noise observation.`,
+  terminalPayload: "Authoritative terminal payload is {terminalOutcome, failureCode}; replay requires exact equality of both fields.",
   ignored: "IGNORED remains INSTRUMENTATION_UNRESOLVED unless explicit human or UI evidence exists.",
 } as const);
 
@@ -242,7 +243,7 @@ export const R22_O05_GATES = Object.freeze([
   { id: "N03", status: "PASS", rule: "DELIVERY_ATTEMPTED is captured immediately before sendSignalEmail(); DELIVERED is captured only after resolution and before markSignalSent(); DELIVERY_FAILED requires a rejected send stage." },
   { id: "N04", status: "PASS", rule: "Every decision event has deterministic identity from scanId, signalId, channel, and exact outcome." },
   { id: "N05", status: "PASS", rule: "Same logical claim replay is idempotent without wall-clock or random identity inputs." },
-  { id: "N06", status: "PASS", rule: "A same-outcome terminal replay is IDEMPOTENT_REPLAY; an opposite outcome for the same terminalEventId is TERMINAL_CONFLICT and NOT_EVALUABLE with no overwrite." },
+  { id: "N06", status: "PASS", rule: "Exact terminal payload {terminalOutcome,failureCode} is required for IDEMPOTENT_REPLAY; any different payload for the same terminalEventId is TERMINAL_CONFLICT and NOT_EVALUABLE with no overwrite." },
   { id: "N07", status: "PASS", rule: "A resolved send remains DELIVERED even when markSignalSent fails; registry persistence failure is separate technical evidence and excluded from the notification-noise denominator." },
 ] as const);
 
@@ -459,7 +460,7 @@ export function validateR22O05TerminalTransition(
   if (existing.notificationDecisionId !== candidate.notificationDecisionId || existing.terminalEventId !== candidate.terminalEventId) {
     return { status: "NOT_EVALUABLE", reason: "TERMINAL_ID_MISMATCH" };
   }
-  if (existing.terminalOutcome === candidate.terminalOutcome) {
+  if (existing.terminalOutcome === candidate.terminalOutcome && existing.failureCode === candidate.failureCode) {
     return { status: "IDEMPOTENT_REPLAY", reason: "IDEMPOTENT_REPLAY" };
   }
   return { status: "NOT_EVALUABLE", reason: "TERMINAL_CONFLICT" };
