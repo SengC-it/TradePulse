@@ -40,7 +40,18 @@
     "scanIdentity": {
       "scanId": "Stable public.tp_scan_runs.id for the logical scan run; reused by scan-run retry",
       "runKey": "Deterministic hourly run key used to find the scan row; notification identity uses the authoritative scanId",
-      "signalId": "public.tp_signal_advisories.signal_id primary key"
+      "signalId": "public.tp_signal_advisories.signal_id primary key",
+      "leaseRetryIdentity": {
+        "choice": "A",
+        "model": "SAME_SCAN_ID_LOGICAL_REPLAY",
+        "source": "beginScanRun() reuses the existing scan row id after an expired lease and increments attempt_count",
+        "sameIdentity": "Same scanId, signalId, channel, and decisionType is one logical notification decision",
+        "denominatorIncrement": 0,
+        "replayEvidence": "Retain append-only",
+        "differentDecisionType": "CLAIMED and RETRY_CLAIMED remain distinct identities",
+        "attemptCountBoundary": "tp_scan_runs.attempt_count is scan-run retry metadata, not a unique notification execution id",
+        "identitySubstitutesForbidden": ["wall-clock time", "random client UUID"]
+      }
     }
   },
   "identity": {
@@ -53,7 +64,7 @@
     "preimage": ["namespace", "scanId", "signalId", "channel", "decisionType"],
     "formula": "SHA-256(stableJson({namespace,scanId,signalId,channel,decisionType}))",
     "idPrefix": "notification-decision:",
-    "doesNotUse": ["wall-clock time", "random UUID", "email message id", "attemptSequence"],
+    "doesNotUse": ["wall-clock time", "random UUID", "email message id", "attemptSequence", "tp_scan_runs.attempt_count"],
     "collisionAnalysis": {
       "differentScanRuns": "Different scanId values produce different identities.",
       "initialAndRetry": "CLAIMED and RETRY_CLAIMED remain distinct even for the same scanId and signalId.",
@@ -67,9 +78,25 @@
     "deliveryStartEvent": "DELIVERY_ATTEMPTED",
     "terminalEvents": ["DELIVERED", "DELIVERY_FAILED"],
     "deliveryAndTerminalLink": "Both terminal outcomes reference the same notificationDecisionId.",
+    "captureBoundaries": {
+      "DELIVERY_ATTEMPTED": "Immediately before sendSignalEmail(); the only delivery-attempt capture point.",
+      "DELIVERED": "Only after sendSignalEmail() resolves successfully and before markSignalSent().",
+      "DELIVERY_FAILED": "Only when sendSignalEmail() itself rejects or throws.",
+      "DELIVERY_REGISTRY_PERSISTENCE_FAILED": "Technical evidence after a resolved send when markSignalSent() rejects or throws; not DELIVERY_FAILED and excluded from the notification-noise denominator."
+    },
+    "stageMarkers": ["sendStarted", "sendResolved"],
+    "scanErrorClassifier": {
+      "authoritativeDeliveryTruth": false,
+      "rule": "An outer catch or classifySmtpFailure result cannot establish DELIVERY_FAILED without a rejected send stage."
+    },
     "terminalIdFormula": "SHA-256(stableJson({namespace:R22_O05_NOTIFICATION_TERMINAL,notificationDecisionId}))",
     "terminalIdPrefix": "notification-terminal:",
     "terminalUniqueness": "One terminal identity per notificationDecisionId; a delivery attempt cannot be both delivered and failed.",
+    "terminalConflict": {
+      "sameTerminalEventIdSameOutcome": "IDEMPOTENT_REPLAY",
+      "sameTerminalEventIdOppositeOutcome": "TERMINAL_CONFLICT and NOT_EVALUABLE",
+      "writePolicy": "No update, overwrite, or last-write-wins."
+    },
     "skipMapping": {
       "SKIPPED_DUPLICATE": "DUPLICATE_SKIPPED; no email attempt",
       "SKIPPED_EXPIRED": "SUPPRESSED with suppressionReason=EXPIRED; no email attempt"
@@ -101,11 +128,11 @@
   "gates": [
     {"id": "N01", "status": "PASS", "rule": "All four runtime claim outcomes are explicitly enumerated."},
     {"id": "N02", "status": "PASS", "rule": "attempt_count semantics are proven for initial insert, retry CAS, and non-mutating skips."},
-    {"id": "N03", "status": "PASS", "rule": "Delivery start and terminal evidence share the delivery claim decision identity."},
+    {"id": "N03", "status": "PASS", "rule": "DELIVERY_ATTEMPTED is immediately before send; DELIVERED is after send resolution and before persistence; DELIVERY_FAILED requires a rejected send stage."},
     {"id": "N04", "status": "PASS", "rule": "Every claim outcome has deterministic identity from authoritative scan and claim fields."},
     {"id": "N05", "status": "PASS", "rule": "Logical replay is idempotent and does not use capture time or randomness."},
-    {"id": "N06", "status": "PASS", "rule": "The frozen identity preimages separate runs, outcomes, and terminal events."},
-    {"id": "N07", "status": "PASS", "rule": "The proposed envelope is additive and behavior-preserving; implementation remains future work."}
+    {"id": "N06", "status": "PASS", "rule": "Same-outcome terminal replay is idempotent; an opposite outcome for the same terminal identity is TERMINAL_CONFLICT and NOT_EVALUABLE with no overwrite."},
+    {"id": "N07", "status": "PASS", "rule": "A resolved send remains DELIVERED when persistence fails; the separate technical evidence is excluded from the notification-noise denominator."}
   ],
   "o05": {
     "runtimeStatus": "INSTRUMENTATION_REQUIRED",

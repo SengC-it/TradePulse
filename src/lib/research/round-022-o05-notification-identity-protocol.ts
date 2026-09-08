@@ -41,6 +41,34 @@ export type R22O05DeliveryFailureCode =
 export const R22_O05_TERMINAL_OUTCOMES = Object.freeze(["DELIVERED", "DELIVERY_FAILED"] as const);
 export type R22O05TerminalOutcome = (typeof R22_O05_TERMINAL_OUTCOMES)[number];
 
+export const R22_O05_DELIVERY_CAPTURE_BOUNDARIES = Object.freeze({
+  attempted: "Immediately before sendSignalEmail(); this is the only DELIVERY_ATTEMPTED capture point.",
+  delivered: "Immediately after sendSignalEmail() resolves successfully and before markSignalSent().",
+  failed: "Only when sendSignalEmail() itself rejects or throws.",
+  registryPersistenceFailed: "After sendSignalEmail() resolves, when markSignalSent() rejects or throws; this is technical evidence only.",
+} as const);
+
+export const R22_O05_SCAN_ERROR_CLASSIFIER = Object.freeze({
+  role: "The existing scan error classifier handles scan error reporting only.",
+  authoritativeDeliveryTruth: false,
+  requiredStageMarkers: ["sendStarted", "sendResolved"] as const,
+  rule: "An outer catch or classifySmtpFailure result cannot establish DELIVERY_FAILED unless the send stage is known to have rejected.",
+} as const);
+
+export const R22_O05_REGISTRY_PERSISTENCE_FAILURE_CODE = "DELIVERY_REGISTRY_PERSISTENCE_FAILED" as const;
+
+export type R22O05SendSignalOutcome = "NOT_OBSERVED" | "RESOLVED" | "REJECTED";
+export type R22O05RegistryPersistenceOutcome = "NOT_ATTEMPTED" | "SUCCEEDED" | "FAILED";
+
+export type R22O05DeliveryTruth = Readonly<{
+  status: "VALID" | "NOT_EVALUABLE";
+  terminalOutcome: R22O05TerminalOutcome | null;
+  registryPersistence: R22O05RegistryPersistenceOutcome;
+  technicalEvidence: typeof R22_O05_REGISTRY_PERSISTENCE_FAILURE_CODE | null;
+  technicalEvidenceCountsInNotificationNoiseDenominator: false;
+  reason: "NONE" | "SEND_OUTCOME_UNRESOLVED" | "REGISTRY_PERSISTENCE_AFTER_REJECTED_SEND";
+}>;
+
 export const R22_O05_RUNTIME_SOURCES = Object.freeze([
   {
     path: "src/lib/signal-advisory/types.ts",
@@ -111,7 +139,7 @@ export const R22_O05_IDENTITY_MODEL = Object.freeze({
   preimageNamespace: "R22_O05_NOTIFICATION_DECISION",
   formula: "SHA-256(stableJson({namespace,scanId,signalId,channel,decisionType}))",
   decisionType: "Exact SignalClaimResult: CLAIMED | RETRY_CLAIMED | SKIPPED_DUPLICATE | SKIPPED_EXPIRED.",
-  doesNotUse: ["wall-clock time", "random UUID", "message id", "attemptSequence as an identity input"],
+  doesNotUse: ["wall-clock time", "random UUID", "message id", "attemptSequence as an identity input", "tp_scan_runs.attempt_count"],
   collisionProof: [
     "Different scanId values distinguish independent scan runs.",
     "The exact outcome distinguishes CLAIMED from RETRY_CLAIMED in the same scan run.",
@@ -126,14 +154,31 @@ export const R22_O05_DELIVERY_MODEL = Object.freeze({
   attemptStartEvent: "DELIVERY_ATTEMPTED",
   deliveryTerminalEvents: ["DELIVERED", "DELIVERY_FAILED"],
   deliveryAttemptIdentity: "notificationDecisionId",
+  captureBoundaries: R22_O05_DELIVERY_CAPTURE_BOUNDARIES,
+  stageMarkers: R22_O05_SCAN_ERROR_CLASSIFIER.requiredStageMarkers,
+  scanErrorClassifier: R22_O05_SCAN_ERROR_CLASSIFIER,
   terminalIdentityFormula: "SHA-256(stableJson({namespace:R22_O05_NOTIFICATION_TERMINAL,notificationDecisionId}))",
   terminalUniqueness: "One terminal identity per notificationDecisionId; the same delivery attempt cannot be both delivered and failed.",
+  terminalConflict: "A second terminal with the same terminalEventId and a different outcome is TERMINAL_CONFLICT and NOT_EVALUABLE; no update, overwrite, or last-write-wins.",
   skipMapping: {
     SKIPPED_DUPLICATE: "DUPLICATE_SKIPPED",
     SKIPPED_EXPIRED: "SUPPRESSED with suppressionReason=EXPIRED",
   },
-  deliveryFailure: "A technical delivery failure is a separate terminal evidence outcome linked to the same notificationDecisionId.",
+  deliveryFailure: "DELIVERY_FAILED is authoritative only for a rejected sendSignalEmail() stage; persistence failures after resolution are separate technical evidence.",
+  registryPersistenceFailure: `${R22_O05_REGISTRY_PERSISTENCE_FAILURE_CODE} is technical evidence after a resolved send and is not DELIVERY_FAILED or a normal notification-noise observation.`,
   ignored: "IGNORED remains INSTRUMENTATION_UNRESOLVED unless explicit human or UI evidence exists.",
+} as const);
+
+export const R22_O05_SCAN_LEASE_RETRY_IDENTITY = Object.freeze({
+  model: "SAME_SCAN_ID_LOGICAL_REPLAY",
+  choice: "A",
+  source: "beginScanRun() reuses the existing tp_scan_runs.id after an expired lease and increments attempt_count.",
+  sameScanSignalDecision: "The same scanId, signalId, channel, and decisionType are one logical notification decision replay.",
+  differentDecisionType: "CLAIMED and RETRY_CLAIMED remain distinct decision events even when scanId is reused.",
+  denominator: "A same-identity lease replay increments the notification denominator by zero; its replay evidence is retained append-only.",
+  attemptCountBoundary: "tp_scan_runs.attempt_count is scan-run retry metadata and is never treated as a unique notification execution ID.",
+  concurrencyBoundary: "This design does not claim attempt_count is concurrency-safe identity; future persistence must use conflict-safe append semantics.",
+  noSubstitution: ["wall-clock time", "random client UUID"] as const,
 } as const);
 
 export const R22_O05_ATTEMPT_SEQUENCE_DESIGN = Object.freeze({
@@ -194,11 +239,11 @@ export const R22_O05_PROPOSED_SIGNAL_CLAIM_RESULT_CONTRACT = Object.freeze({
 export const R22_O05_GATES = Object.freeze([
   { id: "N01", status: "PASS", rule: "All four runtime claim outcomes are explicitly enumerated." },
   { id: "N02", status: "PASS", rule: "attempt_count semantics are proven for insert, retry CAS, and non-mutating skips." },
-  { id: "N03", status: "PASS", rule: "CLAIMED and RETRY_CLAIMED delivery outcomes share one decision identity for start and terminal evidence." },
+  { id: "N03", status: "PASS", rule: "DELIVERY_ATTEMPTED is captured immediately before sendSignalEmail(); DELIVERED is captured only after resolution and before markSignalSent(); DELIVERY_FAILED requires a rejected send stage." },
   { id: "N04", status: "PASS", rule: "Every decision event has deterministic identity from scanId, signalId, channel, and exact outcome." },
   { id: "N05", status: "PASS", rule: "Same logical claim replay is idempotent without wall-clock or random identity inputs." },
-  { id: "N06", status: "PASS", rule: "Distinct scan runs, outcomes, and terminal events cannot collide under the frozen preimages." },
-  { id: "N07", status: "PASS", rule: "The proposed metadata envelope is additive and behavior-preserving; runtime instrumentation remains future work." },
+  { id: "N06", status: "PASS", rule: "A same-outcome terminal replay is IDEMPOTENT_REPLAY; an opposite outcome for the same terminalEventId is TERMINAL_CONFLICT and NOT_EVALUABLE with no overwrite." },
+  { id: "N07", status: "PASS", rule: "A resolved send remains DELIVERED even when markSignalSent fails; registry persistence failure is separate technical evidence and excluded from the notification-noise denominator." },
 ] as const);
 
 export const R22_O05_GOVERNANCE = Object.freeze({
@@ -351,6 +396,105 @@ export function validateR22O05TerminalEvent(event: R22O05TerminalEvent): R22O05T
     return { status: "NOT_EVALUABLE", reason: "FAILURE_CODE_FOR_DELIVERY" };
   }
   return { status: "VALID", reason: "NONE" };
+}
+
+export type R22O05TerminalTransitionValidation = Readonly<{
+  status: "APPEND" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE";
+  reason: "NONE" | "IDEMPOTENT_REPLAY" | "TERMINAL_CONFLICT" | "TERMINAL_ID_MISMATCH" | "INVALID_EXISTING" | "INVALID_CANDIDATE";
+}>;
+
+export function deriveR22O05DeliveryTruth(input: Readonly<{
+  sendSignalEmail: R22O05SendSignalOutcome;
+  markSignalSent: R22O05RegistryPersistenceOutcome;
+}>): R22O05DeliveryTruth {
+  if (input.sendSignalEmail === "NOT_OBSERVED") {
+    return {
+      status: "NOT_EVALUABLE",
+      terminalOutcome: null,
+      registryPersistence: input.markSignalSent,
+      technicalEvidence: null,
+      technicalEvidenceCountsInNotificationNoiseDenominator: false,
+      reason: "SEND_OUTCOME_UNRESOLVED",
+    };
+  }
+  if (input.sendSignalEmail === "REJECTED") {
+    if (input.markSignalSent !== "NOT_ATTEMPTED") {
+      return {
+        status: "NOT_EVALUABLE",
+        terminalOutcome: null,
+        registryPersistence: input.markSignalSent,
+        technicalEvidence: null,
+        technicalEvidenceCountsInNotificationNoiseDenominator: false,
+        reason: "REGISTRY_PERSISTENCE_AFTER_REJECTED_SEND",
+      };
+    }
+    return {
+      status: "VALID",
+      terminalOutcome: "DELIVERY_FAILED",
+      registryPersistence: "NOT_ATTEMPTED",
+      technicalEvidence: null,
+      technicalEvidenceCountsInNotificationNoiseDenominator: false,
+      reason: "NONE",
+    };
+  }
+  return {
+    status: "VALID",
+    terminalOutcome: "DELIVERED",
+    registryPersistence: input.markSignalSent,
+    technicalEvidence: input.markSignalSent === "FAILED" ? R22_O05_REGISTRY_PERSISTENCE_FAILURE_CODE : null,
+    technicalEvidenceCountsInNotificationNoiseDenominator: false,
+    reason: "NONE",
+  };
+}
+
+export function validateR22O05TerminalTransition(
+  existing: R22O05TerminalEvent | null,
+  candidate: R22O05TerminalEvent,
+): R22O05TerminalTransitionValidation {
+  const candidateValidation = validateR22O05TerminalEvent(candidate);
+  if (candidateValidation.status !== "VALID") return { status: "NOT_EVALUABLE", reason: "INVALID_CANDIDATE" };
+  if (existing === null) return { status: "APPEND", reason: "NONE" };
+  const existingValidation = validateR22O05TerminalEvent(existing);
+  if (existingValidation.status !== "VALID") return { status: "NOT_EVALUABLE", reason: "INVALID_EXISTING" };
+  if (existing.notificationDecisionId !== candidate.notificationDecisionId || existing.terminalEventId !== candidate.terminalEventId) {
+    return { status: "NOT_EVALUABLE", reason: "TERMINAL_ID_MISMATCH" };
+  }
+  if (existing.terminalOutcome === candidate.terminalOutcome) {
+    return { status: "IDEMPOTENT_REPLAY", reason: "IDEMPOTENT_REPLAY" };
+  }
+  return { status: "NOT_EVALUABLE", reason: "TERMINAL_CONFLICT" };
+}
+
+export type R22O05LeaseReplayValidation = Readonly<{
+  status: "IDEMPOTENT_REPLAY" | "NEW_NOTIFICATION_DECISION";
+  denominatorIncrement: 0 | 1;
+  replayEvidenceRetained: true;
+  reason: "SAME_SCAN_SIGNAL_DECISION" | "DIFFERENT_NOTIFICATION_IDENTITY";
+}>;
+
+export function classifyR22O05SameScanLeaseReplay(
+  original: Pick<R22O05ClaimMetadata, "scanId" | "signalId" | "channel" | "decisionType" | "notificationDecisionId">,
+  replay: Pick<R22O05ClaimMetadata, "scanId" | "signalId" | "channel" | "decisionType" | "notificationDecisionId">,
+): R22O05LeaseReplayValidation {
+  const sameIdentity = original.scanId === replay.scanId
+    && original.signalId === replay.signalId
+    && original.channel === replay.channel
+    && original.decisionType === replay.decisionType
+    && original.notificationDecisionId === replay.notificationDecisionId;
+  if (sameIdentity) {
+    return {
+      status: "IDEMPOTENT_REPLAY",
+      denominatorIncrement: 0,
+      replayEvidenceRetained: true,
+      reason: "SAME_SCAN_SIGNAL_DECISION",
+    };
+  }
+  return {
+    status: "NEW_NOTIFICATION_DECISION",
+    denominatorIncrement: 1,
+    replayEvidenceRetained: true,
+    reason: "DIFFERENT_NOTIFICATION_IDENTITY",
+  };
 }
 
 export function isR22O05DesignReady(): boolean {

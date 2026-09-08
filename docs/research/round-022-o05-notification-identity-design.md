@@ -54,6 +54,24 @@ boundary immediately before `sendSignalEmail()`. It has a start event
 `DELIVERY_ATTEMPTED` and exactly one terminal event, either `DELIVERED` or
 `DELIVERY_FAILED`. Both terminal events reference the same attempt decision.
 
+The capture points are authoritative and ordered:
+
+- `DELIVERY_ATTEMPTED` is captured immediately before `sendSignalEmail()`.
+- `DELIVERED` is captured only after `sendSignalEmail()` resolves successfully
+  and before `markSignalSent()`.
+- `DELIVERY_FAILED` is captured only when `sendSignalEmail()` itself rejects or
+  throws.
+
+The scan error classifier is not delivery truth. It may classify a scan error
+only when the stage markers `sendStarted` and `sendResolved` establish whether
+the send rejected or resolved. An outer catch cannot turn a persistence error
+after a resolved send into `DELIVERY_FAILED`.
+
+If `sendSignalEmail()` resolves but `markSignalSent()` fails, the terminal truth
+remains `DELIVERED`. The design records technical evidence
+`DELIVERY_REGISTRY_PERSISTENCE_FAILED`; this evidence is not `DELIVERY_FAILED`
+and is excluded from the normal notification-noise denominator.
+
 A **notification decision event** exists for every claim outcome, including
 `SKIPPED_DUPLICATE` and `SKIPPED_EXPIRED`. A skipped decision has no email
 attempt, but it still has an authoritative server claim outcome that must be
@@ -108,6 +126,26 @@ prevents one attempt from acquiring two terminal identities. The proposed
 `attemptSequence` is retained as diagnostic metadata only: `1` for
 `CLAIMED`, `2` for `RETRY_CLAIMED`, and `null` for skips.
 
+Terminal identity is append-only. A same `terminalEventId` with the same outcome
+is `IDEMPOTENT_REPLAY`. A same `terminalEventId` with the opposite outcome is
+`TERMINAL_CONFLICT` and `NOT_EVALUABLE`; it must not update, overwrite, or use
+last-write-wins behavior.
+
+### Same-scan lease retry
+
+The audited `beginScanRun()` path reuses the existing scan row identity when a
+run-key conflict finds an unfinished row with an expired lease. The frozen
+choice is **A: same logical notification decision replay**:
+
+- the same `scanId + signalId + channel + decisionType` is one logical decision;
+- replay evidence remains append-only, but the notification-noise denominator
+  increment is `0`;
+- `CLAIMED` and `RETRY_CLAIMED` remain different decision types and therefore
+  remain distinct identities;
+- `tp_scan_runs.attempt_count` is scan-run retry metadata, not a unique
+  notification execution identity;
+- wall-clock time and random client UUIDs are not identity substitutes.
+
 ## Proposed future metadata envelope
 
 The future implementation may expose an additive metadata envelope containing:
@@ -128,11 +166,11 @@ semantics, send decisions, or signal generation merely to produce evidence.
 | --- | --- | --- |
 | N01 | `PASS` | All four runtime claim outcomes are enumerated. |
 | N02 | `PASS` | Insert, retry CAS, and non-mutating skip `attempt_count` semantics are explicit. |
-| N03 | `PASS` | Delivery start and terminal evidence share one delivery decision identity. |
+| N03 | `PASS` | `DELIVERY_ATTEMPTED` is immediately before send; `DELIVERED` is after send resolution and before persistence; `DELIVERY_FAILED` requires a rejected send stage. |
 | N04 | `PASS` | Every claim outcome has deterministic identity from authoritative scan and claim fields. |
 | N05 | `PASS` | Same logical replay is idempotent without time or randomness. |
-| N06 | `PASS` | Distinct runs, outcomes, and terminal events have non-colliding frozen preimages. |
-| N07 | `PASS` | The proposed envelope is additive and behavior-preserving. |
+| N06 | `PASS` | Same-outcome terminal replay is idempotent; an opposite outcome for the same terminal identity is `TERMINAL_CONFLICT` and `NOT_EVALUABLE` with no overwrite. |
+| N07 | `PASS` | A resolved send remains `DELIVERED` when persistence fails; the separate technical evidence is excluded from the notification-noise denominator. |
 
 Therefore:
 
