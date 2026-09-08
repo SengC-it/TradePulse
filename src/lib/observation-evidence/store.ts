@@ -53,6 +53,7 @@ function rowFromCandidate(candidate: ObservationEvidenceCandidate): Record<strin
     content_hash: candidate.contentHash,
     evidence_hash: candidate.evidenceHash,
     idempotency_key: candidate.idempotencyKey,
+    supersedes_artifact_id: candidate.supersedesArtifactId,
     supersedes_evidence_id: candidate.supersedesEvidenceId,
     payload: candidate.payload,
     timestamp_authority: candidate.timestampAuthority,
@@ -103,11 +104,7 @@ export class SupabaseObservationEvidenceStore {
       };
     }
 
-    return {
-      status: "NOT_EVALUABLE",
-      evidenceId: candidate.evidenceId,
-      reason: "LOGICAL_ID_CONFLICT",
-    };
+    throw persistenceError("classify unique constraint conflict", inserted.error);
   }
 
   private async readBy(column: string, value: string): Promise<Record<string, unknown> | null> {

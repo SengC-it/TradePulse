@@ -44,6 +44,7 @@ create table public.tp_observation_evidence (
   content_hash text,
   evidence_hash text,
   idempotency_key text not null unique,
+  supersedes_artifact_id text,
   supersedes_evidence_id text
     references public.tp_observation_evidence(evidence_id) on delete restrict,
 

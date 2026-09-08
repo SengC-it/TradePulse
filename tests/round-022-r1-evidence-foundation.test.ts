@@ -123,6 +123,7 @@ function candidate(overrides: Partial<ObservationEvidenceCandidate> = {}): Obser
     contentHash: artifact.contentHash,
     evidenceHash: artifact.evidenceHash,
     idempotencyKey: artifact.idempotencyKey,
+    supersedesArtifactId: artifact.supersedesArtifactId,
     supersedesEvidenceId: null,
     payload: artifact.payload,
     timestampAuthority: artifact.timestampAuthority,
@@ -332,11 +333,32 @@ describe("Round-022 R1 evidence foundation", () => {
     }).reason).toBe("INVALID_TIMESTAMP");
   });
 
-  it("rejects forbidden economic fields recursively and through simple naming variants", () => {
+  it("uses exact normalized forbidden-field membership", () => {
+    for (const payload of [
+      { windowSize: 1 },
+      { windowCount: 2 },
+      { losslessEncoding: "json" },
+      { returnAddress: "mailbox" },
+      { returnPolicyCode: "R22" },
+      { winnerMetadata: { source: "system" } },
+      { profitabilityContext: { label: "advisory-only" } },
+    ]) {
+      expect(validateObservationSnapshot(snapshot({ payload: payload as never }))).toMatchObject({
+        status: "OBSERVABLE",
+        reason: "NONE",
+      });
+    }
+  });
+
+  it("rejects exact normalized forbidden economic fields recursively", () => {
     for (const payload of [
       { PnL: 1 },
+      { profit: 1 },
+      { loss: 1 },
+      { return: 1 },
       { nested: [{ forward_return: 1 }] },
       { futurePrice: 1 },
+      { win: true },
       { deep: { realized_pnl: 1 } },
       { takeProfitHit: true },
     ]) {
@@ -413,6 +435,53 @@ describe("Round-022 R1 evidence foundation", () => {
     });
   });
 
+  it("throws on an unclassified PostgreSQL 23505 without a known conflicting row", async () => {
+    const client = new FakeClient();
+    client.insertError = { code: "23505" };
+    await expect(storeWith(client).appendEvidence(candidate())).rejects.toThrow(/23505/);
+    expect(client.rows).toHaveLength(0);
+  });
+
+  it("keeps artifact and evidence supersession namespaces separate", async () => {
+    const client = new FakeClient();
+    const superseding = candidate({
+      evidenceId: "evidence-r22-002",
+      artifactId: "artifact-r22-002",
+      supersedesArtifactId: "artifact-r22-prior",
+      supersedesEvidenceId: "evidence-r22-prior",
+    });
+
+    expect(validateObservationSnapshot(snapshot({ supersedesArtifactId: "artifact-r22-prior" }))).toMatchObject({
+      status: "OBSERVABLE",
+      reason: "NONE",
+    });
+    expect(validateObservationEvidenceCandidate(superseding)).toMatchObject({
+      status: "VALID",
+      reason: "NONE",
+    });
+
+    await expect(storeWith(client).appendEvidence(superseding)).resolves.toEqual({
+      status: "APPENDED",
+      evidenceId: "evidence-r22-002",
+    });
+    expect(client.rows[0]).toMatchObject({
+      supersedes_artifact_id: "artifact-r22-prior",
+      supersedes_evidence_id: "evidence-r22-prior",
+    });
+  });
+
+  it("rejects artifact and evidence self-supersession independently", () => {
+    expect(validateObservationSnapshot(snapshot({
+      supersedesArtifactId: "artifact-r22-001",
+    })).reason).toBe("APPEND_ONLY_VIOLATION");
+    expect(validateObservationEvidenceCandidate(candidate({
+      supersedesArtifactId: "artifact-r22-001",
+    })).snapshotReason).toBe("APPEND_ONLY_VIOLATION");
+    expect(validateObservationEvidenceCandidate(candidate({
+      supersedesEvidenceId: "evidence-r22-001",
+    })).reason).toBe("APPEND_ONLY_VIOLATION");
+  });
+
   it("throws on an unknown persistence error and never claims APPENDED", async () => {
     const client = new FakeClient();
     client.insertError = { code: "XXUNKNOWN" };
@@ -426,6 +495,7 @@ describe("Round-022 R1 evidence foundation", () => {
     expect(sql).toMatch(/create table public\.tp_observation_evidence/i);
     expect(sql).toMatch(/evidence_id\s+text\s+primary key/i);
     expect(sql).toMatch(/idempotency_key\s+text\s+not null unique/i);
+    expect(sql).toMatch(/supersedes_artifact_id\s+text/i);
     expect(sql).toMatch(/create unique index[\s\S]*event_kind = 'SNAPSHOT'/i);
     expect(sql).toMatch(/create unique index[\s\S]*event_kind = 'NOTIFICATION'/i);
     expect(sql).toMatch(/create unique index[\s\S]*event_kind = 'REVIEW'/i);
@@ -437,6 +507,8 @@ describe("Round-022 R1 evidence foundation", () => {
     expect(sql).not.toMatch(/update\s+public\.tp_observation_evidence/i);
     expect(sql).not.toMatch(/delete\s+from\s+public\.tp_observation_evidence/i);
     expect(OBSERVATION_EVIDENCE_TABLE).toBe("tp_observation_evidence");
+    expect(readFileSync(resolve(process.cwd(), "src/lib/observation-evidence/validator.ts"), "utf8"))
+      .not.toContain("supersedesArtifactId: candidate.supersedesEvidenceId");
   });
 
   it("has zero production writer call sites and leaves existing advisory paths untouched", () => {

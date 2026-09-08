@@ -116,6 +116,7 @@ export type ObservationEvidenceCandidate = Readonly<{
   contentHash: string | null;
   evidenceHash: string | null;
   idempotencyKey: string;
+  supersedesArtifactId: string | null;
   supersedesEvidenceId: string | null;
   payload: ObservationJsonValue;
   timestampAuthority: ObservationTimestampAuthority;

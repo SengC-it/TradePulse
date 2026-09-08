@@ -20,7 +20,7 @@ import {
 } from "./types.ts";
 import { isCanonicalJsonValue } from "./canonical.ts";
 
-const FORBIDDEN_FIELD_NAMES = Object.freeze([
+const FORBIDDEN_FIELD_NAMES = new Set([
   "pnl",
   "profit",
   "loss",
@@ -62,8 +62,7 @@ function forbiddenField(value: unknown, path = "payload"): string | null {
   if (typeof value !== "object" || value === null) return null;
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const normalized = normalizedFieldName(key);
-    if (FORBIDDEN_FIELD_NAMES.includes(normalized)
-      || FORBIDDEN_FIELD_NAMES.some((name) => normalized.includes(name))) {
+    if (FORBIDDEN_FIELD_NAMES.has(normalized)) {
       return `${path}.${key}`;
     }
     const found = forbiddenField(child, `${path}.${key}`);
@@ -294,7 +293,7 @@ function candidateSnapshot(candidate: ObservationEvidenceCandidate): Observation
     contentHash: candidate.contentHash ?? "",
     evidenceHash: candidate.evidenceHash ?? "",
     idempotencyKey: candidate.idempotencyKey,
-    supersedesArtifactId: candidate.supersedesEvidenceId,
+    supersedesArtifactId: candidate.supersedesArtifactId,
     timestampAuthority: candidate.timestampAuthority,
     persistenceOperation: candidate.persistenceOperation,
   };
