@@ -9,6 +9,7 @@ import {
   type SmtpConfiguration,
 } from "@/lib/signal-advisory/email";
 import { buildDeterministicSignalId } from "@/lib/signal-advisory/identity";
+import type { NotificationEvidenceEvent } from "@/lib/signal-advisory/notification-evidence";
 import { runSignalAdvisoryScan } from "@/lib/signal-advisory/scan";
 import type {
   AdvisoryHealth,
@@ -196,6 +197,8 @@ class MemoryStore implements SignalAdvisoryStore {
   readonly events: SystemEventInput[] = [];
   readonly evaluations: SignalEvaluationRecord[] = [];
   evaluationPersistenceFailure = false;
+  markSignalSentFailure = false;
+  markSignalFailedCalls = 0;
   private nextId = 1;
 
   async beginScanRun(input: { runKey: string; scheduledFor: string; now: string }): Promise<ScanRunBeginResult> {
@@ -250,6 +253,9 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async markSignalSent(input: { signalId: string; sentAt: string; emailMessageId: string }): Promise<void> {
+    if (this.markSignalSentFailure) {
+      throw new Error("delivery registry unavailable");
+    }
     const advisory = this.advisories.get(input.signalId);
     if (advisory) {
       advisory.deliveryStatus = "SENT";
@@ -257,6 +263,7 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async markSignalFailed(input: { signalId: string; failedAt: string; failureReason: string }): Promise<void> {
+    this.markSignalFailedCalls += 1;
     const advisory = this.advisories.get(input.signalId);
     if (advisory && advisory.deliveryStatus !== "SENT") {
       advisory.deliveryStatus = "FAILED";
@@ -288,6 +295,7 @@ function dependencies(input: {
   store: MemoryStore;
   snapshot?: MarketSnapshot;
   send?: (advisory: SignalAdvisory) => Promise<{ emailMessageId: string }>;
+  observe?: (event: NotificationEvidenceEvent) => void | Promise<void>;
   now?: () => number;
 }) {
   return {
@@ -296,6 +304,7 @@ function dependencies(input: {
     },
     store: input.store,
     sendSignalEmail: input.send ?? (async () => ({ emailMessageId: "<test-message-id>" })),
+    observeNotificationEvidence: input.observe,
     now: input.now ?? (() => EVALUATION_TIME),
     recipient: "owner@example.test",
   };
@@ -506,6 +515,123 @@ describe("signal advisory scan", () => {
     expect(store.evaluations.every((evaluation) => evaluation.scanRunId === result.scanId)).toBe(true);
     expect(store.evaluations.some((evaluation) => evaluation.status === "FORMAL_SIGNAL")).toBe(true);
     expect(store.events.at(-1)?.metadata).toMatchObject({ dataFreshness: "FRESH" });
+  });
+
+  it("captures claim, attempted, and delivered evidence in order", async () => {
+    const store = new MemoryStore();
+    const evidence: NotificationEvidenceEvent[] = [];
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: (event) => {
+          evidence.push(event);
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    const firstSignalId = [...store.advisories.keys()][0];
+    expect(firstSignalId).toBeDefined();
+    expect(evidence.filter((event) => event.metadata.signalId === firstSignalId).map((event) => event.type)).toEqual([
+      "CLAIM_DECISION",
+      "DELIVERY_ATTEMPTED",
+      "DELIVERED",
+    ]);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("records DELIVERY_FAILED only when the email sender rejects", async () => {
+    const store = new MemoryStore();
+    const evidence: NotificationEvidenceEvent[] = [];
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: (event) => {
+          evidence.push(event);
+        },
+        send: async () => {
+          throw { code: "EAUTH", responseCode: 535 };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    const firstSignalId = [...store.advisories.keys()][0];
+    const firstEvidence = evidence.filter((event) => event.metadata.signalId === firstSignalId);
+    expect(firstEvidence.map((event) => event.type)).toEqual([
+      "CLAIM_DECISION",
+      "DELIVERY_ATTEMPTED",
+      "DELIVERY_FAILED",
+    ]);
+    expect(firstEvidence.some((event) => event.type === "DELIVERED")).toBe(false);
+    expect(result.errors).toContain("SMTP_AUTH_FAILED");
+    expect(store.markSignalFailedCalls).toBe(result.signalsGenerated);
+  });
+
+  it("keeps a resolved email delivered when registry persistence fails", async () => {
+    const store = new MemoryStore();
+    store.markSignalSentFailure = true;
+    const evidence: NotificationEvidenceEvent[] = [];
+    let sendCount = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: (event) => {
+          evidence.push(event);
+        },
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<registry-failure-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+    const firstSignalId = [...store.advisories.keys()][0];
+    const firstEvidence = evidence.filter((event) => event.metadata.signalId === firstSignalId);
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+    expect(result.errors).toContain("DELIVERY_REGISTRY_PERSISTENCE_FAILED");
+    expect(store.markSignalFailedCalls).toBe(0);
+    expect(firstEvidence.map((event) => event.type)).toEqual([
+      "CLAIM_DECISION",
+      "DELIVERY_ATTEMPTED",
+      "DELIVERED",
+      "DELIVERY_REGISTRY_PERSISTENCE_FAILED",
+    ]);
+    expect(firstEvidence.some((event) => event.type === "DELIVERY_FAILED")).toBe(false);
+
+    const repeated = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<unexpected-retry-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+    expect(repeated.signalsSkipped).toBe(result.signalsGenerated);
+    expect(sendCount).toBe(result.signalsGenerated);
+  });
+
+  it("isolates notification evidence observer failures from the scan", async () => {
+    const store = new MemoryStore();
+    let observed = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => {
+          observed += 1;
+          throw new Error("sidecar unavailable");
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(observed).toBeGreaterThan(0);
+    expect(result.outcome).toBe("SUCCESS");
+    expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
   it("keeps signal eligibility and email delivery unchanged when evaluation logging fails", async () => {

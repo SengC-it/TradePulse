@@ -1,6 +1,7 @@
 import type { ResearchSymbol } from "../config/constants.ts";
 import type { MarketSnapshot } from "../market-data/types.ts";
 import type { SignalEvaluationRecord } from "./evaluations.ts";
+import type { NotificationEvidenceObserver } from "./notification-evidence.ts";
 
 export type { SignalEvaluationRecord } from "./evaluations.ts";
 
@@ -112,6 +113,7 @@ export type SignalAdvisoryScanDependencies = Readonly<{
   };
   store: SignalAdvisoryStore;
   sendSignalEmail(advisory: SignalAdvisory): Promise<{ emailMessageId: string }>;
+  observeNotificationEvidence?: NotificationEvidenceObserver;
   now?: () => number;
   recipient: string;
 }>;

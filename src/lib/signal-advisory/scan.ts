@@ -8,6 +8,15 @@ import { buildHourlyScanRunKey } from "../scanning/run-idempotency.ts";
 import { sendSignalEmail, SmtpConfigurationError } from "./email.ts";
 import { buildDeterministicSignalId } from "./identity.ts";
 import { mapStrategyEvaluations } from "./evaluations.ts";
+import {
+  buildClaimDecisionEvidence,
+  buildDeliveredEvidence,
+  buildDeliveryAttemptedEvidence,
+  buildDeliveryFailedEvidence,
+  buildDeliveryRegistryPersistenceFailureEvidence,
+  buildNotificationDecisionMetadata,
+} from "./notification-evidence.ts";
+import type { NotificationEvidenceEvent } from "./notification-evidence.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
 import type {
   SignalAdvisory,
@@ -179,6 +188,17 @@ async function recordEvent(
     await dependencies.store.recordSystemEvent(input);
   } catch {
     errors.push("SYSTEM_EVENT_PERSISTENCE_FAILED");
+  }
+}
+
+async function observeNotificationEvidence(
+  dependencies: SignalAdvisoryScanDependencies,
+  event: NotificationEvidenceEvent,
+): Promise<void> {
+  try {
+    await dependencies.observeNotificationEvidence?.(event);
+  } catch {
+    // Evidence observation is a non-blocking sidecar. It must never alter scan or delivery truth.
   }
 }
 
@@ -358,21 +378,24 @@ export async function runSignalAdvisoryScan(input: Readonly<{
   for (const advisory of advisories) {
     try {
       const claim = await dependencies.store.claimSignal(advisory, begin.scanId, nowIso);
+      const metadata = buildNotificationDecisionMetadata({
+        scanId: begin.scanId,
+        signalId: advisory.signalId,
+        decisionType: claim,
+      });
+      await observeNotificationEvidence(dependencies, buildClaimDecisionEvidence(metadata));
       if (claim === "SKIPPED_DUPLICATE" || claim === "SKIPPED_EXPIRED") {
         signalsSkipped += 1;
         continue;
       }
 
+      await observeNotificationEvidence(dependencies, buildDeliveryAttemptedEvidence(metadata));
+      let delivery: { emailMessageId: string };
       try {
-        const delivery = await dependencies.sendSignalEmail(advisory);
-        await dependencies.store.markSignalSent({
-          signalId: advisory.signalId,
-          sentAt: new Date(now()).toISOString(),
-          emailMessageId: delivery.emailMessageId,
-        });
-        signalsSent += 1;
+        delivery = await dependencies.sendSignalEmail(advisory);
       } catch (error) {
         const failureClass = classifySmtpFailure(error);
+        await observeNotificationEvidence(dependencies, buildDeliveryFailedEvidence(metadata, failureClass));
         errors.push(failureClass);
         await dependencies.store.markSignalFailed({
           signalId: advisory.signalId,
@@ -389,6 +412,37 @@ export async function runSignalAdvisoryScan(input: Readonly<{
             scanId: begin.scanId,
             symbol: advisory.symbol,
             metadata: { signalId: advisory.signalId, failureClass },
+          },
+          errors,
+        );
+        continue;
+      }
+
+      signalsSent += 1;
+      await observeNotificationEvidence(dependencies, buildDeliveredEvidence(metadata));
+      try {
+        await dependencies.store.markSignalSent({
+          signalId: advisory.signalId,
+          sentAt: new Date(now()).toISOString(),
+          emailMessageId: delivery.emailMessageId,
+        });
+      } catch {
+        const persistenceFailure = "DELIVERY_REGISTRY_PERSISTENCE_FAILED" as const;
+        await observeNotificationEvidence(
+          dependencies,
+          buildDeliveryRegistryPersistenceFailureEvidence(metadata),
+        );
+        errors.push(persistenceFailure);
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "signal-advisory-delivery-registry-persistence",
+            status: "FAILED",
+            errorCode: persistenceFailure,
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: { signalId: advisory.signalId, technicalCode: persistenceFailure },
           },
           errors,
         );
