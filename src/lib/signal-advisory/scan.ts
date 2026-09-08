@@ -191,14 +191,24 @@ async function recordEvent(
   }
 }
 
-async function observeNotificationEvidence(
+function observeNotificationEvidence(
   dependencies: SignalAdvisoryScanDependencies,
   event: NotificationEvidenceEvent,
-): Promise<void> {
+): void {
+  const observer = dependencies.observeNotificationEvidence;
+  if (!observer) return;
+
   try {
-    await dependencies.observeNotificationEvidence?.(event);
+    const pending = observer(event);
+    if (pending && typeof pending.then === "function") {
+      void Promise.resolve(pending).catch(() => {
+        // Evidence observation is a best-effort runtime sidecar. It is not a
+        // durable writer, transaction participant, or delivery acknowledgement.
+      });
+    }
   } catch {
-    // Evidence observation is a non-blocking sidecar. It must never alter scan or delivery truth.
+    // Evidence observation is a best-effort runtime sidecar. It must never
+    // alter scan or delivery truth.
   }
 }
 
@@ -383,19 +393,19 @@ export async function runSignalAdvisoryScan(input: Readonly<{
         signalId: advisory.signalId,
         decisionType: claim,
       });
-      await observeNotificationEvidence(dependencies, buildClaimDecisionEvidence(metadata));
+      observeNotificationEvidence(dependencies, buildClaimDecisionEvidence(metadata));
       if (claim === "SKIPPED_DUPLICATE" || claim === "SKIPPED_EXPIRED") {
         signalsSkipped += 1;
         continue;
       }
 
-      await observeNotificationEvidence(dependencies, buildDeliveryAttemptedEvidence(metadata));
+      observeNotificationEvidence(dependencies, buildDeliveryAttemptedEvidence(metadata));
       let delivery: { emailMessageId: string };
       try {
         delivery = await dependencies.sendSignalEmail(advisory);
       } catch (error) {
         const failureClass = classifySmtpFailure(error);
-        await observeNotificationEvidence(dependencies, buildDeliveryFailedEvidence(metadata, failureClass));
+        observeNotificationEvidence(dependencies, buildDeliveryFailedEvidence(metadata, failureClass));
         errors.push(failureClass);
         await dependencies.store.markSignalFailed({
           signalId: advisory.signalId,
@@ -419,7 +429,7 @@ export async function runSignalAdvisoryScan(input: Readonly<{
       }
 
       signalsSent += 1;
-      await observeNotificationEvidence(dependencies, buildDeliveredEvidence(metadata));
+      observeNotificationEvidence(dependencies, buildDeliveredEvidence(metadata));
       try {
         await dependencies.store.markSignalSent({
           signalId: advisory.signalId,
@@ -428,7 +438,7 @@ export async function runSignalAdvisoryScan(input: Readonly<{
         });
       } catch {
         const persistenceFailure = "DELIVERY_REGISTRY_PERSISTENCE_FAILED" as const;
-        await observeNotificationEvidence(
+        observeNotificationEvidence(
           dependencies,
           buildDeliveryRegistryPersistenceFailureEvidence(metadata),
         );

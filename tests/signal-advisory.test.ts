@@ -198,6 +198,7 @@ class MemoryStore implements SignalAdvisoryStore {
   readonly evaluations: SignalEvaluationRecord[] = [];
   evaluationPersistenceFailure = false;
   markSignalSentFailure = false;
+  markSignalSentCalls = 0;
   markSignalFailedCalls = 0;
   private nextId = 1;
 
@@ -253,6 +254,7 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async markSignalSent(input: { signalId: string; sentAt: string; emailMessageId: string }): Promise<void> {
+    this.markSignalSentCalls += 1;
     if (this.markSignalSentFailure) {
       throw new Error("delivery registry unavailable");
     }
@@ -630,6 +632,74 @@ describe("signal advisory scan", () => {
     });
 
     expect(observed).toBeGreaterThan(0);
+    expect(result.outcome).toBe("SUCCESS");
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("does not let a pending observer block email delivery", async () => {
+    const store = new MemoryStore();
+    let sendCalls = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => new Promise<void>(() => {}),
+        send: async () => {
+          sendCalls += 1;
+          return { emailMessageId: `<pending-observer-${sendCalls}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(sendCalls).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("does not let a pending DELIVERED observer block markSignalSent", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => new Promise<void>(() => {}),
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(store.markSignalSentCalls).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("does not let a pending observer change send failure handling", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => new Promise<void>(() => {}),
+        send: async () => {
+          throw { code: "EAUTH", responseCode: 535 };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.errors).toContain("SMTP_AUTH_FAILED");
+    expect(store.markSignalFailedCalls).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(0);
+  });
+
+  it("isolates rejected observer promises from business behavior", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => Promise.reject(new Error("sidecar unavailable")),
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
     expect(result.outcome).toBe("SUCCESS");
     expect(result.signalsSent).toBe(result.signalsGenerated);
   });
