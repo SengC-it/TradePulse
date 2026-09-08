@@ -97,20 +97,39 @@ Important boundaries:
 
 ## Deterministic future implementation order
 
-These are separate future stages, each independently mergeable and separately authorized. This PR authorizes none of them.
+These are separate future stages, each independently mergeable and separately authorized. This PR authorizes none of them. Stage ownership uses two distinct concepts: `introducesCapabilities` records foundation or integration capability introduction, while `closesReadinessNodes` records the one stage that may finally close a readiness node. The old ambiguous `covers` meaning is not used.
 
-| Stage | Scope | Depends on |
-| --- | --- | --- |
-| R1 | Advisory identity, signal-time, shared identity/PIT validator | P01 |
-| R2 | Prospective `QUALITY_SNAPSHOT` producer | R1 |
-| R3 | Prospective `MARKET_CONTEXT` producer | R1 |
-| R4 | Prospective `RISK_ADVISORY` producer | R1 |
-| R5 | Prospective identity-only `HISTORICAL_REVIEW_METADATA` producer | R1 |
-| R6 | `ALERT_INTELLIGENCE` producer with complete-input gate | R2, R3, R4, R5 |
-| R7 | Presentation payload evidence boundary | R6 |
-| R8 | Notification/cross-source causal evidence integration, preserving O05 | R1 |
-| R9 | Server-side `REVIEW_STARTED` and `REVIEW_SUBMITTED` lifecycle | R1, R8 |
-| R10 | Downstream Advisory Evaluation and evidence-completeness closure | R2-R9 |
+| Stage | Introduces capabilities | Closes readiness nodes | Depends on |
+| --- | --- | --- | --- |
+| R1 | Shared identity, snapshot hashing/idempotency, append-only writer, PIT and causal primitives | None | P01 |
+| R2 | Prospective `QUALITY_SNAPSHOT` producer | S01 | R1 |
+| R3 | Prospective `MARKET_CONTEXT` producer | S02 | R1 |
+| R4 | Prospective `RISK_ADVISORY` producer | S03 | R1 |
+| R5 | Prospective identity-only `HISTORICAL_REVIEW_METADATA` producer | S04 | R1 |
+| R6 | `ALERT_INTELLIGENCE` producer with complete-input gate | S05 | R2, R3, R4, R5 |
+| R7 | Presentation payload evidence boundary | S06 | R6 |
+| R8 | Notification `observedAt` and cross-source causal integration, preserving O05 | None | R1 |
+| R9 | Server-side `REVIEW_STARTED`, `REVIEW_SUBMITTED`, and human-review timestamp causality | S07, S08, S09 | R1-R8 |
+| R10 | Downstream Advisory Evaluation and evidence-completeness closure | S10 | R2-R9 |
+
+### Frozen stage ownership
+
+Every readiness node S01-S10 has exactly one `readinessClosureStage`; a foundation stage may introduce shared capabilities without closing readiness. The frozen mapping is:
+
+| Readiness node | Foundation stage | Integration stage | Readiness closure stage |
+| --- | --- | --- | --- |
+| S01 | R1 | R2 | R2 |
+| S02 | R1 | R3 | R3 |
+| S03 | R1 | R4 | R4 |
+| S04 | R1 | R5 | R5 |
+| S05 | R1 | R6 | R6 |
+| S06 | R1 | R7 | R7 |
+| S07 | R1 | R8 | R9 |
+| S08 | R1 | R9 | R9 |
+| S09 | R1 | R9 | R9 |
+| S10 | R1 | R1 | R10 |
+
+R1 introduces the S07/S10 foundation but closes neither. R8 integrates notification causality but does not claim readiness. R9 is the selected S07 closure owner because it depends on R1-R8 and therefore includes the notification and human-review causal requirements. R10 is the unique S10 closure owner after all source producers and review lifecycle stages are complete.
 
 No single future PR is authorized to implement all stages.
 
@@ -139,7 +158,7 @@ Both link to the advisory identity. The server supplies `reviewStartedAt` and `r
 
 ## Design gates
 
-`R01` through `R12` all PASS for this design because the source mapping, DAG, future producers, identity/PIT model, historical-review restrictions, review lifecycle, O05 compatibility, independent stage order, isolation, and governance are explicit. This does not convert the current S01-S10 statuses to `SOURCE_READY`.
+`R01` through `R12` all PASS for this design because the source mapping, DAG, future producers, identity/PIT model, historical-review restrictions, review lifecycle, O05 compatibility, independent stage order, unique readiness closure ownership, isolation, and governance are explicit. R10 specifically requires independently gated, topologically valid implementation stages with exactly one closure owner for every readiness node. This does not convert the current S01-S10 statuses to `SOURCE_READY`.
 
 ## Scope and governance
 

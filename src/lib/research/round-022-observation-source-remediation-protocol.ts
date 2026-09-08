@@ -70,6 +70,111 @@ export const R22_SOURCE_REMEDIATION_STAGE_IDS = Object.freeze([
 ] as const);
 export type R22SourceRemediationStageId = (typeof R22_SOURCE_REMEDIATION_STAGE_IDS)[number];
 
+export type R22SourceRemediationStageRef =
+  | R22SourceRemediationStageId
+  | "CURRENT"
+  | "NOT_APPLICABLE";
+
+export type R22SourceRemediationStage = Readonly<{
+  id: R22SourceRemediationStageId;
+  dependsOn: readonly (R22SourceRemediationStageId | "P01")[];
+  introducesCapabilities: readonly string[];
+  closesReadinessNodes: readonly R22SourceRemediationNodeId[];
+  mergeableIndependently: boolean;
+  authorization: string;
+}>;
+
+const stage = (value: R22SourceRemediationStage): R22SourceRemediationStage => Object.freeze(value);
+
+export const R22_SOURCE_REMEDIATION_STAGES: readonly R22SourceRemediationStage[] = Object.freeze([
+  stage({
+    id: "R1",
+    dependsOn: ["P01"],
+    introducesCapabilities: [
+      "sharedEvidenceIdentity",
+      "snapshotHashingAndIdempotency",
+      "appendOnlyWriter",
+      "pitValidatorPrimitives",
+      "basicCausalValidatorPrimitives",
+    ],
+    closesReadinessNodes: [],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R2",
+    dependsOn: ["R1"],
+    introducesCapabilities: ["qualitySnapshotProducer"],
+    closesReadinessNodes: ["S01"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R3",
+    dependsOn: ["R1"],
+    introducesCapabilities: ["marketContextProducer"],
+    closesReadinessNodes: ["S02"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R4",
+    dependsOn: ["R1"],
+    introducesCapabilities: ["riskAdvisoryProducer"],
+    closesReadinessNodes: ["S03"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R5",
+    dependsOn: ["R1"],
+    introducesCapabilities: ["prospectiveHistoricalReviewMetadataProducer"],
+    closesReadinessNodes: ["S04"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R6",
+    dependsOn: ["R2", "R3", "R4", "R5"],
+    introducesCapabilities: ["alertIntelligenceProducer"],
+    closesReadinessNodes: ["S05"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R7",
+    dependsOn: ["R6"],
+    introducesCapabilities: ["presentationPayloadEvidenceBoundary"],
+    closesReadinessNodes: ["S06"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R8",
+    dependsOn: ["R1"],
+    introducesCapabilities: ["notificationObservedAt", "crossSourceNotificationCausality"],
+    closesReadinessNodes: [],
+    mergeableIndependently: true,
+    authorization: "separate future approval required; preserve O05",
+  }),
+  stage({
+    id: "R9",
+    dependsOn: ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"],
+    introducesCapabilities: ["reviewStartedAt", "reviewSubmittedAt", "humanReviewTimestampCausality"],
+    closesReadinessNodes: ["S07", "S08", "S09"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+  stage({
+    id: "R10",
+    dependsOn: ["R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"],
+    introducesCapabilities: ["advisoryEvaluationEvidenceCompleteness"],
+    closesReadinessNodes: ["S10"],
+    mergeableIndependently: true,
+    authorization: "separate future approval required",
+  }),
+] as const);
+
 export type R22SourceRemediationNode = Readonly<{
   id: R22SourceRemediationNodeId;
   currentStatus: "SOURCE_READY" | "FAIL";
@@ -83,7 +188,9 @@ export type R22SourceRemediationNode = Readonly<{
   causalTimestampConstraints: readonly string[];
   upstreamDependencies: readonly R22SourceRemediationNodeId[];
   downstreamConsumers: readonly R22SourceRemediationNodeId[];
-  implementationOrder: R22SourceRemediationStageId | "CURRENT";
+  foundationStage: R22SourceRemediationStageRef;
+  integrationStage: R22SourceRemediationStageRef;
+  readinessClosureStage: R22SourceRemediationStageRef;
   acceptanceEvidence: string;
   failureMode: string;
 }>;
@@ -104,7 +211,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["signalTime <= advisoryCreationTime"],
     upstreamDependencies: [],
     downstreamConsumers: ["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10"],
-    implementationOrder: "CURRENT",
+    foundationStage: "CURRENT",
+    integrationStage: "CURRENT",
+    readinessClosureStage: "CURRENT",
     acceptanceEvidence: "Accepted source contains scan route, deterministic identity, closed-candle signalTime, and advisory persistence call sites.",
     failureMode: "Missing signal identity or signalTime makes every dependent source NOT_EVALUABLE.",
   }),
@@ -121,7 +230,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["informationAsOf <= signalTime", "signalTime <= capturedAt"],
     upstreamDependencies: ["P01"],
     downstreamConsumers: ["S05", "S06", "P02"],
-    implementationOrder: "R2",
+    foundationStage: "R1",
+    integrationStage: "R2",
+    readinessClosureStage: "R2",
     acceptanceEvidence: "A runtime call site emits an identity-linked snapshot with sourceRef, informationAsOf, contentHash, evidenceHash, and a persistence acknowledgement.",
     failureMode: "No producer-owned identity, missing PIT cutoff, or missing append acknowledgement is NOT_EVALUABLE; no caller-supplied fallback qualifies.",
   }),
@@ -138,7 +249,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["informationAsOf <= signalTime", "signalTime <= capturedAt"],
     upstreamDependencies: ["P01"],
     downstreamConsumers: ["S05", "S06", "P02"],
-    implementationOrder: "R3",
+    foundationStage: "R1",
+    integrationStage: "R3",
+    readinessClosureStage: "R3",
     acceptanceEvidence: "A non-test producer records the exact context source identity and cutoff with a durable immutable snapshot.",
     failureMode: "Context supplied without authoritative source identity or PIT cutoff is NOT_EVALUABLE.",
   }),
@@ -155,7 +268,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["informationAsOf <= signalTime", "signalTime <= capturedAt"],
     upstreamDependencies: ["P01"],
     downstreamConsumers: ["S05", "S06", "P02"],
-    implementationOrder: "R4",
+    foundationStage: "R1",
+    integrationStage: "R4",
+    readinessClosureStage: "R4",
     acceptanceEvidence: "A producer-owned risk snapshot links to P01 and persists a finite, identity-bound, PIT-safe payload.",
     failureMode: "Caller-only risk fields, missing source cutoff, or invalid geometry yields NOT_EVALUABLE and no inferred risk conclusion.",
   }),
@@ -172,7 +287,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["informationAsOf <= signalTime", "signalTime <= capturedAt"],
     upstreamDependencies: ["P01"],
     downstreamConsumers: ["S05", "S06", "P02"],
-    implementationOrder: "R5",
+    foundationStage: "R1",
+    integrationStage: "R5",
+    readinessClosureStage: "R5",
     acceptanceEvidence: "The future producer has an approved input registry, PIT cutoff, exact identity matching, output schema, missing behavior, and append evidence tests.",
     failureMode: "No prospective source, any future/outcome/PnL field, backfill, or signal-review settlement substitution is DESIGN_INELIGIBLE/NOT_EVALUABLE.",
   }),
@@ -189,7 +306,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["all consumed informationAsOf <= signalTime", "signalTime <= capturedAt"],
     upstreamDependencies: ["P01", "S01", "S02", "S03", "S04"],
     downstreamConsumers: ["S06", "P02"],
-    implementationOrder: "R6",
+    foundationStage: "R1",
+    integrationStage: "R6",
+    readinessClosureStage: "R6",
     acceptanceEvidence: "Production invocation and durable snapshot show all four authoritative input identities; incomplete input cannot be labelled complete.",
     failureMode: "A helper or fallback without S01-S04 evidence is NOT_EVALUABLE; S05 cannot make missing upstream sources pass.",
   }),
@@ -206,7 +325,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["referenced informationAsOf <= signalTime", "signalTime <= capturedAt"],
     upstreamDependencies: ["P01", "S01", "S02", "S03", "S04", "S05"],
     downstreamConsumers: ["P02"],
-    implementationOrder: "R7",
+    foundationStage: "R1",
+    integrationStage: "R7",
+    readinessClosureStage: "R7",
     acceptanceEvidence: "Mail and web payloads are captured as immutable, identity-linked evidence before their respective render/response boundaries.",
     failureMode: "A rendered mail or UI row without an evidence append is NOT_EVALUABLE and does not imply source readiness.",
   }),
@@ -223,7 +344,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["evaluation cannot alter signalTime or source capturedAt"],
     upstreamDependencies: ["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10"],
     downstreamConsumers: [],
-    implementationOrder: "R10",
+    foundationStage: "R10",
+    integrationStage: "R10",
+    readinessClosureStage: "NOT_APPLICABLE",
     acceptanceEvidence: "A downstream-only evaluation run proves complete evidence coverage without reading PnL, forward return, or future outcome fields.",
     failureMode: "Incomplete evidence produces NOT_EVALUABLE; P02 never substitutes for or backfills an upstream source.",
   }),
@@ -240,7 +363,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["informationAsOf <= signalTime <= capturedAt", "signalTime <= advisoryCreationTime", "signalTime <= notificationObservedAt", "signalTime <= reviewStartedAt <= reviewSubmittedAt"],
     upstreamDependencies: ["P01"],
     downstreamConsumers: ["S01", "S02", "S03", "S04", "S05", "S06", "S08", "S09", "P02"],
-    implementationOrder: "R8",
+    foundationStage: "R1",
+    integrationStage: "R8",
+    readinessClosureStage: "R9",
     acceptanceEvidence: "Synthetic inversion tests and persisted server-authoritative timestamps prove fail-closed causal validation.",
     failureMode: "Any inversion is NOT_EVALUABLE; it cannot be repaired using a guessed or backdated timestamp.",
   }),
@@ -257,7 +382,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["signalTime <= reviewStartedAt"],
     upstreamDependencies: ["P01", "S07"],
     downstreamConsumers: ["S09", "P02"],
-    implementationOrder: "R9",
+    foundationStage: "R1",
+    integrationStage: "R9",
+    readinessClosureStage: "R9",
     acceptanceEvidence: "A server-owned start event, exact identity, replay rule, and inversion test exist in a future runtime implementation.",
     failureMode: "Client timestamp, synthetic start, or pre-signal start is NOT_EVALUABLE.",
   }),
@@ -274,7 +401,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["signalTime <= reviewStartedAt <= reviewSubmittedAt"],
     upstreamDependencies: ["P01", "S07", "S08"],
     downstreamConsumers: ["P02"],
-    implementationOrder: "R9",
+    foundationStage: "R1",
+    integrationStage: "R9",
+    readinessClosureStage: "R9",
     acceptanceEvidence: "Server-owned submit event, separate identity, labels-only payload, and ordering/replay tests exist in a future runtime implementation.",
     failureMode: "Pre-signal submit, missing start, client timestamp, or fabricated submission is NOT_EVALUABLE.",
   }),
@@ -291,7 +420,9 @@ export const R22_SOURCE_REMEDIATION_DAG: readonly R22SourceRemediationNode[] = O
     causalTimestampConstraints: ["informationAsOf <= signalTime <= capturedAt", "event-specific notification and human-review ordering"],
     upstreamDependencies: ["P01"],
     downstreamConsumers: ["P02"],
-    implementationOrder: "R1",
+    foundationStage: "R1",
+    integrationStage: "R1",
+    readinessClosureStage: "R10",
     acceptanceEvidence: "Identity, hash, PIT, append-only, access-control, conflict, and no-economic-field tests pass in the future implementation.",
     failureMode: "Missing identity, hash, source provenance, or causal timestamp is NOT_EVALUABLE; evidence is not fabricated or backfilled.",
   }),
@@ -379,7 +510,7 @@ export const R22_SOURCE_REMEDIATION_GATES = Object.freeze([
   { id: "R07", status: "PASS", rule: "Historical Review has a prospective identity-only producer design with explicit prohibited inputs." },
   { id: "R08", status: "PASS", rule: "REVIEW_STARTED and REVIEW_SUBMITTED are separate server-authoritative events." },
   { id: "R09", status: "PASS", rule: "Accepted O05 notification identity and terminal semantics remain unchanged." },
-  { id: "R10", status: "PASS", rule: "R1-R10 are independently reviewable and separately authorized future stages." },
+  { id: "R10", status: "PASS", rule: "Implementation stages are independently gated and topologically valid; every readiness node has exactly one unique closure owner." },
   { id: "R11", status: "PASS", rule: "No economic, performance, selection, outcome, or market-data acquisition path is designed as executable code." },
   { id: "R12", status: "PASS", rule: "Design-only governance is frozen and runtime implementation remains unauthorized." },
 ] as const);
@@ -550,6 +681,73 @@ export function isR22SourceRemediationDesignOnlyGovernance(
     && governance.automaticTrading === false;
 }
 
+function stageIndex(stageRef: R22SourceRemediationStageRef): number | undefined {
+  if (stageRef === "CURRENT") return -1;
+  if (stageRef === "NOT_APPLICABLE") return undefined;
+  return R22_SOURCE_REMEDIATION_STAGE_IDS.indexOf(stageRef);
+}
+
+export function validateR22StageOwnership(): readonly string[] {
+  const errors: string[] = [];
+  const stageIds = R22_SOURCE_REMEDIATION_STAGES.map((entry) => entry.id);
+  if (stageIds.length !== R22_SOURCE_REMEDIATION_STAGE_IDS.length) errors.push("STAGE_COUNT_MISMATCH");
+  if (new Set(stageIds).size !== stageIds.length) errors.push("DUPLICATE_STAGE_ID");
+
+  for (const current of R22_SOURCE_REMEDIATION_STAGES) {
+    const currentIndex = stageIndex(current.id);
+    for (const dependency of current.dependsOn) {
+      if (dependency === "P01") continue;
+      const dependencyIndex = stageIndex(dependency);
+      if (dependencyIndex === undefined || dependencyIndex >= (currentIndex ?? Number.MAX_SAFE_INTEGER)) {
+        errors.push(`INVALID_STAGE_DEPENDENCY_${current.id}_${dependency}`);
+      }
+    }
+    if (!current.introducesCapabilities.length) errors.push(`MISSING_STAGE_CAPABILITIES_${current.id}`);
+    if (!current.authorization.includes("separate future approval")) {
+      errors.push(`STAGE_AUTHORIZATION_INVALID_${current.id}`);
+    }
+  }
+
+  const readinessNodeIds = R22_SOURCE_REMEDIATION_NODE_IDS.filter((id) => id.startsWith("S"));
+  const closedReadinessNodes = R22_SOURCE_REMEDIATION_STAGES.flatMap((entry) => [...entry.closesReadinessNodes]);
+  if (new Set(closedReadinessNodes).size !== closedReadinessNodes.length) {
+    errors.push("DUPLICATE_READINESS_CLOSURE_OWNER");
+  }
+  for (const readinessNodeId of readinessNodeIds) {
+    const owners = R22_SOURCE_REMEDIATION_STAGES.filter((entry) => entry.closesReadinessNodes.includes(readinessNodeId));
+    if (owners.length !== 1) errors.push(`READINESS_CLOSURE_OWNER_COUNT_${readinessNodeId}`);
+    const node = R22_SOURCE_REMEDIATION_DAG.find((entry) => entry.id === readinessNodeId);
+    if (!node) {
+      errors.push(`MISSING_READINESS_NODE_${readinessNodeId}`);
+      continue;
+    }
+    if (owners[0]?.id !== node.readinessClosureStage) {
+      errors.push(`READINESS_CLOSURE_MISMATCH_${readinessNodeId}`);
+    }
+    const foundationIndex = stageIndex(node.foundationStage);
+    const integrationIndex = stageIndex(node.integrationStage);
+    const closureIndex = stageIndex(node.readinessClosureStage);
+    if (foundationIndex === undefined || integrationIndex === undefined || closureIndex === undefined) {
+      errors.push(`READINESS_STAGE_REFERENCE_INVALID_${readinessNodeId}`);
+    } else if (foundationIndex > integrationIndex || integrationIndex > closureIndex) {
+      errors.push(`READINESS_STAGE_ORDER_INVALID_${readinessNodeId}`);
+    }
+    for (const dependencyId of node.upstreamDependencies.filter((id) => id.startsWith("S"))) {
+      const dependency = R22_SOURCE_REMEDIATION_DAG.find((entry) => entry.id === dependencyId);
+      const dependencyClosureIndex = dependency && stageIndex(dependency.readinessClosureStage);
+      if (dependencyClosureIndex !== undefined && closureIndex !== undefined && dependencyClosureIndex > closureIndex) {
+        errors.push(`READINESS_DEPENDENCY_CLOSURE_INVALID_${readinessNodeId}_${dependencyId}`);
+      }
+    }
+  }
+
+  const r1 = R22_SOURCE_REMEDIATION_STAGES.find((entry) => entry.id === "R1");
+  const r8 = R22_SOURCE_REMEDIATION_STAGES.find((entry) => entry.id === "R8");
+  if (r1?.closesReadinessNodes.length !== 0) errors.push("R1_MUST_NOT_CLOSE_READINESS");
+  if (r8?.closesReadinessNodes.length !== 0) errors.push("R8_MUST_NOT_CLOSE_READINESS");
+  return errors;
+}
+
 export function validateR22SourceRemediationDesign(): readonly string[] {
   const errors: string[] = [];
   const ids = R22_SOURCE_REMEDIATION_DAG.map((entry) => entry.id);
@@ -569,6 +767,9 @@ export function validateR22SourceRemediationDesign(): readonly string[] {
       || !nonEmpty(entry.persistenceRequirement)
       || !nonEmpty(entry.appendOnlyOrIdempotencyRequirement)
       || entry.causalTimestampConstraints.length === 0
+      || !nonEmpty(entry.foundationStage)
+      || !nonEmpty(entry.integrationStage)
+      || !nonEmpty(entry.readinessClosureStage)
       || !nonEmpty(entry.acceptanceEvidence)
       || !nonEmpty(entry.failureMode)) {
       errors.push(`INCOMPLETE_NODE_${required}`);
@@ -580,5 +781,6 @@ export function validateR22SourceRemediationDesign(): readonly string[] {
   if (!isR22SourceRemediationDesignOnlyGovernance(R22_SOURCE_REMEDIATION_GOVERNANCE)) {
     errors.push("GOVERNANCE_INVALID");
   }
+  errors.push(...validateR22StageOwnership());
   return errors;
 }

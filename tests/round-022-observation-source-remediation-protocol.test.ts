@@ -12,12 +12,14 @@ import {
   R22_SOURCE_REMEDIATION_NODE_IDS,
   R22_SOURCE_REMEDIATION_PHASE,
   R22_SOURCE_REMEDIATION_ROUND_ID,
+  R22_SOURCE_REMEDIATION_STAGES,
   R22_SNAPSHOT_HASHING_CONTRACT,
   R22_SNAPSHOT_REQUIRED_FIELDS,
   isR22SourceRemediationDesignOnlyGovernance,
   validateR22CausalTimestamps,
   validateR22ReviewEvent,
   validateR22SnapshotContract,
+  validateR22StageOwnership,
   validateR22SourceRemediationDesign,
 } from "@/lib/research/round-022-observation-source-remediation-protocol";
 
@@ -97,8 +99,47 @@ describe("Round-022 observation source remediation design-only protocol", () => 
     const r6 = (loadContract().implementationStages as JsonRecord[]).find((stage) => stage.id === "R6")!;
     expect(r6.dependsOn).toEqual(["R2", "R3", "R4", "R5"]);
     for (const stage of loadContract().implementationStages as JsonRecord[]) {
+      expect(stage.introducesCapabilities).toBeDefined();
+      expect(stage.closesReadinessNodes).toBeDefined();
+      expect(stage).not.toHaveProperty("covers");
+    }
+    for (const stage of loadContract().implementationStages as JsonRecord[]) {
       expect(stage.mergeableIndependently).toBe(true);
       expect(String(stage.authorization)).toContain("separate future approval");
+    }
+  });
+
+  it("separates foundation, integration, and unique readiness closure ownership", () => {
+    expect(validateR22StageOwnership()).toEqual([]);
+    expect(R22_SOURCE_REMEDIATION_STAGES.find((stage) => stage.id === "R1")?.closesReadinessNodes).toEqual([]);
+    expect(R22_SOURCE_REMEDIATION_STAGES.find((stage) => stage.id === "R8")?.closesReadinessNodes).toEqual([]);
+    expect(R22_SOURCE_REMEDIATION_STAGES.find((stage) => stage.id === "R9")?.closesReadinessNodes)
+      .toEqual(["S07", "S08", "S09"]);
+    expect(R22_SOURCE_REMEDIATION_STAGES.find((stage) => stage.id === "R10")?.closesReadinessNodes)
+      .toEqual(["S10"]);
+    const ownership = loadContract().readinessNodeStageOwnership as JsonRecord;
+    expect(ownership.uniqueClosureOwner).toMatchObject({ S07: "R9", S08: "R9", S09: "R9", S10: "R10" });
+    expect(ownership.R1FoundationOnly).toEqual(["S07", "S10"]);
+    const byId = new Map(R22_SOURCE_REMEDIATION_DAG.map((entry) => [entry.id, entry]));
+    expect(byId.get("S07")).toMatchObject({ foundationStage: "R1", integrationStage: "R8", readinessClosureStage: "R9" });
+    expect(byId.get("S10")).toMatchObject({ foundationStage: "R1", integrationStage: "R1", readinessClosureStage: "R10" });
+    expect((loadContract().implementationStages as JsonRecord[]).flatMap((stage) => stage.closesReadinessNodes as string[]))
+      .toEqual(expect.arrayContaining(["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10"]));
+  });
+
+  it("keeps stage dependencies topologically valid and prevents R1 false readiness claims", () => {
+    const stageIndex = new Map(R22_SOURCE_REMEDIATION_STAGES.map((stage, index) => [stage.id, index]));
+    for (const stage of R22_SOURCE_REMEDIATION_STAGES) {
+      for (const dependency of stage.dependsOn) {
+        if (dependency === "P01") continue;
+        expect(stageIndex.get(dependency)!).toBeLessThan(stageIndex.get(stage.id)!);
+      }
+    }
+    const r1 = R22_SOURCE_REMEDIATION_STAGES.find((stage) => stage.id === "R1")!;
+    expect(r1.closesReadinessNodes).not.toContain("S07");
+    expect(r1.closesReadinessNodes).not.toContain("S10");
+    for (const id of ["S07", "S10"]) {
+      expect((loadContract().currentReadiness as JsonRecord)[id]).toMatchObject({ status: "FAIL" });
     }
   });
 
