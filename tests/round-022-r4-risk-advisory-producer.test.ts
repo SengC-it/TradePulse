@@ -82,8 +82,10 @@ describe("Round-022 R4 RISK_ADVISORY producer", () => {
   });
 
   it.each([
-    ["LONG", { direction: "LONG", stopLoss: 101, takeProfit: 104 }],
-    ["SHORT", { direction: "SHORT", stopLoss: 99, takeProfit: 96 }],
+    ["LONG invalid stop", { direction: "LONG", stopLoss: 101, takeProfit: 104 }],
+    ["LONG invalid target", { direction: "LONG", stopLoss: 98, takeProfit: 99 }],
+    ["SHORT invalid stop", { direction: "SHORT", stopLoss: 99, takeProfit: 96 }],
+    ["SHORT invalid target", { direction: "SHORT", stopLoss: 102, takeProfit: 101 }],
   ] as const)("rejects invalid %s geometry ordering", (_label, overrides) => {
     expect(() => build(overrides)).toThrow(RiskAdvisoryNotEvaluableError);
   });
