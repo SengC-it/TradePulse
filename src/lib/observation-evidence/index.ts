@@ -34,6 +34,11 @@ export {
   R22_R4_RISK_ADVISORY_PRODUCER_IMPLEMENTATION_STATUS,
 } from "./risk-advisory.ts";
 export {
+  buildHistoricalReviewMetadataSnapshotCandidate,
+  HistoricalReviewMetadataNotEvaluableError,
+  R22_R5_HISTORICAL_REVIEW_METADATA_PRODUCER_IMPLEMENTATION_STATUS,
+} from "./historical-review-metadata.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,

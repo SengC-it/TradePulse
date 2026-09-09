@@ -22,6 +22,11 @@ import { createObservationEvidenceStore } from "../observation-evidence/store.ts
 import { buildQualitySnapshotCandidate } from "../observation-evidence/quality-snapshot.ts";
 import { buildMarketContextSnapshotCandidate } from "../observation-evidence/market-context.ts";
 import { buildRiskAdvisorySnapshotCandidate } from "../observation-evidence/risk-advisory.ts";
+import {
+  buildHistoricalReviewMetadataSnapshotCandidate,
+} from "../observation-evidence/historical-review-metadata.ts";
+import { historicalContextPublicationFor } from "../historical-review-context/registry.ts";
+import { createHistoricalReviewContextRegistry } from "../historical-review-context/store.ts";
 import type {
   SignalAdvisory,
   SignalAdvisoryScanDependencies,
@@ -495,6 +500,110 @@ export async function runSignalAdvisoryScan(input: Readonly<{
           errors,
         );
       }
+      const contextRegistry = dependencies.historicalReviewContextRegistry;
+      if (contextRegistry) {
+        try {
+          const lookup = await contextRegistry.findPriorContext({
+            currentSignalId: advisory.signalId,
+            symbol: advisory.symbol,
+            signalTime: advisory.signalTime,
+          });
+          if (lookup.status === "FOUND") {
+            let historicalReviewAppend: { status: "APPENDED" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE" | "FAILED" };
+            try {
+              const historicalReviewMetadata = buildHistoricalReviewMetadataSnapshotCandidate({
+                advisory,
+                priorContext: lookup.context,
+                capturedAt: new Date(now()).toISOString(),
+              });
+              try {
+                const appendResult = await dependencies.observationEvidenceStore.appendEvidence(
+                  historicalReviewMetadata,
+                );
+                historicalReviewAppend = { status: appendResult.status };
+              } catch {
+                historicalReviewAppend = { status: "FAILED" };
+              }
+            } catch {
+              historicalReviewAppend = { status: "NOT_EVALUABLE" };
+            }
+            if (historicalReviewAppend.status !== "APPENDED"
+              && historicalReviewAppend.status !== "IDEMPOTENT_REPLAY") {
+              errors.push("HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED");
+              await recordEvent(
+                dependencies,
+                {
+                  level: "ERROR",
+                  operation: "round-022-historical-review-metadata",
+                  status: historicalReviewAppend.status,
+                  errorCode: "HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED",
+                  scanId: begin.scanId,
+                  symbol: advisory.symbol,
+                  metadata: {
+                    signalId: advisory.signalId,
+                    appendStatus: historicalReviewAppend.status,
+                  },
+                },
+                errors,
+              );
+            }
+          } else if (lookup.status === "NOT_EVALUABLE") {
+            errors.push("HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED");
+            await recordEvent(
+              dependencies,
+              {
+                level: "ERROR",
+                operation: "round-022-historical-review-metadata",
+                status: lookup.status,
+                errorCode: "HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED",
+                scanId: begin.scanId,
+                symbol: advisory.symbol,
+                metadata: { signalId: advisory.signalId, reason: lookup.reason },
+              },
+              errors,
+            );
+          }
+        } catch {
+          errors.push("HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED");
+          await recordEvent(
+            dependencies,
+            {
+              level: "ERROR",
+              operation: "round-022-historical-review-context-registry",
+              status: "FAILED",
+              errorCode: "HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED",
+              scanId: begin.scanId,
+              symbol: advisory.symbol,
+              metadata: { signalId: advisory.signalId, phase: "LOOKUP" },
+            },
+            errors,
+          );
+        }
+
+        try {
+          const published = await contextRegistry.publishContext(
+            historicalContextPublicationFor(advisory),
+          );
+          if (published.status !== "APPENDED" && published.status !== "IDEMPOTENT_REPLAY") {
+            throw new Error("Historical review context publication returned an unsupported status.");
+          }
+        } catch {
+          errors.push("HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED");
+          await recordEvent(
+            dependencies,
+            {
+              level: "ERROR",
+              operation: "round-022-historical-review-context-registry",
+              status: "FAILED",
+              errorCode: "HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED",
+              scanId: begin.scanId,
+              symbol: advisory.symbol,
+              metadata: { signalId: advisory.signalId, phase: "PUBLISH" },
+            },
+            errors,
+          );
+        }
+      }
       const metadata = buildNotificationDecisionMetadata({
         scanId: begin.scanId,
         signalId: advisory.signalId,
@@ -626,6 +735,7 @@ export function createDefaultSignalAdvisoryScanDependencies(): SignalAdvisorySca
     marketData: new BinanceMarketDataProvider(),
     store: createSignalAdvisoryStore(),
     observationEvidenceStore: createObservationEvidenceStore(),
+    historicalReviewContextRegistry: createHistoricalReviewContextRegistry(),
     sendSignalEmail: (advisory) => sendSignalEmail(advisory),
     recipient,
   };

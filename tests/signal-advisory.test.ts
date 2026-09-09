@@ -27,6 +27,14 @@ import type {
   ObservationEvidenceCandidate,
   ObservationArtifactType,
 } from "@/lib/observation-evidence/types";
+import {
+  materializeHistoricalReviewContext,
+} from "@/lib/historical-review-context/registry";
+import type {
+  HistoricalReviewContext,
+  HistoricalReviewContextLookup,
+  HistoricalReviewContextRegistry,
+} from "@/lib/historical-review-context/types";
 
 const HOUR_MS = 3_600_000;
 const FOUR_HOUR_MS = 14_400_000;
@@ -328,9 +336,50 @@ class MemoryObservationEvidenceStore {
   }
 }
 
+class MemoryHistoricalReviewContextRegistry implements HistoricalReviewContextRegistry {
+  readonly contexts = new Map<string, HistoricalReviewContext>();
+  order: string[] = [];
+  lookupFailure = false;
+  publishFailure = false;
+
+  async findPriorContext(input: {
+    currentSignalId: string;
+    symbol: ResearchSymbol;
+    signalTime: string;
+  }): Promise<HistoricalReviewContextLookup> {
+    if (this.lookupFailure) throw new Error("context lookup unavailable");
+    const matches = [...this.contexts.values()]
+      .filter((context) => context.symbol === input.symbol
+        && context.sourceSignalId !== input.currentSignalId
+        && Date.parse(context.availableAt) <= Date.parse(input.signalTime))
+      .sort((left, right) => Date.parse(right.availableAt) - Date.parse(left.availableAt));
+    const first = matches[0];
+    if (!first) return { status: "MISSING", reason: "NO_APPROVED_PRIOR_CONTEXT" };
+    if (matches[1] && matches[1].availableAt === first.availableAt) {
+      return { status: "NOT_EVALUABLE", reason: "AMBIGUOUS_MAX_AVAILABLE_CONTEXT" };
+    }
+    return { status: "FOUND", context: first };
+  }
+
+  async publishContext(input: { advisory: SignalAdvisory; sourceIds: readonly string[] }) {
+    this.order.push("CURRENT_CONTEXT_REGISTRY");
+    if (this.publishFailure) throw new Error("context publish unavailable");
+    const existing = this.contexts.get(input.advisory.signalId);
+    if (existing) return { status: "IDEMPOTENT_REPLAY" as const, context: existing };
+    const context = materializeHistoricalReviewContext({
+      advisory: input.advisory,
+      sourceIds: input.sourceIds,
+      availableAt: new Date(Date.parse(input.advisory.signalTime) + 1_000).toISOString(),
+    });
+    this.contexts.set(context.sourceSignalId, context);
+    return { status: "APPENDED" as const, context };
+  }
+}
+
 function dependencies(input: {
   store: MemoryStore;
   observationEvidenceStore?: MemoryObservationEvidenceStore;
+  historicalReviewContextRegistry?: MemoryHistoricalReviewContextRegistry;
   snapshot?: MarketSnapshot;
   send?: (advisory: SignalAdvisory) => Promise<{ emailMessageId: string }>;
   observe?: (event: NotificationEvidenceEvent) => void | Promise<void>;
@@ -342,6 +391,7 @@ function dependencies(input: {
     },
     store: input.store,
     observationEvidenceStore: input.observationEvidenceStore ?? new MemoryObservationEvidenceStore(),
+    historicalReviewContextRegistry: input.historicalReviewContextRegistry,
     sendSignalEmail: input.send ?? (async () => ({ emailMessageId: "<test-message-id>" })),
     observeNotificationEvidence: input.observe,
     now: input.now ?? (() => EVALUATION_TIME),
@@ -850,6 +900,144 @@ describe("signal advisory scan", () => {
     ]);
     expect(result.signalsSent).toBe(result.signalsGenerated);
   });
+
+  it("publishes current identity context before email and reviews an exact prior context on the next signal", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const registry = new MemoryHistoricalReviewContextRegistry();
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    registry.order = runtimeOrder;
+    let sendCount = 0;
+
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry: registry,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          sendCount += 1;
+          return { emailMessageId: `<r5-first-${sendCount}>` };
+        },
+        now: () => EVALUATION_TIME,
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(first.outcome).toBe("SUCCESS");
+    expect(registry.contexts.size).toBe(first.signalsGenerated);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(0);
+    expect(runtimeOrder.slice(0, 6)).toEqual([
+      "CLAIM",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "CURRENT_CONTEXT_REGISTRY",
+      "EMAIL",
+    ]);
+
+    runtimeOrder.length = 0;
+    const second = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        snapshot: makeSnapshot({ evaluationTime: EVALUATION_TIME + HOUR_MS }),
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry: registry,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          sendCount += 1;
+          return { emailMessageId: `<r5-second-${sendCount}>` };
+        },
+        now: () => EVALUATION_TIME + HOUR_MS,
+      }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+
+    expect(second.outcome).toBe("SUCCESS");
+    expect(second.signalsSent).toBe(second.signalsGenerated);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(
+      second.signalsGenerated,
+    );
+    expect(runtimeOrder.slice(0, 7)).toEqual([
+      "CLAIM",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "HISTORICAL_REVIEW_METADATA_APPEND",
+      "CURRENT_CONTEXT_REGISTRY",
+      "EMAIL",
+    ]);
+  });
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates historical metadata evidence failure and preserves delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      let sendCount = 0;
+      await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r5-seed-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "HISTORICAL_REVIEW_METADATA";
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          snapshot: makeSnapshot({ evaluationTime: EVALUATION_TIME + HOUR_MS }),
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          now: () => EVALUATION_TIME + HOUR_MS,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r5-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T01:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED");
+      expect(result.signalsSent).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    },
+  );
+
+  it.each(["lookup", "publish"] as const)(
+    "isolates historical context registry %s failure without marking delivery failed",
+    async (phase) => {
+      const store = new MemoryStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      if (phase === "lookup") registry.lookupFailure = true;
+      if (phase === "publish") registry.publishFailure = true;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          historicalReviewContextRegistry: registry,
+          send: async () => ({ emailMessageId: `<r5-${phase}-failure>` }),
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED");
+      expect(result.signalsSent).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    },
+  );
 
   it("records DELIVERY_FAILED only when the email sender rejects", async () => {
     const store = new MemoryStore();
