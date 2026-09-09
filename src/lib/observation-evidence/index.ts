@@ -24,6 +24,11 @@ export {
   R22_R2_QUALITY_SNAPSHOT_IMPLEMENTATION_STATUS,
 } from "./quality-snapshot.ts";
 export {
+  buildMarketContextSnapshotCandidate,
+  MarketContextNotEvaluableError,
+  R22_R3_MARKET_CONTEXT_IMPLEMENTATION_STATUS,
+} from "./market-context.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,
