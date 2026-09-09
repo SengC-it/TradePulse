@@ -25,6 +25,7 @@ import type { Candle, MarketSnapshot } from "@/lib/market-data/types";
 import type {
   ObservationEvidenceAppendResult,
   ObservationEvidenceCandidate,
+  ObservationArtifactType,
 } from "@/lib/observation-evidence/types";
 
 const HOUR_MS = 3_600_000;
@@ -301,10 +302,16 @@ class MemoryObservationEvidenceStore {
   readonly candidates: ObservationEvidenceCandidate[] = [];
   readonly order: string[] = [];
   failure: "THROW" | "NOT_EVALUABLE" | null = null;
+  failureArtifactType: ObservationArtifactType | null = null;
 
   async appendEvidence(candidate: ObservationEvidenceCandidate): Promise<ObservationEvidenceAppendResult> {
-    this.order.push("QUALITY_SNAPSHOT_APPEND");
+    this.order.push(`${candidate.artifactType}_APPEND`);
     this.candidates.push(candidate);
+    const shouldFail = this.failure !== null
+      && (this.failureArtifactType === null || this.failureArtifactType === candidate.artifactType);
+    if (!shouldFail) {
+      return { status: "APPENDED", evidenceId: candidate.evidenceId };
+    }
     if (this.failure === "THROW") {
       throw new Error("observation evidence unavailable");
     }
@@ -563,10 +570,15 @@ describe("signal advisory scan", () => {
     });
 
     expect(result.outcome).toBe("SUCCESS");
-    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated);
-    expect(evidenceStore.candidates.every((candidate) => candidate.artifactType === "QUALITY_SNAPSHOT")).toBe(true);
+    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated * 2);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "QUALITY_SNAPSHOT")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "MARKET_CONTEXT")).toHaveLength(
+      result.signalsGenerated,
+    );
     expect(evidenceStore.order[0]).toBe("QUALITY_SNAPSHOT_APPEND");
-    expect(evidenceStore.order.indexOf("QUALITY_SNAPSHOT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
+    expect(evidenceStore.order.indexOf("MARKET_CONTEXT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
     expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
@@ -604,21 +616,75 @@ describe("signal advisory scan", () => {
     },
   );
 
+  it("isolates MARKET_CONTEXT evidence failure without changing claim or delivery truth", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    evidenceStore.failure = "NOT_EVALUABLE";
+    evidenceStore.failureArtifactType = "MARKET_CONTEXT";
+    let sendCount = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<market-context-failure-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.errors).not.toContain("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+    expect(result.errors).toContain("MARKET_CONTEXT_EVIDENCE_FAILED");
+    expect(sendCount).toBe(result.signalsGenerated);
+    expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    expect(store.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        operation: "round-022-market-context",
+        status: "NOT_EVALUABLE",
+        errorCode: "MARKET_CONTEXT_EVIDENCE_FAILED",
+      }),
+    ]));
+  });
+
   it("appends quality evidence for a duplicate or expired claim before skipping delivery", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
+    let sendCount = 0;
     const first = await runSignalAdvisoryScan({
-      dependencies: dependencies({ store, observationEvidenceStore: evidenceStore }),
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<duplicate-test-${sendCount}>` };
+        },
+      }),
       scheduledFor: "2026-08-23T00:05:00.000Z",
     });
     const repeated = await runSignalAdvisoryScan({
-      dependencies: dependencies({ store, observationEvidenceStore: evidenceStore }),
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<duplicate-test-${sendCount}>` };
+        },
+      }),
       scheduledFor: "2026-08-23T01:05:00.000Z",
     });
 
     expect(first.outcome).toBe("SUCCESS");
     expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
-    expect(evidenceStore.candidates).toHaveLength(first.signalsGenerated + repeated.signalsGenerated);
+    expect(evidenceStore.candidates).toHaveLength((first.signalsGenerated + repeated.signalsGenerated) * 2);
+    expect(sendCount).toBe(first.signalsGenerated);
+    expect(evidenceStore.order.filter((entry) => entry === "QUALITY_SNAPSHOT_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(evidenceStore.order.filter((entry) => entry === "MARKET_CONTEXT_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
   });
 
   it("does not append QUALITY_SNAPSHOT evidence for NO_SIGNAL", async () => {

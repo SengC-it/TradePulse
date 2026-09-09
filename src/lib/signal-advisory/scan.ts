@@ -20,6 +20,7 @@ import type { NotificationEvidenceEvent } from "./notification-evidence.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
 import { createObservationEvidenceStore } from "../observation-evidence/store.ts";
 import { buildQualitySnapshotCandidate } from "../observation-evidence/quality-snapshot.ts";
+import { buildMarketContextSnapshotCandidate } from "../observation-evidence/market-context.ts";
 import type {
   SignalAdvisory,
   SignalAdvisoryScanDependencies,
@@ -419,6 +420,41 @@ export async function runSignalAdvisoryScan(input: Readonly<{
             metadata: {
               signalId: advisory.signalId,
               appendStatus: qualitySnapshotAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+      let marketContextAppend: { status: "APPENDED" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE" | "FAILED" };
+      try {
+        const marketContext = buildMarketContextSnapshotCandidate({
+          advisory,
+          snapshot,
+          capturedAt: new Date(now()).toISOString(),
+        });
+        try {
+          const appendResult = await dependencies.observationEvidenceStore.appendEvidence(marketContext);
+          marketContextAppend = { status: appendResult.status };
+        } catch {
+          marketContextAppend = { status: "FAILED" };
+        }
+      } catch {
+        marketContextAppend = { status: "NOT_EVALUABLE" };
+      }
+      if (marketContextAppend.status !== "APPENDED" && marketContextAppend.status !== "IDEMPOTENT_REPLAY") {
+        errors.push("MARKET_CONTEXT_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-market-context",
+            status: marketContextAppend.status,
+            errorCode: "MARKET_CONTEXT_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: marketContextAppend.status,
             },
           },
           errors,
