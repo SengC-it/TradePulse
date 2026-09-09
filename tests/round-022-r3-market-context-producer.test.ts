@@ -20,27 +20,33 @@ const SIGNAL_TIME = "2026-08-23T00:00:00.000Z";
 const SIGNAL_TIME_MS = Date.parse(SIGNAL_TIME);
 const CAPTURED_AT = "2026-08-23T00:00:02.000Z";
 
-function advisory(
-  symbolRegime: SymbolRegime = "LONG_ONLY",
-  btcRegime: BTCRegime = "BTC_NEUTRAL",
-): SignalAdvisory {
+function advisory(options: Readonly<{
+  symbol?: ResearchSymbol;
+  direction?: "LONG" | "SHORT";
+  symbolRegime?: SymbolRegime;
+  btcRegime?: BTCRegime;
+}> = {}): SignalAdvisory {
+  const symbol = options.symbol ?? "BTCUSDT";
+  const direction = options.direction ?? "LONG";
+  const symbolRegime = options.symbolRegime ?? "LONG_ONLY";
+  const btcRegime = options.btcRegime ?? "BTC_NEUTRAL";
   return {
     signalId: buildDeterministicSignalId({
-      symbol: "BTCUSDT",
-      direction: "LONG",
+      symbol,
+      direction,
       signalTime: SIGNAL_TIME,
       strategyVersion: STRATEGY_VERSION,
     }),
-    symbol: "BTCUSDT",
-    direction: "LONG",
+    symbol,
+    direction,
     strategyId: "baseline-001",
     strategyVersion: STRATEGY_VERSION,
     signalTime: SIGNAL_TIME,
     signalValidUntil: "2026-08-23T01:00:00.000Z",
     currentReferencePrice: 100,
     suggestedEntryReference: 100,
-    stopLoss: 98,
-    takeProfit: 104,
+    stopLoss: direction === "LONG" ? 98 : 102,
+    takeProfit: direction === "LONG" ? 104 : 96,
     riskReward: 2,
     score: 85,
     grade: "A",
@@ -145,13 +151,20 @@ function makeSnapshot(options: Readonly<{
 }
 
 function build(overrides: Readonly<{
+  symbol?: ResearchSymbol;
+  direction?: "LONG" | "SHORT";
   symbolRegime?: SymbolRegime;
   btcRegime?: BTCRegime;
   snapshot?: MarketSnapshot;
   capturedAt?: string;
 }> = {}) {
   return buildMarketContextSnapshotCandidate({
-    advisory: advisory(overrides.symbolRegime, overrides.btcRegime),
+    advisory: advisory({
+      symbol: overrides.symbol,
+      direction: overrides.direction,
+      symbolRegime: overrides.symbolRegime,
+      btcRegime: overrides.btcRegime,
+    }),
     snapshot: overrides.snapshot ?? makeSnapshot(),
     capturedAt: overrides.capturedAt ?? CAPTURED_AT,
   });
@@ -209,18 +222,127 @@ describe("Round-022 R3 MARKET_CONTEXT producer", () => {
     const first = build({ snapshot: makeSnapshot({ btcCandles: original }) });
     const second = build({ snapshot: makeSnapshot({ btcCandles: changed }) });
 
-    const firstManifest = first.payload as { readonly sourceManifest: { readonly symbol: { readonly orderedSeriesHash: string } } };
-    const secondManifest = second.payload as { readonly sourceManifest: { readonly symbol: { readonly orderedSeriesHash: string } } };
+    const firstManifest = first.payload as { readonly sourceManifest: { readonly symbol: { readonly orderedSeriesHash: string }; readonly btc: { readonly orderedSeriesHash: string } } };
+    const secondManifest = second.payload as { readonly sourceManifest: { readonly symbol: { readonly orderedSeriesHash: string }; readonly btc: { readonly orderedSeriesHash: string } } };
     expect(secondManifest.sourceManifest.symbol.orderedSeriesHash).not.toBe(firstManifest.sourceManifest.symbol.orderedSeriesHash);
+    expect(secondManifest.sourceManifest.btc.orderedSeriesHash).not.toBe(firstManifest.sourceManifest.btc.orderedSeriesHash);
     expect(second.sourceRef).not.toBe(first.sourceRef);
     expect(second.contentHash).not.toBe(first.contentHash);
     expect(second.idempotencyKey).not.toBe(first.idempotencyKey);
+    expect(second.payload).toMatchObject({ symbolRegime: "LONG_ONLY", btcRegime: "BTC_NEUTRAL" });
   });
 
   it("rejects reordered source input instead of treating order as irrelevant", () => {
-    const reordered = series("ETHUSDT").reverse();
+    const reordered = series("BTCUSDT").reverse();
     expect(() => build({ snapshot: makeSnapshot({ btcCandles: reordered }) }))
-      .toThrow(MarketContextNotEvaluableError);
+      .toThrow("SOURCE_SERIES_NOT_STRICTLY_CHRONOLOGICAL");
+  });
+
+  it("supports a non-BTC advisory with independent ETH and BTC source manifests", () => {
+    const ethCandles = series("ETHUSDT");
+    const btcCandles = series("BTCUSDT").map((candle) => ({ ...candle, close: candle.close + 10 }));
+    const candidate = build({
+      symbol: "ETHUSDT",
+      direction: "LONG",
+      snapshot: makeSnapshot({ symbolCandles: ethCandles, btcCandles }),
+    });
+    const manifest = (candidate.payload as { readonly sourceManifest: {
+      readonly symbol: { readonly symbol: string; readonly orderedSeriesHash: string };
+      readonly btc: { readonly symbol: string; readonly orderedSeriesHash: string };
+    } }).sourceManifest;
+
+    expect(manifest.symbol.symbol).toBe("ETHUSDT");
+    expect(manifest.btc.symbol).toBe("BTCUSDT");
+    expect(manifest.symbol.orderedSeriesHash).not.toBe(manifest.btc.orderedSeriesHash);
+    expect(candidate.symbol).toBe("ETHUSDT");
+  });
+
+  it("changes only ETH provenance when only the ETH source changes", () => {
+    const baseEth = series("ETHUSDT");
+    const baseBtc = series("BTCUSDT");
+    const changedEth = baseEth.map((candle, index) => index === 1 ? { ...candle, close: candle.close + 0.5 } : candle);
+    const first = build({
+      symbol: "ETHUSDT",
+      snapshot: makeSnapshot({ symbolCandles: baseEth, btcCandles: baseBtc }),
+    });
+    const second = build({
+      symbol: "ETHUSDT",
+      snapshot: makeSnapshot({ symbolCandles: changedEth, btcCandles: baseBtc }),
+    });
+    const firstManifest = (first.payload as { readonly sourceManifest: {
+      readonly symbol: { readonly orderedSeriesHash: string };
+      readonly btc: { readonly orderedSeriesHash: string };
+    } }).sourceManifest;
+    const secondManifest = (second.payload as { readonly sourceManifest: {
+      readonly symbol: { readonly orderedSeriesHash: string };
+      readonly btc: { readonly orderedSeriesHash: string };
+    } }).sourceManifest;
+
+    expect(secondManifest.symbol.orderedSeriesHash).not.toBe(firstManifest.symbol.orderedSeriesHash);
+    expect(secondManifest.btc.orderedSeriesHash).toBe(firstManifest.btc.orderedSeriesHash);
+    expect(second.sourceRef).not.toBe(first.sourceRef);
+    expect(second.contentHash).not.toBe(first.contentHash);
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey);
+    expect(second.payload).toMatchObject({ symbolRegime: "LONG_ONLY", btcRegime: "BTC_NEUTRAL" });
+  });
+
+  it("changes only BTC provenance when only the BTC source changes", () => {
+    const baseEth = series("ETHUSDT");
+    const baseBtc = series("BTCUSDT");
+    const changedBtc = baseBtc.map((candle, index) => index === 1 ? { ...candle, close: candle.close + 0.5 } : candle);
+    const first = build({
+      symbol: "ETHUSDT",
+      snapshot: makeSnapshot({ symbolCandles: baseEth, btcCandles: baseBtc }),
+    });
+    const second = build({
+      symbol: "ETHUSDT",
+      snapshot: makeSnapshot({ symbolCandles: baseEth, btcCandles: changedBtc }),
+    });
+    const firstManifest = (first.payload as { readonly sourceManifest: {
+      readonly symbol: { readonly orderedSeriesHash: string };
+      readonly btc: { readonly orderedSeriesHash: string };
+    } }).sourceManifest;
+    const secondManifest = (second.payload as { readonly sourceManifest: {
+      readonly symbol: { readonly orderedSeriesHash: string };
+      readonly btc: { readonly orderedSeriesHash: string };
+    } }).sourceManifest;
+
+    expect(secondManifest.symbol.orderedSeriesHash).toBe(firstManifest.symbol.orderedSeriesHash);
+    expect(secondManifest.btc.orderedSeriesHash).not.toBe(firstManifest.btc.orderedSeriesHash);
+    expect(second.sourceRef).not.toBe(first.sourceRef);
+    expect(second.contentHash).not.toBe(first.contentHash);
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey);
+    expect(second.payload).toMatchObject({ symbolRegime: "LONG_ONLY", btcRegime: "BTC_NEUTRAL" });
+  });
+
+  it("uses the maximum of the ETH and BTC context cutoffs", () => {
+    const ethClose = Date.parse("2026-08-22T20:00:00.000Z");
+    const btcClose = Date.parse("2026-08-22T23:59:59.999Z");
+    const btcLater = Date.parse("2026-08-22T23:00:00.000Z");
+    const first = build({
+      symbol: "ETHUSDT",
+      snapshot: makeSnapshot({ symbolCandles: series("ETHUSDT", ethClose), btcCandles: series("BTCUSDT", btcClose) }),
+    });
+    const second = build({
+      symbol: "ETHUSDT",
+      snapshot: makeSnapshot({ symbolCandles: series("ETHUSDT", btcClose), btcCandles: series("BTCUSDT", btcLater) }),
+    });
+
+    expect(first.informationAsOf).toBe("2026-08-22T23:59:59.999Z");
+    expect(second.informationAsOf).toBe("2026-08-22T23:59:59.999Z");
+  });
+
+  it.each([
+    ["ETH", "ETHUSDT", "BTCUSDT"],
+    ["BTC", "BTCUSDT", "ETHUSDT"],
+  ] as const)("rejects %s source data after signal time independently", (_label, futureSymbol, otherSymbol) => {
+    const future = series(futureSymbol, SIGNAL_TIME_MS + 1);
+    const validOther = series(otherSymbol, SIGNAL_TIME_MS - 1);
+    const snapshot = futureSymbol === "ETHUSDT"
+      ? makeSnapshot({ symbolCandles: future, btcCandles: validOther })
+      : makeSnapshot({ symbolCandles: validOther, btcCandles: future });
+
+    expect(() => build({ symbol: "ETHUSDT", snapshot })).toThrow(MarketContextNotEvaluableError);
   });
 
   it.each([
