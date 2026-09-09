@@ -28,6 +28,7 @@ create table public.tp_historical_review_context_registry (
 
 alter table public.tp_historical_review_context_registry enable row level security;
 revoke all on table public.tp_historical_review_context_registry from anon, authenticated;
+revoke insert on table public.tp_historical_review_context_registry from service_role;
 grant select on table public.tp_historical_review_context_registry to service_role;
 grant insert (
   context_id,

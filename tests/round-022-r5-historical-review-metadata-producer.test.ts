@@ -477,6 +477,7 @@ describe("Round-022 R5 historical review metadata producer", () => {
     expect(migration).not.toMatch(/available_at[^\n]*input|caller|parameter/i);
     expect(migration).toContain("before update or delete");
     expect(migration).toContain("enable row level security");
+    expect(migration).toContain("revoke insert on table public.tp_historical_review_context_registry from service_role");
     expect(migration).toContain("grant select on table public.tp_historical_review_context_registry to service_role");
     expect(migration).toContain("grant insert (");
     expect(migration).not.toContain("grant select, insert on table public.tp_historical_review_context_registry to service_role");
