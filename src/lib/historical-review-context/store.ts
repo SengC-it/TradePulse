@@ -36,6 +36,13 @@ export type HistoricalReviewContextRegistryClient = Readonly<{
   }>;
 }>;
 
+export function canonicalizeDatabaseTimestamp(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed).toISOString();
+}
+
 function persistenceError(operation: string, error: SupabaseError): Error {
   return new Error(`Historical review context registry failed during ${operation}${error.code ? ` (${error.code})` : ""}.`);
 }
@@ -60,12 +67,14 @@ function rowFromContextPublication(input: HistoricalReviewContextPublication): R
 }
 
 function contextFromRow(row: Record<string, unknown>): HistoricalReviewContext | null {
+  const sourceEventTime = canonicalizeDatabaseTimestamp(row.source_event_time);
+  const availableAt = canonicalizeDatabaseTimestamp(row.available_at);
   if (typeof row.context_id !== "string"
     || typeof row.source_signal_id !== "string"
     || typeof row.symbol !== "string"
     || typeof row.timeframe !== "string"
-    || typeof row.source_event_time !== "string"
-    || typeof row.available_at !== "string"
+    || sourceEventTime === null
+    || availableAt === null
     || typeof row.feature_snapshot_version !== "string"
     || typeof row.preprocessing_hash !== "string"
     || !Array.isArray(row.source_ids)
@@ -79,8 +88,8 @@ function contextFromRow(row: Record<string, unknown>): HistoricalReviewContext |
     sourceSignalId: row.source_signal_id,
     symbol: row.symbol,
     timeframe: row.timeframe,
-    sourceEventTime: row.source_event_time,
-    availableAt: row.available_at,
+    sourceEventTime,
+    availableAt,
     featureSnapshotVersion: row.feature_snapshot_version,
     preprocessingHash: row.preprocessing_hash,
     sourceIds: row.source_ids,

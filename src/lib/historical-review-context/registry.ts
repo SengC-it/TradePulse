@@ -31,9 +31,7 @@ function featureSnapshotFor(advisory: SignalAdvisory): HistoricalIdentityFeature
   });
 }
 
-export function historicalContextPreprocessingHash(
-  featureSnapshot: HistoricalIdentityFeatureSnapshot,
-): string {
+export function historicalContextPreprocessingHash(): string {
   return hashCanonical({
     namespace: "R22_HISTORICAL_IDENTITY_PREPROCESSOR",
     featureSnapshotVersion: R22_HISTORICAL_CONTEXT_FEATURE_SNAPSHOT_VERSION,
@@ -45,7 +43,6 @@ export function historicalContextPreprocessingHash(
       "strategyId",
       "strategyVersion",
     ],
-    values: featureSnapshot,
   });
 }
 
@@ -67,7 +64,7 @@ export function historicalReviewContextDraftFor(input: Readonly<{
   sourceIds: readonly string[];
 }>): HistoricalReviewContextDraft {
   const featureSnapshot = featureSnapshotFor(input.advisory);
-  const preprocessingHash = historicalContextPreprocessingHash(featureSnapshot);
+  const preprocessingHash = historicalContextPreprocessingHash();
   return Object.freeze({
     contextId: historicalContextId({
       sourceSignalId: input.advisory.signalId,
@@ -130,7 +127,7 @@ export function validateHistoricalReviewContext(
     || feature.strategyVersion.trim().length === 0) {
     return false;
   }
-  const preprocessingHash = historicalContextPreprocessingHash(feature);
+  const preprocessingHash = historicalContextPreprocessingHash();
   return context.preprocessingHash === preprocessingHash
     && context.contextId === historicalContextId({
       sourceSignalId: context.sourceSignalId,

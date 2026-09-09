@@ -28,7 +28,38 @@ create table public.tp_historical_review_context_registry (
 
 alter table public.tp_historical_review_context_registry enable row level security;
 revoke all on table public.tp_historical_review_context_registry from anon, authenticated;
-grant select, insert on table public.tp_historical_review_context_registry to service_role;
+grant select on table public.tp_historical_review_context_registry to service_role;
+grant insert (
+  context_id,
+  source_signal_id,
+  symbol,
+  timeframe,
+  source_event_time,
+  feature_snapshot_version,
+  preprocessing_hash,
+  source_ids,
+  feature_snapshot,
+  approval_ref
+) on table public.tp_historical_review_context_registry to service_role;
+
+create or replace function public.tp_historical_review_context_server_timestamp_authority()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  server_timestamp timestamptz;
+begin
+  server_timestamp := statement_timestamp();
+  new.available_at := server_timestamp;
+  new.created_at := server_timestamp;
+  return new;
+end;
+$$;
+
+create trigger tp_historical_review_context_server_timestamp_authority
+before insert on public.tp_historical_review_context_registry
+for each row execute function public.tp_historical_review_context_server_timestamp_authority();
 
 create or replace function public.tp_historical_review_context_append_only_guard()
 returns trigger

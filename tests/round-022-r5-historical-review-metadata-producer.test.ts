@@ -10,6 +10,12 @@ import {
   validateHistoricalReviewContext,
 } from "@/lib/historical-review-context/registry";
 import {
+  SupabaseHistoricalReviewContextRegistry,
+  canonicalizeDatabaseTimestamp,
+  type HistoricalReviewContextRegistryClient,
+} from "@/lib/historical-review-context/store";
+import type { HistoricalReviewContext } from "@/lib/historical-review-context/types";
+import {
   R22_HISTORICAL_CONTEXT_APPROVAL_REF,
   R22_HISTORICAL_CONTEXT_FEATURE_SNAPSHOT_VERSION,
 } from "@/lib/historical-review-context/types";
@@ -74,6 +80,110 @@ function priorContext(overrides: Partial<SignalAdvisory> = {}, availableAt = "20
   });
 }
 
+function offsetTimestamp(value: string): string {
+  return value.replace("Z", "+00:00");
+}
+
+function rawRowForContext(
+  context: HistoricalReviewContext,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    context_id: context.contextId,
+    source_signal_id: context.sourceSignalId,
+    symbol: context.symbol,
+    timeframe: context.timeframe,
+    source_event_time: offsetTimestamp(context.sourceEventTime),
+    available_at: offsetTimestamp(context.availableAt),
+    feature_snapshot_version: context.featureSnapshotVersion,
+    preprocessing_hash: context.preprocessingHash,
+    source_ids: [...context.sourceIds],
+    feature_snapshot: context.featureSnapshot,
+    approval_ref: context.approvalRef,
+    created_at: offsetTimestamp(context.availableAt),
+    ...overrides,
+  };
+}
+
+class FakeHistoricalReviewContextRegistryClient implements HistoricalReviewContextRegistryClient {
+  rows: Record<string, unknown>[] = [];
+  insertCalls: Record<string, unknown>[] = [];
+  serverTimestamp = "2026-08-23T00:00:02.000+00:00";
+
+  from() {
+    return {
+      select: () => this.query(),
+      insert: (values: Record<string, unknown>) => ({
+        select: () => ({
+          maybeSingle: async () => this.insert(values),
+        }),
+      }),
+    };
+  }
+
+  private query() {
+    const filters: Array<{ kind: "eq" | "neq" | "lte"; column: string; value: unknown }> = [];
+    let order: { column: string; ascending: boolean } | null = null;
+    const query = {
+      eq: (column: string, value: unknown) => {
+        filters.push({ kind: "eq", column, value });
+        return query;
+      },
+      neq: (column: string, value: unknown) => {
+        filters.push({ kind: "neq", column, value });
+        return query;
+      },
+      lte: (column: string, value: unknown) => {
+        filters.push({ kind: "lte", column, value });
+        return query;
+      },
+      order: (column: string, options: { ascending: boolean }) => {
+        order = { column, ascending: options.ascending };
+        return query;
+      },
+      limit: async (count: number) => ({ data: this.filteredRows(filters, order).slice(0, count), error: null }),
+      maybeSingle: async () => ({ data: this.filteredRows(filters, order)[0] ?? null, error: null }),
+    };
+    return query;
+  }
+
+  private filteredRows(
+    filters: readonly { kind: "eq" | "neq" | "lte"; column: string; value: unknown }[],
+    order: { column: string; ascending: boolean } | null,
+  ): Record<string, unknown>[] {
+    const rows = this.rows.filter((row) => filters.every((filter) => {
+      const actual = row[filter.column];
+      if (filter.kind === "eq") return actual === filter.value;
+      if (filter.kind === "neq") return actual !== filter.value;
+      return typeof actual === "string"
+        && typeof filter.value === "string"
+        && Date.parse(actual) <= Date.parse(filter.value);
+    }));
+    if (order) {
+      rows.sort((left, right) => {
+        const comparison = Date.parse(String(left[order!.column])) - Date.parse(String(right[order!.column]));
+        return order!.ascending ? comparison : -comparison;
+      });
+    }
+    return rows;
+  }
+
+  private async insert(values: Record<string, unknown>) {
+    this.insertCalls.push({ ...values });
+    const existing = this.rows.find((row) => row.source_signal_id === values.source_signal_id);
+    if (existing) {
+      return { data: null, error: { code: "23505", message: "duplicate key" } };
+    }
+    const row = {
+      ...values,
+      available_at: this.serverTimestamp,
+      created_at: this.serverTimestamp,
+    };
+    this.rows.push(row);
+    return { data: row, error: null };
+  }
+}
+
 describe("Round-022 R5 historical review metadata producer", () => {
   it("publishes a concrete identity-only context contract", () => {
     const context = priorContext();
@@ -96,17 +206,119 @@ describe("Round-022 R5 historical review metadata producer", () => {
     );
   });
 
-  it("uses deterministic preprocessing and context identities independent of availableAt", () => {
-    const first = priorContext({}, "2026-08-22T23:30:00.000Z");
-    const second = priorContext({}, "2026-08-22T23:45:00.000Z");
+  it("uses a frozen preprocessing hash while keeping distinct signal context identities", () => {
+    const first = priorContext({ signalTime: "2026-08-22T22:00:00.000Z" });
+    const second = priorContext({ direction: "SHORT", signalTime: "2026-08-22T22:00:00.000Z" });
 
     expect(first.preprocessingHash).toBe(second.preprocessingHash);
-    expect(first.contextId).toBe(second.contextId);
+    expect(first.contextId).not.toBe(second.contextId);
     expect(first.contextId).toBe(historicalContextId({
       sourceSignalId: first.sourceSignalId,
       featureSnapshotVersion: first.featureSnapshotVersion,
-      preprocessingHash: historicalContextPreprocessingHash(first.featureSnapshot),
+      preprocessingHash: historicalContextPreprocessingHash(),
     }));
+  });
+
+  it("normalizes database timestamps at the registry boundary", async () => {
+    expect(canonicalizeDatabaseTimestamp("2026-09-09T12:43:25.123+00:00")).toBe("2026-09-09T12:43:25.123Z");
+    expect(canonicalizeDatabaseTimestamp("2026-09-09T20:43:25.123+08:00")).toBe("2026-09-09T12:43:25.123Z");
+    expect(canonicalizeDatabaseTimestamp("not-a-timestamp")).toBeNull();
+
+    const client = new FakeHistoricalReviewContextRegistryClient();
+    const context = priorContext();
+    client.rows = [rawRowForContext(context, {
+      available_at: "2026-08-23T07:30:00.000+08:00",
+    })];
+    const result = await new SupabaseHistoricalReviewContextRegistry(client).findPriorContext({
+      currentSignalId: advisory().signalId,
+      symbol: "BTCUSDT",
+      signalTime: SIGNAL_TIME,
+    });
+
+    expect(result.status).toBe("FOUND");
+    if (result.status === "FOUND") {
+      expect(result.context.sourceEventTime).toBe(PRIOR_SIGNAL_TIME);
+      expect(result.context.availableAt).toBe("2026-08-22T23:30:00.000Z");
+      expect(Date.parse(result.context.sourceEventTime)).toBeLessThanOrEqual(Date.parse(result.context.availableAt));
+    }
+  });
+
+  it("uses the real Supabase registry contract for lookup eligibility and deterministic selection", async () => {
+    const current = advisory();
+    const client = new FakeHistoricalReviewContextRegistryClient();
+    const registry = new SupabaseHistoricalReviewContextRegistry(client);
+    const missing = await registry.findPriorContext({
+      currentSignalId: current.signalId,
+      symbol: current.symbol,
+      signalTime: current.signalTime,
+    });
+    expect(missing).toEqual({ status: "MISSING", reason: "NO_APPROVED_PRIOR_CONTEXT" });
+
+    client.rows = [
+      rawRowForContext(priorContext({}, "2026-08-22T23:10:00.000Z")),
+      rawRowForContext(priorContext({ direction: "SHORT" }, "2026-08-22T23:20:00.000Z")),
+      rawRowForContext(priorContext({ signalTime: SIGNAL_TIME, signalId: current.signalId }, "2026-08-22T23:30:00.000Z")),
+      rawRowForContext(priorContext({}, "2026-08-23T00:00:01.000Z")),
+      rawRowForContext(priorContext({ symbol: "ETHUSDT" }, "2026-08-22T23:40:00.000Z"), { symbol: "ETHUSDT" }),
+      rawRowForContext(priorContext({}, "2026-08-22T23:50:00.000Z"), { timeframe: "4h" }),
+    ];
+    const selected = await registry.findPriorContext({
+      currentSignalId: current.signalId,
+      symbol: "BTCUSDT",
+      signalTime: SIGNAL_TIME,
+    });
+    expect(selected.status).toBe("FOUND");
+    if (selected.status === "FOUND") {
+      expect(selected.context.availableAt).toBe("2026-08-22T23:20:00.000Z");
+    }
+  });
+
+  it("rejects invalid rows and exact maximum availability ties", async () => {
+    const current = advisory();
+    const invalidClient = new FakeHistoricalReviewContextRegistryClient();
+    invalidClient.rows = [rawRowForContext(priorContext(), { approval_ref: "UNAPPROVED" })];
+    const invalid = await new SupabaseHistoricalReviewContextRegistry(invalidClient).findPriorContext({
+      currentSignalId: current.signalId,
+      symbol: "BTCUSDT",
+      signalTime: SIGNAL_TIME,
+    });
+    expect(invalid).toEqual({ status: "NOT_EVALUABLE", reason: "INVALID_CONTEXT_RECORD" });
+
+    const tieClient = new FakeHistoricalReviewContextRegistryClient();
+    tieClient.rows = [
+      rawRowForContext(priorContext({}, "2026-08-22T23:30:00.000Z")),
+      rawRowForContext(priorContext({ direction: "SHORT" }, "2026-08-22T23:30:00.000Z")),
+    ];
+    const tie = await new SupabaseHistoricalReviewContextRegistry(tieClient).findPriorContext({
+      currentSignalId: current.signalId,
+      symbol: "BTCUSDT",
+      signalTime: SIGNAL_TIME,
+    });
+    expect(tie).toEqual({ status: "NOT_EVALUABLE", reason: "AMBIGUOUS_MAX_AVAILABLE_CONTEXT" });
+  });
+
+  it("publishes, replays, and fails closed on a conflicting logical identity", async () => {
+    const input = { advisory: advisory(), sourceIds: [`tp_signal_advisories:${advisory().signalId}`] };
+    const client = new FakeHistoricalReviewContextRegistryClient();
+    const registry = new SupabaseHistoricalReviewContextRegistry(client);
+    const appended = await registry.publishContext(input);
+    const replay = await registry.publishContext(input);
+
+    expect(appended.status).toBe("APPENDED");
+    expect(replay.status).toBe("IDEMPOTENT_REPLAY");
+    expect(client.insertCalls).toHaveLength(2);
+    expect(client.insertCalls[0]).not.toHaveProperty("available_at");
+    expect(client.insertCalls[0]).not.toHaveProperty("created_at");
+
+    const conflictClient = new FakeHistoricalReviewContextRegistryClient();
+    conflictClient.rows = [rawRowForContext(materializeHistoricalReviewContext({
+      advisory: input.advisory,
+      sourceIds: ["different-source"],
+      availableAt: "2026-08-23T00:00:02.000Z",
+    }))];
+    const conflictRegistry = new SupabaseHistoricalReviewContextRegistry(conflictClient);
+    await expect(conflictRegistry.publishContext(input)).rejects.toThrow(/publish conflict/);
+    expect(conflictClient.rows).toHaveLength(1);
   });
 
   it("builds a valid historical metadata snapshot from the exact prior context", () => {
@@ -202,7 +414,16 @@ describe("Round-022 R5 historical review metadata producer", () => {
     expect(migration).not.toMatch(/available_at[^\n]*input|caller|parameter/i);
     expect(migration).toContain("before update or delete");
     expect(migration).toContain("enable row level security");
-    expect(migration).toContain("grant select, insert on table public.tp_historical_review_context_registry to service_role");
+    expect(migration).toContain("grant select on table public.tp_historical_review_context_registry to service_role");
+    expect(migration).toContain("grant insert (");
+    expect(migration).not.toContain("grant select, insert on table public.tp_historical_review_context_registry to service_role");
+    const insertGrant = migration.match(/grant insert \(([\s\S]*?)\) on table public\.tp_historical_review_context_registry to service_role/i)?.[1] ?? "";
+    expect(insertGrant).not.toContain("available_at");
+    expect(insertGrant).not.toContain("created_at");
+    expect(migration).toContain("tp_historical_review_context_server_timestamp_authority");
+    expect(migration).toContain("before insert on public.tp_historical_review_context_registry");
+    expect(migration).toContain("new.available_at := server_timestamp");
+    expect(migration).toContain("new.created_at := server_timestamp");
     expect(migration).not.toMatch(/on conflict[^\n]*do update|update public\.tp_historical_review_context_registry|delete from public\.tp_historical_review_context_registry/i);
   });
 });

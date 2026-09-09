@@ -744,11 +744,13 @@ describe("signal advisory scan", () => {
   it("appends all three evidence snapshots for SKIPPED_DUPLICATE before skipping delivery", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
+    const historicalReviewContextRegistry = new MemoryHistoricalReviewContextRegistry();
     let sendCount = 0;
     const first = await runSignalAdvisoryScan({
       dependencies: dependencies({
         store,
         observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry,
         send: async () => {
           sendCount += 1;
           return { emailMessageId: `<duplicate-test-${sendCount}>` };
@@ -760,6 +762,7 @@ describe("signal advisory scan", () => {
       dependencies: dependencies({
         store,
         observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry,
         send: async () => {
           sendCount += 1;
           return { emailMessageId: `<duplicate-test-${sendCount}>` };
@@ -781,14 +784,19 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.order.filter((entry) => entry === "RISK_ADVISORY_APPEND")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
     );
+    expect(historicalReviewContextRegistry.order.filter((entry) => entry === "CURRENT_CONTEXT_REGISTRY")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
   });
 
   it("appends all three evidence snapshots for SKIPPED_EXPIRED before skipping delivery", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
+    const historicalReviewContextRegistry = new MemoryHistoricalReviewContextRegistry();
     const runtimeOrder: string[] = [];
     store.order = runtimeOrder;
     evidenceStore.order = runtimeOrder;
+    historicalReviewContextRegistry.order = runtimeOrder;
     const snapshot = makeSnapshot({ evaluationTime: Date.parse("2026-08-23T00:00:05.000Z") });
     let currentNow = Date.parse("2026-08-23T00:05:00.000Z");
     let sendCount = 0;
@@ -798,6 +806,7 @@ describe("signal advisory scan", () => {
         store,
         snapshot,
         observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry,
         now: () => currentNow,
         send: async () => {
           sendCount += 1;
@@ -812,6 +821,7 @@ describe("signal advisory scan", () => {
       expect.arrayContaining([expect.objectContaining({ deliveryStatus: "FAILED", attemptCount: 1 })]),
     );
     const sendCountBeforeExpiredScan = sendCount;
+    const markSignalFailedCallsBeforeExpiredScan = store.markSignalFailedCalls;
     const candidatesBeforeExpiredScan = evidenceStore.candidates.length;
     runtimeOrder.length = 0;
     currentNow = Date.parse("2026-08-23T01:05:00.000Z");
@@ -822,6 +832,7 @@ describe("signal advisory scan", () => {
           store,
           snapshot,
           observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry,
           now: () => currentNow,
           send: async () => {
             sendCount += 1;
@@ -834,6 +845,7 @@ describe("signal advisory scan", () => {
 
     expect(expired.signalsSkipped).toBe(expired.signalsGenerated);
     expect(sendCount).toBe(sendCountBeforeExpiredScan);
+    expect(store.markSignalFailedCalls).toBe(markSignalFailedCallsBeforeExpiredScan);
     expect(evidenceStore.candidates.length - candidatesBeforeExpiredScan).toBe(expired.signalsGenerated * 3);
     expect(evidenceStore.candidates.slice(candidatesBeforeExpiredScan).some(
       (candidate) => candidate.artifactType === "RISK_ADVISORY",
@@ -844,6 +856,11 @@ describe("signal advisory scan", () => {
       "MARKET_CONTEXT_APPEND",
       "RISK_ADVISORY_APPEND",
     ]);
+    expect(runtimeOrder[4]).toBe("CURRENT_CONTEXT_REGISTRY");
+    expect(historicalReviewContextRegistry.contexts.size).toBe(first.signalsGenerated);
+    expect(runtimeOrder.filter((entry) => entry === "CURRENT_CONTEXT_REGISTRY")).toHaveLength(
+      expired.signalsGenerated,
+    );
     expect(runtimeOrder).not.toContain("EMAIL");
   });
 
