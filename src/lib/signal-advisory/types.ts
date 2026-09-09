@@ -7,6 +7,7 @@ import type {
   ObservationEvidenceAppendResult,
   ObservationEvidenceCandidate,
 } from "../observation-evidence/types.ts";
+import type { HistoricalReviewContextRegistry } from "../historical-review-context/types.ts";
 
 export type { SignalEvaluationRecord } from "./evaluations.ts";
 
@@ -120,6 +121,7 @@ export type SignalAdvisoryScanDependencies = Readonly<{
   observationEvidenceStore: Readonly<{
     appendEvidence(candidate: ObservationEvidenceCandidate): Promise<ObservationEvidenceAppendResult>;
   }>;
+  historicalReviewContextRegistry?: HistoricalReviewContextRegistry;
   sendSignalEmail(advisory: SignalAdvisory): Promise<{ emailMessageId: string }>;
   observeNotificationEvidence?: NotificationEvidenceObserver;
   now?: () => number;
