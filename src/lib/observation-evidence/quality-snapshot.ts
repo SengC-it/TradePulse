@@ -18,6 +18,7 @@ import type {
   ObservationEvidenceCandidate,
   ObservationJsonValue,
 } from "./types.ts";
+import type { BTCRegime } from "../strategy/types.ts";
 import {
   evaluateSignalQuality,
   type SignalQualityInput,
@@ -69,10 +70,10 @@ function hashCanonical(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
 }
 
-function mapMarketRegime(value: string): SignalQualityRegime {
-  if (value === "BULL") return "BULL";
-  if (value === "BEAR") return "BEAR";
-  if (value === "NEUTRAL" || value === "SIDEWAYS") return "NEUTRAL";
+function mapMarketRegime(value: BTCRegime): SignalQualityRegime {
+  if (value === "BTC_STRONG_BULL") return "BULL";
+  if (value === "BTC_NEUTRAL") return "NEUTRAL";
+  if (value === "BTC_STRONG_BEAR") return "BEAR";
   return "UNKNOWN";
 }
 
@@ -125,7 +126,7 @@ function qualityInput(advisory: SignalAdvisory): SignalQualityInput {
     freshData: advisory.dataFreshness.status === "FRESH",
     identityComplete: identityComplete(advisory),
     strategySnapshotComplete: strategySnapshotComplete(advisory),
-    marketRegime: mapMarketRegime(advisory.marketRegime.symbolRegime),
+    marketRegime: mapMarketRegime(advisory.marketRegime.btcRegime),
   };
 }
 

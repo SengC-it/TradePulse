@@ -1,5 +1,6 @@
 import type { ResearchSymbol } from "../config/constants.ts";
 import type { MarketSnapshot } from "../market-data/types.ts";
+import type { BTCRegime, SymbolRegime } from "../strategy/types.ts";
 import type { SignalEvaluationRecord } from "./evaluations.ts";
 import type { NotificationEvidenceObserver } from "./notification-evidence.ts";
 import type {
@@ -37,8 +38,8 @@ export type SignalAdvisory = Readonly<{
   score: number;
   grade: "A" | "B" | "C";
   marketRegime: Readonly<{
-    btcRegime: string;
-    symbolRegime: string;
+    btcRegime: BTCRegime;
+    symbolRegime: SymbolRegime;
   }>;
   dataFreshness: Readonly<{
     status: "FRESH";

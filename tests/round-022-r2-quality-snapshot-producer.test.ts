@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildDeterministicSignalId } from "@/lib/signal-advisory/identity";
 import type { SignalAdvisory } from "@/lib/signal-advisory/types";
+import type { BTCRegime, SymbolRegime } from "@/lib/strategy/types";
 import {
   buildQualitySnapshotCandidate,
   R22_R2_QUALITY_SNAPSHOT_IMPLEMENTATION_STATUS,
@@ -15,7 +16,11 @@ import {
 
 const SIGNAL_TIME = "2026-08-23T00:00:00.000Z";
 
-function advisory(direction: "LONG" | "SHORT", symbolRegime: string): SignalAdvisory {
+function advisory(
+  direction: "LONG" | "SHORT",
+  symbolRegime: SymbolRegime,
+  btcRegime: BTCRegime = "BTC_NEUTRAL",
+): SignalAdvisory {
   return {
     signalId: buildDeterministicSignalId({
       symbol: "BTCUSDT",
@@ -36,7 +41,7 @@ function advisory(direction: "LONG" | "SHORT", symbolRegime: string): SignalAdvi
     riskReward: 2,
     score: 85,
     grade: "A",
-    marketRegime: { btcRegime: "BTC_NEUTRAL", symbolRegime },
+    marketRegime: { btcRegime, symbolRegime },
     dataFreshness: {
       status: "FRESH",
       sourceServerTime: "2026-08-23T00:00:05.000Z",
@@ -57,7 +62,7 @@ describe("Round-022 R2 QUALITY_SNAPSHOT producer", () => {
 
   it("builds an authoritative LONG quality snapshot with frozen identity and payload", () => {
     const candidate = buildQualitySnapshotCandidate({
-      advisory: advisory("LONG", "BULL"),
+      advisory: advisory("LONG", "LONG_ONLY", "BTC_STRONG_BULL"),
       capturedAt: "2026-08-23T00:00:02.000Z",
     });
     const validation = validateObservationEvidenceCandidate(candidate);
@@ -88,7 +93,7 @@ describe("Round-022 R2 QUALITY_SNAPSHOT producer", () => {
 
   it("maps SHORT quality from the existing advisory input without re-running strategy", () => {
     const candidate = buildQualitySnapshotCandidate({
-      advisory: advisory("SHORT", "BEAR"),
+      advisory: advisory("SHORT", "SHORT_ONLY", "BTC_STRONG_BEAR"),
       capturedAt: "2026-08-23T00:00:03.000Z",
     });
 
@@ -103,11 +108,11 @@ describe("Round-022 R2 QUALITY_SNAPSHOT producer", () => {
 
   it("keeps logical identity and idempotency stable across captures", () => {
     const first = buildQualitySnapshotCandidate({
-      advisory: advisory("LONG", "NEUTRAL"),
+      advisory: advisory("LONG", "LONG_ONLY", "BTC_NEUTRAL"),
       capturedAt: "2026-08-23T00:00:02.000Z",
     });
     const second = buildQualitySnapshotCandidate({
-      advisory: advisory("LONG", "NEUTRAL"),
+      advisory: advisory("LONG", "LONG_ONLY", "BTC_NEUTRAL"),
       capturedAt: "2026-08-23T00:00:04.000Z",
     });
 
@@ -120,7 +125,7 @@ describe("Round-022 R2 QUALITY_SNAPSHOT producer", () => {
 
   it("fails closed when the runtime capture is before the signal time", () => {
     const candidate = buildQualitySnapshotCandidate({
-      advisory: advisory("LONG", "BULL"),
+      advisory: advisory("LONG", "LONG_ONLY", "BTC_STRONG_BULL"),
       capturedAt: "2026-08-22T23:59:59.999Z",
     });
 
@@ -133,14 +138,76 @@ describe("Round-022 R2 QUALITY_SNAPSHOT producer", () => {
 
   it("does not create synthetic NO_SIGNAL or separate context/risk artifacts", () => {
     const candidate = buildQualitySnapshotCandidate({
-      advisory: advisory("LONG", "UNKNOWN"),
+      advisory: advisory("LONG", "NO_TRADE", "BTC_NEUTRAL"),
       capturedAt: "2026-08-23T00:00:02.000Z",
     });
 
     expect(candidate.artifactType).toBe("QUALITY_SNAPSHOT");
-    expect(candidate.payload).toMatchObject({ direction: "LONG", qualityGrade: "C" });
+    expect(candidate.payload).toMatchObject({ direction: "LONG", qualityGrade: "B" });
     expect(candidate.payload).not.toHaveProperty("futureReturn");
     expect(candidate.payload).not.toHaveProperty("pnl");
+  });
+
+  it.each([
+    ["LONG", "LONG_ONLY", "BTC_STRONG_BULL", "BULL", "SUPPORTIVE"],
+    ["LONG", "LONG_ONLY", "BTC_NEUTRAL", "NEUTRAL", "NEUTRAL"],
+    ["SHORT", "SHORT_ONLY", "BTC_STRONG_BEAR", "BEAR", "SUPPORTIVE"],
+    ["LONG", "LONG_ONLY", "BTC_STRONG_BEAR", "BEAR", "ADVERSE"],
+  ] as const)(
+    "%s with %s maps BTC regime %s to %s/%s",
+    (direction, symbolRegime, btcRegime, expectedRegime, expectedAlignment) => {
+      const candidate = buildQualitySnapshotCandidate({
+        advisory: advisory(direction, symbolRegime, btcRegime),
+        capturedAt: "2026-08-23T00:00:02.000Z",
+      });
+
+      expect(candidate.payload).toMatchObject({
+        contextAlignment: expectedAlignment,
+      });
+      expect(candidate.payload).toEqual(expect.objectContaining({
+        explanations: expect.arrayContaining([
+          expect.stringContaining(expectedRegime === "NEUTRAL" ? "neutral" : "Market context"),
+        ]),
+      }));
+    },
+  );
+
+  it("uses BTC regime instead of symbol regime for quality context", () => {
+    const candidate = buildQualitySnapshotCandidate({
+      advisory: advisory("LONG", "NO_TRADE", "BTC_STRONG_BULL"),
+      capturedAt: "2026-08-23T00:00:02.000Z",
+    });
+
+    expect(candidate.payload).toMatchObject({
+      contextAlignment: "SUPPORTIVE",
+    });
+  });
+
+  it("uses only the real runtime regime enum values", () => {
+    const symbolRegimes: SymbolRegime[] = ["LONG_ONLY", "SHORT_ONLY", "NO_TRADE"];
+    const btcRegimes: BTCRegime[] = ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"];
+
+    expect(symbolRegimes).toEqual(["LONG_ONLY", "SHORT_ONLY", "NO_TRADE"]);
+    expect(btcRegimes).toEqual(["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"]);
+  });
+
+  it("fails closed to UNKNOWN for an unsupported BTC regime at the runtime boundary", () => {
+    const invalidRuntimeAdvisory = {
+      ...advisory("LONG", "NO_TRADE", "BTC_NEUTRAL"),
+      marketRegime: {
+        ...advisory("LONG", "NO_TRADE", "BTC_NEUTRAL").marketRegime,
+        btcRegime: "UNSUPPORTED_RUNTIME_VALUE",
+      },
+    } as unknown as SignalAdvisory;
+    const candidate = buildQualitySnapshotCandidate({
+      advisory: invalidRuntimeAdvisory,
+      capturedAt: "2026-08-23T00:00:02.000Z",
+    });
+
+    expect(candidate.payload).toMatchObject({
+      qualityGrade: "C",
+      contextAlignment: "UNAVAILABLE",
+    });
   });
 
   it("publishes independent R2 status without rewriting frozen R1 readiness evidence", () => {
