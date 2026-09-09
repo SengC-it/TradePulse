@@ -4,6 +4,7 @@ import {
   historicalReviewContextDraftFor,
   validateHistoricalReviewContext,
 } from "./registry.ts";
+import { canonicalJson } from "../observation-evidence/canonical.ts";
 import {
   HISTORICAL_REVIEW_CONTEXT_REGISTRY_TABLE,
   type HistoricalReviewContext,
@@ -107,11 +108,10 @@ function samePublishedIdentity(
     advisory: input.advisory,
     sourceIds: input.sourceIds,
   });
-  return expected.contextId === context.contextId
-    && expected.sourceSignalId === context.sourceSignalId
-    && expected.sourceIds.join("\u0000") === context.sourceIds.join("\u0000")
-    && expected.featureSnapshotVersion === context.featureSnapshotVersion
-    && expected.preprocessingHash === context.preprocessingHash;
+  const existingDraft = Object.fromEntries(
+    Object.entries(context).filter(([key]) => key !== "availableAt"),
+  );
+  return canonicalJson(expected) === canonicalJson(existingDraft);
 }
 
 export class SupabaseHistoricalReviewContextRegistry implements HistoricalReviewContextRegistry {
@@ -175,7 +175,7 @@ export class SupabaseHistoricalReviewContextRegistry implements HistoricalReview
     if (existing.error) throw persistenceError("read publish conflict", existing.error);
     const context = existing.data ? contextFromRow(existing.data) : null;
     if (!context || !samePublishedIdentity(context, input)) {
-      throw new Error("Historical review context publish conflict did not match the known identity.");
+      throw new Error("CONTEXT_ID_CONFLICT: historical review context logical draft did not match.");
     }
     return { status: "IDEMPOTENT_REPLAY", context };
   }

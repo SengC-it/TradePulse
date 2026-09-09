@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import type { SignalAdvisory } from "../signal-advisory/types.ts";
 import { RESEARCH_SYMBOLS } from "../config/constants.ts";
 import { canonicalJson } from "../observation-evidence/canonical.ts";
-import { isCanonicalUtcTimestamp } from "../observation-evidence/validator.ts";
+import {
+  findForbiddenObservationEconomicField,
+  isCanonicalUtcTimestamp,
+} from "../observation-evidence/validator.ts";
 import {
   HISTORICAL_REVIEW_CONTEXT_REGISTRY_TABLE,
   R22_HISTORICAL_CONTEXT_APPROVAL_REF,
@@ -15,6 +18,15 @@ import {
 } from "./types.ts";
 
 export { HISTORICAL_REVIEW_CONTEXT_REGISTRY_TABLE };
+
+const HISTORICAL_IDENTITY_FEATURE_FIELDS = [
+  "signalId",
+  "symbol",
+  "direction",
+  "signalTime",
+  "strategyId",
+  "strategyVersion",
+] as const;
 
 function hashCanonical(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
@@ -35,14 +47,7 @@ export function historicalContextPreprocessingHash(): string {
   return hashCanonical({
     namespace: "R22_HISTORICAL_IDENTITY_PREPROCESSOR",
     featureSnapshotVersion: R22_HISTORICAL_CONTEXT_FEATURE_SNAPSHOT_VERSION,
-    fields: [
-      "signalId",
-      "symbol",
-      "direction",
-      "signalTime",
-      "strategyId",
-      "strategyVersion",
-    ],
+    fields: HISTORICAL_IDENTITY_FEATURE_FIELDS,
   });
 }
 
@@ -117,7 +122,12 @@ export function validateHistoricalReviewContext(
     return false;
   }
   const feature = context.featureSnapshot;
-  if (!RESEARCH_SYMBOLS.includes(context.symbol)
+  if (typeof feature !== "object"
+    || feature === null
+    || Object.keys(feature).sort().join("\u0000")
+      !== [...HISTORICAL_IDENTITY_FEATURE_FIELDS].sort().join("\u0000")
+    || findForbiddenObservationEconomicField(feature) !== null
+    || !RESEARCH_SYMBOLS.includes(context.symbol)
     || (feature.direction !== "LONG" && feature.direction !== "SHORT")
     || feature.signalId !== context.sourceSignalId
     || feature.symbol !== context.symbol

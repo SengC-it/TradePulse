@@ -297,6 +297,36 @@ describe("Round-022 R5 historical review metadata producer", () => {
     expect(tie).toEqual({ status: "NOT_EVALUABLE", reason: "AMBIGUOUS_MAX_AVAILABLE_CONTEXT" });
   });
 
+  it("requires the exact identity-only feature snapshot schema", async () => {
+    const context = priorContext();
+    const cleanClient = new FakeHistoricalReviewContextRegistryClient();
+    cleanClient.rows = [rawRowForContext(context)];
+    const clean = await new SupabaseHistoricalReviewContextRegistry(cleanClient).findPriorContext({
+      currentSignalId: advisory().signalId,
+      symbol: "BTCUSDT",
+      signalTime: SIGNAL_TIME,
+    });
+    expect(clean.status).toBe("FOUND");
+
+    const invalidFeatures = [
+      { ...context.featureSnapshot, debug: "x" },
+      { ...context.featureSnapshot, profit: 123 },
+      { ...context.featureSnapshot, metadata: { forwardReturn: 0.12 } },
+      { ...context.featureSnapshot, strategyId: "" },
+      { ...context.featureSnapshot, direction: "SIDE" },
+    ];
+    for (const featureSnapshot of invalidFeatures) {
+      const client = new FakeHistoricalReviewContextRegistryClient();
+      client.rows = [rawRowForContext(context, { feature_snapshot: featureSnapshot })];
+      const result = await new SupabaseHistoricalReviewContextRegistry(client).findPriorContext({
+        currentSignalId: advisory().signalId,
+        symbol: "BTCUSDT",
+        signalTime: SIGNAL_TIME,
+      });
+      expect(result).toEqual({ status: "NOT_EVALUABLE", reason: "INVALID_CONTEXT_RECORD" });
+    }
+  });
+
   it("publishes, replays, and fails closed on a conflicting logical identity", async () => {
     const input = { advisory: advisory(), sourceIds: [`tp_signal_advisories:${advisory().signalId}`] };
     const client = new FakeHistoricalReviewContextRegistryClient();
@@ -317,8 +347,41 @@ describe("Round-022 R5 historical review metadata producer", () => {
       availableAt: "2026-08-23T00:00:02.000Z",
     }))];
     const conflictRegistry = new SupabaseHistoricalReviewContextRegistry(conflictClient);
-    await expect(conflictRegistry.publishContext(input)).rejects.toThrow(/publish conflict/);
+    await expect(conflictRegistry.publishContext(input)).rejects.toThrow(/CONTEXT_ID_CONFLICT/);
     expect(conflictClient.rows).toHaveLength(1);
+  });
+
+  it.each([
+    ["featureSnapshot strategyId", (context: HistoricalReviewContext) => ({
+      ...context.featureSnapshot,
+      strategyId: "other-strategy",
+    })],
+    ["sourceEventTime and feature signalTime", (context: HistoricalReviewContext) => ({
+      ...context.featureSnapshot,
+      signalTime: "2026-08-22T22:00:00.000Z",
+    })],
+    ["symbol", (context: HistoricalReviewContext) => ({
+      ...context.featureSnapshot,
+      symbol: "ETHUSDT",
+    })],
+  ] as const)("rejects %s when the existing logical draft differs", async (_label, featureSnapshotFor) => {
+    const input = { advisory: advisory(), sourceIds: [`tp_signal_advisories:${advisory().signalId}`] };
+    const context = materializeHistoricalReviewContext({
+      advisory: input.advisory,
+      sourceIds: input.sourceIds,
+      availableAt: "2026-08-23T00:00:02.000Z",
+    });
+    const featureSnapshot = featureSnapshotFor(context);
+    const client = new FakeHistoricalReviewContextRegistryClient();
+    client.rows = [rawRowForContext(context, {
+      symbol: featureSnapshot.symbol,
+      source_event_time: offsetTimestamp(featureSnapshot.signalTime),
+      feature_snapshot: featureSnapshot,
+    })];
+    const registry = new SupabaseHistoricalReviewContextRegistry(client);
+
+    await expect(registry.publishContext(input)).rejects.toThrow(/CONTEXT_ID_CONFLICT/);
+    expect(client.rows).toHaveLength(1);
   });
 
   it("builds a valid historical metadata snapshot from the exact prior context", () => {
