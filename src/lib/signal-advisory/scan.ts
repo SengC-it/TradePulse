@@ -21,6 +21,7 @@ import { createSignalAdvisoryStore } from "./store.ts";
 import { createObservationEvidenceStore } from "../observation-evidence/store.ts";
 import { buildQualitySnapshotCandidate } from "../observation-evidence/quality-snapshot.ts";
 import { buildMarketContextSnapshotCandidate } from "../observation-evidence/market-context.ts";
+import { buildRiskAdvisorySnapshotCandidate } from "../observation-evidence/risk-advisory.ts";
 import type {
   SignalAdvisory,
   SignalAdvisoryScanDependencies,
@@ -455,6 +456,40 @@ export async function runSignalAdvisoryScan(input: Readonly<{
             metadata: {
               signalId: advisory.signalId,
               appendStatus: marketContextAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+      let riskAdvisoryAppend: { status: "APPENDED" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE" | "FAILED" };
+      try {
+        const riskAdvisory = buildRiskAdvisorySnapshotCandidate({
+          advisory,
+          capturedAt: new Date(now()).toISOString(),
+        });
+        try {
+          const appendResult = await dependencies.observationEvidenceStore.appendEvidence(riskAdvisory);
+          riskAdvisoryAppend = { status: appendResult.status };
+        } catch {
+          riskAdvisoryAppend = { status: "FAILED" };
+        }
+      } catch {
+        riskAdvisoryAppend = { status: "NOT_EVALUABLE" };
+      }
+      if (riskAdvisoryAppend.status !== "APPENDED" && riskAdvisoryAppend.status !== "IDEMPOTENT_REPLAY") {
+        errors.push("RISK_ADVISORY_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-risk-advisory",
+            status: riskAdvisoryAppend.status,
+            errorCode: "RISK_ADVISORY_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: riskAdvisoryAppend.status,
             },
           },
           errors,

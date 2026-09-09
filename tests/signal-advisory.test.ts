@@ -205,6 +205,7 @@ class MemoryStore implements SignalAdvisoryStore {
   markSignalSentFailure = false;
   markSignalSentCalls = 0;
   markSignalFailedCalls = 0;
+  order: string[] = [];
   private nextId = 1;
 
   async beginScanRun(input: { runKey: string; scheduledFor: string; now: string }): Promise<ScanRunBeginResult> {
@@ -229,6 +230,7 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async claimSignal(advisory: SignalAdvisory, _scanId: string, now: string): Promise<SignalClaimResult> {
+    this.order.push("CLAIM");
     const existing = this.advisories.get(advisory.signalId);
     if (!existing) {
       this.advisories.set(advisory.signalId, {
@@ -300,7 +302,7 @@ class MemoryStore implements SignalAdvisoryStore {
 
 class MemoryObservationEvidenceStore {
   readonly candidates: ObservationEvidenceCandidate[] = [];
-  readonly order: string[] = [];
+  order: string[] = [];
   failure: "THROW" | "NOT_EVALUABLE" | null = null;
   failureArtifactType: ObservationArtifactType | null = null;
 
@@ -554,7 +556,7 @@ describe("signal advisory scan", () => {
     expect(store.events.at(-1)?.metadata).toMatchObject({ dataFreshness: "FRESH" });
   });
 
-  it("appends a QUALITY_SNAPSHOT before every email without changing signal flow", async () => {
+  it("appends QUALITY_SNAPSHOT, MARKET_CONTEXT, and RISK_ADVISORY before every email without changing signal flow", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
     const result = await runSignalAdvisoryScan({
@@ -570,15 +572,19 @@ describe("signal advisory scan", () => {
     });
 
     expect(result.outcome).toBe("SUCCESS");
-    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated * 2);
+    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated * 3);
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "QUALITY_SNAPSHOT")).toHaveLength(
       result.signalsGenerated,
     );
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "MARKET_CONTEXT")).toHaveLength(
       result.signalsGenerated,
     );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "RISK_ADVISORY")).toHaveLength(
+      result.signalsGenerated,
+    );
     expect(evidenceStore.order[0]).toBe("QUALITY_SNAPSHOT_APPEND");
-    expect(evidenceStore.order.indexOf("MARKET_CONTEXT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
+    expect(evidenceStore.order.indexOf("MARKET_CONTEXT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND"));
+    expect(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
     expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
@@ -648,7 +654,44 @@ describe("signal advisory scan", () => {
     ]));
   });
 
-  it("appends quality evidence for a duplicate or expired claim before skipping delivery", async () => {
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates RISK_ADVISORY evidence failure without changing claim or delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "RISK_ADVISORY";
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<risk-advisory-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).not.toContain("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+      expect(result.errors).not.toContain("MARKET_CONTEXT_EVIDENCE_FAILED");
+      expect(result.errors).toContain("RISK_ADVISORY_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+      expect(store.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          operation: "round-022-risk-advisory",
+          status: failure === "THROW" ? "FAILED" : "NOT_EVALUABLE",
+          errorCode: "RISK_ADVISORY_EVIDENCE_FAILED",
+        }),
+      ]));
+    },
+  );
+
+  it("appends all three evidence snapshots for SKIPPED_DUPLICATE before skipping delivery", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
     let sendCount = 0;
@@ -677,7 +720,7 @@ describe("signal advisory scan", () => {
 
     expect(first.outcome).toBe("SUCCESS");
     expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
-    expect(evidenceStore.candidates).toHaveLength((first.signalsGenerated + repeated.signalsGenerated) * 2);
+    expect(evidenceStore.candidates).toHaveLength((first.signalsGenerated + repeated.signalsGenerated) * 3);
     expect(sendCount).toBe(first.signalsGenerated);
     expect(evidenceStore.order.filter((entry) => entry === "QUALITY_SNAPSHOT_APPEND")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
@@ -685,6 +728,73 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.order.filter((entry) => entry === "MARKET_CONTEXT_APPEND")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
     );
+    expect(evidenceStore.order.filter((entry) => entry === "RISK_ADVISORY_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+  });
+
+  it("appends all three evidence snapshots for SKIPPED_EXPIRED before skipping delivery", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    const snapshot = makeSnapshot({ evaluationTime: Date.parse("2026-08-23T00:00:05.000Z") });
+    let currentNow = Date.parse("2026-08-23T00:05:00.000Z");
+    let sendCount = 0;
+
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        snapshot,
+        observationEvidenceStore: evidenceStore,
+        now: () => currentNow,
+        send: async () => {
+          sendCount += 1;
+          throw new Error("SMTP failure creates the existing FAILED advisory");
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(first.signalsGenerated).toBeGreaterThan(0);
+    expect([...store.advisories.values()]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ deliveryStatus: "FAILED", attemptCount: 1 })]),
+    );
+    const sendCountBeforeExpiredScan = sendCount;
+    const candidatesBeforeExpiredScan = evidenceStore.candidates.length;
+    runtimeOrder.length = 0;
+    currentNow = Date.parse("2026-08-23T01:05:00.000Z");
+
+    const expired = await runSignalAdvisoryScan({
+      dependencies: {
+        ...dependencies({
+          store,
+          snapshot,
+          observationEvidenceStore: evidenceStore,
+          now: () => currentNow,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: "must-not-send-after-expiry" };
+          },
+        }),
+      },
+      scheduledFor: "2026-08-23T01:10:00.000Z",
+    });
+
+    expect(expired.signalsSkipped).toBe(expired.signalsGenerated);
+    expect(sendCount).toBe(sendCountBeforeExpiredScan);
+    expect(evidenceStore.candidates.length - candidatesBeforeExpiredScan).toBe(expired.signalsGenerated * 3);
+    expect(evidenceStore.candidates.slice(candidatesBeforeExpiredScan).some(
+      (candidate) => candidate.artifactType === "RISK_ADVISORY",
+    )).toBe(true);
+    expect(runtimeOrder.slice(0, 4)).toEqual([
+      "CLAIM",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+    ]);
+    expect(runtimeOrder).not.toContain("EMAIL");
   });
 
   it("does not append QUALITY_SNAPSHOT evidence for NO_SIGNAL", async () => {
@@ -704,10 +814,19 @@ describe("signal advisory scan", () => {
 
   it("captures claim, attempted, and delivered evidence in order", async () => {
     const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
     const evidence: NotificationEvidenceEvent[] = [];
     const result = await runSignalAdvisoryScan({
       dependencies: dependencies({
+        observationEvidenceStore: evidenceStore,
         store,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          return { emailMessageId: "<runtime-order>" };
+        },
         observe: (event) => {
           evidence.push(event);
         },
@@ -717,6 +836,13 @@ describe("signal advisory scan", () => {
 
     const firstSignalId = [...store.advisories.keys()][0];
     expect(firstSignalId).toBeDefined();
+    expect(runtimeOrder.slice(0, 5)).toEqual([
+      "CLAIM",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "EMAIL",
+    ]);
     expect(evidence.filter((event) => event.metadata.signalId === firstSignalId).map((event) => event.type)).toEqual([
       "CLAIM_DECISION",
       "DELIVERY_ATTEMPTED",

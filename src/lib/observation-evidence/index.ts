@@ -29,6 +29,11 @@ export {
   R22_R3_MARKET_CONTEXT_IMPLEMENTATION_STATUS,
 } from "./market-context.ts";
 export {
+  buildRiskAdvisorySnapshotCandidate,
+  RiskAdvisoryNotEvaluableError,
+  R22_R4_RISK_ADVISORY_PRODUCER_IMPLEMENTATION_STATUS,
+} from "./risk-advisory.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,
