@@ -511,7 +511,7 @@ describe("Round-022 R1 evidence foundation", () => {
       .not.toContain("supersedesArtifactId: candidate.supersedesEvidenceId");
   });
 
-  it("has zero production writer call sites and leaves existing advisory paths untouched", () => {
+  it("keeps the R1 writer boundary isolated while allowing the accepted R2 sidecar call site", () => {
     const sourceFiles: string[] = [];
     const visit = (directory: string): void => {
       for (const entry of readdirSync(directory)) {
@@ -521,11 +521,17 @@ describe("Round-022 R1 evidence foundation", () => {
       }
     };
     visit(resolve(process.cwd(), "src"));
-    const productionSources = sourceFiles.filter((path) => !path.includes("observation-evidence"));
+    const productionSources = sourceFiles.filter((path) =>
+      !path.includes("observation-evidence")
+      && !path.endsWith("signal-advisory\\scan.ts")
+      && !path.endsWith("signal-advisory\\types.ts")
+      && !path.endsWith("signal-advisory/scan.ts"));
     for (const path of productionSources) {
       expect(readFileSync(path, "utf8")).not.toMatch(/appendEvidence\s*\(/);
     }
-    expect(readFileSync(resolve(process.cwd(), "src/lib/signal-advisory/scan.ts"), "utf8")).not.toContain("observation-evidence");
+    const scanSource = readFileSync(resolve(process.cwd(), "src/lib/signal-advisory/scan.ts"), "utf8");
+    expect(scanSource).toContain("buildQualitySnapshotCandidate");
+    expect(scanSource).toMatch(/observationEvidenceStore\.appendEvidence\s*\(/);
     expect(readFileSync(resolve(process.cwd(), "src/lib/signal-advisory/store.ts"), "utf8")).not.toContain("observation-evidence");
   });
 

@@ -22,6 +22,10 @@ import type {
   SystemEventInput,
 } from "@/lib/signal-advisory/types";
 import type { Candle, MarketSnapshot } from "@/lib/market-data/types";
+import type {
+  ObservationEvidenceAppendResult,
+  ObservationEvidenceCandidate,
+} from "@/lib/observation-evidence/types";
 
 const HOUR_MS = 3_600_000;
 const FOUR_HOUR_MS = 14_400_000;
@@ -293,8 +297,31 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 }
 
+class MemoryObservationEvidenceStore {
+  readonly candidates: ObservationEvidenceCandidate[] = [];
+  readonly order: string[] = [];
+  failure: "THROW" | "NOT_EVALUABLE" | null = null;
+
+  async appendEvidence(candidate: ObservationEvidenceCandidate): Promise<ObservationEvidenceAppendResult> {
+    this.order.push("QUALITY_SNAPSHOT_APPEND");
+    this.candidates.push(candidate);
+    if (this.failure === "THROW") {
+      throw new Error("observation evidence unavailable");
+    }
+    if (this.failure === "NOT_EVALUABLE") {
+      return {
+        status: "NOT_EVALUABLE",
+        evidenceId: candidate.evidenceId,
+        reason: "INVALID_CANDIDATE",
+      };
+    }
+    return { status: "APPENDED", evidenceId: candidate.evidenceId };
+  }
+}
+
 function dependencies(input: {
   store: MemoryStore;
+  observationEvidenceStore?: MemoryObservationEvidenceStore;
   snapshot?: MarketSnapshot;
   send?: (advisory: SignalAdvisory) => Promise<{ emailMessageId: string }>;
   observe?: (event: NotificationEvidenceEvent) => void | Promise<void>;
@@ -305,6 +332,7 @@ function dependencies(input: {
       getMarketSnapshot: async () => input.snapshot ?? makeSnapshot(),
     },
     store: input.store,
+    observationEvidenceStore: input.observationEvidenceStore ?? new MemoryObservationEvidenceStore(),
     sendSignalEmail: input.send ?? (async () => ({ emailMessageId: "<test-message-id>" })),
     observeNotificationEvidence: input.observe,
     now: input.now ?? (() => EVALUATION_TIME),
@@ -517,6 +545,95 @@ describe("signal advisory scan", () => {
     expect(store.evaluations.every((evaluation) => evaluation.scanRunId === result.scanId)).toBe(true);
     expect(store.evaluations.some((evaluation) => evaluation.status === "FORMAL_SIGNAL")).toBe(true);
     expect(store.events.at(-1)?.metadata).toMatchObject({ dataFreshness: "FRESH" });
+  });
+
+  it("appends a QUALITY_SNAPSHOT before every email without changing signal flow", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          evidenceStore.order.push("EMAIL");
+          return { emailMessageId: "<quality-snapshot-order>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated);
+    expect(evidenceStore.candidates.every((candidate) => candidate.artifactType === "QUALITY_SNAPSHOT")).toBe(true);
+    expect(evidenceStore.order[0]).toBe("QUALITY_SNAPSHOT_APPEND");
+    expect(evidenceStore.order.indexOf("QUALITY_SNAPSHOT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates QUALITY_SNAPSHOT evidence failure and preserves claim/delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      evidenceStore.failure = failure;
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<quality-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.advisories.size).toBe(result.signalsGenerated);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+      expect(store.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          operation: "round-022-quality-snapshot",
+          status: failure === "THROW" ? "FAILED" : "NOT_EVALUABLE",
+          errorCode: "QUALITY_SNAPSHOT_EVIDENCE_FAILED",
+        }),
+      ]));
+    },
+  );
+
+  it("appends quality evidence for a duplicate or expired claim before skipping delivery", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({ store, observationEvidenceStore: evidenceStore }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+    const repeated = await runSignalAdvisoryScan({
+      dependencies: dependencies({ store, observationEvidenceStore: evidenceStore }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+
+    expect(first.outcome).toBe("SUCCESS");
+    expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
+    expect(evidenceStore.candidates).toHaveLength(first.signalsGenerated + repeated.signalsGenerated);
+  });
+
+  it("does not append QUALITY_SNAPSHOT evidence for NO_SIGNAL", async () => {
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store: new MemoryStore(),
+        observationEvidenceStore: evidenceStore,
+        snapshot: makeSnapshot({ status: "PARTIAL" }),
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("NO_SIGNAL");
+    expect(evidenceStore.candidates).toHaveLength(0);
   });
 
   it("captures claim, attempted, and delivered evidence in order", async () => {

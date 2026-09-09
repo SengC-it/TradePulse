@@ -20,6 +20,10 @@ export {
   type ObservationEvidenceClient,
 } from "./store.ts";
 export {
+  buildQualitySnapshotCandidate,
+  R22_R2_QUALITY_SNAPSHOT_IMPLEMENTATION_STATUS,
+} from "./quality-snapshot.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,

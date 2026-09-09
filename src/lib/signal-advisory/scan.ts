@@ -18,6 +18,8 @@ import {
 } from "./notification-evidence.ts";
 import type { NotificationEvidenceEvent } from "./notification-evidence.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
+import { createObservationEvidenceStore } from "../observation-evidence/store.ts";
+import { buildQualitySnapshotCandidate } from "../observation-evidence/quality-snapshot.ts";
 import type {
   SignalAdvisory,
   SignalAdvisoryScanDependencies,
@@ -388,6 +390,40 @@ export async function runSignalAdvisoryScan(input: Readonly<{
   for (const advisory of advisories) {
     try {
       const claim = await dependencies.store.claimSignal(advisory, begin.scanId, nowIso);
+      let qualitySnapshotAppend: { status: "APPENDED" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE" | "FAILED" };
+      try {
+        const qualitySnapshot = buildQualitySnapshotCandidate({
+          advisory,
+          capturedAt: new Date(now()).toISOString(),
+        });
+        try {
+          const appendResult = await dependencies.observationEvidenceStore.appendEvidence(qualitySnapshot);
+          qualitySnapshotAppend = { status: appendResult.status };
+        } catch {
+          qualitySnapshotAppend = { status: "FAILED" };
+        }
+      } catch {
+        qualitySnapshotAppend = { status: "NOT_EVALUABLE" };
+      }
+      if (qualitySnapshotAppend.status !== "APPENDED" && qualitySnapshotAppend.status !== "IDEMPOTENT_REPLAY") {
+        errors.push("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-quality-snapshot",
+            status: qualitySnapshotAppend.status,
+            errorCode: "QUALITY_SNAPSHOT_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: qualitySnapshotAppend.status,
+            },
+          },
+          errors,
+        );
+      }
       const metadata = buildNotificationDecisionMetadata({
         scanId: begin.scanId,
         signalId: advisory.signalId,
@@ -518,6 +554,7 @@ export function createDefaultSignalAdvisoryScanDependencies(): SignalAdvisorySca
   return {
     marketData: new BinanceMarketDataProvider(),
     store: createSignalAdvisoryStore(),
+    observationEvidenceStore: createObservationEvidenceStore(),
     sendSignalEmail: (advisory) => sendSignalEmail(advisory),
     recipient,
   };
