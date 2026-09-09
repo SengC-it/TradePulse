@@ -39,6 +39,12 @@ export {
   R22_R5_HISTORICAL_REVIEW_METADATA_PRODUCER_IMPLEMENTATION_STATUS,
 } from "./historical-review-metadata.ts";
 export {
+  buildAlertIntelligenceSnapshotCandidate,
+  AlertIntelligenceNotEvaluableError,
+  R22_R6_ALERT_INTELLIGENCE_PRODUCER_IMPLEMENTATION_STATUS,
+  type AlertIntelligenceSnapshotCandidateInput,
+} from "./alert-intelligence.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,

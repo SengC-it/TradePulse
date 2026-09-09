@@ -376,6 +376,30 @@ class MemoryHistoricalReviewContextRegistry implements HistoricalReviewContextRe
   }
 }
 
+function seedPriorContexts(registry: MemoryHistoricalReviewContextRegistry): void {
+  RESEARCH_SYMBOLS.forEach((symbol, index) => {
+    const signalTime = new Date(EVALUATION_TIME - (index + 2) * HOUR_MS).toISOString();
+    const priorAdvisory = {
+      ...exampleAdvisory("LONG"),
+      symbol,
+      signalTime,
+      signalValidUntil: new Date(Date.parse(signalTime) + HOUR_MS).toISOString(),
+      signalId: buildDeterministicSignalId({
+        symbol,
+        direction: "LONG",
+        signalTime,
+        strategyVersion: STRATEGY_VERSION,
+      }),
+    };
+    const context = materializeHistoricalReviewContext({
+      advisory: priorAdvisory,
+      sourceIds: [`tp_signal_advisories:${priorAdvisory.signalId}`],
+      availableAt: new Date(EVALUATION_TIME - 1_500).toISOString(),
+    });
+    registry.contexts.set(context.sourceSignalId, context);
+  });
+}
+
 function dependencies(input: {
   store: MemoryStore;
   observationEvidenceStore?: MemoryObservationEvidenceStore;
@@ -638,6 +662,75 @@ describe("signal advisory scan", () => {
     expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
+  it("appends R6 after a complete R2-R5 chain and before current context/email", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const registry = new MemoryHistoricalReviewContextRegistry();
+    seedPriorContexts(registry);
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    registry.order = runtimeOrder;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry: registry,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          return { emailMessageId: "<r6-order>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(runtimeOrder.slice(0, 8)).toEqual([
+      "CLAIM",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "HISTORICAL_REVIEW_METADATA_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
+      "CURRENT_CONTEXT_REGISTRY",
+      "EMAIL",
+    ]);
+  });
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates R6 evidence failure without changing delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      seedPriorContexts(registry);
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "ALERT_INTELLIGENCE";
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r6-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    },
+  );
+
   it.each(["NOT_EVALUABLE", "THROW"] as const)(
     "isolates QUALITY_SNAPSHOT evidence failure and preserves claim/delivery truth (%s)",
     async (failure) => {
@@ -741,10 +834,11 @@ describe("signal advisory scan", () => {
     },
   );
 
-  it("appends all three evidence snapshots for SKIPPED_DUPLICATE before skipping delivery", async () => {
+  it("appends the full evidence chain for SKIPPED_DUPLICATE before skipping delivery", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
     const historicalReviewContextRegistry = new MemoryHistoricalReviewContextRegistry();
+    seedPriorContexts(historicalReviewContextRegistry);
     let sendCount = 0;
     const first = await runSignalAdvisoryScan({
       dependencies: dependencies({
@@ -773,7 +867,7 @@ describe("signal advisory scan", () => {
 
     expect(first.outcome).toBe("SUCCESS");
     expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
-    expect(evidenceStore.candidates).toHaveLength((first.signalsGenerated + repeated.signalsGenerated) * 3);
+    expect(evidenceStore.candidates).toHaveLength((first.signalsGenerated + repeated.signalsGenerated) * 5);
     expect(sendCount).toBe(first.signalsGenerated);
     expect(evidenceStore.order.filter((entry) => entry === "QUALITY_SNAPSHOT_APPEND")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
@@ -784,15 +878,22 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.order.filter((entry) => entry === "RISK_ADVISORY_APPEND")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
     );
+    expect(evidenceStore.order.filter((entry) => entry === "HISTORICAL_REVIEW_METADATA_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(evidenceStore.order.filter((entry) => entry === "ALERT_INTELLIGENCE_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
     expect(historicalReviewContextRegistry.order.filter((entry) => entry === "CURRENT_CONTEXT_REGISTRY")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
     );
   });
 
-  it("appends all three evidence snapshots for SKIPPED_EXPIRED before skipping delivery", async () => {
+  it("appends the full evidence chain for SKIPPED_EXPIRED before skipping delivery", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
     const historicalReviewContextRegistry = new MemoryHistoricalReviewContextRegistry();
+    seedPriorContexts(historicalReviewContextRegistry);
     const runtimeOrder: string[] = [];
     store.order = runtimeOrder;
     evidenceStore.order = runtimeOrder;
@@ -846,7 +947,7 @@ describe("signal advisory scan", () => {
     expect(expired.signalsSkipped).toBe(expired.signalsGenerated);
     expect(sendCount).toBe(sendCountBeforeExpiredScan);
     expect(store.markSignalFailedCalls).toBe(markSignalFailedCallsBeforeExpiredScan);
-    expect(evidenceStore.candidates.length - candidatesBeforeExpiredScan).toBe(expired.signalsGenerated * 3);
+    expect(evidenceStore.candidates.length - candidatesBeforeExpiredScan).toBe(expired.signalsGenerated * 5);
     expect(evidenceStore.candidates.slice(candidatesBeforeExpiredScan).some(
       (candidate) => candidate.artifactType === "RISK_ADVISORY",
     )).toBe(true);
@@ -856,8 +957,10 @@ describe("signal advisory scan", () => {
       "MARKET_CONTEXT_APPEND",
       "RISK_ADVISORY_APPEND",
     ]);
-    expect(runtimeOrder[4]).toBe("CURRENT_CONTEXT_REGISTRY");
-    expect(historicalReviewContextRegistry.contexts.size).toBe(first.signalsGenerated);
+    expect(runtimeOrder[4]).toBe("HISTORICAL_REVIEW_METADATA_APPEND");
+    expect(runtimeOrder[5]).toBe("ALERT_INTELLIGENCE_APPEND");
+    expect(runtimeOrder[6]).toBe("CURRENT_CONTEXT_REGISTRY");
+    expect(historicalReviewContextRegistry.contexts.size).toBe(RESEARCH_SYMBOLS.length + first.signalsGenerated);
     expect(runtimeOrder.filter((entry) => entry === "CURRENT_CONTEXT_REGISTRY")).toHaveLength(
       expired.signalsGenerated,
     );
@@ -943,7 +1046,8 @@ describe("signal advisory scan", () => {
       scheduledFor: "2026-08-23T00:05:00.000Z",
     });
 
-    expect(first.outcome).toBe("SUCCESS");
+    expect(first.outcome).toBe("PARTIAL");
+    expect(first.errors).toContain("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
     expect(registry.contexts.size).toBe(first.signalsGenerated);
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(0);
     expect(runtimeOrder.slice(0, 6)).toEqual([
@@ -983,9 +1087,10 @@ describe("signal advisory scan", () => {
       "MARKET_CONTEXT_APPEND",
       "RISK_ADVISORY_APPEND",
       "HISTORICAL_REVIEW_METADATA_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
       "CURRENT_CONTEXT_REGISTRY",
-      "EMAIL",
     ]);
+    expect(runtimeOrder[7]).toBe("EMAIL");
   });
 
   it.each(["NOT_EVALUABLE", "THROW"] as const)(
