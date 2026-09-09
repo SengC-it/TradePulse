@@ -1,7 +1,12 @@
 import type { ResearchSymbol } from "../config/constants.ts";
 import type { MarketSnapshot } from "../market-data/types.ts";
+import type { BTCRegime, SymbolRegime } from "../strategy/types.ts";
 import type { SignalEvaluationRecord } from "./evaluations.ts";
 import type { NotificationEvidenceObserver } from "./notification-evidence.ts";
+import type {
+  ObservationEvidenceAppendResult,
+  ObservationEvidenceCandidate,
+} from "../observation-evidence/types.ts";
 
 export type { SignalEvaluationRecord } from "./evaluations.ts";
 
@@ -33,8 +38,8 @@ export type SignalAdvisory = Readonly<{
   score: number;
   grade: "A" | "B" | "C";
   marketRegime: Readonly<{
-    btcRegime: string;
-    symbolRegime: string;
+    btcRegime: BTCRegime;
+    symbolRegime: SymbolRegime;
   }>;
   dataFreshness: Readonly<{
     status: "FRESH";
@@ -112,6 +117,9 @@ export type SignalAdvisoryScanDependencies = Readonly<{
     getMarketSnapshot(): Promise<MarketSnapshot>;
   };
   store: SignalAdvisoryStore;
+  observationEvidenceStore: Readonly<{
+    appendEvidence(candidate: ObservationEvidenceCandidate): Promise<ObservationEvidenceAppendResult>;
+  }>;
   sendSignalEmail(advisory: SignalAdvisory): Promise<{ emailMessageId: string }>;
   observeNotificationEvidence?: NotificationEvidenceObserver;
   now?: () => number;
