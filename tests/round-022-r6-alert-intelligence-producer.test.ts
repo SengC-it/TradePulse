@@ -322,6 +322,7 @@ describe("Round-022 R6 ALERT_INTELLIGENCE producer", () => {
   it("freezes R6 readiness and governance without authorizing observation or economics", () => {
     expect(R22_R6_ALERT_INTELLIGENCE_PRODUCER_IMPLEMENTATION_STATUS).toMatchObject({
       r6AlertIntelligenceProducerImplemented: true,
+      r6AcceptanceStatus: "ACCEPTED",
       closesReadinessNodes: ["S05"],
       dependsOn: ["R2", "R3", "R4", "R5"],
       s01Status: "SOURCE_READY",
@@ -329,9 +330,10 @@ describe("Round-022 R6 ALERT_INTELLIGENCE producer", () => {
       s03Status: "SOURCE_READY",
       s04Status: "SOURCE_READY",
       s04AcceptedReady: true,
-      s05ImplementationStatus: "SOURCE_READY_PENDING_ACCEPTANCE",
-      s05AcceptedReady: false,
+      s05ImplementationStatus: "SOURCE_READY",
+      s05AcceptedReady: true,
       s06Status: "FAIL",
+      s10Status: "FAIL",
       performanceExecutionCount: 0,
       performanceLedgerPresent: false,
       observationExecuted: false,
