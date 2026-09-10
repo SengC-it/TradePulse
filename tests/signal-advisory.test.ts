@@ -688,7 +688,7 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
       result.signalsGenerated,
     );
-    expect(runtimeOrder.slice(0, 8)).toEqual([
+    expect(runtimeOrder.slice(0, 9)).toEqual([
       "CLAIM",
       "QUALITY_SNAPSHOT_APPEND",
       "MARKET_CONTEXT_APPEND",
@@ -696,6 +696,7 @@ describe("signal advisory scan", () => {
       "HISTORICAL_REVIEW_METADATA_APPEND",
       "ALERT_INTELLIGENCE_APPEND",
       "CURRENT_CONTEXT_REGISTRY",
+      "PRESENTATION_APPEND",
       "EMAIL",
     ]);
   });
@@ -762,6 +763,40 @@ describe("signal advisory scan", () => {
           errorCode: "QUALITY_SNAPSHOT_EVIDENCE_FAILED",
         }),
       ]));
+    },
+  );
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates PRESENTATION evidence failure without changing delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      seedPriorContexts(registry);
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "PRESENTATION";
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<presentation-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("PRESENTATION_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+      expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "PRESENTATION")).toHaveLength(
+        result.signalsGenerated,
+      );
     },
   );
 
@@ -867,7 +902,7 @@ describe("signal advisory scan", () => {
 
     expect(first.outcome).toBe("SUCCESS");
     expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
-    expect(evidenceStore.candidates).toHaveLength((first.signalsGenerated + repeated.signalsGenerated) * 5);
+    expect(evidenceStore.candidates).toHaveLength(first.signalsGenerated * 6 + repeated.signalsGenerated * 5);
     expect(sendCount).toBe(first.signalsGenerated);
     expect(evidenceStore.order.filter((entry) => entry === "QUALITY_SNAPSHOT_APPEND")).toHaveLength(
       first.signalsGenerated + repeated.signalsGenerated,
@@ -1053,13 +1088,14 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
       first.signalsGenerated,
     );
-    expect(runtimeOrder.slice(0, 7)).toEqual([
+    expect(runtimeOrder.slice(0, 8)).toEqual([
       "CLAIM",
       "QUALITY_SNAPSHOT_APPEND",
       "MARKET_CONTEXT_APPEND",
       "RISK_ADVISORY_APPEND",
       "ALERT_INTELLIGENCE_APPEND",
       "CURRENT_CONTEXT_REGISTRY",
+      "PRESENTATION_APPEND",
       "EMAIL",
     ]);
 
@@ -1085,7 +1121,7 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(
       second.signalsGenerated,
     );
-    expect(runtimeOrder.slice(0, 7)).toEqual([
+    expect(runtimeOrder.slice(0, 8)).toEqual([
       "CLAIM",
       "QUALITY_SNAPSHOT_APPEND",
       "MARKET_CONTEXT_APPEND",
@@ -1093,8 +1129,9 @@ describe("signal advisory scan", () => {
       "HISTORICAL_REVIEW_METADATA_APPEND",
       "ALERT_INTELLIGENCE_APPEND",
       "CURRENT_CONTEXT_REGISTRY",
+      "PRESENTATION_APPEND",
     ]);
-    expect(runtimeOrder[7]).toBe("EMAIL");
+    expect(runtimeOrder[8]).toBe("EMAIL");
   });
 
   it.each(["NOT_EVALUABLE", "THROW"] as const)(

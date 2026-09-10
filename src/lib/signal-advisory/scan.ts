@@ -5,7 +5,7 @@ import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "../conf
 import { evaluateStrategy } from "../strategy/engine.ts";
 import type { StrategyCandidate } from "../strategy/types.ts";
 import { buildHourlyScanRunKey } from "../scanning/run-idempotency.ts";
-import { sendSignalEmail, SmtpConfigurationError } from "./email.ts";
+import { buildSignalAdvisoryEmailPayload, sendSignalEmail, SmtpConfigurationError } from "./email.ts";
 import { buildDeterministicSignalId } from "./identity.ts";
 import { mapStrategyEvaluations } from "./evaluations.ts";
 import {
@@ -28,6 +28,7 @@ import {
 import {
   buildAlertIntelligenceSnapshotCandidate,
 } from "../observation-evidence/alert-intelligence.ts";
+import { buildPresentationSnapshotCandidate } from "../observation-evidence/presentation.ts";
 import type { ObservationEvidenceCandidate } from "../observation-evidence/types.ts";
 import { historicalContextPublicationFor } from "../historical-review-context/registry.ts";
 import { createHistoricalReviewContextRegistry } from "../historical-review-context/store.ts";
@@ -516,6 +517,7 @@ export async function runSignalAdvisoryScan(input: Readonly<{
       const contextRegistry = dependencies.historicalReviewContextRegistry;
       let historicalReviewMetadata: ObservationEvidenceCandidate | null = null;
       let historicalReviewAppendStatus: ObservationStageAppendStatus = "NOT_EVALUABLE";
+      let alertIntelligenceEvidence: ObservationEvidenceCandidate | null = null;
       if (contextRegistry) {
         try {
           const lookup = await contextRegistry.findPriorContext({
@@ -612,6 +614,9 @@ export async function runSignalAdvisoryScan(input: Readonly<{
           try {
             const appendResult = await dependencies.observationEvidenceStore.appendEvidence(alertIntelligence);
             alertIntelligenceAppend = { status: appendResult.status };
+            if (observationAppendSucceeded(appendResult.status)) {
+              alertIntelligenceEvidence = alertIntelligence;
+            }
           } catch {
             alertIntelligenceAppend = { status: "FAILED" };
           }
@@ -673,10 +678,52 @@ export async function runSignalAdvisoryScan(input: Readonly<{
         continue;
       }
 
+      const renderedEmail = buildSignalAdvisoryEmailPayload(advisory);
+      let presentationAppend: { status: ObservationStageAppendStatus } = {
+        status: contextRegistry ? "NOT_EVALUABLE" : "APPENDED",
+      };
+      if (alertIntelligenceEvidence) {
+        try {
+          const presentation = buildPresentationSnapshotCandidate({
+            advisory,
+            alertIntelligenceEvidence,
+            renderedEmail,
+            capturedAt: new Date(now()).toISOString(),
+          });
+          try {
+            const appendResult = await dependencies.observationEvidenceStore.appendEvidence(presentation);
+            presentationAppend = { status: appendResult.status };
+          } catch {
+            presentationAppend = { status: "FAILED" };
+          }
+        } catch {
+          presentationAppend = { status: "NOT_EVALUABLE" };
+        }
+      }
+      if (!observationAppendSucceeded(presentationAppend.status)) {
+        errors.push("PRESENTATION_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-presentation",
+            status: presentationAppend.status,
+            errorCode: "PRESENTATION_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: presentationAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+
       observeNotificationEvidence(dependencies, buildDeliveryAttemptedEvidence(metadata));
       let delivery: { emailMessageId: string };
       try {
-        delivery = await dependencies.sendSignalEmail(advisory);
+        delivery = await dependencies.sendSignalEmail(advisory, renderedEmail);
       } catch (error) {
         const failureClass = classifySmtpFailure(error);
         observeNotificationEvidence(dependencies, buildDeliveryFailedEvidence(metadata, failureClass));
@@ -794,7 +841,7 @@ export function createDefaultSignalAdvisoryScanDependencies(): SignalAdvisorySca
     store: createSignalAdvisoryStore(),
     observationEvidenceStore: createObservationEvidenceStore(),
     historicalReviewContextRegistry: createHistoricalReviewContextRegistry(),
-    sendSignalEmail: (advisory) => sendSignalEmail(advisory),
+    sendSignalEmail: (advisory, rendered) => sendSignalEmail(advisory, rendered ? { rendered } : undefined),
     recipient,
   };
 }
