@@ -193,16 +193,39 @@ describe("Round-022 R6 ALERT_INTELLIGENCE producer", () => {
     ["market context", "marketContextEvidence"],
     ["risk advisory", "riskAdvisoryEvidence"],
     ["historical review", "historicalReviewEvidence"],
-  ] as const)("fails closed when %s evidence is missing", (_label, key) => {
+  ] as const)("builds a degraded P3 presentation when %s evidence is legitimately missing", (_label, key) => {
     const prepared = build();
-    expect(() => buildAlertIntelligenceSnapshotCandidate({
+    const candidate = buildAlertIntelligenceSnapshotCandidate({
       advisory: prepared.current,
       qualityEvidence: key === "qualityEvidence" ? null : prepared.qualityEvidence,
       marketContextEvidence: key === "marketContextEvidence" ? null : prepared.marketContextEvidence,
       riskAdvisoryEvidence: key === "riskAdvisoryEvidence" ? null : prepared.riskAdvisoryEvidence,
       historicalReviewEvidence: key === "historicalReviewEvidence" ? null : prepared.historicalReviewEvidence,
       capturedAt: CAPTURED_AT,
-    })).toThrow("UPSTREAM_EVIDENCE_INCOMPLETE");
+    });
+    expect(candidate.payload).toMatchObject({
+      alertIntelligence: {
+        presentationStatus: key === "historicalReviewEvidence" ? "PRESENTABLE" : "DEGRADED",
+        priority: key === "historicalReviewEvidence" ? "P2" : "P3",
+        notificationImportance: key === "historicalReviewEvidence" ? "NORMAL" : "LOW",
+      },
+    });
+    if (key === "historicalReviewEvidence") {
+      expect(candidate.payload).toMatchObject({
+        alertIntelligence: {
+          historicalContext: "Historical review context is unavailable; no outcome is inferred.",
+          humanReviewNotes: ["HISTORICAL_REVIEW_METADATA_MISSING"],
+        },
+        sourceAdapters: {
+          historicalReview: {
+            status: "MISSING",
+            reviewStatus: "UNAVAILABLE",
+            contextSummary: null,
+          },
+        },
+      });
+      expect(JSON.stringify(candidate.payload)).not.toMatch(/pnl|profit|forward_return|realized/i);
+    }
   });
 
   it.each([
@@ -241,6 +264,22 @@ describe("Round-022 R6 ALERT_INTELLIGENCE producer", () => {
       advisory: prepared.current,
       qualityEvidence: prepared.qualityEvidence,
       marketContextEvidence: future,
+      riskAdvisoryEvidence: prepared.riskAdvisoryEvidence,
+      historicalReviewEvidence: prepared.historicalReviewEvidence,
+      capturedAt: CAPTURED_AT,
+    })).toThrow("UPSTREAM_EVIDENCE_INVALID");
+  });
+
+  it("rejects an existing upstream candidate with an invalid artifact type", () => {
+    const prepared = build();
+    const invalid = {
+      ...prepared.marketContextEvidence,
+      artifactType: "QUALITY_SNAPSHOT" as const,
+    };
+    expect(() => buildAlertIntelligenceSnapshotCandidate({
+      advisory: prepared.current,
+      qualityEvidence: prepared.qualityEvidence,
+      marketContextEvidence: invalid,
       riskAdvisoryEvidence: prepared.riskAdvisoryEvidence,
       historicalReviewEvidence: prepared.historicalReviewEvidence,
       capturedAt: CAPTURED_AT,
@@ -289,6 +328,7 @@ describe("Round-022 R6 ALERT_INTELLIGENCE producer", () => {
       s02Status: "SOURCE_READY",
       s03Status: "SOURCE_READY",
       s04Status: "SOURCE_READY",
+      s04AcceptedReady: true,
       s05ImplementationStatus: "SOURCE_READY_PENDING_ACCEPTANCE",
       s05AcceptedReady: false,
       s06Status: "FAIL",

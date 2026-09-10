@@ -1046,15 +1046,19 @@ describe("signal advisory scan", () => {
       scheduledFor: "2026-08-23T00:05:00.000Z",
     });
 
-    expect(first.outcome).toBe("PARTIAL");
-    expect(first.errors).toContain("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
+    expect(first.outcome).toBe("SUCCESS");
+    expect(first.errors).not.toContain("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
     expect(registry.contexts.size).toBe(first.signalsGenerated);
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(0);
-    expect(runtimeOrder.slice(0, 6)).toEqual([
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
+      first.signalsGenerated,
+    );
+    expect(runtimeOrder.slice(0, 7)).toEqual([
       "CLAIM",
       "QUALITY_SNAPSHOT_APPEND",
       "MARKET_CONTEXT_APPEND",
       "RISK_ADVISORY_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
       "CURRENT_CONTEXT_REGISTRY",
       "EMAIL",
     ]);

@@ -40,6 +40,7 @@ export const R22_R6_ALERT_INTELLIGENCE_PRODUCER_IMPLEMENTATION_STATUS = Object.f
   s02Status: "SOURCE_READY",
   s03Status: "SOURCE_READY",
   s04Status: "SOURCE_READY",
+  s04AcceptedReady: true,
   s05ImplementationStatus: "SOURCE_READY_PENDING_ACCEPTANCE",
   s05AcceptedReady: false,
   s06Status: "FAIL",
@@ -127,12 +128,11 @@ function identityFor(advisory: SignalAdvisory): R22AlertIdentity {
   };
 }
 
-function requireCandidate(
-  candidate: ObservationEvidenceCandidate | null,
+function validateCandidate(
+  candidate: ObservationEvidenceCandidate,
   expectedArtifactType: NonNullable<ObservationEvidenceCandidate["artifactType"]>,
   advisory: SignalAdvisory,
 ): ObservationEvidenceCandidate {
-  if (!candidate) return notEvaluable("UPSTREAM_EVIDENCE_INCOMPLETE");
   const validation = validateObservationEvidenceCandidate(candidate);
   if (validation.status !== "VALID") return notEvaluable("UPSTREAM_EVIDENCE_INVALID");
   if (candidate.artifactType !== expectedArtifactType
@@ -157,6 +157,40 @@ function requireCandidate(
     return notEvaluable("UPSTREAM_PIT_INVALID");
   }
   return candidate;
+}
+
+function missingQuality(): R22AlertQualitySnapshot {
+  return {
+    status: "MISSING",
+    grade: null,
+    score: null,
+    explanations: [],
+  };
+}
+
+function missingMarketContext(): R22AlertMarketContextSnapshot {
+  return {
+    status: "MISSING",
+    regime: null,
+    alignment: null,
+    explanation: null,
+  };
+}
+
+function missingRiskAdvisory(): R22AlertRiskSnapshot {
+  return {
+    status: "MISSING",
+    level: null,
+    explanation: null,
+  };
+}
+
+function missingHistoricalReview(): R22AlertHistoricalReviewMetadata {
+  return {
+    status: "MISSING",
+    reviewStatus: "UNAVAILABLE",
+    contextSummary: null,
+  };
 }
 
 function requirePayload(candidate: ObservationEvidenceCandidate): JsonRecord {
@@ -197,11 +231,11 @@ function qualityAdapter(
 
 function marketAdapter(
   candidate: ObservationEvidenceCandidate,
-  qualityCandidate: ObservationEvidenceCandidate,
+  qualityCandidate: ObservationEvidenceCandidate | null,
   advisory: SignalAdvisory,
 ): R22AlertMarketContextSnapshot {
   const payload = requirePayload(candidate);
-  const qualityPayload = requirePayload(qualityCandidate);
+  const qualityPayload = qualityCandidate ? requirePayload(qualityCandidate) : null;
   if (payload.symbol !== advisory.symbol
     || payload.direction !== advisory.direction
     || payload.symbolRegime !== advisory.marketRegime.symbolRegime
@@ -219,11 +253,13 @@ function marketAdapter(
       : btcRegime === "BTC_STRONG_BEAR"
         ? "BEAR"
         : null;
-  const alignment = stringField(qualityPayload, "contextAlignment");
-  const explanations = qualityPayload.explanations;
+  const alignment = qualityPayload
+    ? stringField(qualityPayload, "contextAlignment")
+    : "UNAVAILABLE";
+  const explanations = qualityPayload?.explanations;
   const explanation = Array.isArray(explanations) && typeof explanations[0] === "string"
     ? explanations[0]
-    : null;
+    : "Market context alignment is unavailable because the quality snapshot is missing.";
   if (!regime || !alignment || !explanation) return notEvaluable("UPSTREAM_MARKET_CONTEXT_INVALID");
   if (!["SUPPORTIVE", "NEUTRAL", "ADVERSE", "UNAVAILABLE", "NOT_APPLICABLE"].includes(alignment)) {
     return notEvaluable("UPSTREAM_MARKET_CONTEXT_INVALID");
@@ -237,13 +273,15 @@ function marketAdapter(
 }
 
 function riskAdapter(
-  qualityCandidate: ObservationEvidenceCandidate,
+  qualityCandidate: ObservationEvidenceCandidate | null,
   candidate: ObservationEvidenceCandidate,
   advisory: SignalAdvisory,
 ): R22AlertRiskSnapshot {
-  const qualityPayloadValue = requirePayload(qualityCandidate);
+  const qualityPayloadValue = qualityCandidate ? requirePayload(qualityCandidate) : null;
   const payload = requirePayload(candidate);
-  const riskLevel = stringField(qualityPayloadValue, "riskLevel");
+  const riskLevel = qualityPayloadValue
+    ? stringField(qualityPayloadValue, "riskLevel")
+    : "UNAVAILABLE";
   const geometry = payload.geometry;
   if (!riskLevel
     || !["STANDARD", "CAUTION", "UNAVAILABLE", "NOT_APPLICABLE"].includes(riskLevel)
@@ -269,7 +307,9 @@ function riskAdapter(
     || riskReward <= 0) {
     return notEvaluable("UPSTREAM_RISK_ADVISORY_INVALID");
   }
-  const explanation = `Risk geometry is available for manual review: stop distance ${stopDistance}, reward distance ${rewardDistance}.`;
+  const explanation = qualityCandidate
+    ? `Risk geometry is available for manual review: stop distance ${stopDistance}, reward distance ${rewardDistance}.`
+    : "Risk level is unavailable because the quality snapshot is missing; geometry remains available for manual review.";
   return {
     status: "AVAILABLE",
     level: riskLevel as R22AlertRiskSnapshot["level"],
@@ -308,27 +348,40 @@ export function buildAlertIntelligenceSnapshotCandidate(
   input: AlertIntelligenceSnapshotCandidateInput,
 ): ObservationEvidenceCandidate {
   const { advisory, capturedAt } = input;
-  const qualityEvidence = requireCandidate(input.qualityEvidence, "QUALITY_SNAPSHOT", advisory);
-  const marketContextEvidence = requireCandidate(input.marketContextEvidence, "MARKET_CONTEXT", advisory);
-  const riskAdvisoryEvidence = requireCandidate(input.riskAdvisoryEvidence, "RISK_ADVISORY", advisory);
-  const historicalReviewEvidence = requireCandidate(
-    input.historicalReviewEvidence,
-    "HISTORICAL_REVIEW_METADATA",
-    advisory,
-  );
+  const qualityEvidence = input.qualityEvidence
+    ? validateCandidate(input.qualityEvidence, "QUALITY_SNAPSHOT", advisory)
+    : null;
+  const marketContextEvidence = input.marketContextEvidence
+    ? validateCandidate(input.marketContextEvidence, "MARKET_CONTEXT", advisory)
+    : null;
+  const riskAdvisoryEvidence = input.riskAdvisoryEvidence
+    ? validateCandidate(input.riskAdvisoryEvidence, "RISK_ADVISORY", advisory)
+    : null;
+  const historicalReviewEvidence = input.historicalReviewEvidence
+    ? validateCandidate(input.historicalReviewEvidence, "HISTORICAL_REVIEW_METADATA", advisory)
+    : null;
   const signalTime = Date.parse(advisory.signalTime);
   const capturedAtTime = Date.parse(capturedAt);
   if (!Number.isFinite(capturedAtTime) || capturedAtTime < signalTime) {
     return notEvaluable("CAPTURE_BEFORE_SIGNAL");
   }
 
-  const quality = qualityAdapter(qualityEvidence, advisory);
-  const marketContext = marketAdapter(marketContextEvidence, qualityEvidence, advisory);
-  const riskAdvisory = riskAdapter(qualityEvidence, riskAdvisoryEvidence, advisory);
-  const historicalReview = historicalAdapter(historicalReviewEvidence);
-  const inputs = [qualityEvidence, marketContextEvidence, riskAdvisoryEvidence, historicalReviewEvidence];
+  const quality = qualityEvidence ? qualityAdapter(qualityEvidence, advisory) : missingQuality();
+  const marketContext = marketContextEvidence
+    ? marketAdapter(marketContextEvidence, qualityEvidence, advisory)
+    : missingMarketContext();
+  const riskAdvisory = riskAdvisoryEvidence
+    ? riskAdapter(qualityEvidence, riskAdvisoryEvidence, advisory)
+    : missingRiskAdvisory();
+  const historicalReview = historicalReviewEvidence
+    ? historicalAdapter(historicalReviewEvidence)
+    : missingHistoricalReview();
+  const inputs = [qualityEvidence, marketContextEvidence, riskAdvisoryEvidence, historicalReviewEvidence]
+    .filter((candidate): candidate is ObservationEvidenceCandidate => candidate !== null);
   const inputManifest = inputs.map(logicalManifest);
-  const informationAsOf = new Date(Math.max(...inputs.map((candidate) => Date.parse(candidate.informationAsOf!)))).toISOString();
+  const informationAsOf = inputs.length === 0
+    ? advisory.signalTime
+    : new Date(Math.max(...inputs.map((candidate) => Date.parse(candidate.informationAsOf!)))).toISOString();
   if (Date.parse(informationAsOf) > signalTime) return notEvaluable("UPSTREAM_PIT_INVALID");
 
   const signal: R22AlertSignalSnapshot = {
@@ -343,7 +396,7 @@ export function buildAlertIntelligenceSnapshotCandidate(
     riskAdvisory,
     historicalReview,
   });
-  if (alertIntelligence.priority !== "P1" && alertIntelligence.priority !== "P2"
+  if (alertIntelligence.priority === "IGNORE"
     || alertIntelligence.presentationStatus === "SUPPRESSED"
     || alertIntelligence.notificationImportance === "DO_NOT_NOTIFY") {
     return notEvaluable("ALERT_INTELLIGENCE_RESULT_INCONSISTENT");
