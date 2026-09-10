@@ -598,8 +598,9 @@ export async function runSignalAdvisoryScan(input: Readonly<{
             errors,
           );
         }
+      }
 
-        let alertIntelligenceAppend: { status: ObservationStageAppendStatus };
+      let alertIntelligenceAppend: { status: ObservationStageAppendStatus };
         try {
           const alertIntelligence = buildAlertIntelligenceSnapshotCandidate({
             advisory,
@@ -643,6 +644,7 @@ export async function runSignalAdvisoryScan(input: Readonly<{
           );
         }
 
+      if (contextRegistry) {
         try {
           const published = await contextRegistry.publishContext(
             historicalContextPublicationFor(advisory),
@@ -680,14 +682,15 @@ export async function runSignalAdvisoryScan(input: Readonly<{
 
       const renderedEmail = buildSignalAdvisoryEmailPayload(advisory);
       let presentationAppend: { status: ObservationStageAppendStatus } = {
-        status: contextRegistry ? "NOT_EVALUABLE" : "APPENDED",
+        status: "NOT_EVALUABLE",
       };
       if (alertIntelligenceEvidence) {
         try {
           const presentation = buildPresentationSnapshotCandidate({
             advisory,
             alertIntelligenceEvidence,
-            renderedEmail,
+            presentationChannel: "EMAIL",
+            presentationPayload: renderedEmail,
             capturedAt: new Date(now()).toISOString(),
           });
           try {

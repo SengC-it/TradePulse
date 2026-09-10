@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { SignalAdvisory } from "../signal-advisory/types.ts";
-import type { RenderedSignalEmail } from "../signal-advisory/email.ts";
-import { canonicalJson } from "./canonical.ts";
+import { canonicalJson, isCanonicalJsonValue } from "./canonical.ts";
 import {
   calculateObservationSnapshotContentHash,
   calculateObservationSnapshotEvidenceHash,
@@ -57,9 +56,10 @@ export const R22_R7_PRESENTATION_EVIDENCE_BOUNDARY_IMPLEMENTATION_STATUS = Objec
 type JsonRecord = { readonly [key: string]: ObservationJsonValue };
 
 export type PresentationSnapshotCandidateInput = Readonly<{
-  advisory: SignalAdvisory;
+  advisory: Pick<SignalAdvisory, "signalId" | "symbol" | "direction" | "signalTime" | "strategyId" | "strategyVersion">;
   alertIntelligenceEvidence: ObservationEvidenceCandidate;
-  renderedEmail: RenderedSignalEmail;
+  presentationChannel: "EMAIL" | "WEB";
+  presentationPayload: ObservationJsonValue;
   capturedAt: string;
 }>;
 
@@ -86,7 +86,7 @@ function isRecord(value: ObservationJsonValue | undefined): value is JsonRecord 
 
 function validateAlertIntelligenceEvidence(
   candidate: ObservationEvidenceCandidate,
-  advisory: SignalAdvisory,
+  advisory: PresentationSnapshotCandidateInput["advisory"],
 ): JsonRecord {
   const validation = validateObservationEvidenceCandidate(candidate);
   if (validation.status !== "VALID") return notEvaluable("UPSTREAM_EVIDENCE_INVALID");
@@ -120,7 +120,7 @@ function validateAlertIntelligenceEvidence(
   return candidate.payload;
 }
 
-function advisoryIdentity(advisory: SignalAdvisory) {
+function advisoryIdentity(advisory: PresentationSnapshotCandidateInput["advisory"]) {
   return {
     signalId: advisory.signalId,
     symbol: advisory.symbol,
@@ -134,7 +134,13 @@ function advisoryIdentity(advisory: SignalAdvisory) {
 export function buildPresentationSnapshotCandidate(
   input: PresentationSnapshotCandidateInput,
 ): ObservationEvidenceCandidate {
-  const { advisory, alertIntelligenceEvidence, renderedEmail, capturedAt } = input;
+  const {
+    advisory,
+    alertIntelligenceEvidence,
+    presentationChannel,
+    presentationPayload,
+    capturedAt,
+  } = input;
   const alertIntelligencePayload = validateAlertIntelligenceEvidence(alertIntelligenceEvidence, advisory);
   const upstreamArtifactId = alertIntelligenceEvidence.artifactId;
   const informationAsOf = alertIntelligenceEvidence.informationAsOf;
@@ -147,6 +153,9 @@ export function buildPresentationSnapshotCandidate(
   if (!Number.isFinite(capturedAtTime) || capturedAtTime < signalTime) {
     return notEvaluable("CAPTURE_BEFORE_SIGNAL");
   }
+  if (!isCanonicalJsonValue(presentationPayload)) {
+    return notEvaluable("PRESENTATION_PAYLOAD_INVALID");
+  }
 
   const sourceRef = `presentation-source:${hashCanonical({
     namespace: "R22_PRESENTATION_SOURCE",
@@ -156,11 +165,8 @@ export function buildPresentationSnapshotCandidate(
   })}`;
   const payload: ObservationJsonValue = {
     presentation: {
-      channel: "EMAIL",
-      renderedEmail: {
-        subject: renderedEmail.subject,
-        text: renderedEmail.text,
-      },
+      channel: presentationChannel,
+      payload: presentationPayload,
     },
     alertIntelligence: alertIntelligencePayload.alertIntelligence,
     alertIntelligenceEvidence: {
@@ -174,6 +180,7 @@ export function buildPresentationSnapshotCandidate(
   const artifactId = `presentation:${hashCanonical({
     namespace: "R22_PRESENTATION",
     signalId: advisory.signalId,
+    presentationChannel,
     schemaVersion: R22_OBSERVATION_SNAPSHOT_SCHEMA_VERSION,
   })}`;
   const contentHash = calculateObservationSnapshotContentHash({

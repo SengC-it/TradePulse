@@ -25,6 +25,11 @@ import type { ObservationEvidenceCandidate, ObservationJsonValue } from "@/lib/o
 import { buildSignalAdvisoryEmailPayload } from "@/lib/signal-advisory/email";
 import { buildDeterministicSignalId } from "@/lib/signal-advisory/identity";
 import type { SignalAdvisory } from "@/lib/signal-advisory/types";
+import {
+  appendDashboardWebPresentationEvidence,
+  buildDashboardWebPresentationPayload,
+} from "@/lib/dashboard/presentation";
+import type { DashboardAdvisory } from "@/lib/dashboard/types";
 
 const SIGNAL_TIME = "2026-08-23T00:00:00.000Z";
 const CAPTURED_AT = "2026-08-23T00:00:02.000Z";
@@ -85,9 +90,31 @@ function presentation(current: SignalAdvisory, capturedAt = CAPTURED_AT) {
     candidate: buildPresentationSnapshotCandidate({
       advisory: current,
       alertIntelligenceEvidence,
-      renderedEmail,
+      presentationChannel: "EMAIL",
+      presentationPayload: renderedEmail,
       capturedAt,
     }),
+  };
+}
+
+function dashboardAdvisory(current: SignalAdvisory): DashboardAdvisory {
+  return {
+    signalId: current.signalId,
+    symbol: current.symbol,
+    direction: current.direction,
+    strategyVersion: current.strategyVersion,
+    signalTime: current.signalTime,
+    signalValidUntil: current.signalValidUntil,
+    score: current.score,
+    grade: current.grade,
+    currentReferencePrice: current.currentReferencePrice,
+    suggestedEntryReference: current.suggestedEntryReference,
+    stopLoss: current.stopLoss,
+    takeProfit: current.takeProfit,
+    riskReward: current.riskReward,
+    deliveryStatus: "SENT",
+    sentAt: "2026-08-23T00:00:05.000Z",
+    dataFreshness: current.dataFreshness,
   };
 }
 
@@ -178,7 +205,7 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
       reason: "NONE",
     });
     expect(result.candidate.payload).toMatchObject({
-      presentation: { channel: "EMAIL", renderedEmail: result.renderedEmail },
+      presentation: { channel: "EMAIL", payload: result.renderedEmail },
       humanDecisionRequired: true,
       automaticTrading: false,
     });
@@ -204,7 +231,8 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
     const result = buildPresentationSnapshotCandidate({
       advisory: current,
       alertIntelligenceEvidence: upstream,
-      renderedEmail,
+      presentationChannel: "EMAIL",
+      presentationPayload: renderedEmail,
       capturedAt: CAPTURED_AT,
     });
 
@@ -238,14 +266,16 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
       expect(() => buildPresentationSnapshotCandidate({
         advisory: current,
         alertIntelligenceEvidence: invalid,
-        renderedEmail,
+        presentationChannel: "EMAIL",
+        presentationPayload: renderedEmail,
         capturedAt: CAPTURED_AT,
       })).toThrow(PresentationNotEvaluableError);
     }
     expect(() => buildPresentationSnapshotCandidate({
       advisory: current,
       alertIntelligenceEvidence: valid,
-      renderedEmail,
+      presentationChannel: "EMAIL",
+      presentationPayload: renderedEmail,
       capturedAt: "2026-08-22T23:59:59.999Z",
     })).toThrow("CAPTURE_BEFORE_SIGNAL");
     expect(AlertIntelligenceNotEvaluableError).toBeDefined();
@@ -255,11 +285,77 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
     const current = advisory();
     const result = presentation(current);
     const payload = result.candidate.payload as {
-      presentation: { renderedEmail: unknown };
+      presentation: { payload: unknown };
     };
 
-    expect(payload.presentation.renderedEmail).toEqual(buildSignalAdvisoryEmailPayload(current));
+    expect(payload.presentation.payload).toEqual(buildSignalAdvisoryEmailPayload(current));
     expect(findForbiddenObservationEconomicField(result.candidate.payload)).toBeNull();
+  });
+
+  it("captures the exact WEB payload before dashboard serialization", () => {
+    const current = advisory();
+    const dashboard = dashboardAdvisory(current);
+    const webPayload = buildDashboardWebPresentationPayload(dashboard);
+    const result = buildPresentationSnapshotCandidate({
+      advisory: current,
+      alertIntelligenceEvidence: r6Candidate(current),
+      presentationChannel: "WEB",
+      presentationPayload: webPayload,
+      capturedAt: CAPTURED_AT,
+    });
+
+    expect(result.payload).toMatchObject({ presentation: { channel: "WEB", payload: webPayload } });
+    expect(JSON.stringify(webPayload)).toContain("POST_SIGNAL_NOTIFICATION_STATE_NOT_R22_DECISION_TIME");
+  });
+
+  it("uses distinct, retry-idempotent EMAIL and WEB logical identities", () => {
+    const current = advisory();
+    const alertIntelligenceEvidence = r6Candidate(current);
+    const email = buildPresentationSnapshotCandidate({
+      advisory: current,
+      alertIntelligenceEvidence,
+      presentationChannel: "EMAIL",
+      presentationPayload: buildSignalAdvisoryEmailPayload(current),
+      capturedAt: CAPTURED_AT,
+    });
+    const web = buildPresentationSnapshotCandidate({
+      advisory: current,
+      alertIntelligenceEvidence,
+      presentationChannel: "WEB",
+      presentationPayload: buildDashboardWebPresentationPayload(dashboardAdvisory(current)),
+      capturedAt: CAPTURED_AT,
+    });
+    const webRetry = buildPresentationSnapshotCandidate({
+      advisory: current,
+      alertIntelligenceEvidence,
+      presentationChannel: "WEB",
+      presentationPayload: buildDashboardWebPresentationPayload(dashboardAdvisory(current)),
+      capturedAt: "2026-08-23T00:00:03.000Z",
+    });
+
+    expect(web.artifactId).not.toBe(email.artifactId);
+    expect(web.idempotencyKey).not.toBe(email.idempotencyKey);
+    expect(webRetry.contentHash).toBe(web.contentHash);
+    expect(webRetry.idempotencyKey).toBe(web.idempotencyKey);
+    expect(webRetry.evidenceHash).not.toBe(web.evidenceHash);
+  });
+
+  it("never reports APPENDED when the R6 artifact is absent", async () => {
+    let appendCalls = 0;
+    const result = await appendDashboardWebPresentationEvidence({
+      advisory: dashboardAdvisory(advisory()),
+      alertIntelligenceEvidence: null,
+      appender: {
+        appendEvidence: async () => {
+          appendCalls += 1;
+          return { status: "APPENDED", evidenceId: "unexpected" };
+        },
+      },
+      capturedAt: CAPTURED_AT,
+    });
+
+    expect(result.status).toBe("NOT_EVALUABLE");
+    expect(appendCalls).toBe(0);
   });
 
   it("keeps logical identity stable across truthful physical capture times", () => {

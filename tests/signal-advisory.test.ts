@@ -630,7 +630,7 @@ describe("signal advisory scan", () => {
     expect(store.events.at(-1)?.metadata).toMatchObject({ dataFreshness: "FRESH" });
   });
 
-  it("appends QUALITY_SNAPSHOT, MARKET_CONTEXT, and RISK_ADVISORY before every email without changing signal flow", async () => {
+  it("appends QUALITY_SNAPSHOT, MARKET_CONTEXT, ALERT_INTELLIGENCE, and PRESENTATION before every email without changing signal flow", async () => {
     const store = new MemoryStore();
     const evidenceStore = new MemoryObservationEvidenceStore();
     const result = await runSignalAdvisoryScan({
@@ -646,7 +646,7 @@ describe("signal advisory scan", () => {
     });
 
     expect(result.outcome).toBe("SUCCESS");
-    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated * 3);
+    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated * 5);
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "QUALITY_SNAPSHOT")).toHaveLength(
       result.signalsGenerated,
     );
@@ -656,9 +656,17 @@ describe("signal advisory scan", () => {
     expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "RISK_ADVISORY")).toHaveLength(
       result.signalsGenerated,
     );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "PRESENTATION")).toHaveLength(
+      result.signalsGenerated,
+    );
     expect(evidenceStore.order[0]).toBe("QUALITY_SNAPSHOT_APPEND");
     expect(evidenceStore.order.indexOf("MARKET_CONTEXT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND"));
-    expect(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
+    expect(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND")).toBeLessThan(evidenceStore.order.indexOf("ALERT_INTELLIGENCE_APPEND"));
+    expect(evidenceStore.order.indexOf("ALERT_INTELLIGENCE_APPEND")).toBeLessThan(evidenceStore.order.indexOf("PRESENTATION_APPEND"));
+    expect(evidenceStore.order.indexOf("PRESENTATION_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
     expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
@@ -1041,11 +1049,13 @@ describe("signal advisory scan", () => {
 
     const firstSignalId = [...store.advisories.keys()][0];
     expect(firstSignalId).toBeDefined();
-    expect(runtimeOrder.slice(0, 5)).toEqual([
+    expect(runtimeOrder.slice(0, 7)).toEqual([
       "CLAIM",
       "QUALITY_SNAPSHOT_APPEND",
       "MARKET_CONTEXT_APPEND",
       "RISK_ADVISORY_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
+      "PRESENTATION_APPEND",
       "EMAIL",
     ]);
     expect(evidence.filter((event) => event.metadata.signalId === firstSignalId).map((event) => event.type)).toEqual([

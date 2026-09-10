@@ -511,7 +511,7 @@ describe("Round-022 R1 evidence foundation", () => {
       .not.toContain("supersedesArtifactId: candidate.supersedesEvidenceId");
   });
 
-  it("keeps the R1 writer boundary isolated while allowing the accepted R2 sidecar call site", () => {
+  it("keeps the R1 writer boundary isolated while allowing accepted observation sidecar call sites", () => {
     const sourceFiles: string[] = [];
     const visit = (directory: string): void => {
       for (const entry of readdirSync(directory)) {
@@ -525,7 +525,9 @@ describe("Round-022 R1 evidence foundation", () => {
       !path.includes("observation-evidence")
       && !path.endsWith("signal-advisory\\scan.ts")
       && !path.endsWith("signal-advisory\\types.ts")
-      && !path.endsWith("signal-advisory/scan.ts"));
+      && !path.endsWith("signal-advisory/scan.ts")
+      && !path.endsWith("dashboard\\presentation.ts")
+      && !path.endsWith("dashboard/presentation.ts"));
     for (const path of productionSources) {
       expect(readFileSync(path, "utf8")).not.toMatch(/appendEvidence\s*\(/);
     }
