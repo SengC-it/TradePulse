@@ -226,7 +226,10 @@ describe("Round-022 R8 notification causal integration", () => {
       "DELIVERY_REGISTRY_PERSISTENCE_FAILED",
     ]);
     expect(R22_R8_NOTIFICATION_CAUSAL_INTEGRATION_IMPLEMENTATION_STATUS).toMatchObject({
+      r6AcceptanceStatus: "ACCEPTED",
+      r7AcceptanceStatus: "ACCEPTED",
       r8NotificationCausalIntegrationImplemented: true,
+      r8AcceptanceStatus: "ACCEPTED",
       closesReadinessNodes: [],
       s01Status: "SOURCE_READY",
       s06Status: "SOURCE_READY",
@@ -242,8 +245,8 @@ describe("Round-022 R8 notification causal integration", () => {
       humanDecisionRequired: true,
     });
     expect(R22_R8_NOTIFICATION_CAUSAL_INTEGRATION_FINAL_DECISION).toEqual(expect.objectContaining({
-      decision: "ROUND-022 R8 NOTIFICATION CAUSAL INTEGRATION IMPLEMENTATION READY",
-      nextStage: "STOP_PENDING_R8_ACCEPTANCE",
+      decision: "ROUND-022 R8 ACCEPTANCE CLOSURE — ACCEPTED",
+      nextStage: "STOP_PENDING_R8_CLOSURE_ACCEPTANCE",
     }));
   });
 });

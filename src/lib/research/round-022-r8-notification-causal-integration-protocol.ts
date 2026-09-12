@@ -57,6 +57,7 @@ export const R22_R8_NOTIFICATION_CAUSAL_INTEGRATION_IMPLEMENTATION_STATUS = Obje
   r7PresentationEvidenceBoundaryImplemented: true,
   r7AcceptanceStatus: "ACCEPTED",
   r8NotificationCausalIntegrationImplemented: true,
+  r8AcceptanceStatus: "ACCEPTED",
   introducesCapabilities: Object.freeze(["notificationObservedAt", "notificationCausalIntegration"]),
   closesReadinessNodes: Object.freeze([]),
   s01Status: "SOURCE_READY",
@@ -91,8 +92,8 @@ export const R22_R8_NOTIFICATION_CAUSAL_INTEGRATION_IMPLEMENTATION_STATUS = Obje
 } as const);
 
 export const R22_R8_NOTIFICATION_CAUSAL_INTEGRATION_FINAL_DECISION = Object.freeze({
-  decision: "ROUND-022 R8 NOTIFICATION CAUSAL INTEGRATION IMPLEMENTATION READY",
-  nextStage: "STOP_PENDING_R8_ACCEPTANCE",
+  decision: "ROUND-022 R8 ACCEPTANCE CLOSURE — ACCEPTED",
+  nextStage: "STOP_PENDING_R8_CLOSURE_ACCEPTANCE",
   r8Authorized: true,
   closesReadinessNodes: Object.freeze([]),
   r9Started: false,
