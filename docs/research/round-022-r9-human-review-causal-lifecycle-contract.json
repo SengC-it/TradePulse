@@ -1,0 +1,90 @@
+{
+  "researchRoundId": "baseline-002-research-round-022",
+  "phase": "R9_HUMAN_REVIEW_CAUSAL_LIFECYCLE_IMPLEMENTATION_ONLY",
+  "acceptedResearchSource": {
+    "repository": "SengC-it/TradePulse",
+    "baseBranch": "research/round-015-beta-alpha-decomposition",
+    "requiredBaseHead": "b393334ec7203e6eb08565aaad413ef269bd8147",
+    "branch": "research/round-022-r9-human-review-causal-lifecycle"
+  },
+  "scope": {
+    "introduces": ["REVIEW_STARTED", "REVIEW_SUBMITTED", "human-review timestamp causality"],
+    "closesReadinessNodes": ["S07", "S08", "S09"],
+    "r10Ownership": ["S10"],
+    "noNewMigration": true,
+    "evidenceTable": "tp_observation_evidence"
+  },
+  "identity": {
+    "reviewObservationId": "R22_REVIEW|signalId|m3-r22-observation-instrumentation-design-002",
+    "startIdempotency": "REVIEW|reviewObservationId|START",
+    "submitIdempotency": "REVIEW|reviewObservationId|SUBMIT",
+    "sourceRef": "tp_signal_advisories:<signalId>",
+    "advisoryIdentity": ["signalId", "symbol", "direction", "signalTime", "strategyId", "strategyVersion"]
+  },
+  "causality": {
+    "invariant": "signalTime <= reviewStartedAt <= reviewSubmittedAt",
+    "reviewStartedAtAuthority": "SERVER_WALL_CLOCK",
+    "reviewSubmittedAtAuthority": "SERVER_WALL_CLOCK",
+    "capturedAtAuthority": "SERVER_WALL_CLOCK",
+    "clientMaySubmit": ["signalId", "humanReview.reviewComplete", "humanReview.informationSufficient", "humanReview.unnecessaryAlert"]
+  },
+  "labels": {
+    "source": "EXPLICIT_HUMAN_LABEL",
+    "fields": ["reviewComplete", "informationSufficient", "unnecessaryAlert"],
+    "startHasLabels": false,
+    "submitHasLabels": true
+  },
+  "decisionLatencyProxyMs": "reviewSubmittedAt - reviewStartedAt; descriptive human-review metadata only; not a performance metric and never upstream",
+  "forbidden": {
+    "legacySettlementReviewLedgerAsR22Evidence": true,
+    "outcomeOrForwardData": true,
+    "observationExecution": true,
+    "performance": true,
+    "backtest": true,
+    "selection": true,
+    "economicEvaluation": true,
+    "historicalBackfill": true,
+    "newMarketData": true,
+    "production": true,
+    "automaticTrading": true
+  },
+  "status": {
+    "r6AcceptanceStatus": "ACCEPTED",
+    "r7AcceptanceStatus": "ACCEPTED",
+    "r8AcceptanceStatus": "ACCEPTED",
+    "r9HumanReviewLifecycleImplemented": true,
+    "S01": "SOURCE_READY",
+    "S02": "SOURCE_READY",
+    "S03": "SOURCE_READY",
+    "S04": "SOURCE_READY",
+    "S05": "SOURCE_READY",
+    "S06": "SOURCE_READY",
+    "S07": "SOURCE_READY_PENDING_ACCEPTANCE",
+    "S08": "SOURCE_READY_PENDING_ACCEPTANCE",
+    "S09": "SOURCE_READY_PENDING_ACCEPTANCE",
+    "S10": "FAIL",
+    "S07AcceptedReady": false,
+    "S08AcceptedReady": false,
+    "S09AcceptedReady": false,
+    "observationAuthorized": false,
+    "observationExecuted": false,
+    "performanceAuthorized": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "economicValuesRead": false,
+    "forwardReturnRead": false,
+    "newMarketDataFetched": false,
+    "historicalBackfillExecuted": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "productionUnchanged": true,
+    "r10Started": false
+  },
+  "finalDecision": {
+    "decision": "ROUND-022 R9 HUMAN REVIEW CAUSAL LIFECYCLE IMPLEMENTATION READY",
+    "nextStage": "STOP_PENDING_R9_ACCEPTANCE"
+  }
+}
