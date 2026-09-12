@@ -45,6 +45,12 @@ export {
   type AlertIntelligenceSnapshotCandidateInput,
 } from "./alert-intelligence.ts";
 export {
+  buildPresentationSnapshotCandidate,
+  PresentationNotEvaluableError,
+  R22_R7_PRESENTATION_EVIDENCE_BOUNDARY_IMPLEMENTATION_STATUS,
+  type PresentationSnapshotCandidateInput,
+} from "./presentation.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,
