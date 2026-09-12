@@ -5,9 +5,9 @@ import {
   buildR22ReviewStartedCandidate,
   buildR22ReviewSubmittedCandidate,
   calculateR22ReviewObservationId,
+  parseR22HumanReviewLabels,
   validateR22HumanReviewCandidate,
   type R22HumanReviewAdvisoryIdentity,
-  type R22HumanReviewLabels,
 } from "../observation-evidence/human-review.ts";
 import type {
   ObservationEvidenceAppendResult,
@@ -128,14 +128,6 @@ function sameAdvisoryIdentity(
     && left.strategyVersion === right.strategyVersion;
 }
 
-function isHumanReviewLabels(value: unknown): value is R22HumanReviewLabels {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const labels = value as Record<string, unknown>;
-  return typeof labels.reviewComplete === "boolean"
-    && typeof labels.informationSufficient === "boolean"
-    && typeof labels.unnecessaryAlert === "boolean";
-}
-
 function appendResult(
   eventType: R22HumanReviewOperationResult["eventType"],
   reviewObservationId: string,
@@ -185,7 +177,8 @@ export async function submitHumanReview(input: Readonly<{
   dependencies: R22HumanReviewDependencies;
 }>): Promise<R22HumanReviewOperationResult> {
   if (!input.signalId.trim()) return notEvaluable("REVIEW_SUBMITTED", "INVALID_REQUEST");
-  if (!isHumanReviewLabels(input.labels)) return notEvaluable("REVIEW_SUBMITTED", "SUBMIT_FIELDS_REQUIRED");
+  const labels = parseR22HumanReviewLabels(input.labels);
+  if (labels === null) return notEvaluable("REVIEW_SUBMITTED", "SUBMIT_FIELDS_REQUIRED");
 
   const advisory = await input.dependencies.advisoryIdentityStore.findBySignalId(input.signalId);
   if (advisory === null) return notEvaluable("REVIEW_SUBMITTED", "ADVISORY_NOT_FOUND");
@@ -222,7 +215,7 @@ export async function submitHumanReview(input: Readonly<{
     reviewStartedAt: start.reviewStartedAt,
     reviewSubmittedAt,
     capturedAt: input.dependencies.now(),
-    labels: input.labels,
+    labels,
   });
   if (validateR22HumanReviewCandidate(candidate).status !== "OBSERVABLE") {
     return notEvaluable("REVIEW_SUBMITTED", "INVALID_CANDIDATE", reviewObservationId);

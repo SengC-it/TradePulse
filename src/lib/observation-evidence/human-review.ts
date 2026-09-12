@@ -20,6 +20,12 @@ export type R22HumanReviewLabels = Readonly<{
   unnecessaryAlert: boolean;
 }>;
 
+const R22_HUMAN_REVIEW_LABEL_KEYS = [
+  "reviewComplete",
+  "informationSufficient",
+  "unnecessaryAlert",
+] as const;
+
 export type R22HumanReviewValidation = Readonly<{
   status: "OBSERVABLE" | "NOT_EVALUABLE";
   reason:
@@ -180,6 +186,26 @@ function isBoolean(value: ObservationJsonValue | undefined): value is boolean {
   return typeof value === "boolean";
 }
 
+export function parseR22HumanReviewLabels(value: unknown): R22HumanReviewLabels | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  const keys = Object.keys(input);
+  if (keys.length !== R22_HUMAN_REVIEW_LABEL_KEYS.length
+    || R22_HUMAN_REVIEW_LABEL_KEYS.some((key) => !Object.prototype.hasOwnProperty.call(input, key))) {
+    return null;
+  }
+  if (typeof input.reviewComplete !== "boolean"
+    || typeof input.informationSufficient !== "boolean"
+    || typeof input.unnecessaryAlert !== "boolean") {
+    return null;
+  }
+  return {
+    reviewComplete: input.reviewComplete,
+    informationSufficient: input.informationSufficient,
+    unnecessaryAlert: input.unnecessaryAlert,
+  };
+}
+
 export function validateR22HumanReviewCandidate(
   candidate: ObservationEvidenceCandidate,
 ): R22HumanReviewValidation {
@@ -213,7 +239,7 @@ export function validateR22HumanReviewCandidate(
     return { status: "OBSERVABLE", reason: "NONE" };
   }
 
-  const humanReview = objectPayload(payload.humanReview ?? null);
+  const humanReview = parseR22HumanReviewLabels(payload.humanReview ?? null);
   const latency = payload.decisionLatencyProxyMs;
   if (candidate.reviewSubmittedAt === null
     || payload.labelSource !== "EXPLICIT_HUMAN_LABEL"

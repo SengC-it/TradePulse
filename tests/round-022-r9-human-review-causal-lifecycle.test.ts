@@ -5,6 +5,7 @@ import {
   buildR22ReviewStartedCandidate,
   calculateR22HumanReviewIdempotencyKey,
   calculateR22ReviewObservationId,
+  parseR22HumanReviewLabels,
   validateR22HumanReviewCandidate,
 } from "@/lib/observation-evidence/human-review";
 import type {
@@ -159,6 +160,67 @@ describe("Round-022 R9 human-review causal lifecycle", () => {
     );
     expect(submit!.idempotencyKey).not.toBe([...store.events.values()][0]!.idempotencyKey);
     expect(validateR22HumanReviewCandidate(submit!)).toEqual({ status: "OBSERVABLE", reason: "NONE" });
+  });
+
+  it("accepts only the exact three human-review labels and returns a normalized copy", async () => {
+    const valid = {
+      reviewComplete: true,
+      informationSufficient: true,
+      unnecessaryAlert: false,
+    };
+    expect(parseR22HumanReviewLabels(valid)).toEqual(valid);
+    expect(parseR22HumanReviewLabels(valid)).not.toBe(valid);
+    expect(parseR22HumanReviewLabels({ reviewComplete: true, informationSufficient: true })).toBeNull();
+    expect(parseR22HumanReviewLabels({
+      reviewComplete: true,
+      informationSufficient: true,
+      unnecessaryAlert: "false",
+    })).toBeNull();
+    expect(parseR22HumanReviewLabels({ ...valid, comment: "extra" })).toBeNull();
+    expect(parseR22HumanReviewLabels({ ...valid, arbitrary: 1 })).toBeNull();
+
+    const store = new InMemoryReviewEvidenceStore();
+    const dependencies = createDependencies(store, () => "2026-09-12T10:00:05.000Z");
+    await startHumanReview({ signalId: identity.signalId, dependencies });
+    const extra = await submitHumanReview({
+      signalId: identity.signalId,
+      labels: { ...valid, comment: "extra" },
+      dependencies,
+    });
+    expect(extra).toMatchObject({ status: "NOT_EVALUABLE", reason: "SUBMIT_FIELDS_REQUIRED" });
+    expect([...store.events.values()].filter((event) => event.eventType === "REVIEW_SUBMITTED")).toHaveLength(0);
+  });
+
+  it("replays SUBMIT without a second row or replacing the original server timestamp", async () => {
+    const store = new InMemoryReviewEvidenceStore();
+    let clock = "2026-09-12T10:00:01.000Z";
+    const dependencies = createDependencies(store, () => clock);
+    const labels = { reviewComplete: true, informationSufficient: false, unnecessaryAlert: false };
+    await startHumanReview({ signalId: identity.signalId, dependencies });
+    clock = "2026-09-12T10:00:02.000Z";
+    const first = await submitHumanReview({ signalId: identity.signalId, labels, dependencies });
+    const firstSubmit = [...store.events.values()].find((event) => event.eventType === "REVIEW_SUBMITTED");
+    clock = "2026-09-12T10:00:03.000Z";
+    const retry = await submitHumanReview({
+      signalId: identity.signalId,
+      labels: { ...labels },
+      dependencies,
+    });
+    const submitEvents = [...store.events.values()].filter((event) => event.eventType === "REVIEW_SUBMITTED");
+    const reviewObservationId = calculateR22ReviewObservationId(identity.signalId);
+
+    expect(first.status).toBe("APPENDED");
+    expect(retry).toMatchObject({
+      status: "IDEMPOTENT_REPLAY",
+      reviewObservationId,
+      evidenceId: first.evidenceId,
+    });
+    expect(firstSubmit).toBeDefined();
+    expect(submitEvents).toHaveLength(1);
+    expect(submitEvents[0]!.reviewSubmittedAt).toBe("2026-09-12T10:00:02.000Z");
+    expect(submitEvents[0]!.idempotencyKey).toBe(
+      calculateR22HumanReviewIdempotencyKey(reviewObservationId, "REVIEW_SUBMITTED"),
+    );
   });
 
   it("rejects SUBMIT without START, missing labels, or submittedAt before START", async () => {
