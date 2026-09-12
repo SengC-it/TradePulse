@@ -19,6 +19,7 @@ import {
 import type { NotificationEvidenceEvent } from "./notification-evidence.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
 import { createObservationEvidenceStore } from "../observation-evidence/store.ts";
+import { buildNotificationObservationCandidate } from "../observation-evidence/notification.ts";
 import { buildQualitySnapshotCandidate } from "../observation-evidence/quality-snapshot.ts";
 import { buildMarketContextSnapshotCandidate } from "../observation-evidence/market-context.ts";
 import { buildRiskAdvisorySnapshotCandidate } from "../observation-evidence/risk-advisory.ts";
@@ -213,22 +214,40 @@ async function recordEvent(
 
 function observeNotificationEvidence(
   dependencies: SignalAdvisoryScanDependencies,
+  advisory: SignalAdvisory,
   event: NotificationEvidenceEvent,
 ): void {
   const observer = dependencies.observeNotificationEvidence;
-  if (!observer) return;
+  if (observer) {
+    try {
+      const pending = observer(event);
+      if (pending && typeof pending.then === "function") {
+        void Promise.resolve(pending).catch(() => {
+          // Evidence observation is a best-effort runtime sidecar. It is not a
+          // durable writer, transaction participant, or delivery acknowledgement.
+        });
+      }
+    } catch {
+      // Evidence observation is a best-effort runtime sidecar. It must never
+      // alter scan or delivery truth.
+    }
+  }
 
   try {
-    const pending = observer(event);
-    if (pending && typeof pending.then === "function") {
-      void Promise.resolve(pending).catch(() => {
-        // Evidence observation is a best-effort runtime sidecar. It is not a
-        // durable writer, transaction participant, or delivery acknowledgement.
-      });
-    }
+    const observedAt = new Date((dependencies.now ?? Date.now)()).toISOString();
+    const candidate = buildNotificationObservationCandidate({
+      advisory,
+      event,
+      observedAt,
+      capturedAt: observedAt,
+    });
+    void dependencies.observationEvidenceStore.appendEvidence(candidate).catch(() => {
+      // Notification observation is a best-effort runtime sidecar. It is not
+      // a transaction participant, delivery acknowledgement, or retry trigger.
+    });
   } catch {
-    // Evidence observation is a best-effort runtime sidecar. It must never
-    // alter scan or delivery truth.
+    // Invalid or unavailable notification evidence must never alter business
+    // or delivery truth.
   }
 }
 
@@ -408,6 +427,12 @@ export async function runSignalAdvisoryScan(input: Readonly<{
   for (const advisory of advisories) {
     try {
       const claim = await dependencies.store.claimSignal(advisory, begin.scanId, nowIso);
+      const metadata = buildNotificationDecisionMetadata({
+        scanId: begin.scanId,
+        signalId: advisory.signalId,
+        decisionType: claim,
+      });
+      observeNotificationEvidence(dependencies, advisory, buildClaimDecisionEvidence(metadata));
       let qualitySnapshot: ObservationEvidenceCandidate | null = null;
       let qualitySnapshotAppend: { status: ObservationStageAppendStatus };
       try {
@@ -669,12 +694,6 @@ export async function runSignalAdvisoryScan(input: Readonly<{
           );
         }
       }
-      const metadata = buildNotificationDecisionMetadata({
-        scanId: begin.scanId,
-        signalId: advisory.signalId,
-        decisionType: claim,
-      });
-      observeNotificationEvidence(dependencies, buildClaimDecisionEvidence(metadata));
       if (claim === "SKIPPED_DUPLICATE" || claim === "SKIPPED_EXPIRED") {
         signalsSkipped += 1;
         continue;
@@ -723,13 +742,13 @@ export async function runSignalAdvisoryScan(input: Readonly<{
         );
       }
 
-      observeNotificationEvidence(dependencies, buildDeliveryAttemptedEvidence(metadata));
+      observeNotificationEvidence(dependencies, advisory, buildDeliveryAttemptedEvidence(metadata));
       let delivery: { emailMessageId: string };
       try {
         delivery = await dependencies.sendSignalEmail(advisory, renderedEmail);
       } catch (error) {
         const failureClass = classifySmtpFailure(error);
-        observeNotificationEvidence(dependencies, buildDeliveryFailedEvidence(metadata, failureClass));
+        observeNotificationEvidence(dependencies, advisory, buildDeliveryFailedEvidence(metadata, failureClass));
         errors.push(failureClass);
         await dependencies.store.markSignalFailed({
           signalId: advisory.signalId,
@@ -753,7 +772,7 @@ export async function runSignalAdvisoryScan(input: Readonly<{
       }
 
       signalsSent += 1;
-      observeNotificationEvidence(dependencies, buildDeliveredEvidence(metadata));
+      observeNotificationEvidence(dependencies, advisory, buildDeliveredEvidence(metadata));
       try {
         await dependencies.store.markSignalSent({
           signalId: advisory.signalId,
@@ -764,6 +783,7 @@ export async function runSignalAdvisoryScan(input: Readonly<{
         const persistenceFailure = "DELIVERY_REGISTRY_PERSISTENCE_FAILED" as const;
         observeNotificationEvidence(
           dependencies,
+          advisory,
           buildDeliveryRegistryPersistenceFailureEvidence(metadata),
         );
         errors.push(persistenceFailure);
@@ -839,10 +859,12 @@ export function createDefaultSignalAdvisoryScanDependencies(): SignalAdvisorySca
     throw new Error("ALERT_EMAIL_TO is required for signal advisory scans.");
   }
 
+  const observationEvidenceStore = createObservationEvidenceStore();
+
   return {
     marketData: new BinanceMarketDataProvider(),
     store: createSignalAdvisoryStore(),
-    observationEvidenceStore: createObservationEvidenceStore(),
+    observationEvidenceStore,
     historicalReviewContextRegistry: createHistoricalReviewContextRegistry(),
     sendSignalEmail: (advisory, rendered) => sendSignalEmail(advisory, rendered ? { rendered } : undefined),
     recipient,

@@ -51,6 +51,13 @@ export {
   type PresentationSnapshotCandidateInput,
 } from "./presentation.ts";
 export {
+  buildNotificationObservationCandidate,
+  calculateNotificationObservationId,
+  NotificationObservationNotEvaluableError,
+  R22_R8_NOTIFICATION_EVENT_TYPES,
+  type NotificationObservationCandidateInput,
+} from "./notification.ts";
+export {
   OBSERVATION_EVIDENCE_TABLE,
   R22_OBSERVATION_ARTIFACT_TYPES,
   R22_OBSERVATION_EVENT_KINDS,

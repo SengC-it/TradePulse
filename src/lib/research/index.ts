@@ -37,3 +37,4 @@ export * from "./m3-r4-round-004-evidence.ts";
 export * from "./m3-r4-round-004-performance.ts";
 export * from "./m3-r4-d-selection.ts";
 export * from "./types.ts";
+export * from "./round-022-r8-notification-causal-integration-protocol.ts";
