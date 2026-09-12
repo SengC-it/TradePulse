@@ -38,6 +38,7 @@ export const R22_R9_STATUS = Object.freeze({
   r6AcceptanceStatus: "ACCEPTED",
   r7AcceptanceStatus: "ACCEPTED",
   r8AcceptanceStatus: "ACCEPTED",
+  r9AcceptanceStatus: "ACCEPTED",
   r9HumanReviewLifecycleImplemented: true,
   introducesCapabilities: Object.freeze([
     "reviewStarted",
@@ -54,12 +55,12 @@ export const R22_R9_STATUS = Object.freeze({
   s05AcceptedReady: true,
   s06Status: "SOURCE_READY",
   s06AcceptedReady: true,
-  s07Status: "SOURCE_READY_PENDING_ACCEPTANCE",
-  s07AcceptedReady: false,
-  s08Status: "SOURCE_READY_PENDING_ACCEPTANCE",
-  s08AcceptedReady: false,
-  s09Status: "SOURCE_READY_PENDING_ACCEPTANCE",
-  s09AcceptedReady: false,
+  s07Status: "SOURCE_READY",
+  s07AcceptedReady: true,
+  s08Status: "SOURCE_READY",
+  s08AcceptedReady: true,
+  s09Status: "SOURCE_READY",
+  s09AcceptedReady: true,
   s10Status: "FAIL",
   observationInstrumentationImplemented: false,
   observationAuthorized: false,
@@ -81,8 +82,8 @@ export const R22_R9_STATUS = Object.freeze({
 } as const);
 
 export const R22_R9_FINAL_DECISION = Object.freeze({
-  decision: "ROUND-022 R9 HUMAN REVIEW CAUSAL LIFECYCLE IMPLEMENTATION READY",
-  nextStage: "STOP_PENDING_R9_ACCEPTANCE",
+  decision: "ROUND-022 R9 ACCEPTANCE CLOSURE — ACCEPTED",
+  nextStage: "STOP_PENDING_R9_CLOSURE_ACCEPTANCE",
   performanceAuthorized: false,
   observationAuthorized: false,
   r10Started: false,
@@ -91,12 +92,13 @@ export const R22_R9_FINAL_DECISION = Object.freeze({
 export function isR22R9ImplementationReady(): boolean {
   return R22_R9_STATUS.r9HumanReviewLifecycleImplemented
     && R22_R9_STATUS.closesReadinessNodes.join(",") === "S07,S08,S09"
-    && R22_R9_STATUS.s07Status === "SOURCE_READY_PENDING_ACCEPTANCE"
-    && R22_R9_STATUS.s08Status === "SOURCE_READY_PENDING_ACCEPTANCE"
-    && R22_R9_STATUS.s09Status === "SOURCE_READY_PENDING_ACCEPTANCE"
-    && R22_R9_STATUS.s07AcceptedReady === false
-    && R22_R9_STATUS.s08AcceptedReady === false
-    && R22_R9_STATUS.s09AcceptedReady === false
+    && R22_R9_STATUS.r9AcceptanceStatus === "ACCEPTED"
+    && R22_R9_STATUS.s07Status === "SOURCE_READY"
+    && R22_R9_STATUS.s08Status === "SOURCE_READY"
+    && R22_R9_STATUS.s09Status === "SOURCE_READY"
+    && R22_R9_STATUS.s07AcceptedReady === true
+    && R22_R9_STATUS.s08AcceptedReady === true
+    && R22_R9_STATUS.s09AcceptedReady === true
     && R22_R9_STATUS.s10Status === "FAIL"
     && R22_R9_STATUS.observationAuthorized === false
     && R22_R9_STATUS.observationExecuted === false

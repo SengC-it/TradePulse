@@ -70,19 +70,20 @@ describe("Round-022 R9 human-review causal lifecycle", () => {
     expect(R22_R9_STATUS.r6AcceptanceStatus).toBe("ACCEPTED");
     expect(R22_R9_STATUS.r7AcceptanceStatus).toBe("ACCEPTED");
     expect(R22_R9_STATUS.r8AcceptanceStatus).toBe("ACCEPTED");
+    expect(R22_R9_STATUS.r9AcceptanceStatus).toBe("ACCEPTED");
     expect(R22_R9_STATUS.closesReadinessNodes).toEqual(["S07", "S08", "S09"]);
-    expect(R22_R9_STATUS.s07Status).toBe("SOURCE_READY_PENDING_ACCEPTANCE");
-    expect(R22_R9_STATUS.s08Status).toBe("SOURCE_READY_PENDING_ACCEPTANCE");
-    expect(R22_R9_STATUS.s09Status).toBe("SOURCE_READY_PENDING_ACCEPTANCE");
+    expect(R22_R9_STATUS.s07Status).toBe("SOURCE_READY");
+    expect(R22_R9_STATUS.s08Status).toBe("SOURCE_READY");
+    expect(R22_R9_STATUS.s09Status).toBe("SOURCE_READY");
     expect(R22_R9_STATUS.s10Status).toBe("FAIL");
-    expect(R22_R9_STATUS.s07AcceptedReady).toBe(false);
-    expect(R22_R9_STATUS.s08AcceptedReady).toBe(false);
-    expect(R22_R9_STATUS.s09AcceptedReady).toBe(false);
+    expect(R22_R9_STATUS.s07AcceptedReady).toBe(true);
+    expect(R22_R9_STATUS.s08AcceptedReady).toBe(true);
+    expect(R22_R9_STATUS.s09AcceptedReady).toBe(true);
     expect(R22_R9_STATUS.r10Started).toBe(false);
     expect(isR22R9ImplementationReady()).toBe(true);
     expect(R22_R9_FINAL_DECISION).toMatchObject({
-      decision: "ROUND-022 R9 HUMAN REVIEW CAUSAL LIFECYCLE IMPLEMENTATION READY",
-      nextStage: "STOP_PENDING_R9_ACCEPTANCE",
+      decision: "ROUND-022 R9 ACCEPTANCE CLOSURE — ACCEPTED",
+      nextStage: "STOP_PENDING_R9_CLOSURE_ACCEPTANCE",
     });
   });
 
