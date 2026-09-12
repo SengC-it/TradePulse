@@ -305,7 +305,37 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
     });
 
     expect(result.payload).toMatchObject({ presentation: { channel: "WEB", payload: webPayload } });
-    expect(JSON.stringify(webPayload)).toContain("POST_SIGNAL_NOTIFICATION_STATE_NOT_R22_DECISION_TIME");
+    expect(dashboard.deliveryStatus).toBe("SENT");
+    expect(dashboard.sentAt).toBe("2026-08-23T00:00:05.000Z");
+    expect(webPayload).not.toHaveProperty("notificationState");
+    expect((webPayload as Record<string, unknown>).signal).not.toHaveProperty("dataFreshness");
+    expect(JSON.stringify(webPayload)).not.toContain("deliveryStatus");
+    expect(JSON.stringify(webPayload)).not.toContain("sentAt");
+    expect(JSON.stringify(webPayload)).not.toContain("POST_SIGNAL_NOTIFICATION_STATE_NOT_R22_DECISION_TIME");
+    expect(JSON.stringify(webPayload)).not.toContain("observedAt");
+    expect(JSON.stringify(webPayload)).not.toContain("attemptSequence");
+    expect(JSON.stringify(webPayload)).not.toContain("DELIVERED");
+    expect(JSON.stringify(webPayload)).not.toContain("RETRY");
+    expect((webPayload as Record<string, unknown>).signal).toMatchObject({ signalTime: SIGNAL_TIME });
+    expect(Date.parse(SIGNAL_TIME)).toBeLessThanOrEqual(Date.parse(CAPTURED_AT));
+  });
+
+  it("keeps post-signal dashboard state out of the R7 evidence content", () => {
+    const current = advisory();
+    const dashboard = dashboardAdvisory(current);
+    const webPayload = buildDashboardWebPresentationPayload(dashboard) as Record<string, unknown>;
+
+    expect(dashboard.dataFreshness?.sourceServerTime).toBe("2026-08-23T00:00:05.000Z");
+    expect(dashboard.dataFreshness?.ageMs).toBe(5_000);
+    expect(webPayload).toEqual({
+      signal: expect.objectContaining({
+        signalId: current.signalId,
+        signalTime: SIGNAL_TIME,
+      }),
+    });
+    expect(webPayload).not.toHaveProperty("deliveryStatus");
+    expect(webPayload).not.toHaveProperty("sentAt");
+    expect(webPayload).not.toHaveProperty("dataFreshness");
   });
 
   it("uses distinct, retry-idempotent EMAIL and WEB logical identities", () => {

@@ -104,9 +104,6 @@ export function observationEvidenceCandidateFromRow(row: Record<string, unknown>
 }
 
 export function buildDashboardWebPresentationPayload(advisory: DashboardAdvisory): ObservationJsonValue {
-  const dataFreshness = advisory.dataFreshness === null
-    ? null
-    : JSON.parse(JSON.stringify(advisory.dataFreshness)) as ObservationJsonValue;
   return {
     signal: {
       signalId: advisory.signalId,
@@ -122,12 +119,6 @@ export function buildDashboardWebPresentationPayload(advisory: DashboardAdvisory
       stopLoss: advisory.stopLoss,
       takeProfit: advisory.takeProfit,
       riskReward: advisory.riskReward,
-      dataFreshness,
-    },
-    notificationState: {
-      deliveryStatus: advisory.deliveryStatus,
-      sentAt: advisory.sentAt,
-      provenance: "POST_SIGNAL_NOTIFICATION_STATE_NOT_R22_DECISION_TIME",
     },
   } as JsonRecord;
 }
