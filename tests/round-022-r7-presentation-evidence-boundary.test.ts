@@ -317,6 +317,8 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
     expect(JSON.stringify(webPayload)).not.toContain("DELIVERED");
     expect(JSON.stringify(webPayload)).not.toContain("RETRY");
     expect((webPayload as Record<string, unknown>).signal).toMatchObject({ signalTime: SIGNAL_TIME });
+    expect(result.informationAsOf).toBe(SIGNAL_TIME);
+    expect(Date.parse(result.informationAsOf!)).toBeLessThanOrEqual(Date.parse(SIGNAL_TIME));
     expect(Date.parse(SIGNAL_TIME)).toBeLessThanOrEqual(Date.parse(CAPTURED_AT));
   });
 
