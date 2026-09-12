@@ -404,9 +404,10 @@ describe("Round-022 R7 PRESENTATION evidence boundary", () => {
   it("freezes R7 readiness and governance without authorizing observation or economics", () => {
     expect(R22_R7_PRESENTATION_EVIDENCE_BOUNDARY_IMPLEMENTATION_STATUS).toMatchObject({
       r7PresentationEvidenceBoundaryImplemented: true,
+      r7AcceptanceStatus: "ACCEPTED",
       closesReadinessNodes: ["S06"],
-      s06Status: "SOURCE_READY_PENDING_ACCEPTANCE",
-      s06AcceptedReady: false,
+      s06Status: "SOURCE_READY",
+      s06AcceptedReady: true,
       s07Status: "FAIL",
       s10Status: "FAIL",
       observationExecuted: false,
