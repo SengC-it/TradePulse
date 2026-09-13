@@ -3,6 +3,8 @@ import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 
 import {
   OBSERVATION_EVIDENCE_TABLE,
+  R22_OBSERVATION_ARTIFACT_TYPES,
+  R22_OBSERVATION_EVENT_KINDS,
   type ObservationEvidenceAppendResult,
   type ObservationEvidenceCandidate,
   type ObservationJsonValue,
@@ -42,11 +44,19 @@ function isTimestampAuthority(value: unknown): value is ObservationTimestampAuth
     && record.backdated === false;
 }
 
-function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEvidenceCandidate | null {
+function candidateFromRow(row: Record<string, unknown>): ObservationEvidenceCandidate | null {
   const symbol = RESEARCH_SYMBOLS.includes(row.symbol as ResearchSymbol)
     ? row.symbol as ResearchSymbol
     : null;
   const direction = row.direction === "LONG" || row.direction === "SHORT" ? row.direction : null;
+  const eventKind = R22_OBSERVATION_EVENT_KINDS.includes(row.event_kind as ObservationEvidenceCandidate["eventKind"])
+    ? row.event_kind as ObservationEvidenceCandidate["eventKind"]
+    : null;
+  const artifactType = row.artifact_type === null || row.artifact_type === undefined
+    ? null
+    : R22_OBSERVATION_ARTIFACT_TYPES.includes(row.artifact_type as typeof R22_OBSERVATION_ARTIFACT_TYPES[number])
+      ? row.artifact_type as typeof R22_OBSERVATION_ARTIFACT_TYPES[number]
+      : null;
   const eventType = row.event_type === "REVIEW_STARTED" || row.event_type === "REVIEW_SUBMITTED"
     ? row.event_type
     : null;
@@ -62,7 +72,7 @@ function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEviden
   const capturedAt = stringOrNull(row.captured_at);
   const sourceRef = stringOrNull(row.source_ref);
   const idempotencyKey = stringOrNull(row.idempotency_key);
-  if (row.event_kind !== "REVIEW"
+  if (eventKind === null
     || symbol === null
     || direction === null
     || eventType === null
@@ -82,7 +92,7 @@ function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEviden
   }
   return {
     evidenceId,
-    eventKind: "REVIEW",
+    eventKind,
     schemaVersion,
     signalId,
     symbol,
@@ -91,8 +101,8 @@ function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEviden
     strategyId,
     strategyVersion,
     artifactId: stringOrNull(row.artifact_id),
-    artifactType: null,
-    notificationObservationId: null,
+    artifactType,
+    notificationObservationId: stringOrNull(row.notification_observation_id),
     reviewObservationId,
     eventType,
     informationAsOf: stringOrNull(row.information_as_of),
@@ -110,6 +120,13 @@ function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEviden
     timestampAuthority,
     persistenceOperation: "APPEND",
   };
+}
+
+function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEvidenceCandidate | null {
+  const candidate = candidateFromRow(row);
+  return candidate?.eventKind === "REVIEW" && candidate.eventType !== null
+    ? candidate
+    : null;
 }
 
 function persistenceError(operation: string, error: SupabaseError): Error {
@@ -207,6 +224,20 @@ export class SupabaseObservationEvidenceStore {
       .maybeSingle();
     if (result.error) throw persistenceError("read review event", result.error);
     return result.data ? reviewCandidateFromRow(result.data) : null;
+  }
+
+  async findEvidenceBySignalId(signalId: string): Promise<readonly ObservationEvidenceCandidate[]> {
+    const result = await (this.client
+      .from(OBSERVATION_EVIDENCE_TABLE)
+      .select("evidence_id,event_kind,schema_version,signal_id,symbol,direction,signal_time,strategy_id,strategy_version,artifact_id,artifact_type,notification_observation_id,review_observation_id,event_type,information_as_of,captured_at,observed_at,review_started_at,review_submitted_at,source_ref,content_hash,evidence_hash,idempotency_key,supersedes_artifact_id,supersedes_evidence_id,payload,timestamp_authority")
+      .eq("signal_id", signalId) as unknown as Promise<Readonly<{
+        data: readonly Record<string, unknown>[] | null;
+        error: SupabaseError | null;
+      }>>);
+    if (result.error) throw persistenceError("read evidence by signal", result.error);
+    return (result.data ?? [])
+      .map(candidateFromRow)
+      .filter((candidate): candidate is ObservationEvidenceCandidate => candidate !== null);
   }
 
   private async readBy(column: string, value: string): Promise<Record<string, unknown> | null> {
