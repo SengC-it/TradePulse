@@ -19,6 +19,10 @@ function protocolDocument(): JsonRecord {
   return JSON.parse(readFileSync(path.join(process.cwd(), "docs/research/round-023-development-protocol.json"), "utf8")) as JsonRecord;
 }
 
+function developmentResultDocument(): JsonRecord {
+  return JSON.parse(readFileSync(path.join(process.cwd(), "docs/research/round-023-development-result.json"), "utf8")) as JsonRecord;
+}
+
 function acceptedBlobSha(sourcePath: string): string {
   return execFileSync("git", ["rev-parse", `${R23_BASE_SHA}:${sourcePath}`], { cwd: process.cwd(), encoding: "utf8" }).trim();
 }
@@ -121,6 +125,22 @@ describe("Round-023 A0 development protocol", () => {
     expect(result.forwardReturnRead).toBe(false);
     expect(result.newMarketDataFetched).toBe(false);
     expect(result.performanceExecutionCount).toBe(0);
+  });
+
+  it("publishes the one-shot no-candidate result without an A1 model freeze", () => {
+    const result = developmentResultDocument();
+    expect(result.protocolPhase).toBe("A0_DEVELOPMENT_PROTOCOL_FREEZE");
+    expect(result.resultPhase).toBe("B_HISTORICAL_DEVELOPMENT_SEARCH_RESULT");
+    expect(result.developmentExecutionId).toBe("r23-development-27a157934982dfef");
+    expect(result.developmentExecutionCount).toBe(1);
+    expect(result.classification).toBe(R23_NO_FORWARD_CANDIDATE);
+    expect(result.candidateConfigurationsEvaluated).toBe(4);
+    expect(result.eligibleCandidates).toEqual([]);
+    expect(result.selectedCandidateId).toBeNull();
+    expect(record(result.modelFreeze)).toMatchObject({ finalModelArtifactCommitted: false, forwardContractCommitted: false, selectedCandidateId: null });
+    expect(record(result.economicReadBoundary)).toMatchObject({ performanceExecutionCount: 0, performanceLedgerPresent: false, forwardEconomicValuesRead: false, forwardReturnRead: false });
+    expect(record(result.sourceCheck)).toMatchObject({ newMarketDataFetched: false, existingCacheOnly: true, networkAcquired: false });
+    expect(record(result.governance)).toMatchObject({ automaticTrading: false, productionUnchanged: true });
   });
 
   it("keeps governance closed for Production and automated trading", () => {
