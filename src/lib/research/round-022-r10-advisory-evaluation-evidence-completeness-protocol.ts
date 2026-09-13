@@ -63,6 +63,7 @@ export type R22R10Status = Readonly<{
   phase: typeof R22_R10_PHASE;
   schemaVersion: typeof R22_R10_SCHEMA_VERSION;
   acceptedSource: typeof R22_R10_ACCEPTED_SOURCE;
+  r10AcceptanceStatus: "ACCEPTED";
   r10AdvisoryEvaluationEvidenceCompletenessImplemented: true;
   introducesCapabilities: readonly ["advisoryEvaluationEvidenceCompleteness"];
   closesReadinessNodes: readonly ["S10"];
@@ -75,8 +76,8 @@ export type R22R10Status = Readonly<{
   s07Status: "SOURCE_READY";
   s08Status: "SOURCE_READY";
   s09Status: "SOURCE_READY";
-  s10ImplementationStatus: "SOURCE_READY_PENDING_ACCEPTANCE";
-  s10AcceptedReady: false;
+  s10ImplementationStatus: "SOURCE_READY";
+  s10AcceptedReady: true;
   observationInstrumentationImplemented: false;
   observationAuthorized: false;
   observationExecuted: false;
@@ -99,6 +100,7 @@ export const R22_R10_STATUS: R22R10Status = Object.freeze({
   phase: R22_R10_PHASE,
   schemaVersion: R22_R10_SCHEMA_VERSION,
   acceptedSource: R22_R10_ACCEPTED_SOURCE,
+  r10AcceptanceStatus: "ACCEPTED",
   r10AdvisoryEvaluationEvidenceCompletenessImplemented: true,
   introducesCapabilities: Object.freeze(["advisoryEvaluationEvidenceCompleteness"] as const),
   closesReadinessNodes: Object.freeze(["S10"] as const),
@@ -111,8 +113,8 @@ export const R22_R10_STATUS: R22R10Status = Object.freeze({
   s07Status: "SOURCE_READY",
   s08Status: "SOURCE_READY",
   s09Status: "SOURCE_READY",
-  s10ImplementationStatus: "SOURCE_READY_PENDING_ACCEPTANCE",
-  s10AcceptedReady: false,
+  s10ImplementationStatus: "SOURCE_READY",
+  s10AcceptedReady: true,
   observationInstrumentationImplemented: false,
   observationAuthorized: false,
   observationExecuted: false,
@@ -132,8 +134,8 @@ export const R22_R10_STATUS: R22R10Status = Object.freeze({
 });
 
 export const R22_R10_FINAL_DECISION = Object.freeze({
-  decision: "ROUND-022 R10 ADVISORY EVALUATION EVIDENCE COMPLETENESS IMPLEMENTATION READY",
-  nextStage: "STOP_PENDING_R10_ACCEPTANCE",
+  decision: "ROUND-022 R10 ACCEPTANCE CLOSURE — ACCEPTED",
+  nextStage: "STOP_PENDING_R10_CLOSURE_ACCEPTANCE",
 } as const);
 
 export const R22_R10_EVIDENCE_COMPLETENESS_CONTRACT = Object.freeze({

@@ -587,13 +587,14 @@ describe("Round-022 R10 evidence completeness and advisory evaluation", () => {
   it("freezes R10 S10 ownership, governance, and final implementation boundary", () => {
     expect(R22_R10_REQUIRED_SNAPSHOT_ARTIFACT_TYPES).toHaveLength(6);
     expect(R22_R10_STATUS).toMatchObject({
+      r10AcceptanceStatus: "ACCEPTED",
       r10AdvisoryEvaluationEvidenceCompletenessImplemented: true,
       introducesCapabilities: ["advisoryEvaluationEvidenceCompleteness"],
       closesReadinessNodes: ["S10"],
       s01Status: "SOURCE_READY",
       s09Status: "SOURCE_READY",
-      s10ImplementationStatus: "SOURCE_READY_PENDING_ACCEPTANCE",
-      s10AcceptedReady: false,
+      s10ImplementationStatus: "SOURCE_READY",
+      s10AcceptedReady: true,
       observationAuthorized: false,
       observationExecuted: false,
       performanceExecutionCount: 0,
@@ -603,8 +604,8 @@ describe("Round-022 R10 evidence completeness and advisory evaluation", () => {
       productionUnchanged: true,
     });
     expect(R22_R10_FINAL_DECISION).toEqual({
-      decision: "ROUND-022 R10 ADVISORY EVALUATION EVIDENCE COMPLETENESS IMPLEMENTATION READY",
-      nextStage: "STOP_PENDING_R10_ACCEPTANCE",
+      decision: "ROUND-022 R10 ACCEPTANCE CLOSURE — ACCEPTED",
+      nextStage: "STOP_PENDING_R10_CLOSURE_ACCEPTANCE",
     });
     expect(R22_R10_EVIDENCE_COMPLETENESS_CONTRACT.readOnly).toBe(true);
   });
