@@ -5,10 +5,34 @@ import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "../conf
 import { evaluateStrategy } from "../strategy/engine.ts";
 import type { StrategyCandidate } from "../strategy/types.ts";
 import { buildHourlyScanRunKey } from "../scanning/run-idempotency.ts";
-import { sendSignalEmail, SmtpConfigurationError } from "./email.ts";
+import { buildSignalAdvisoryEmailPayload, sendSignalEmail, SmtpConfigurationError } from "./email.ts";
 import { buildDeterministicSignalId } from "./identity.ts";
 import { mapStrategyEvaluations } from "./evaluations.ts";
+import {
+  buildClaimDecisionEvidence,
+  buildDeliveredEvidence,
+  buildDeliveryAttemptedEvidence,
+  buildDeliveryFailedEvidence,
+  buildDeliveryRegistryPersistenceFailureEvidence,
+  buildNotificationDecisionMetadata,
+} from "./notification-evidence.ts";
+import type { NotificationEvidenceEvent } from "./notification-evidence.ts";
 import { createSignalAdvisoryStore } from "./store.ts";
+import { createObservationEvidenceStore } from "../observation-evidence/store.ts";
+import { buildNotificationObservationCandidate } from "../observation-evidence/notification.ts";
+import { buildQualitySnapshotCandidate } from "../observation-evidence/quality-snapshot.ts";
+import { buildMarketContextSnapshotCandidate } from "../observation-evidence/market-context.ts";
+import { buildRiskAdvisorySnapshotCandidate } from "../observation-evidence/risk-advisory.ts";
+import {
+  buildHistoricalReviewMetadataSnapshotCandidate,
+} from "../observation-evidence/historical-review-metadata.ts";
+import {
+  buildAlertIntelligenceSnapshotCandidate,
+} from "../observation-evidence/alert-intelligence.ts";
+import { buildPresentationSnapshotCandidate } from "../observation-evidence/presentation.ts";
+import type { ObservationEvidenceCandidate } from "../observation-evidence/types.ts";
+import { historicalContextPublicationFor } from "../historical-review-context/registry.ts";
+import { createHistoricalReviewContextRegistry } from "../historical-review-context/store.ts";
 import type {
   SignalAdvisory,
   SignalAdvisoryScanDependencies,
@@ -144,6 +168,12 @@ function errorProperty(error: unknown, property: string): unknown {
 
 type SmtpFailureClass = "EMAIL_CONFIGURATION_INVALID" | "SMTP_AUTH_FAILED" | "SMTP_DELIVERY_FAILED";
 
+type ObservationStageAppendStatus = "APPENDED" | "IDEMPOTENT_REPLAY" | "NOT_EVALUABLE" | "FAILED";
+
+function observationAppendSucceeded(status: ObservationStageAppendStatus): boolean {
+  return status === "APPENDED" || status === "IDEMPOTENT_REPLAY";
+}
+
 function classifySmtpFailure(error: unknown): SmtpFailureClass {
   if (error instanceof SmtpConfigurationError) {
     return "EMAIL_CONFIGURATION_INVALID";
@@ -179,6 +209,45 @@ async function recordEvent(
     await dependencies.store.recordSystemEvent(input);
   } catch {
     errors.push("SYSTEM_EVENT_PERSISTENCE_FAILED");
+  }
+}
+
+function observeNotificationEvidence(
+  dependencies: SignalAdvisoryScanDependencies,
+  advisory: SignalAdvisory,
+  event: NotificationEvidenceEvent,
+): void {
+  const observer = dependencies.observeNotificationEvidence;
+  if (observer) {
+    try {
+      const pending = observer(event);
+      if (pending && typeof pending.then === "function") {
+        void Promise.resolve(pending).catch(() => {
+          // Evidence observation is a best-effort runtime sidecar. It is not a
+          // durable writer, transaction participant, or delivery acknowledgement.
+        });
+      }
+    } catch {
+      // Evidence observation is a best-effort runtime sidecar. It must never
+      // alter scan or delivery truth.
+    }
+  }
+
+  try {
+    const observedAt = new Date((dependencies.now ?? Date.now)()).toISOString();
+    const candidate = buildNotificationObservationCandidate({
+      advisory,
+      event,
+      observedAt,
+      capturedAt: observedAt,
+    });
+    void dependencies.observationEvidenceStore.appendEvidence(candidate).catch(() => {
+      // Notification observation is a best-effort runtime sidecar. It is not
+      // a transaction participant, delivery acknowledgement, or retry trigger.
+    });
+  } catch {
+    // Invalid or unavailable notification evidence must never alter business
+    // or delivery truth.
   }
 }
 
@@ -358,21 +427,328 @@ export async function runSignalAdvisoryScan(input: Readonly<{
   for (const advisory of advisories) {
     try {
       const claim = await dependencies.store.claimSignal(advisory, begin.scanId, nowIso);
+      const metadata = buildNotificationDecisionMetadata({
+        scanId: begin.scanId,
+        signalId: advisory.signalId,
+        decisionType: claim,
+      });
+      observeNotificationEvidence(dependencies, advisory, buildClaimDecisionEvidence(metadata));
+      let qualitySnapshot: ObservationEvidenceCandidate | null = null;
+      let qualitySnapshotAppend: { status: ObservationStageAppendStatus };
+      try {
+        qualitySnapshot = buildQualitySnapshotCandidate({
+          advisory,
+          capturedAt: new Date(now()).toISOString(),
+        });
+        try {
+          const appendResult = await dependencies.observationEvidenceStore.appendEvidence(qualitySnapshot);
+          qualitySnapshotAppend = { status: appendResult.status };
+        } catch {
+          qualitySnapshotAppend = { status: "FAILED" };
+        }
+      } catch {
+        qualitySnapshotAppend = { status: "NOT_EVALUABLE" };
+      }
+      if (!observationAppendSucceeded(qualitySnapshotAppend.status)) {
+        errors.push("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-quality-snapshot",
+            status: qualitySnapshotAppend.status,
+            errorCode: "QUALITY_SNAPSHOT_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: qualitySnapshotAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+      let marketContext: ObservationEvidenceCandidate | null = null;
+      let marketContextAppend: { status: ObservationStageAppendStatus };
+      try {
+        marketContext = buildMarketContextSnapshotCandidate({
+          advisory,
+          snapshot,
+          capturedAt: new Date(now()).toISOString(),
+        });
+        try {
+          const appendResult = await dependencies.observationEvidenceStore.appendEvidence(marketContext);
+          marketContextAppend = { status: appendResult.status };
+        } catch {
+          marketContextAppend = { status: "FAILED" };
+        }
+      } catch {
+        marketContextAppend = { status: "NOT_EVALUABLE" };
+      }
+      if (!observationAppendSucceeded(marketContextAppend.status)) {
+        errors.push("MARKET_CONTEXT_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-market-context",
+            status: marketContextAppend.status,
+            errorCode: "MARKET_CONTEXT_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: marketContextAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+      let riskAdvisory: ObservationEvidenceCandidate | null = null;
+      let riskAdvisoryAppend: { status: ObservationStageAppendStatus };
+      try {
+        riskAdvisory = buildRiskAdvisorySnapshotCandidate({
+          advisory,
+          capturedAt: new Date(now()).toISOString(),
+        });
+        try {
+          const appendResult = await dependencies.observationEvidenceStore.appendEvidence(riskAdvisory);
+          riskAdvisoryAppend = { status: appendResult.status };
+        } catch {
+          riskAdvisoryAppend = { status: "FAILED" };
+        }
+      } catch {
+        riskAdvisoryAppend = { status: "NOT_EVALUABLE" };
+      }
+      if (!observationAppendSucceeded(riskAdvisoryAppend.status)) {
+        errors.push("RISK_ADVISORY_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-risk-advisory",
+            status: riskAdvisoryAppend.status,
+            errorCode: "RISK_ADVISORY_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: riskAdvisoryAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+      const contextRegistry = dependencies.historicalReviewContextRegistry;
+      let historicalReviewMetadata: ObservationEvidenceCandidate | null = null;
+      let historicalReviewAppendStatus: ObservationStageAppendStatus = "NOT_EVALUABLE";
+      let alertIntelligenceEvidence: ObservationEvidenceCandidate | null = null;
+      if (contextRegistry) {
+        try {
+          const lookup = await contextRegistry.findPriorContext({
+            currentSignalId: advisory.signalId,
+            symbol: advisory.symbol,
+            signalTime: advisory.signalTime,
+          });
+          if (lookup.status === "FOUND") {
+            let historicalReviewAppend: { status: ObservationStageAppendStatus };
+            try {
+              historicalReviewMetadata = buildHistoricalReviewMetadataSnapshotCandidate({
+                advisory,
+                priorContext: lookup.context,
+                capturedAt: new Date(now()).toISOString(),
+              });
+              try {
+                const appendResult = await dependencies.observationEvidenceStore.appendEvidence(
+                  historicalReviewMetadata,
+                );
+                historicalReviewAppend = { status: appendResult.status };
+                historicalReviewAppendStatus = appendResult.status;
+              } catch {
+                historicalReviewAppend = { status: "FAILED" };
+                historicalReviewAppendStatus = "FAILED";
+              }
+            } catch {
+              historicalReviewAppend = { status: "NOT_EVALUABLE" };
+              historicalReviewAppendStatus = "NOT_EVALUABLE";
+            }
+            if (!observationAppendSucceeded(historicalReviewAppend.status)) {
+              errors.push("HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED");
+              await recordEvent(
+                dependencies,
+                {
+                  level: "ERROR",
+                  operation: "round-022-historical-review-metadata",
+                  status: historicalReviewAppend.status,
+                  errorCode: "HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED",
+                  scanId: begin.scanId,
+                  symbol: advisory.symbol,
+                  metadata: {
+                    signalId: advisory.signalId,
+                    appendStatus: historicalReviewAppend.status,
+                  },
+                },
+                errors,
+              );
+            }
+          } else if (lookup.status === "NOT_EVALUABLE") {
+            errors.push("HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED");
+            await recordEvent(
+              dependencies,
+              {
+                level: "ERROR",
+                operation: "round-022-historical-review-metadata",
+                status: lookup.status,
+                errorCode: "HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED",
+                scanId: begin.scanId,
+                symbol: advisory.symbol,
+                metadata: { signalId: advisory.signalId, reason: lookup.reason },
+              },
+              errors,
+            );
+          }
+        } catch {
+          errors.push("HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED");
+          await recordEvent(
+            dependencies,
+            {
+              level: "ERROR",
+              operation: "round-022-historical-review-context-registry",
+              status: "FAILED",
+              errorCode: "HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED",
+              scanId: begin.scanId,
+              symbol: advisory.symbol,
+              metadata: { signalId: advisory.signalId, phase: "LOOKUP" },
+            },
+            errors,
+          );
+        }
+      }
+
+      let alertIntelligenceAppend: { status: ObservationStageAppendStatus };
+        try {
+          const alertIntelligence = buildAlertIntelligenceSnapshotCandidate({
+            advisory,
+            qualityEvidence: observationAppendSucceeded(qualitySnapshotAppend.status) ? qualitySnapshot : null,
+            marketContextEvidence: observationAppendSucceeded(marketContextAppend.status) ? marketContext : null,
+            riskAdvisoryEvidence: observationAppendSucceeded(riskAdvisoryAppend.status) ? riskAdvisory : null,
+            historicalReviewEvidence: observationAppendSucceeded(historicalReviewAppendStatus)
+              ? historicalReviewMetadata
+              : null,
+            capturedAt: new Date(now()).toISOString(),
+          });
+          try {
+            const appendResult = await dependencies.observationEvidenceStore.appendEvidence(alertIntelligence);
+            alertIntelligenceAppend = { status: appendResult.status };
+            if (observationAppendSucceeded(appendResult.status)) {
+              alertIntelligenceEvidence = alertIntelligence;
+            }
+          } catch {
+            alertIntelligenceAppend = { status: "FAILED" };
+          }
+        } catch {
+          alertIntelligenceAppend = { status: "NOT_EVALUABLE" };
+        }
+        if (!observationAppendSucceeded(alertIntelligenceAppend.status)) {
+          errors.push("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
+          await recordEvent(
+            dependencies,
+            {
+              level: "ERROR",
+              operation: "round-022-alert-intelligence",
+              status: alertIntelligenceAppend.status,
+              errorCode: "ALERT_INTELLIGENCE_EVIDENCE_FAILED",
+              scanId: begin.scanId,
+              symbol: advisory.symbol,
+              metadata: {
+                signalId: advisory.signalId,
+                appendStatus: alertIntelligenceAppend.status,
+              },
+            },
+            errors,
+          );
+        }
+
+      if (contextRegistry) {
+        try {
+          const published = await contextRegistry.publishContext(
+            historicalContextPublicationFor(advisory),
+          );
+          if (published.status !== "APPENDED" && published.status !== "IDEMPOTENT_REPLAY") {
+            throw new Error("Historical review context publication returned an unsupported status.");
+          }
+        } catch {
+          errors.push("HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED");
+          await recordEvent(
+            dependencies,
+            {
+              level: "ERROR",
+              operation: "round-022-historical-review-context-registry",
+              status: "FAILED",
+              errorCode: "HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED",
+              scanId: begin.scanId,
+              symbol: advisory.symbol,
+              metadata: { signalId: advisory.signalId, phase: "PUBLISH" },
+            },
+            errors,
+          );
+        }
+      }
       if (claim === "SKIPPED_DUPLICATE" || claim === "SKIPPED_EXPIRED") {
         signalsSkipped += 1;
         continue;
       }
 
+      const renderedEmail = buildSignalAdvisoryEmailPayload(advisory);
+      let presentationAppend: { status: ObservationStageAppendStatus } = {
+        status: "NOT_EVALUABLE",
+      };
+      if (alertIntelligenceEvidence) {
+        try {
+          const presentation = buildPresentationSnapshotCandidate({
+            advisory,
+            alertIntelligenceEvidence,
+            presentationChannel: "EMAIL",
+            presentationPayload: renderedEmail,
+            capturedAt: new Date(now()).toISOString(),
+          });
+          try {
+            const appendResult = await dependencies.observationEvidenceStore.appendEvidence(presentation);
+            presentationAppend = { status: appendResult.status };
+          } catch {
+            presentationAppend = { status: "FAILED" };
+          }
+        } catch {
+          presentationAppend = { status: "NOT_EVALUABLE" };
+        }
+      }
+      if (!observationAppendSucceeded(presentationAppend.status)) {
+        errors.push("PRESENTATION_EVIDENCE_FAILED");
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "round-022-presentation",
+            status: presentationAppend.status,
+            errorCode: "PRESENTATION_EVIDENCE_FAILED",
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: {
+              signalId: advisory.signalId,
+              appendStatus: presentationAppend.status,
+            },
+          },
+          errors,
+        );
+      }
+
+      observeNotificationEvidence(dependencies, advisory, buildDeliveryAttemptedEvidence(metadata));
+      let delivery: { emailMessageId: string };
       try {
-        const delivery = await dependencies.sendSignalEmail(advisory);
-        await dependencies.store.markSignalSent({
-          signalId: advisory.signalId,
-          sentAt: new Date(now()).toISOString(),
-          emailMessageId: delivery.emailMessageId,
-        });
-        signalsSent += 1;
+        delivery = await dependencies.sendSignalEmail(advisory, renderedEmail);
       } catch (error) {
         const failureClass = classifySmtpFailure(error);
+        observeNotificationEvidence(dependencies, advisory, buildDeliveryFailedEvidence(metadata, failureClass));
         errors.push(failureClass);
         await dependencies.store.markSignalFailed({
           signalId: advisory.signalId,
@@ -389,6 +765,38 @@ export async function runSignalAdvisoryScan(input: Readonly<{
             scanId: begin.scanId,
             symbol: advisory.symbol,
             metadata: { signalId: advisory.signalId, failureClass },
+          },
+          errors,
+        );
+        continue;
+      }
+
+      signalsSent += 1;
+      observeNotificationEvidence(dependencies, advisory, buildDeliveredEvidence(metadata));
+      try {
+        await dependencies.store.markSignalSent({
+          signalId: advisory.signalId,
+          sentAt: new Date(now()).toISOString(),
+          emailMessageId: delivery.emailMessageId,
+        });
+      } catch {
+        const persistenceFailure = "DELIVERY_REGISTRY_PERSISTENCE_FAILED" as const;
+        observeNotificationEvidence(
+          dependencies,
+          advisory,
+          buildDeliveryRegistryPersistenceFailureEvidence(metadata),
+        );
+        errors.push(persistenceFailure);
+        await recordEvent(
+          dependencies,
+          {
+            level: "ERROR",
+            operation: "signal-advisory-delivery-registry-persistence",
+            status: "FAILED",
+            errorCode: persistenceFailure,
+            scanId: begin.scanId,
+            symbol: advisory.symbol,
+            metadata: { signalId: advisory.signalId, technicalCode: persistenceFailure },
           },
           errors,
         );
@@ -451,10 +859,14 @@ export function createDefaultSignalAdvisoryScanDependencies(): SignalAdvisorySca
     throw new Error("ALERT_EMAIL_TO is required for signal advisory scans.");
   }
 
+  const observationEvidenceStore = createObservationEvidenceStore();
+
   return {
     marketData: new BinanceMarketDataProvider(),
     store: createSignalAdvisoryStore(),
-    sendSignalEmail: (advisory) => sendSignalEmail(advisory),
+    observationEvidenceStore,
+    historicalReviewContextRegistry: createHistoricalReviewContextRegistry(),
+    sendSignalEmail: (advisory, rendered) => sendSignalEmail(advisory, rendered ? { rendered } : undefined),
     recipient,
   };
 }

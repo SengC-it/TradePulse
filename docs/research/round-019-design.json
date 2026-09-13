@@ -1,0 +1,499 @@
+{
+  "schemaVersion": "m3-r19-round-019-design-002",
+  "researchRoundId": "baseline-002-research-round-019",
+  "phase": "DESIGN_ONLY",
+  "dataClassification": "RESEARCH_AVAILABLE_SEEN_DATA",
+  "studyClassification": "HISTORICAL_DEVELOPMENT_STUDY",
+  "freshOosClaim": false,
+  "promotionAuthority": false,
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
+    "requiredBaseHead": "c5abf95b199faa6fc8530fc356c03528aceb5c95"
+  },
+  "researchBoundary": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "classification": "RESEARCH_AVAILABLE_SEEN_DATA",
+    "timezoneArithmetic": "UTC_EPOCH_MILLISECONDS_ONLY"
+  },
+  "productBoundary": {
+    "signalAdvisoryOnly": true,
+    "privateBinanceApi": false,
+    "automaticTrading": false,
+    "tradingEnabled": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "shadowActivation": false,
+    "schedulerActivation": false,
+    "mainModified": false
+  },
+  "priorRoundEvidenceHandling": {
+    "r13": {
+      "status": "ALREADY_TESTED_NEGATIVE_EVIDENCE",
+      "artifactReview": {
+        "publicationStatus": "R13_RESULTS_SUMMARY_SELECTION_AUDIT_NOT_PRESENT_IN_ACCEPTED_SOURCE",
+        "availableAcceptedArtifacts": [
+          "docs/research/round-013-dataset-freeze.json",
+          "docs/research/round-013-feature-spec.json",
+          "docs/research/round-013-model-spec.json",
+          "docs/research/round-013-plan.md",
+          "docs/research/round-013-spec-conformance.json",
+          "docs/research/round-013-gate.md"
+        ]
+      },
+      "testedMechanism": "R13_FEATURE_FAMILY_RIDGE_FORWARD_EDGE_DISCOVERY",
+      "evidenceConclusion": "NO_ROBUST_FORWARD_EDGE_ROUND_013",
+      "failureAttribution": {
+        "informationInsufficiency": "NOT_PRIMARY",
+        "modelOrEdgeFailure": "PRIMARY_NEGATIVE_EVIDENCE",
+        "stabilityFailure": "ROBUSTNESS_GATES_NOT_SATISFIED",
+        "sampleBreadthFailure": "GATE_CONTROLLED_ONLY",
+        "transactionCostFailure": "COST_AND_LATENCY_STRESS_REMAIN_REQUIRED"
+      },
+      "r19Use": "PROVENANCE_AND_NEGATIVE_EVIDENCE_ONLY; R13_FEATURES_NOT_REUSED"
+    },
+    "r14": {
+      "status": "ALREADY_TESTED_EXACT_R13_REPLAY",
+      "artifactReview": {
+        "results": "docs/M3_R14_ROUND_014_RESULTS.md",
+        "summary": "docs/evidence/M3_R14_ROUND_014_SUMMARY.json",
+        "selection": "docs/evidence/M3_R14_ROUND_014_SELECTION.json",
+        "audit": "docs/evidence/M3_R14_ROUND_014_AUDIT.json"
+      },
+      "testedMechanism": "R13_EXACT_EXECUTION_REPLAY_WITH_FROZEN_SETTLEMENT",
+      "evidenceConclusion": "NO_ROBUST_FORWARD_EDGE_ROUND_014",
+      "failureAttribution": {
+        "informationInsufficiency": "NOT_PRIMARY_FOR_ACCEPTED_REPLAY",
+        "modelOrEdgeFailure": "NEGATIVE_FORWARD_EDGE_EVIDENCE",
+        "stabilityFailure": "ROBUSTNESS_GATES_NOT_SATISFIED",
+        "sampleBreadthFailure": "GATE_CONTROLLED_ONLY",
+        "transactionCostFailure": "COST_AND_LATENCY_STRESS_REMAIN_REQUIRED"
+      },
+      "r19Use": "EXACT_NATIVE_POPULATION_AND_LABEL_PROVENANCE_ONLY"
+    },
+    "r15": {
+      "status": "ALREADY_TESTED_NEGATIVE_EVIDENCE",
+      "artifactReview": {
+        "results": "docs/M3_R15_ROUND_015_RESULTS.md",
+        "summary": "docs/evidence/M3_R15_ROUND_015_SUMMARY.json",
+        "selection": "docs/evidence/M3_R15_ROUND_015_SELECTION.json",
+        "audit": "docs/evidence/M3_R15_ROUND_015_AUDIT.json"
+      },
+      "testedMechanism": "BETA_ALPHA_DECOMPOSITION_RIDGE_MODELS",
+      "evidenceConclusion": "NO_BETA_ALPHA_DEVELOPMENT_CANDIDATE_ROUND_015",
+      "failureAttribution": {
+        "informationInsufficiency": "NOT_PRIMARY_FOR_ACCEPTED_INPUTS",
+        "modelOrEdgeFailure": "PRIMARY_NEGATIVE_EVIDENCE",
+        "stabilityFailure": "FOLD_AND_ROBUSTNESS_REQUIREMENTS_NOT_SATISFIED",
+        "sampleBreadthFailure": "MODEL_COHORT_BREADTH_GATED",
+        "transactionCostFailure": "COST_STRESS_REMAINED_A_REQUIRED_GATE"
+      },
+      "r19Use": "NO_BETA_MODEL_OR_ALPHA_FEATURE_REUSE; PROVENANCE_ONLY"
+    },
+    "r16": {
+      "status": "NEGATIVE_EVIDENCE_ONLY_DATA_LIMITATIONS_RECORDED",
+      "artifactReview": {
+        "results": "docs/M3_R16_ROUND_016_RESULTS.md",
+        "summary": "docs/evidence/M3_R16_ROUND_016_SUMMARY.json",
+        "selection": "docs/evidence/M3_R16_ROUND_016_SELECTION.json",
+        "audit": "docs/evidence/M3_R16_ROUND_016_AUDIT.json"
+      },
+      "testedMechanism": "DERIVATIVES_MICROSTRUCTURE_INFORMATION_GAIN",
+      "forbiddenFeatureFamilies": [
+        "OPEN_INTEREST",
+        "MARK_INDEX_BASIS",
+        "TAKER_FLOW_PERSISTENCE"
+      ],
+      "evidenceConclusion": "NO_ROBUST_MICROSTRUCTURE_INFORMATION_GAIN_ROUND_016",
+      "failureAttribution": {
+        "informationInsufficiency": "MEDIUM_WINDOW_COVERAGE_LIMITATION",
+        "modelOrEdgeFailure": "HIGH_NEGATIVE_INFORMATION_GAIN_EVIDENCE",
+        "stabilityFailure": "HIGH",
+        "sampleBreadthFailure": "LOW_NOT_PRIMARY",
+        "transactionCostFailure": "NOT_PRIMARY"
+      },
+      "r19Use": "NEGATIVE_EVIDENCE_ONLY; NO_MICROSTRUCTURE_CARRY_FORWARD"
+    },
+    "r17": {
+      "status": "DATA_INELIGIBLE_NOT_AN_ECONOMIC_RESULT",
+      "artifactReview": {
+        "design": "docs/research/round-017-design.json",
+        "observationFreeze": "docs/research/round-017-observation-freeze.json",
+        "termination": "docs/research/round-017-termination.json",
+        "preflight": "docs/research/round-017-preflight.json",
+        "results": "NO_PERFORMANCE_RESULTS_AUTHORIZED"
+      },
+      "testedMechanism": "THESIS_LIFECYCLE_DEDUPLICATION",
+      "evidenceConclusion": "ROUND_017_PERFORMANCE_INELIGIBLE_DATA_COMPLETENESS",
+      "failureAttribution": {
+        "informationInsufficiency": "PRIMARY_DATA_COMPLETENESS_INELIGIBILITY",
+        "modelOrEdgeFailure": "NOT_EVALUATED",
+        "stabilityFailure": "NOT_EVALUATED",
+        "sampleBreadthFailure": "NOT_EVALUATED",
+        "transactionCostFailure": "NOT_EVALUATED"
+      },
+      "r19Use": "NO_THESIS_LIFETIME_OR_FOLLOW_UP_CLASSIFICATION_REUSE",
+      "calendarSessionReview": {
+        "sourceCommit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
+        "sourcePath": "docs/research/round-017-design.json",
+        "hypothesisId": "R17-SESSION-BOUNDARY-RETURN",
+        "mechanismFamily": "UTC_SESSION_BOUNDARY_STATE",
+        "status": "REJECTED_DESIGN",
+        "reason": "The accepted R17 design rejected calendar/session selection because it had no independently established breadth justification; R19 cannot promote the same family without new admissible evidence, which is forbidden in DESIGN_ONLY."
+      }
+    },
+    "r18": {
+      "status": "COMPLETED_NEGATIVE_ECONOMIC_EVIDENCE",
+      "artifactReview": {
+        "results": "docs/M3_R18_ROUND_018_RESULTS.md",
+        "summary": "docs/evidence/M3_R18_ROUND_018_SUMMARY.json",
+        "selection": "docs/evidence/M3_R18_ROUND_018_SELECTION.json",
+        "audit": "docs/evidence/M3_R18_ROUND_018_AUDIT.json"
+      },
+      "testedMechanism": "BASELINE_001_ALL_COMPONENT_CONSENSUS",
+      "evidenceConclusion": "NO_ROBUST_COMPONENT_CONSENSUS_EDGE_ROUND_018",
+      "forbiddenRetests": [
+        "4_OF_5_COMPONENT_CONSENSUS",
+        "3_OF_5_COMPONENT_CONSENSUS",
+        "TOTAL_SCORE_THRESHOLD_TUNING",
+        "GRADE_TUNING",
+        "SCORE_COMPONENT_REWEIGHTING",
+        "H18_COMPRESSION_EXPANSION_REPACKAGING"
+      ],
+      "failureAttribution": {
+        "informationInsufficiency": "NOT_PRIMARY_FOR_COMPLETED_R18_EXECUTION",
+        "modelOrEdgeFailure": "PRIMARY_NEGATIVE_DISCRIMINATION_EVIDENCE",
+        "stabilityFailure": "FOLD_AND_STRESS_ROBUSTNESS_GATES_REMAIN_REQUIRED",
+        "sampleBreadthFailure": "STRUCTURAL_BREADTH_GATED",
+        "transactionCostFailure": "COST_STRESS_REMAINS_A_HARD_GATE"
+      },
+      "r19Use": "NEGATIVE_EVIDENCE_ONLY; NO_SCORE_CONSENSUS_RETEST"
+    }
+  },
+  "hypothesisInventory": [
+    {
+      "id": "R19-DIRECTIONAL-CONFLICT-COUNTER-MOVE",
+      "mechanismFamily": "DIRECTIONAL_EVIDENCE_CONFLICT_AT_ENTRY",
+      "status": "REJECTED_R13_MOMENTUM_FAMILY_OVERLAP",
+      "researchQuestion": "Within the exact baseline-001 formal stream, does a signal preceded by an opposite-direction immediately prior closed 1H candle have incremental H4 net edge versus all formal controls?",
+      "rejectReason": "The prior-candle directional change is a short-horizon momentum/counter-momentum price-direction identity already represented by the R13 direction-adjusted 1H return/trend/momentum family. An exact formula difference does not establish a new mechanism family.",
+      "mechanismFamilyNoveltyReview": "REJECTED_AT_MECHANISM_FAMILY_LEVEL",
+      "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
+    },
+    {
+      "id": "R19-STATE-TRANSITION-UPDATE",
+      "mechanismFamily": "DECISION_TIME_FORMAL_STATE_TRANSITION",
+      "status": "REJECTED_R17_OVERLAP",
+      "researchQuestion": "Does a formal event immediately following a non-formal decision-time state contain different information from other formal events?",
+      "economicRationale": "A state transition can mark new information, but it is too close to R17 first-versus-follow-up lifecycle classification.",
+      "pointInTimeAvailability": "Potentially PIT from the formal replay stream.",
+      "mechanismFamilyNoveltyReview": "REJECTED; reuses R17 lifecycle/state semantics.",
+      "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
+    },
+    {
+      "id": "R19-MARKET-RELATIVE-CONFIRMATION",
+      "mechanismFamily": "EXISTING_BTC_REGIME_ALIGNMENT",
+      "status": "REJECTED_R14_R15_OVERLAP",
+      "researchQuestion": "Does alignment between formal signal direction and the existing broad BTC state add incremental information?",
+      "economicRationale": "Broad market alignment can affect directional beta.",
+      "pointInTimeAvailability": "PIT from the frozen regime function.",
+      "mechanismFamilyNoveltyReview": "REJECTED; reuses R13/R14 market-relative context and R15 beta/alpha framing.",
+      "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
+    },
+    {
+      "id": "R19-SESSION-BOUNDARY-STATE",
+      "mechanismFamily": "UTC_CALENDAR_SESSION_STATE",
+      "status": "REJECTED_PRIOR_ROUND_INADMISSIBLE_CALENDAR",
+      "researchQuestion": "Do fixed UTC calendar states change the conditional behavior of baseline formal events?",
+      "economicRationale": "Participation and liquidity may vary by calendar state, but this is a calendar/session selection thesis.",
+      "pointInTimeAvailability": "PIT from signalTime.",
+      "mechanismFamilyNoveltyReview": "No independent prior-round admissibility: accepted R17 explicitly rejected its session-boundary hypothesis for lack of established breadth justification. R19 DESIGN_ONLY has no new evidence that could cure that rejection.",
+      "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
+    },
+    {
+      "id": "R19-RANGE-EXPANSION-CONTEXT",
+      "mechanismFamily": "CLOSED_CANDLE_RANGE_EXPANSION",
+      "status": "REJECTED_R13_R14_R18_OVERLAP",
+      "researchQuestion": "Does a formal event accompanied by a range-expansion context contain incremental information?",
+      "economicRationale": "Range expansion can coincide with directional displacement.",
+      "pointInTimeAvailability": "Potentially PIT from closed candles.",
+      "mechanismFamilyNoveltyReview": "REJECTED; reuses R13/R14 price-volatility evidence or R18 compression/expansion repackaging.",
+      "candidateRule": "REJECTED_BEFORE_IMPLEMENTATION"
+    }
+  ],
+  "hypothesisDecision": {
+    "status": "ROUND-019 NO ADMISSIBLE NOVEL HYPOTHESIS",
+    "activeHypothesisCount": 0,
+    "exactlyOneActive": false,
+    "decisionBasis": "The prior-candle counter-move is rejected as R13 momentum-family overlap. The remaining inventoried families are expressly excluded by R13-R18 negative evidence, or (calendar/session) lack independent prior-round admissibility. No candidate can be frozen without violating the no-reuse/no-tuning boundary.",
+    "performanceEligibility": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "candidateClassification": "NOT_CREATED",
+    "noWeakReplacement": true
+  },
+  "activeHypothesis": null,
+  "sourceUniverse": {
+    "estimandPopulation": "R14_NATIVE_HISTORICAL_OBSERVATION_UNIVERSE",
+    "populationIdentity": "EXACT_ACCEPTED_R14_OBSERVATION_FREEZE_NATIVE_UNIVERSE",
+    "observationDataPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "acceptedObservationCount": 244810,
+    "observationDataBytes": 1893811055,
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "manifestSha256": "79c8e56560cd6e1ed2de1772071bd0d92ecd2fac4b4ae065cf65f11f583b3e18",
+    "sourceStatus": "ACCEPTED_R14_NATIVE_OBSERVATION_FREEZE",
+    "coverage": {
+      "start": "2023-01-01T00:00:00.000Z",
+      "end": "2026-08-15T23:59:59.999Z",
+      "timeframe": "R14_NATIVE_OBSERVATION_STREAM",
+      "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"]
+    },
+    "controlId": "R19-CONTROL-ALL-R14-NATIVE-BASELINE-001-FORMAL",
+    "controlDefinition": "Every accepted R14-native observation whose exact accepted-source baseline-001 replay satisfies the frozen formal predicate.",
+    "controlFormalPredicate": "candidate?.formalSignal && candidate.totalScore >= 70",
+    "candidateId": null,
+    "candidateStatus": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "universe": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "directions": ["LONG", "SHORT"],
+    "strategyVersion": "baseline-001",
+    "populationBindingBeforeClassification": true,
+    "noR17UniverseSubstitution": true,
+    "noProductionData": true,
+    "noNewMarketData": true
+  },
+  "candidateDefinition": {
+    "id": null,
+    "status": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "definition": "No Round-019 candidate is frozen because the mechanism-family review found no admissible novel hypothesis.",
+    "variantCount": 0,
+    "combinations": false,
+    "parameterSweep": false,
+    "optimizer": false,
+    "candidateClassification": "NOT_CREATED",
+    "usesFutureOutcome": false,
+    "usesEconomicFilter": false,
+    "noUnboundInputSource": true
+  },
+  "activeInputSourceProvenance": {
+    "status": "NOT_APPLICABLE_NO_ACTIVE_HYPOTHESIS",
+    "source": null,
+    "networkAcquired": false,
+    "newMarketData": false,
+    "ambiguousCacheReference": false,
+    "reason": "No ACTIVE hypothesis was frozen; therefore no candidate-specific decision-time input source is authorized. Any future active hypothesis must provide concrete immutable path, manifest, hash, byte/count, symbol, timeframe, coverage, and dataset identity before performance eligibility."
+  },
+  "baselineFormalProvenance": {
+    "acceptedSourceCommit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
+    "formalPredicate": {
+      "expression": "candidate?.formalSignal && candidate.totalScore >= 70",
+      "sourcePaths": [
+        "src/lib/strategy/candidate.ts",
+        "src/lib/strategy/scoring.ts",
+        "src/lib/strategy/engine.ts",
+        "src/lib/backtest/runner.ts"
+      ],
+      "runtimeFilteringPath": {
+        "path": "src/lib/backtest/runner.ts",
+        "scope": "runSinglePeriod",
+        "anchors": [
+          "formalCandidates",
+          "candidate?.formalSignal && candidate.totalScore >= 70"
+        ]
+      },
+      "changeAfterFreeze": "FORBIDDEN"
+    },
+    "workingTreeSubstitution": false,
+    "requiredProvenanceCheck": "git cat-file/git show accepted commit blobs and exact SHA-256 bytes before using working-tree files",
+    "sourceBlobs": [
+      { "path": "src/lib/config/constants.ts", "gitBlobSha": "3bc0caa0963bc8d3b977de2ece6fec28a64dd1c9", "sha256": "f34b2225a7afad0bf18e2a8abf14fecdfb28dcba5c0245c689108db1339e15cc", "anchors": ["STRATEGY_VERSION = \"baseline-001\"", "RESEARCH_SYMBOLS"] },
+      { "path": "src/lib/strategy/candidate.ts", "gitBlobSha": "b0ba0ed1db292f2bcac37bb6672e5d7c068590ae", "sha256": "076b8a3ac6b8b30c2eda12e8f7e02ef0fe4c071836bb78ffd2bab6449e85f079", "anchors": ["export function evaluateCandidate", "breakoutDistance"] },
+      { "path": "src/lib/strategy/scoring.ts", "gitBlobSha": "53ebe011b288d834aa46da5175fa0a34f68a67fb", "sha256": "4d21258eea2ba7027098e0d8c69086a0bef1a1419353330b0a8451e2d397d27a", "anchors": ["export function scoreCandidate", "export function isFormalScore"] },
+      { "path": "src/lib/strategy/engine.ts", "gitBlobSha": "1a09de542a76e37848e51dc477ac35219d5685f2", "sha256": "a6eff41ee9efcfa9e800cc6b76699338e260e87043ed7421ff2812d44b6774c9", "anchors": ["export function evaluateStrategy", "formalSignal"] },
+      { "path": "src/lib/backtest/runner.ts", "gitBlobSha": "dad472de8d2e7e4b0f0a0943b51e257afaec8ac9", "sha256": "2f6bc2d733ef081cc2aea4b92165dc80f7f1754f1da1d4d09c03d32cc0ca4208", "anchors": ["formalCandidates", "candidate?.formalSignal && candidate.totalScore >= 70"] }
+    ]
+  },
+  "frozenFolds": {
+    "sourceCommit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
+    "sourcePath": "src/lib/research/folds.ts",
+    "export": "RESEARCH_FOLDS",
+    "sourceSha256": "f9017ab7b9326353535366465861f4ccd4e276ffd6fb49e61afed75e44e62b2a",
+    "foldIds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "boundaries": {
+      "F1": { "research": { "start": "2023-01-01T00:00:00.000Z", "end": "2023-12-31T23:59:59.999Z" }, "validation": { "start": "2024-01-01T00:00:00.000Z", "end": "2024-06-30T23:59:59.999Z" } },
+      "F2": { "research": { "start": "2023-01-01T00:00:00.000Z", "end": "2024-06-30T23:59:59.999Z" }, "validation": { "start": "2024-07-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z" } },
+      "F3": { "research": { "start": "2023-01-01T00:00:00.000Z", "end": "2024-12-31T23:59:59.999Z" }, "validation": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z" } },
+      "F4": { "research": { "start": "2023-01-01T00:00:00.000Z", "end": "2025-06-30T23:59:59.999Z" }, "validation": { "start": "2025-07-01T00:00:00.000Z", "end": "2025-12-31T23:59:59.999Z" } },
+      "F5": { "research": { "start": "2023-01-01T00:00:00.000Z", "end": "2025-12-31T23:59:59.999Z" }, "validation": { "start": "2026-01-01T00:00:00.000Z", "end": "2026-03-31T23:59:59.999Z" } },
+      "F6": { "research": { "start": "2023-01-01T00:00:00.000Z", "end": "2026-03-31T23:59:59.999Z" }, "validation": { "start": "2026-04-01T00:00:00.000Z", "end": "2026-08-15T23:59:59.999Z" } }
+    },
+    "validationMethod": "PURGED_WALK_FORWARD_FIXED_SELECTOR",
+    "purgeHours": 24,
+    "embargoHours": 24,
+    "trainingRequired": false,
+    "foldBoundaryRedefinition": false,
+    "futureBoundaryChange": "FORBIDDEN"
+  },
+  "frozenRegimes": {
+    "sourceCommit": "c5abf95b199faa6fc8530fc356c03528aceb5c95",
+    "sourcePath": "src/lib/strategy/regimes.ts",
+    "function": "calculateBTCRegime",
+    "sourceSha256": "6d5b17c7035c39f65b64cdc70153e0d9f576f587aa20d9f9c31199c5a655709e",
+    "labels": ["BTC_STRONG_BULL", "BTC_NEUTRAL", "BTC_STRONG_BEAR"],
+    "role": "REPORTING_AND_BREADTH_STRATIFICATION_ONLY",
+    "candidateClassificationInfluence": false,
+    "thresholdAdjustment": "FORBIDDEN_AFTER_FREEZE"
+  },
+  "economicLabelContract": {
+    "primaryTarget": "R14_NATIVE_H4_NET_FORWARD_ATR",
+    "primaryHorizonHours": 4,
+    "primaryField": "labels[4].netForwardAtr",
+    "costStressField": "labels[4].netForwardAtrCostStress",
+    "latencyStressField": "latencyStressLabels[4].netForwardAtr",
+    "semanticsSource": "EXACT_R13_R14_H4_LABEL_SEMANTICS",
+    "settlementPolicy": "UNCHANGED_BT_POLICY_003",
+    "statusEligibility": {
+      "EXECUTED": "eligible",
+      "NO_ENTRY": "not economically evaluated",
+      "PERIOD_END_CENSORED": "not economically evaluated",
+      "DATA_INCOMPLETE": "integrity failure"
+    },
+    "labelSource": "ACCEPTED_R14_NATIVE_LABELS_ONLY",
+    "noNewEconomicLabel": true,
+    "noSettlementReconstruction": true,
+    "designMayReadValues": false,
+    "designMayReadOnly": ["label identity", "label source", "label status"],
+    "candidateClassificationReadsLabels": false
+  },
+  "structuralPreflightGates": {
+    "frozenBeforePreflight": true,
+    "evaluationMode": "FAIL_CLOSED",
+    "evaluationStatus": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "performanceEligibility": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "preflightAuthorized": false,
+    "round019Executable": false,
+    "definitions": []
+  },
+  "frozenPerformanceGates": {
+    "frozenBeforePerformance": true,
+    "evaluatedDuringDesign": false,
+    "evaluationStatus": "NOT_APPLICABLE_NO_ADMISSIBLE_NOVEL_HYPOTHESIS",
+    "round019Executable": false,
+    "performanceAuthorized": false,
+    "scope": "REPOSITORY_WIDE_FUTURE_RESEARCH_STANDARD",
+    "resultsMayNotChangeDefinitions": true,
+    "definitions": [
+      { "id": "G08_ABSOLUTE_H4_EDGE", "hardGate": true, "requirement": "candidate.meanNetForwardAtr > 0" },
+      { "id": "G09_H4_PROFIT_FACTOR", "hardGate": true, "requirement": "candidate.profitFactor >= 1.10" },
+      { "id": "G10_INCREMENTAL_H4_EDGE", "hardGate": true, "requirement": "candidate.meanNetForwardAtr - control.meanNetForwardAtr >= 0.05 ATR" },
+      { "id": "G11_FOLD_INCREMENTAL_ROBUSTNESS", "hardGate": true, "requirement": "Candidate mean >= CONTROL mean in >= 4 of 6 frozen validation folds." },
+      { "id": "G12_FOLD_ABSOLUTE_ROBUSTNESS", "hardGate": true, "requirement": "Candidate meanNetForwardAtr > 0 in >= 4 of 6 frozen validation folds." },
+      { "id": "G13_COST_STRESS", "hardGate": true, "requirement": "Candidate cost-stress mean >= 0 and cost-stress profit factor >= 1.05 under unchanged bt-policy-003." },
+      { "id": "G14_LATENCY_STRESS", "hardGate": true, "requirement": "Candidate latency-stress mean >= 0 and latency-stress profit factor >= 1.05 under the existing fixed latency stress." },
+      { "id": "G15_DRAWDOWN_NON_DEGRADATION", "hardGate": true, "requirement": "Candidate maximum drawdown is not worse than CONTROL by more than 5% of abs(CONTROL maximum drawdown)." }
+    ]
+  },
+  "metrics": {
+    "evaluated": false,
+    "designCalculation": false,
+    "estimandPopulation": "R14_NATIVE_HISTORICAL_OBSERVATION_UNIVERSE",
+    "primaryHorizon": "H4",
+    "primaryMetrics": ["meanNetForwardAtr", "profitFactor", "cumulativeNetForwardAtr", "maximumDrawdownNetAtr"],
+    "comparativeMetrics": ["incrementalMeanNetForwardAtr", "positiveIncrementalFolds", "positiveAbsoluteCandidateFolds"],
+    "stressMetrics": ["meanNetForwardAtrCostStress", "costStressProfitFactor", "latencyStressMeanNetForwardAtr", "latencyStressProfitFactor"],
+    "reportingOnlyMetrics": ["H8", "H12", "H24"],
+    "economicValuesObserved": false,
+    "economicValuesCalculated": false
+  },
+  "authoritativeExecutionGovernance": {
+    "maxAuthoritativePerformanceExecutions": 1,
+    "performanceExecutionCountSource": "ROUND_GLOBAL_LEDGER_ONLY",
+    "performanceLock": "ROUND_GLOBAL_FIRST_RESULT_LOCK",
+    "ledgerPath": "docs/research/round-019-performance-ledger.json",
+    "ledgerMustBeAbsentDuringDesign": true,
+    "executionDirectoryBinding": "FIRST_LEDGER_EXECUTION_ID_ONLY",
+    "rules": [
+      "one round-global first-result lock",
+      "performanceExecutionCount is derived from the round-global ledger and cannot be supplied by a caller",
+      "first executionId only",
+      "alternate execution directory forbidden",
+      "crash continuation requires the original executionId and frozen execution directory",
+      "completed checkpoints are reused and never recomputed",
+      "missing or corrupt completed checkpoint aborts",
+      "network disabled after dataset freeze",
+      "evidence summary marker is published last",
+      "selection cannot be rerun"
+    ],
+    "performanceExecutionCount": 0,
+    "performanceExecuted": false,
+    "selectionExecuted": false,
+    "noPerformanceExecutionInThisTask": true,
+    "noSelectionExecutionInThisTask": true
+  },
+  "evidenceOutputs": {
+    "generatedDuringDesign": [],
+    "performanceOutputs": {
+      "status": "NOT_APPLICABLE",
+      "schemaReferencePaths": [
+        "docs/M3_R19_ROUND_019_RESULTS.md",
+        "docs/evidence/M3_R19_ROUND_019_SUMMARY.json",
+        "docs/evidence/M3_R19_ROUND_019_AUDIT.json"
+      ]
+    },
+    "selectionOutputs": {
+      "status": "NOT_APPLICABLE",
+      "schemaReferencePaths": [
+        "docs/evidence/M3_R19_ROUND_019_SELECTION.json",
+        "docs/evidence/M3_R19_ROUND_019_SELECTION.md"
+      ]
+    },
+    "ledgerClaim": "FORBIDDEN",
+    "ledgerSchemaReferencePath": "docs/research/round-019-performance-ledger.json",
+    "ledgerPresent": false
+  },
+  "designOnlyProhibitions": [
+    "R19_PREFLIGHT",
+    "R19_PERFORMANCE",
+    "R19_SELECTION",
+    "R19_PERFORMANCE_LEDGER_CLAIM",
+    "R19_ECONOMIC_EVALUATION",
+    "FORWARD_RETURN_INSPECTION",
+    "PF_PNL_DD_CALCULATION",
+    "PARAMETER_OPTIMIZATION",
+    "THRESHOLD_SWEEP",
+    "HYPERPARAMETER_SEARCH",
+    "NEW_MARKET_DATA_ACQUISITION",
+    "R13_R14_FEATURE_REPACKAGING",
+    "R15_BETA_ALPHA_REUSE",
+    "R16_MICROSTRUCTURE_REUSE",
+    "R17_LIFECYCLE_REUSE",
+    "R18_SCORE_CONSENSUS_REUSE",
+    "BASELINE_001_CHANGE",
+    "BASELINE_002_FREEZE",
+    "M3J_ACTIVATION",
+    "M4_START",
+    "PRODUCTION_MODIFICATION",
+    "SCHEDULER_OR_SHADOW_ACTIVATION",
+    "AUTOMATIC_TRADING"
+  ],
+  "status": {
+    "performance": "NOT_AUTHORIZED / NOT_GENERATED",
+    "performanceExecutionCount": 0,
+    "performanceExecuted": false,
+    "performanceLedgerPresent": false,
+    "selection": "NOT_EXECUTED",
+    "selectionExecuted": false,
+    "economicValuesRead": false,
+    "economicValuesCalculated": false,
+    "economicValuesInspected": false,
+    "newMarketDataFetched": false,
+    "production": "UNCHANGED",
+    "baseline001": "UNCHANGED",
+    "baseline002": "NOT_FROZEN",
+    "m3J": "BLOCKED",
+    "m4": "NOT_STARTED",
+    "automaticTrading": false
+  }
+}

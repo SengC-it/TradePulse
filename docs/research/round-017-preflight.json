@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "m3-r17-round-017-preflight-closure-001",
+  "researchRoundId": "baseline-002-research-round-017",
+  "parentHead": "6a2283a8d9b016087cbadd08b9e0324c674b5f33",
+  "phase": "PRE_PERFORMANCE_TERMINATED",
+  "finalDecision": "ROUND-017 PERFORMANCE INELIGIBLE — DATA COMPLETENESS",
+  "terminationGate": "G01_DATA_COMPLETE",
+  "gates": {
+    "G01_DATA_COMPLETE": "FAIL",
+    "G02_POINT_IN_TIME": "PASS",
+    "G03_CANDIDATE_AGGREGATE_MINIMUM": "PASS",
+    "G04_CANDIDATE_FOLD_MINIMUM": "PASS",
+    "G05_SYMBOL_BREADTH": "PASS",
+    "G06_REGIME_BREADTH": "PASS",
+    "G07": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G08": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G09": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G10": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G11": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G12": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G13": "NOT_EVALUATED — AUTHORITATIVE PERFORMANCE NOT EXECUTED",
+    "G14_EMAIL_VOLUME_REDUCTION": "PASS",
+    "G15": "NOT_EVALUATED / REPORTING_ALIAS"
+  },
+  "provenance": {
+    "rawEvaluationCount": 317520,
+    "formalPredicateCount": 7500,
+    "acceptedHistoricalFormalCount": 7500,
+    "formalStreamReconciliation": "PASS",
+    "globalUniqueFormalAdvisoryCount": 7500,
+    "duplicateCanonicalCount": 0
+  },
+  "structuralAudit": {
+    "sameSymbolSameDirectionGapLt4hCount": 2074,
+    "sameSymbolSameDirectionGapEq4hCount": 252,
+    "oppositeDirectionSameTimestampCount": 0
+  },
+  "classifier": {
+    "FIRST": 5570,
+    "FOLLOW_UP": 1930,
+    "controlCount": 7500,
+    "candidateCount": 5570,
+    "suppressionRate": 0.25733333333333336
+  },
+  "identityCompleteness": {
+    "FORMAL_AND_ACCEPTED_LABEL_IDENTITY_COMPLETE": 5834,
+    "FORMAL_COMPLETE_R14_OBSERVATION_ID_MISSING_BUT_OTHER_ACCEPTED_LABEL_IDENTITY_EXISTS": 0,
+    "FORMAL_COMPLETE_NO_ACCEPTED_SETTLEMENT_LABEL_IDENTITY": 1666,
+    "FORMAL_SOURCE_PROVENANCE_INCOMPLETE": 0,
+    "OTHER": 0,
+    "total": 7500,
+    "acceptedSettlementLabelIdentityCompleteCount": 5834,
+    "trueMissingRequiredLabelCount": 1666,
+    "trueMissingFormalProvenanceCount": 0,
+    "r14ObservationIdentityMissingCount": 1666,
+    "r14OnlyIdentityMissingCount": 1666,
+    "labelValuesRead": false,
+    "economicFieldsRead": false
+  },
+  "performance": {
+    "performanceExecutionCount": 0,
+    "performanceLockTriggered": false,
+    "performanceEligible": false,
+    "performanceExecuted": false,
+    "authoritativeExecutionId": null,
+    "checkpointRoot": null,
+    "selectionExecuted": false,
+    "economicMetricsCalculated": false,
+    "economicMetricsInspected": false,
+    "newMarketDataFetched": false
+  },
+  "invalidatedPriorPreflight": {
+    "status": "INVALIDATED — FORMAL_STREAM_IDENTITY_MISMATCH",
+    "source": ".cache/tradepulse/round-014/observations.ndjson",
+    "oldControlCount": 244810,
+    "oldCandidateCount": 244810,
+    "oldFollowUpCount": 0,
+    "oldSuppressionRate": 0,
+    "reason": "R14 observations were incorrectly treated as the R17 baseline-001 formal advisory stream."
+  },
+  "formalProvenanceChain": [
+    "historical evaluation timeline",
+    "baseline-001 engine",
+    "candidate?.formalSignal && candidate.totalScore >= 70",
+    "7500 global unique formal advisories",
+    "FIRST/FOLLOW_UP classifier",
+    "fold/regime annotations",
+    "identity-only settlement-label availability audit"
+  ],
+  "boundary": {
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002": "NOT_FROZEN",
+    "m3J": "BLOCKED",
+    "m4": "NOT_STARTED",
+    "shadowEnabled": false,
+    "schedulerUnchanged": true,
+    "automaticTrading": false
+  }
+}

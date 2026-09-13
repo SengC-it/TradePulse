@@ -9,6 +9,7 @@ import {
   type SmtpConfiguration,
 } from "@/lib/signal-advisory/email";
 import { buildDeterministicSignalId } from "@/lib/signal-advisory/identity";
+import type { NotificationEvidenceEvent } from "@/lib/signal-advisory/notification-evidence";
 import { runSignalAdvisoryScan } from "@/lib/signal-advisory/scan";
 import type {
   AdvisoryHealth,
@@ -21,6 +22,19 @@ import type {
   SystemEventInput,
 } from "@/lib/signal-advisory/types";
 import type { Candle, MarketSnapshot } from "@/lib/market-data/types";
+import type {
+  ObservationEvidenceAppendResult,
+  ObservationEvidenceCandidate,
+  ObservationArtifactType,
+} from "@/lib/observation-evidence/types";
+import {
+  materializeHistoricalReviewContext,
+} from "@/lib/historical-review-context/registry";
+import type {
+  HistoricalReviewContext,
+  HistoricalReviewContextLookup,
+  HistoricalReviewContextRegistry,
+} from "@/lib/historical-review-context/types";
 
 const HOUR_MS = 3_600_000;
 const FOUR_HOUR_MS = 14_400_000;
@@ -196,6 +210,10 @@ class MemoryStore implements SignalAdvisoryStore {
   readonly events: SystemEventInput[] = [];
   readonly evaluations: SignalEvaluationRecord[] = [];
   evaluationPersistenceFailure = false;
+  markSignalSentFailure = false;
+  markSignalSentCalls = 0;
+  markSignalFailedCalls = 0;
+  order: string[] = [];
   private nextId = 1;
 
   async beginScanRun(input: { runKey: string; scheduledFor: string; now: string }): Promise<ScanRunBeginResult> {
@@ -220,6 +238,7 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async claimSignal(advisory: SignalAdvisory, _scanId: string, now: string): Promise<SignalClaimResult> {
+    this.order.push("CLAIM");
     const existing = this.advisories.get(advisory.signalId);
     if (!existing) {
       this.advisories.set(advisory.signalId, {
@@ -250,6 +269,10 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async markSignalSent(input: { signalId: string; sentAt: string; emailMessageId: string }): Promise<void> {
+    this.markSignalSentCalls += 1;
+    if (this.markSignalSentFailure) {
+      throw new Error("delivery registry unavailable");
+    }
     const advisory = this.advisories.get(input.signalId);
     if (advisory) {
       advisory.deliveryStatus = "SENT";
@@ -257,6 +280,7 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 
   async markSignalFailed(input: { signalId: string; failedAt: string; failureReason: string }): Promise<void> {
+    this.markSignalFailedCalls += 1;
     const advisory = this.advisories.get(input.signalId);
     if (advisory && advisory.deliveryStatus !== "SENT") {
       advisory.deliveryStatus = "FAILED";
@@ -284,10 +308,119 @@ class MemoryStore implements SignalAdvisoryStore {
   }
 }
 
+class MemoryObservationEvidenceStore {
+  readonly candidates: ObservationEvidenceCandidate[] = [];
+  order: string[] = [];
+  failure: "THROW" | "NOT_EVALUABLE" | null = null;
+  failureArtifactType: ObservationArtifactType | null = null;
+  notificationFailure: "THROW" | "PENDING" | null = null;
+
+  async appendEvidence(candidate: ObservationEvidenceCandidate): Promise<ObservationEvidenceAppendResult> {
+    if (candidate.eventKind === "NOTIFICATION") {
+      const payload = candidate.payload as { notification?: { eventType?: string } };
+      const eventType = payload.notification?.eventType ?? "UNKNOWN";
+      this.order.push(`NOTIFICATION_${eventType}`);
+      this.candidates.push(candidate);
+      if (this.notificationFailure === "PENDING") {
+        await new Promise<void>(() => {});
+      }
+      if (this.notificationFailure === "THROW") {
+        throw new Error("notification observation unavailable");
+      }
+      return { status: "APPENDED", evidenceId: candidate.evidenceId };
+    }
+    this.order.push(`${candidate.artifactType}_APPEND`);
+    this.candidates.push(candidate);
+    const shouldFail = this.failure !== null
+      && (this.failureArtifactType === null || this.failureArtifactType === candidate.artifactType);
+    if (!shouldFail) {
+      return { status: "APPENDED", evidenceId: candidate.evidenceId };
+    }
+    if (this.failure === "THROW") {
+      throw new Error("observation evidence unavailable");
+    }
+    if (this.failure === "NOT_EVALUABLE") {
+      return {
+        status: "NOT_EVALUABLE",
+        evidenceId: candidate.evidenceId,
+        reason: "INVALID_CANDIDATE",
+      };
+    }
+    return { status: "APPENDED", evidenceId: candidate.evidenceId };
+  }
+}
+
+class MemoryHistoricalReviewContextRegistry implements HistoricalReviewContextRegistry {
+  readonly contexts = new Map<string, HistoricalReviewContext>();
+  order: string[] = [];
+  lookupFailure = false;
+  publishFailure = false;
+
+  async findPriorContext(input: {
+    currentSignalId: string;
+    symbol: ResearchSymbol;
+    signalTime: string;
+  }): Promise<HistoricalReviewContextLookup> {
+    if (this.lookupFailure) throw new Error("context lookup unavailable");
+    const matches = [...this.contexts.values()]
+      .filter((context) => context.symbol === input.symbol
+        && context.sourceSignalId !== input.currentSignalId
+        && Date.parse(context.availableAt) <= Date.parse(input.signalTime))
+      .sort((left, right) => Date.parse(right.availableAt) - Date.parse(left.availableAt));
+    const first = matches[0];
+    if (!first) return { status: "MISSING", reason: "NO_APPROVED_PRIOR_CONTEXT" };
+    if (matches[1] && matches[1].availableAt === first.availableAt) {
+      return { status: "NOT_EVALUABLE", reason: "AMBIGUOUS_MAX_AVAILABLE_CONTEXT" };
+    }
+    return { status: "FOUND", context: first };
+  }
+
+  async publishContext(input: { advisory: SignalAdvisory; sourceIds: readonly string[] }) {
+    this.order.push("CURRENT_CONTEXT_REGISTRY");
+    if (this.publishFailure) throw new Error("context publish unavailable");
+    const existing = this.contexts.get(input.advisory.signalId);
+    if (existing) return { status: "IDEMPOTENT_REPLAY" as const, context: existing };
+    const context = materializeHistoricalReviewContext({
+      advisory: input.advisory,
+      sourceIds: input.sourceIds,
+      availableAt: new Date(Date.parse(input.advisory.signalTime) + 1_000).toISOString(),
+    });
+    this.contexts.set(context.sourceSignalId, context);
+    return { status: "APPENDED" as const, context };
+  }
+}
+
+function seedPriorContexts(registry: MemoryHistoricalReviewContextRegistry): void {
+  RESEARCH_SYMBOLS.forEach((symbol, index) => {
+    const signalTime = new Date(EVALUATION_TIME - (index + 2) * HOUR_MS).toISOString();
+    const priorAdvisory = {
+      ...exampleAdvisory("LONG"),
+      symbol,
+      signalTime,
+      signalValidUntil: new Date(Date.parse(signalTime) + HOUR_MS).toISOString(),
+      signalId: buildDeterministicSignalId({
+        symbol,
+        direction: "LONG",
+        signalTime,
+        strategyVersion: STRATEGY_VERSION,
+      }),
+    };
+    const context = materializeHistoricalReviewContext({
+      advisory: priorAdvisory,
+      sourceIds: [`tp_signal_advisories:${priorAdvisory.signalId}`],
+      availableAt: new Date(EVALUATION_TIME - 1_500).toISOString(),
+    });
+    registry.contexts.set(context.sourceSignalId, context);
+  });
+}
+
 function dependencies(input: {
   store: MemoryStore;
+  observationEvidenceStore?: MemoryObservationEvidenceStore;
+  historicalReviewContextRegistry?: MemoryHistoricalReviewContextRegistry;
   snapshot?: MarketSnapshot;
   send?: (advisory: SignalAdvisory) => Promise<{ emailMessageId: string }>;
+  observe?: (event: NotificationEvidenceEvent) => void | Promise<void>;
   now?: () => number;
 }) {
   return {
@@ -295,7 +428,10 @@ function dependencies(input: {
       getMarketSnapshot: async () => input.snapshot ?? makeSnapshot(),
     },
     store: input.store,
+    observationEvidenceStore: input.observationEvidenceStore ?? new MemoryObservationEvidenceStore(),
+    historicalReviewContextRegistry: input.historicalReviewContextRegistry,
     sendSignalEmail: input.send ?? (async () => ({ emailMessageId: "<test-message-id>" })),
+    observeNotificationEvidence: input.observe,
     now: input.now ?? (() => EVALUATION_TIME),
     recipient: "owner@example.test",
   };
@@ -506,6 +642,898 @@ describe("signal advisory scan", () => {
     expect(store.evaluations.every((evaluation) => evaluation.scanRunId === result.scanId)).toBe(true);
     expect(store.evaluations.some((evaluation) => evaluation.status === "FORMAL_SIGNAL")).toBe(true);
     expect(store.events.at(-1)?.metadata).toMatchObject({ dataFreshness: "FRESH" });
+  });
+
+  it("appends QUALITY_SNAPSHOT, MARKET_CONTEXT, ALERT_INTELLIGENCE, and PRESENTATION before every email without changing signal flow", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          evidenceStore.order.push("EMAIL");
+          return { emailMessageId: "<quality-snapshot-order>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(evidenceStore.candidates).toHaveLength(result.signalsGenerated * 8);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "QUALITY_SNAPSHOT")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "MARKET_CONTEXT")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "RISK_ADVISORY")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "PRESENTATION")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(evidenceStore.order[0]).toBe("NOTIFICATION_CLAIM_DECISION");
+    expect(evidenceStore.order.indexOf("NOTIFICATION_CLAIM_DECISION")).toBeLessThan(evidenceStore.order.indexOf("QUALITY_SNAPSHOT_APPEND"));
+    expect(evidenceStore.order.indexOf("MARKET_CONTEXT_APPEND")).toBeLessThan(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND"));
+    expect(evidenceStore.order.indexOf("RISK_ADVISORY_APPEND")).toBeLessThan(evidenceStore.order.indexOf("ALERT_INTELLIGENCE_APPEND"));
+    expect(evidenceStore.order.indexOf("ALERT_INTELLIGENCE_APPEND")).toBeLessThan(evidenceStore.order.indexOf("PRESENTATION_APPEND"));
+    expect(evidenceStore.order.indexOf("PRESENTATION_APPEND")).toBeLessThan(evidenceStore.order.indexOf("EMAIL"));
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("appends R6 after a complete R2-R5 chain and before current context/email", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const registry = new MemoryHistoricalReviewContextRegistry();
+    seedPriorContexts(registry);
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    registry.order = runtimeOrder;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry: registry,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          return { emailMessageId: "<r6-order>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
+      result.signalsGenerated,
+    );
+    expect(runtimeOrder.slice(0, 12)).toEqual([
+      "CLAIM",
+      "NOTIFICATION_CLAIM_DECISION",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "HISTORICAL_REVIEW_METADATA_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
+      "CURRENT_CONTEXT_REGISTRY",
+      "PRESENTATION_APPEND",
+      "NOTIFICATION_DELIVERY_ATTEMPTED",
+      "EMAIL",
+      "NOTIFICATION_DELIVERED",
+    ]);
+  });
+
+  it("appends notification observations as a non-blocking causal sidecar", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          return { emailMessageId: "<r8-order>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    const notificationCandidates = evidenceStore.candidates.filter((candidate) => candidate.eventKind === "NOTIFICATION");
+    expect(notificationCandidates).toHaveLength(result.signalsGenerated * 3);
+    expect(notificationCandidates.every((candidate) => candidate.observedAt !== null)).toBe(true);
+    expect(notificationCandidates.every((candidate) => candidate.informationAsOf === null)).toBe(true);
+    expect(runtimeOrder.indexOf("CLAIM")).toBeLessThan(runtimeOrder.indexOf("QUALITY_SNAPSHOT_APPEND"));
+    expect(runtimeOrder.indexOf("NOTIFICATION_CLAIM_DECISION")).toBeLessThan(runtimeOrder.indexOf("QUALITY_SNAPSHOT_APPEND"));
+    expect(runtimeOrder.indexOf("NOTIFICATION_DELIVERY_ATTEMPTED")).toBeLessThan(runtimeOrder.indexOf("EMAIL"));
+    expect(runtimeOrder.indexOf("EMAIL")).toBeLessThan(runtimeOrder.indexOf("NOTIFICATION_DELIVERED"));
+    expect(notificationCandidates.map((candidate) => (
+      candidate.payload as { notification: { eventType: string } }
+    ).notification.eventType)).toEqual(
+      expect.arrayContaining(["CLAIM_DECISION", "DELIVERY_ATTEMPTED", "DELIVERED"]),
+    );
+  });
+
+  it.each(["THROW", "PENDING"] as const)(
+    "does not let notification observation failure block delivery (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      evidenceStore.notificationFailure = failure;
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r8-sidecar-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("SUCCESS");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(result.signalsSent).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+    },
+  );
+
+  it("captures SKIPPED_DUPLICATE through the full scan without sending", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    let sendCount = 0;
+    const dependenciesForRun = (scheduledFor: string) => runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<r8-duplicate-${sendCount}>` };
+        },
+      }),
+      scheduledFor,
+    });
+
+    const first = await dependenciesForRun("2026-08-23T00:05:00.000Z");
+    const repeated = await dependenciesForRun("2026-08-23T01:05:00.000Z");
+
+    expect(first.outcome).toBe("SUCCESS");
+    expect(repeated.outcome).toBe("SUCCESS");
+    expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
+    expect(sendCount).toBe(first.signalsSent);
+    expect(evidenceStore.candidates.some((candidate) => candidate.eventKind === "NOTIFICATION" && (
+      candidate.payload as { notification: { eventType: string; claimOutcome?: string } }
+    ).notification.eventType === "CLAIM_DECISION"
+      && (
+        candidate.payload as { notification: { claimOutcome?: string } }
+      ).notification.claimOutcome === "DUPLICATE_SKIPPED")).toBe(true);
+  });
+
+  it("captures SKIPPED_EXPIRED after a failed advisory through the full scan", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    let sendCount = 0;
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          sendCount += 1;
+          throw new Error("SMTP expired test failure");
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+    const expired = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        now: () => EVALUATION_TIME + HOUR_MS,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: "<must-not-send>" };
+        },
+      }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+
+    expect(first.outcome).toBe("PARTIAL");
+    expect(expired.outcome).toBe("SUCCESS");
+    expect(expired.signalsSkipped).toBe(expired.signalsGenerated);
+    expect(sendCount).toBe(first.signalsGenerated);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "RISK_ADVISORY")).toHaveLength(
+      first.signalsGenerated + expired.signalsGenerated,
+    );
+    expect(evidenceStore.candidates.some((candidate) => candidate.eventKind === "NOTIFICATION" && (
+      candidate.payload as { notification: { eventType: string; claimOutcome?: string } }
+    ).notification.eventType === "CLAIM_DECISION"
+      && (
+        candidate.payload as { notification: { claimOutcome?: string } }
+      ).notification.claimOutcome === "SUPPRESSED")).toBe(true);
+  });
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates R6 evidence failure without changing delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      seedPriorContexts(registry);
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "ALERT_INTELLIGENCE";
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r6-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    },
+  );
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates QUALITY_SNAPSHOT evidence failure and preserves claim/delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      evidenceStore.failure = failure;
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<quality-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.advisories.size).toBe(result.signalsGenerated);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+      expect(store.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          operation: "round-022-quality-snapshot",
+          status: failure === "THROW" ? "FAILED" : "NOT_EVALUABLE",
+          errorCode: "QUALITY_SNAPSHOT_EVIDENCE_FAILED",
+        }),
+      ]));
+    },
+  );
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates PRESENTATION evidence failure without changing delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      seedPriorContexts(registry);
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "PRESENTATION";
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<presentation-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("PRESENTATION_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+      expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "PRESENTATION")).toHaveLength(
+        result.signalsGenerated,
+      );
+    },
+  );
+
+  it("isolates MARKET_CONTEXT evidence failure without changing claim or delivery truth", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    evidenceStore.failure = "NOT_EVALUABLE";
+    evidenceStore.failureArtifactType = "MARKET_CONTEXT";
+    let sendCount = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<market-context-failure-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.errors).not.toContain("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+    expect(result.errors).toContain("MARKET_CONTEXT_EVIDENCE_FAILED");
+    expect(sendCount).toBe(result.signalsGenerated);
+    expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    expect(store.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        operation: "round-022-market-context",
+        status: "NOT_EVALUABLE",
+        errorCode: "MARKET_CONTEXT_EVIDENCE_FAILED",
+      }),
+    ]));
+  });
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates RISK_ADVISORY evidence failure without changing claim or delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "RISK_ADVISORY";
+      let sendCount = 0;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<risk-advisory-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).not.toContain("QUALITY_SNAPSHOT_EVIDENCE_FAILED");
+      expect(result.errors).not.toContain("MARKET_CONTEXT_EVIDENCE_FAILED");
+      expect(result.errors).toContain("RISK_ADVISORY_EVIDENCE_FAILED");
+      expect(sendCount).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+      expect(store.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          operation: "round-022-risk-advisory",
+          status: failure === "THROW" ? "FAILED" : "NOT_EVALUABLE",
+          errorCode: "RISK_ADVISORY_EVIDENCE_FAILED",
+        }),
+      ]));
+    },
+  );
+
+  it("appends the full evidence chain for SKIPPED_DUPLICATE before skipping delivery", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const historicalReviewContextRegistry = new MemoryHistoricalReviewContextRegistry();
+    seedPriorContexts(historicalReviewContextRegistry);
+    let sendCount = 0;
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<duplicate-test-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+    const repeated = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<duplicate-test-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+
+    expect(first.outcome).toBe("SUCCESS");
+    expect(repeated.signalsSkipped).toBe(repeated.signalsGenerated);
+    expect(evidenceStore.candidates).toHaveLength(first.signalsGenerated * 9 + repeated.signalsGenerated * 6);
+    expect(sendCount).toBe(first.signalsGenerated);
+    expect(evidenceStore.order.filter((entry) => entry === "QUALITY_SNAPSHOT_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(evidenceStore.order.filter((entry) => entry === "MARKET_CONTEXT_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(evidenceStore.order.filter((entry) => entry === "RISK_ADVISORY_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(evidenceStore.order.filter((entry) => entry === "HISTORICAL_REVIEW_METADATA_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(evidenceStore.order.filter((entry) => entry === "ALERT_INTELLIGENCE_APPEND")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+    expect(historicalReviewContextRegistry.order.filter((entry) => entry === "CURRENT_CONTEXT_REGISTRY")).toHaveLength(
+      first.signalsGenerated + repeated.signalsGenerated,
+    );
+  });
+
+  it("appends the full evidence chain for SKIPPED_EXPIRED before skipping delivery", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const historicalReviewContextRegistry = new MemoryHistoricalReviewContextRegistry();
+    seedPriorContexts(historicalReviewContextRegistry);
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    historicalReviewContextRegistry.order = runtimeOrder;
+    const snapshot = makeSnapshot({ evaluationTime: Date.parse("2026-08-23T00:00:05.000Z") });
+    let currentNow = Date.parse("2026-08-23T00:05:00.000Z");
+    let sendCount = 0;
+
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        snapshot,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry,
+        now: () => currentNow,
+        send: async () => {
+          sendCount += 1;
+          throw new Error("SMTP failure creates the existing FAILED advisory");
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(first.signalsGenerated).toBeGreaterThan(0);
+    expect([...store.advisories.values()]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ deliveryStatus: "FAILED", attemptCount: 1 })]),
+    );
+    const sendCountBeforeExpiredScan = sendCount;
+    const markSignalFailedCallsBeforeExpiredScan = store.markSignalFailedCalls;
+    const candidatesBeforeExpiredScan = evidenceStore.candidates.length;
+    runtimeOrder.length = 0;
+    currentNow = Date.parse("2026-08-23T01:05:00.000Z");
+
+    const expired = await runSignalAdvisoryScan({
+      dependencies: {
+        ...dependencies({
+          store,
+          snapshot,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry,
+          now: () => currentNow,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: "must-not-send-after-expiry" };
+          },
+        }),
+      },
+      scheduledFor: "2026-08-23T01:10:00.000Z",
+    });
+
+    expect(expired.signalsSkipped).toBe(expired.signalsGenerated);
+    expect(sendCount).toBe(sendCountBeforeExpiredScan);
+    expect(store.markSignalFailedCalls).toBe(markSignalFailedCallsBeforeExpiredScan);
+    expect(evidenceStore.candidates.length - candidatesBeforeExpiredScan).toBe(expired.signalsGenerated * 6);
+    expect(evidenceStore.candidates.slice(candidatesBeforeExpiredScan).some(
+      (candidate) => candidate.artifactType === "RISK_ADVISORY",
+    )).toBe(true);
+    expect(runtimeOrder.slice(0, 5)).toEqual([
+      "CLAIM",
+      "NOTIFICATION_CLAIM_DECISION",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+    ]);
+    expect(runtimeOrder[5]).toBe("HISTORICAL_REVIEW_METADATA_APPEND");
+    expect(runtimeOrder[6]).toBe("ALERT_INTELLIGENCE_APPEND");
+    expect(runtimeOrder[7]).toBe("CURRENT_CONTEXT_REGISTRY");
+    expect(historicalReviewContextRegistry.contexts.size).toBe(RESEARCH_SYMBOLS.length + first.signalsGenerated);
+    expect(runtimeOrder.filter((entry) => entry === "CURRENT_CONTEXT_REGISTRY")).toHaveLength(
+      expired.signalsGenerated,
+    );
+    expect(runtimeOrder).not.toContain("EMAIL");
+  });
+
+  it("does not append QUALITY_SNAPSHOT evidence for NO_SIGNAL", async () => {
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store: new MemoryStore(),
+        observationEvidenceStore: evidenceStore,
+        snapshot: makeSnapshot({ status: "PARTIAL" }),
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("NO_SIGNAL");
+    expect(evidenceStore.candidates).toHaveLength(0);
+  });
+
+  it("captures claim, attempted, and delivered evidence in order", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    const evidence: NotificationEvidenceEvent[] = [];
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        observationEvidenceStore: evidenceStore,
+        store,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          return { emailMessageId: "<runtime-order>" };
+        },
+        observe: (event) => {
+          evidence.push(event);
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    const firstSignalId = [...store.advisories.keys()][0];
+    expect(firstSignalId).toBeDefined();
+    expect(runtimeOrder.slice(0, 10)).toEqual([
+      "CLAIM",
+      "NOTIFICATION_CLAIM_DECISION",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
+      "PRESENTATION_APPEND",
+      "NOTIFICATION_DELIVERY_ATTEMPTED",
+      "EMAIL",
+      "NOTIFICATION_DELIVERED",
+    ]);
+    expect(evidence.filter((event) => event.metadata.signalId === firstSignalId).map((event) => event.type)).toEqual([
+      "CLAIM_DECISION",
+      "DELIVERY_ATTEMPTED",
+      "DELIVERED",
+    ]);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("publishes current identity context before email and reviews an exact prior context on the next signal", async () => {
+    const store = new MemoryStore();
+    const evidenceStore = new MemoryObservationEvidenceStore();
+    const registry = new MemoryHistoricalReviewContextRegistry();
+    const runtimeOrder: string[] = [];
+    store.order = runtimeOrder;
+    evidenceStore.order = runtimeOrder;
+    registry.order = runtimeOrder;
+    let sendCount = 0;
+
+    const first = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry: registry,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          sendCount += 1;
+          return { emailMessageId: `<r5-first-${sendCount}>` };
+        },
+        now: () => EVALUATION_TIME,
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(first.outcome).toBe("SUCCESS");
+    expect(first.errors).not.toContain("ALERT_INTELLIGENCE_EVIDENCE_FAILED");
+    expect(registry.contexts.size).toBe(first.signalsGenerated);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(0);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "ALERT_INTELLIGENCE")).toHaveLength(
+      first.signalsGenerated,
+    );
+    expect(runtimeOrder.slice(0, 11)).toEqual([
+      "CLAIM",
+      "NOTIFICATION_CLAIM_DECISION",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
+      "CURRENT_CONTEXT_REGISTRY",
+      "PRESENTATION_APPEND",
+      "NOTIFICATION_DELIVERY_ATTEMPTED",
+      "EMAIL",
+      "NOTIFICATION_DELIVERED",
+    ]);
+
+    runtimeOrder.length = 0;
+    const second = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        snapshot: makeSnapshot({ evaluationTime: EVALUATION_TIME + HOUR_MS }),
+        observationEvidenceStore: evidenceStore,
+        historicalReviewContextRegistry: registry,
+        send: async () => {
+          runtimeOrder.push("EMAIL");
+          sendCount += 1;
+          return { emailMessageId: `<r5-second-${sendCount}>` };
+        },
+        now: () => EVALUATION_TIME + HOUR_MS,
+      }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+
+    expect(second.outcome).toBe("SUCCESS");
+    expect(second.signalsSent).toBe(second.signalsGenerated);
+    expect(evidenceStore.candidates.filter((candidate) => candidate.artifactType === "HISTORICAL_REVIEW_METADATA")).toHaveLength(
+      second.signalsGenerated,
+    );
+    expect(runtimeOrder.slice(0, 12)).toEqual([
+      "CLAIM",
+      "NOTIFICATION_CLAIM_DECISION",
+      "QUALITY_SNAPSHOT_APPEND",
+      "MARKET_CONTEXT_APPEND",
+      "RISK_ADVISORY_APPEND",
+      "HISTORICAL_REVIEW_METADATA_APPEND",
+      "ALERT_INTELLIGENCE_APPEND",
+      "CURRENT_CONTEXT_REGISTRY",
+      "PRESENTATION_APPEND",
+      "NOTIFICATION_DELIVERY_ATTEMPTED",
+      "EMAIL",
+      "NOTIFICATION_DELIVERED",
+    ]);
+  });
+
+  it.each(["NOT_EVALUABLE", "THROW"] as const)(
+    "isolates historical metadata evidence failure and preserves delivery truth (%s)",
+    async (failure) => {
+      const store = new MemoryStore();
+      const evidenceStore = new MemoryObservationEvidenceStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      let sendCount = 0;
+      await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r5-seed-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+      evidenceStore.failure = failure;
+      evidenceStore.failureArtifactType = "HISTORICAL_REVIEW_METADATA";
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          snapshot: makeSnapshot({ evaluationTime: EVALUATION_TIME + HOUR_MS }),
+          observationEvidenceStore: evidenceStore,
+          historicalReviewContextRegistry: registry,
+          now: () => EVALUATION_TIME + HOUR_MS,
+          send: async () => {
+            sendCount += 1;
+            return { emailMessageId: `<r5-failure-${sendCount}>` };
+          },
+        }),
+        scheduledFor: "2026-08-23T01:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("HISTORICAL_REVIEW_METADATA_EVIDENCE_FAILED");
+      expect(result.signalsSent).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    },
+  );
+
+  it.each(["lookup", "publish"] as const)(
+    "isolates historical context registry %s failure without marking delivery failed",
+    async (phase) => {
+      const store = new MemoryStore();
+      const registry = new MemoryHistoricalReviewContextRegistry();
+      if (phase === "lookup") registry.lookupFailure = true;
+      if (phase === "publish") registry.publishFailure = true;
+      const result = await runSignalAdvisoryScan({
+        dependencies: dependencies({
+          store,
+          historicalReviewContextRegistry: registry,
+          send: async () => ({ emailMessageId: `<r5-${phase}-failure>` }),
+        }),
+        scheduledFor: "2026-08-23T00:05:00.000Z",
+      });
+
+      expect(result.outcome).toBe("PARTIAL");
+      expect(result.errors).toContain("HISTORICAL_REVIEW_CONTEXT_REGISTRY_FAILED");
+      expect(result.signalsSent).toBe(result.signalsGenerated);
+      expect(store.markSignalFailedCalls).toBe(0);
+      expect([...store.advisories.values()].every((advisory) => advisory.deliveryStatus === "SENT")).toBe(true);
+    },
+  );
+
+  it("records DELIVERY_FAILED only when the email sender rejects", async () => {
+    const store = new MemoryStore();
+    const evidence: NotificationEvidenceEvent[] = [];
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: (event) => {
+          evidence.push(event);
+        },
+        send: async () => {
+          throw { code: "EAUTH", responseCode: 535 };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    const firstSignalId = [...store.advisories.keys()][0];
+    const firstEvidence = evidence.filter((event) => event.metadata.signalId === firstSignalId);
+    expect(firstEvidence.map((event) => event.type)).toEqual([
+      "CLAIM_DECISION",
+      "DELIVERY_ATTEMPTED",
+      "DELIVERY_FAILED",
+    ]);
+    expect(firstEvidence.some((event) => event.type === "DELIVERED")).toBe(false);
+    expect(result.errors).toContain("SMTP_AUTH_FAILED");
+    expect(store.markSignalFailedCalls).toBe(result.signalsGenerated);
+  });
+
+  it("keeps a resolved email delivered when registry persistence fails", async () => {
+    const store = new MemoryStore();
+    store.markSignalSentFailure = true;
+    const evidence: NotificationEvidenceEvent[] = [];
+    let sendCount = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: (event) => {
+          evidence.push(event);
+        },
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<registry-failure-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+    const firstSignalId = [...store.advisories.keys()][0];
+    const firstEvidence = evidence.filter((event) => event.metadata.signalId === firstSignalId);
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+    expect(result.errors).toContain("DELIVERY_REGISTRY_PERSISTENCE_FAILED");
+    expect(store.markSignalFailedCalls).toBe(0);
+    expect(firstEvidence.map((event) => event.type)).toEqual([
+      "CLAIM_DECISION",
+      "DELIVERY_ATTEMPTED",
+      "DELIVERED",
+      "DELIVERY_REGISTRY_PERSISTENCE_FAILED",
+    ]);
+    expect(firstEvidence.some((event) => event.type === "DELIVERY_FAILED")).toBe(false);
+
+    const repeated = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        send: async () => {
+          sendCount += 1;
+          return { emailMessageId: `<unexpected-retry-${sendCount}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T01:05:00.000Z",
+    });
+    expect(repeated.signalsSkipped).toBe(result.signalsGenerated);
+    expect(sendCount).toBe(result.signalsGenerated);
+  });
+
+  it("isolates notification evidence observer failures from the scan", async () => {
+    const store = new MemoryStore();
+    let observed = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => {
+          observed += 1;
+          throw new Error("sidecar unavailable");
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(observed).toBeGreaterThan(0);
+    expect(result.outcome).toBe("SUCCESS");
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("does not let a pending observer block email delivery", async () => {
+    const store = new MemoryStore();
+    let sendCalls = 0;
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => new Promise<void>(() => {}),
+        send: async () => {
+          sendCalls += 1;
+          return { emailMessageId: `<pending-observer-${sendCalls}>` };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(sendCalls).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("does not let a pending DELIVERED observer block markSignalSent", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => new Promise<void>(() => {}),
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(store.markSignalSentCalls).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(result.signalsGenerated);
+  });
+
+  it("does not let a pending observer change send failure handling", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => new Promise<void>(() => {}),
+        send: async () => {
+          throw { code: "EAUTH", responseCode: 535 };
+        },
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("PARTIAL");
+    expect(result.errors).toContain("SMTP_AUTH_FAILED");
+    expect(store.markSignalFailedCalls).toBe(result.signalsGenerated);
+    expect(result.signalsSent).toBe(0);
+  });
+
+  it("isolates rejected observer promises from business behavior", async () => {
+    const store = new MemoryStore();
+    const result = await runSignalAdvisoryScan({
+      dependencies: dependencies({
+        store,
+        observe: () => Promise.reject(new Error("sidecar unavailable")),
+      }),
+      scheduledFor: "2026-08-23T00:05:00.000Z",
+    });
+
+    expect(result.outcome).toBe("SUCCESS");
+    expect(result.signalsSent).toBe(result.signalsGenerated);
   });
 
   it("keeps signal eligibility and email delivery unchanged when evaluation logging fails", async () => {

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "m3-r17-round-017-termination-001",
+  "researchRoundId": "baseline-002-research-round-017",
+  "acceptedResearchSource": "0f5e24009f3301b8f2fb64d7e01161402a94f0b7",
+  "implementationParentHead": "6a2283a8d9b016087cbadd08b9e0324c674b5f33",
+  "phase": "PRE_PERFORMANCE_TERMINATED",
+  "finalDecision": "ROUND-017 PERFORMANCE INELIGIBLE — DATA COMPLETENESS",
+  "performanceEligible": false,
+  "terminationGate": "G01_DATA_COMPLETE",
+  "hypothesisEconomicOutcome": "NOT_EVALUATED",
+  "performanceExecutionCount": 0,
+  "performanceLockTriggered": false,
+  "authoritativePerformanceExecuted": false,
+  "selectionExecuted": false,
+  "economicMetricsCalculated": false,
+  "economicMetricsInspected": false,
+  "requiredSettlementLabelIdentity": {
+    "formalCount": 7500,
+    "acceptedComplete": 5834,
+    "missing": 1666,
+    "formalProvenanceIncomplete": 0,
+    "r14OnlyIdentityMissing": 1666,
+    "alternateAcceptedIdentityForMissingR14": 0
+  },
+  "terminationReason": "The frozen Round-017 hypothesis could not receive an authoritative economic evaluation because 1,666 of 7,500 formal advisories lack protocol-permitted accepted settlement-label identities.",
+  "forbiddenInterpretations": [
+    "strategy failed",
+    "no edge",
+    "negative economic result",
+    "selected/rejected based on P/L"
+  ],
+  "invalidatedPriorPreflight": "INVALIDATED — FORMAL_STREAM_IDENTITY_MISMATCH",
+  "noNewMarketData": true,
+  "productionUnchanged": true,
+  "baseline001Unchanged": true,
+  "baseline002": "NOT_FROZEN",
+  "m3J": "BLOCKED",
+  "m4": "NOT_STARTED",
+  "shadowEnabled": false,
+  "schedulerUnchanged": true,
+  "automaticTrading": false
+}
