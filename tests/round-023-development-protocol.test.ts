@@ -5,8 +5,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { R13_FEATURE_NAMES, R13_FOLDS } from "@/lib/research/m3-r13-round-013-protocol";
-import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_MANIFEST_PATH, R23_DEVELOPMENT_DATA_PATH, R23_DEVELOPMENT_DATA_SHA256, R23_DEVELOPMENT_DATA_SOURCE_STATUS, R23_DEVELOPMENT_DATA_START_ISO, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE, R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SOURCE_REMEDIATION_NEXT_STAGE, R23_SOURCE_UNAVAILABLE_DECISION, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
-import { runR23HistoricalDevelopment } from "@/lib/research/round-023-development-runner";
+import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_MANIFEST_PATH, R23_DEVELOPMENT_DATA_PATH, R23_DEVELOPMENT_DATA_SHA256, R23_DEVELOPMENT_DATA_SOURCE_STATUS, R23_DEVELOPMENT_DATA_START_ISO, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
+import { R23_RUNNER_IDENTITIES, runR23HistoricalDevelopment } from "@/lib/research/round-023-development-runner";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -117,55 +117,43 @@ describe("Round-023 A0 development protocol", () => {
     expect(record(document.governance)).toMatchObject({ performanceExecutionCount: 0, performanceLedgerPresent: false, economicValuesRead: false, newMarketDataFetched: false, automaticTrading: false });
   });
 
-  it("fails closed without existing historical data and does not evaluate economics", () => {
-    const result = runR23HistoricalDevelopment({ root: path.join(process.cwd(), ".tmp-r23-missing-data") });
-    expect(result.classification).toBe(R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE);
-    expect(result.developmentExecutionCount).toBe(1);
-    expect(result.candidateConfigurationsDefined).toBe(4);
-    expect(result.candidateConfigurationsEvaluated).toBe(0);
-    expect(result.eligibleCandidates).toBeNull();
-    expect(result.selectedCandidateId).toBeNull();
-    expect(result.selectionExecuted).toBe(false);
-    expect(result.developmentEconomicEvaluationExecutionCount).toBe(0);
-    expect(result.finalDecision).toBe(R23_SOURCE_UNAVAILABLE_DECISION);
-    expect(result.nextStage).toBe(R23_SOURCE_REMEDIATION_NEXT_STAGE);
-    expect(result.sourceAudit).toMatchObject({
-      requiredPath: R23_DEVELOPMENT_DATA_PATH,
-      validPreExistingSourceFound: false,
-      compatibleExistingCacheFound: false,
-      economicPayloadRead: false,
-      finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION,
-    });
-    expect(result.historicalDevelopmentEconomicValuesRead).toBe(false);
-    expect(result.forwardEconomicValuesRead).toBe(false);
-    expect(result.forwardReturnRead).toBe(false);
-    expect(result.economicValuesCalculated).toBe(false);
-    expect(result.economicValuesInspected).toBe(false);
-    expect(result.newMarketDataFetched).toBe(false);
-    expect(result.performanceExecutionCount).toBe(0);
+  it("fails closed without a frozen source and does not evaluate economics", async () => {
+    await expect(runR23HistoricalDevelopment({ root: path.join(process.cwd(), ".tmp-r23-missing-data") })).rejects.toThrow("source is unavailable");
   });
 
-  it("publishes the source-unavailable result without an A1 model freeze", () => {
+  it("publishes the single four-configuration development result", () => {
     const result = developmentResultDocument();
-    expect(result.protocolPhase).toBe("A0_DEVELOPMENT_PROTOCOL_FREEZE");
-    expect(result.resultPhase).toBe("B_HISTORICAL_DEVELOPMENT_SEARCH_RESULT");
-    expect(result.developmentExecutionId).toBe("r23-development-27a157934982dfef");
+    expect(result.protocolPhase).toBe("A1_DEVELOPMENT_DATASET_FREEZE");
+    expect(result.resultPhase).toBe("B_HISTORICAL_DEVELOPMENT_EVALUATION_RESULT");
+    expect(result.developmentExecutionId).toBe(`r23-development-${String(result.protocolSha256).slice(0, 16)}`);
     expect(result.developmentExecutionCount).toBe(1);
-    expect(result.classification).toBe(R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE);
+    expect(result.classification).toBe("NO_FORWARD_CANDIDATE");
     expect(result.candidateConfigurationsDefined).toBe(4);
-    expect(result.candidateConfigurationsEvaluated).toBe(0);
-    expect(result.eligibleCandidates).toBeNull();
+    expect(result.candidateConfigurationsEvaluated).toBe(4);
+    expect(Array.isArray(result.candidateResults)).toBe(true);
+    expect((result.candidateResults as unknown[]).length).toBe(4);
+    expect((result.candidateResults as JsonRecord[]).every((candidate) => candidate.evaluated === true)).toBe(true);
+    expect(result.eligibleCandidates).toEqual([]);
     expect(result.selectedCandidateId).toBeNull();
     expect(result.selectionExecuted).toBe(false);
-    expect(result.developmentEconomicEvaluationExecutionCount).toBe(0);
-    expect(result.finalDecision).toBe(R23_SOURCE_UNAVAILABLE_DECISION);
-    expect(result.nextStage).toBe(R23_SOURCE_REMEDIATION_NEXT_STAGE);
+    expect(result.developmentEconomicEvaluationExecutionCount).toBe(1);
+    expect(result.finalDecision).toBe("ROUND-023 NO FORWARD CANDIDATE");
+    expect(result.nextStage).toBe("STOP");
     expect(record(result.modelFreeze)).toMatchObject({ finalModelArtifactCommitted: false, forwardContractCommitted: false, selectedCandidateId: null });
-    expect(record(result.economicReadBoundary)).toMatchObject({ performanceExecutionCount: 0, performanceLedgerPresent: false, forwardEconomicValuesRead: false, forwardReturnRead: false });
-    expect(record(result.sourceCheck)).toMatchObject({ newMarketDataFetched: false, existingCacheOnly: true, networkAcquired: false });
-    expect(record(result.sourceAudit)).toMatchObject({ requiredPath: ".cache/tradepulse/round-015/observations.ndjson", validPreExistingSourceFound: false, compatibleExistingCacheFound: false, economicPayloadRead: false, finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION });
-    expect(record(result.economicReadBoundary)).toMatchObject({ economicValuesCalculated: false, economicValuesInspected: false });
+    expect(record(result.economicReadBoundary)).toMatchObject({ historicalDevelopmentEconomicValuesRead: true, performanceExecutionCount: 0, performanceLedgerPresent: false, forwardEconomicValuesRead: false, forwardReturnRead: false });
+    expect(record(result.sourceCheck)).toMatchObject({ sourceStatus: R23_DEVELOPMENT_DATA_SOURCE_STATUS, newMarketDataFetched: false, newHistoricalDevelopmentDataFetched: false, networkAcquired: false, pitCompatible: true });
+    expect(record(result.sourceAudit)).toMatchObject({ requiredPath: R23_DEVELOPMENT_DATA_PATH, validPreExistingSourceFound: true, compatibleExistingCacheFound: true, economicPayloadRead: true, pitCompatible: true });
+    expect(record(result.economicReadBoundary)).toMatchObject({ economicValuesCalculated: true, economicValuesInspected: true });
     expect(record(result.governance)).toMatchObject({ automaticTrading: false, productionUnchanged: true });
+  });
+
+  it("freezes the accepted source identities before the single evaluation", () => {
+    expect(R23_RUNNER_IDENTITIES).toMatchObject({
+      r14ObservationPath: ".cache/tradepulse/round-014/observations.ndjson",
+      r14ObservationSha256: R23_DEVELOPMENT_DATA_SHA256,
+      r14ObservationBytes: 1893811055,
+      r14FreezeCommit: "44d630dd387e75ed9a46713a94f38221fa48ab0f",
+    });
   });
 
   it("keeps governance closed for Production and automated trading", () => {

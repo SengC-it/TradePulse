@@ -75,7 +75,14 @@ describe("Round-023 development data identity freeze", () => {
   });
 
   it("binds the committed manifest to the accepted R14 identity", () => {
-    const document = JSON.parse(readFileSync(path.join(process.cwd(), R23_DEVELOPMENT_DATA_MANIFEST_PATH), "utf8")) as Record<string, any>;
+    const document = JSON.parse(readFileSync(path.join(process.cwd(), R23_DEVELOPMENT_DATA_MANIFEST_PATH), "utf8")) as {
+      normalizedObservationPath: string;
+      acceptedSource: { observationDataSha256: string; observationDataBytes: number };
+      networkAcquired: boolean;
+      newHistoricalDevelopmentDataFetched: boolean;
+      integrity: string;
+      manifestSha256: string;
+    };
     expect(document.normalizedObservationPath).toBe(R23_DEVELOPMENT_DATA_PATH);
     expect(document.acceptedSource.observationDataSha256).toBe(R23_ACCEPTED_R14_OBSERVATION_SHA256);
     expect(document.acceptedSource.observationDataBytes).toBe(R23_ACCEPTED_R14_OBSERVATION_BYTES);
