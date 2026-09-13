@@ -68,21 +68,23 @@ function candidateFromRow(row: Record<string, unknown>): ObservationEvidenceCand
   const signalTime = stringOrNull(row.signal_time);
   const strategyId = stringOrNull(row.strategy_id);
   const strategyVersion = stringOrNull(row.strategy_version);
+  const artifactId = stringOrNull(row.artifact_id);
   const reviewObservationId = stringOrNull(row.review_observation_id);
+  const notificationObservationId = stringOrNull(row.notification_observation_id);
+  const informationAsOf = stringOrNull(row.information_as_of);
   const capturedAt = stringOrNull(row.captured_at);
+  const observedAt = stringOrNull(row.observed_at);
   const sourceRef = stringOrNull(row.source_ref);
   const idempotencyKey = stringOrNull(row.idempotency_key);
   if (eventKind === null
     || symbol === null
     || direction === null
-    || eventType === null
     || !evidenceId
     || !schemaVersion
     || !signalId
     || !signalTime
     || !strategyId
     || !strategyVersion
-    || !reviewObservationId
     || !capturedAt
     || !sourceRef
     || !idempotencyKey
@@ -90,6 +92,18 @@ function candidateFromRow(row: Record<string, unknown>): ObservationEvidenceCand
     || !isTimestampAuthority(timestampAuthority)) {
     return null;
   }
+  const eventKindFieldsValid = eventKind === "SNAPSHOT"
+    ? artifactId !== null
+      && artifactType !== null
+      && informationAsOf !== null
+      && stringOrNull(row.content_hash) !== null
+      && stringOrNull(row.evidence_hash) !== null
+    : eventKind === "NOTIFICATION"
+      ? notificationObservationId !== null && observedAt !== null
+      : eventKind === "REVIEW"
+        ? reviewObservationId !== null && eventType !== null
+        : true;
+  if (!eventKindFieldsValid) return null;
   return {
     evidenceId,
     eventKind,
@@ -100,14 +114,14 @@ function candidateFromRow(row: Record<string, unknown>): ObservationEvidenceCand
     signalTime,
     strategyId,
     strategyVersion,
-    artifactId: stringOrNull(row.artifact_id),
+    artifactId,
     artifactType,
-    notificationObservationId: stringOrNull(row.notification_observation_id),
+    notificationObservationId,
     reviewObservationId,
     eventType,
-    informationAsOf: stringOrNull(row.information_as_of),
+    informationAsOf,
     capturedAt,
-    observedAt: stringOrNull(row.observed_at),
+    observedAt,
     reviewStartedAt: stringOrNull(row.review_started_at),
     reviewSubmittedAt: stringOrNull(row.review_submitted_at),
     sourceRef,

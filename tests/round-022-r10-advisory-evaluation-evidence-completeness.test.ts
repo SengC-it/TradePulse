@@ -289,6 +289,38 @@ function evidenceSet(current = advisory()): {
   };
 }
 
+function rowFromCandidate(candidate: ObservationEvidenceCandidate): Record<string, unknown> {
+  return {
+    evidence_id: candidate.evidenceId,
+    event_kind: candidate.eventKind,
+    schema_version: candidate.schemaVersion,
+    signal_id: candidate.signalId,
+    symbol: candidate.symbol,
+    direction: candidate.direction,
+    signal_time: candidate.signalTime,
+    strategy_id: candidate.strategyId,
+    strategy_version: candidate.strategyVersion,
+    artifact_id: candidate.artifactId,
+    artifact_type: candidate.artifactType,
+    notification_observation_id: candidate.notificationObservationId,
+    review_observation_id: candidate.reviewObservationId,
+    event_type: candidate.eventType,
+    information_as_of: candidate.informationAsOf,
+    captured_at: candidate.capturedAt,
+    observed_at: candidate.observedAt,
+    review_started_at: candidate.reviewStartedAt,
+    review_submitted_at: candidate.reviewSubmittedAt,
+    source_ref: candidate.sourceRef,
+    content_hash: candidate.contentHash,
+    evidence_hash: candidate.evidenceHash,
+    idempotency_key: candidate.idempotencyKey,
+    supersedes_artifact_id: candidate.supersedesArtifactId,
+    supersedes_evidence_id: candidate.supersedesEvidenceId,
+    payload: candidate.payload,
+    timestamp_authority: candidate.timestampAuthority,
+  };
+}
+
 class InMemoryEvidenceReadStore implements R22EvidenceCompletenessReadStore {
   constructor(private readonly candidates: readonly ObservationEvidenceCandidate[]) {}
 
@@ -298,6 +330,8 @@ class InMemoryEvidenceReadStore implements R22EvidenceCompletenessReadStore {
 }
 
 class MetadataProjectionClient implements ObservationEvidenceClient {
+  constructor(private readonly rows: readonly Record<string, unknown>[] = []) {}
+
   selectColumns: string | undefined;
   insertCalls = 0;
 
@@ -313,7 +347,7 @@ class MetadataProjectionClient implements ObservationEvidenceClient {
     } = {
       eq: () => filter,
       maybeSingle: async () => ({ data: null, error: null }),
-      then: (onfulfilled, onrejected) => Promise.resolve({ data: [], error: null }).then(onfulfilled, onrejected),
+      then: (onfulfilled, onrejected) => Promise.resolve({ data: this.rows, error: null }).then(onfulfilled, onrejected),
     };
     return {
       insert: async () => {
@@ -367,6 +401,51 @@ describe("Round-022 R10 evidence completeness and advisory evaluation", () => {
     expect(client.selectColumns).toContain("evidence_id");
     expect(client.selectColumns).toContain("payload");
     expect(client.selectColumns).not.toMatch(/pnl|profit|loss|forward|future|drawdown/i);
+  });
+
+  it("hydrates the complete read projection so R10 can resolve snapshots, notifications, and reviews", async () => {
+    const prepared = evidenceSet();
+    const client = new MetadataProjectionClient(prepared.candidates.map(rowFromCandidate));
+    const store = new SupabaseObservationEvidenceStore(client);
+
+    const hydrated = await store.findEvidenceBySignalId(prepared.identity.signalId);
+    expect(hydrated).toHaveLength(prepared.candidates.length);
+    expect(new Set(hydrated.map((candidate) => candidate.eventKind))).toEqual(
+      new Set(["SNAPSHOT", "NOTIFICATION", "REVIEW"]),
+    );
+    expect(hydrated.filter((candidate) => candidate.eventKind === "SNAPSHOT")).toHaveLength(6);
+    expect(hydrated.filter((candidate) => candidate.eventKind === "NOTIFICATION")).toHaveLength(2);
+    expect(hydrated.filter((candidate) => candidate.eventKind === "REVIEW")).toHaveLength(2);
+
+    const resolved = await resolveR22AdvisoryEvidenceCompleteness({
+      identity: prepared.identity,
+      evidenceStore: store,
+    });
+    expect(resolved).toMatchObject({ status: "OBSERVABLE", reason: "NONE" });
+    expect(evaluateR22CompleteAdvisoryEvidence(resolved)).toMatchObject({
+      status: "OBSERVABLE",
+      direction: "LONG",
+    });
+  });
+
+  it.each([
+    ["SNAPSHOT missing artifactId", (row: Record<string, unknown>) => row.event_kind === "SNAPSHOT", (row: Record<string, unknown>) => ({ ...row, artifact_id: null })],
+    ["NOTIFICATION missing notificationObservationId", (row: Record<string, unknown>) => row.event_kind === "NOTIFICATION", (row: Record<string, unknown>) => ({ ...row, notification_observation_id: null })],
+    ["REVIEW missing reviewObservationId", (row: Record<string, unknown>) => row.event_kind === "REVIEW", (row: Record<string, unknown>) => ({ ...row, review_observation_id: null })],
+    ["REVIEW missing eventType", (row: Record<string, unknown>) => row.event_kind === "REVIEW" && row.event_type === "REVIEW_STARTED", (row: Record<string, unknown>) => ({ ...row, event_type: null })],
+    ["invalid eventKind", (row: Record<string, unknown>) => row.event_kind === "SNAPSHOT", (row: Record<string, unknown>) => ({ ...row, event_kind: "UNSUPPORTED" })],
+    ["invalid timestampAuthority", (row: Record<string, unknown>) => row.event_kind === "SNAPSHOT", (row: Record<string, unknown>) => ({ ...row, timestamp_authority: {} })],
+  ] as const)("drops malformed %s rows without repair or cross-kind coercion", async (_label, selectTarget, mutate) => {
+    const prepared = evidenceSet();
+    const rows = prepared.candidates.map(rowFromCandidate);
+    const target = rows.find(selectTarget)!;
+    const targetEvidenceId = target.evidence_id;
+    const client = new MetadataProjectionClient(rows.map((row) => row === target ? mutate(row) : row));
+    const store = new SupabaseObservationEvidenceStore(client);
+
+    const hydrated = await store.findEvidenceBySignalId(prepared.identity.signalId);
+    expect(hydrated).toHaveLength(rows.length - 1);
+    expect(hydrated.some((candidate) => candidate.evidenceId === targetEvidenceId)).toBe(false);
   });
 
   it.each([
