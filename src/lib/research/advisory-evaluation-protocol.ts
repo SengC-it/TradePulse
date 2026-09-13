@@ -122,6 +122,8 @@ export type R22AdvisoryEvaluationMetrics = Readonly<{
 export type R22AdvisoryEvaluationStatus = "OBSERVABLE" | "NOT_EVALUABLE";
 export type R22AdvisoryEvaluationReason =
   | "NONE"
+  | "INCOMPLETE_EVIDENCE_CHAIN"
+  | "SOURCE_ATTRIBUTION_INVALID"
   | "MISSING_SIGNAL"
   | "NO_SIGNAL_NOT_AN_ALERT"
   | "MISSING_QUALITY_SNAPSHOT"
