@@ -1,11 +1,15 @@
 import { createSupabaseAdminClient } from "../supabase/admin.ts";
+import { RESEARCH_SYMBOLS, type ResearchSymbol } from "../config/constants.ts";
 
 import {
   OBSERVATION_EVIDENCE_TABLE,
   type ObservationEvidenceAppendResult,
   type ObservationEvidenceCandidate,
+  type ObservationJsonValue,
+  type ObservationTimestampAuthority,
 } from "./types.ts";
 import { validateObservationEvidenceCandidate } from "./validator.ts";
+import { isCanonicalJsonValue } from "./canonical.ts";
 
 type SupabaseError = Readonly<{ code?: string | null; message?: string | null }>;
 type QueryResult<T> = Promise<Readonly<{ data: T | null; error: SupabaseError | null }>>;
@@ -23,6 +27,90 @@ type ObservationEvidenceQuery = Readonly<{
 export type ObservationEvidenceClient = Readonly<{
   from(table: string): ObservationEvidenceQuery;
 }>;
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function isTimestampAuthority(value: unknown): value is ObservationTimestampAuthority {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return record.capturedAtAuthority === "SERVER_WALL_CLOCK"
+    && record.informationAsOfAuthority === "SERVER_SOURCE_CUTOFF"
+    && record.userSuppliedCapturedAt === false
+    && record.userSuppliedInformationAsOf === false
+    && record.backdated === false;
+}
+
+function reviewCandidateFromRow(row: Record<string, unknown>): ObservationEvidenceCandidate | null {
+  const symbol = RESEARCH_SYMBOLS.includes(row.symbol as ResearchSymbol)
+    ? row.symbol as ResearchSymbol
+    : null;
+  const direction = row.direction === "LONG" || row.direction === "SHORT" ? row.direction : null;
+  const eventType = row.event_type === "REVIEW_STARTED" || row.event_type === "REVIEW_SUBMITTED"
+    ? row.event_type
+    : null;
+  const payload = row.payload;
+  const timestampAuthority = row.timestamp_authority;
+  const evidenceId = stringOrNull(row.evidence_id);
+  const schemaVersion = stringOrNull(row.schema_version);
+  const signalId = stringOrNull(row.signal_id);
+  const signalTime = stringOrNull(row.signal_time);
+  const strategyId = stringOrNull(row.strategy_id);
+  const strategyVersion = stringOrNull(row.strategy_version);
+  const reviewObservationId = stringOrNull(row.review_observation_id);
+  const capturedAt = stringOrNull(row.captured_at);
+  const sourceRef = stringOrNull(row.source_ref);
+  const idempotencyKey = stringOrNull(row.idempotency_key);
+  if (row.event_kind !== "REVIEW"
+    || symbol === null
+    || direction === null
+    || eventType === null
+    || !evidenceId
+    || !schemaVersion
+    || !signalId
+    || !signalTime
+    || !strategyId
+    || !strategyVersion
+    || !reviewObservationId
+    || !capturedAt
+    || !sourceRef
+    || !idempotencyKey
+    || !isCanonicalJsonValue(payload)
+    || !isTimestampAuthority(timestampAuthority)) {
+    return null;
+  }
+  return {
+    evidenceId,
+    eventKind: "REVIEW",
+    schemaVersion,
+    signalId,
+    symbol,
+    direction,
+    signalTime,
+    strategyId,
+    strategyVersion,
+    artifactId: stringOrNull(row.artifact_id),
+    artifactType: null,
+    notificationObservationId: null,
+    reviewObservationId,
+    eventType,
+    informationAsOf: stringOrNull(row.information_as_of),
+    capturedAt,
+    observedAt: stringOrNull(row.observed_at),
+    reviewStartedAt: stringOrNull(row.review_started_at),
+    reviewSubmittedAt: stringOrNull(row.review_submitted_at),
+    sourceRef,
+    contentHash: stringOrNull(row.content_hash),
+    evidenceHash: stringOrNull(row.evidence_hash),
+    idempotencyKey,
+    supersedesArtifactId: stringOrNull(row.supersedes_artifact_id),
+    supersedesEvidenceId: stringOrNull(row.supersedes_evidence_id),
+    payload: payload as ObservationJsonValue,
+    timestampAuthority,
+    persistenceOperation: "APPEND",
+  };
+}
 
 function persistenceError(operation: string, error: SupabaseError): Error {
   return new Error(`Observation evidence persistence failed during ${operation}${error.code ? ` (${error.code})` : ""}.`);
@@ -105,6 +193,20 @@ export class SupabaseObservationEvidenceStore {
     }
 
     throw persistenceError("classify unique constraint conflict", inserted.error);
+  }
+
+  async findReviewEvent(input: Readonly<{
+    reviewObservationId: string;
+    eventType: "REVIEW_STARTED" | "REVIEW_SUBMITTED";
+  }>): Promise<ObservationEvidenceCandidate | null> {
+    const result = await this.client
+      .from(OBSERVATION_EVIDENCE_TABLE)
+      .select("evidence_id,event_kind,schema_version,signal_id,symbol,direction,signal_time,strategy_id,strategy_version,artifact_id,review_observation_id,event_type,information_as_of,captured_at,observed_at,review_started_at,review_submitted_at,source_ref,content_hash,evidence_hash,idempotency_key,supersedes_artifact_id,supersedes_evidence_id,payload,timestamp_authority")
+      .eq("review_observation_id", input.reviewObservationId)
+      .eq("event_type", input.eventType)
+      .maybeSingle();
+    if (result.error) throw persistenceError("read review event", result.error);
+    return result.data ? reviewCandidateFromRow(result.data) : null;
   }
 
   private async readBy(column: string, value: string): Promise<Record<string, unknown> | null> {

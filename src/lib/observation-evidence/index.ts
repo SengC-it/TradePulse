@@ -51,6 +51,19 @@ export {
   type PresentationSnapshotCandidateInput,
 } from "./presentation.ts";
 export {
+  buildR22ReviewStartedCandidate,
+  buildR22ReviewSubmittedCandidate,
+  calculateR22HumanReviewIdempotencyKey,
+  calculateR22ReviewObservationId,
+  R22_HUMAN_REVIEW_SCHEMA_VERSION,
+  R22_HUMAN_REVIEW_SOURCE_PREFIX,
+  validateR22HumanReviewCandidate,
+  type R22HumanReviewAdvisoryIdentity,
+  type R22HumanReviewEventType,
+  type R22HumanReviewLabels,
+  type R22HumanReviewValidation,
+} from "./human-review.ts";
+export {
   buildNotificationObservationCandidate,
   calculateNotificationObservationId,
   NotificationObservationNotEvaluableError,

@@ -527,7 +527,9 @@ describe("Round-022 R1 evidence foundation", () => {
       && !path.endsWith("signal-advisory\\types.ts")
       && !path.endsWith("signal-advisory/scan.ts")
       && !path.endsWith("dashboard\\presentation.ts")
-      && !path.endsWith("dashboard/presentation.ts"));
+      && !path.endsWith("dashboard/presentation.ts")
+      && !path.endsWith("human-review\\service.ts")
+      && !path.endsWith("human-review/service.ts"));
     for (const path of productionSources) {
       expect(readFileSync(path, "utf8")).not.toMatch(/appendEvidence\s*\(/);
     }
