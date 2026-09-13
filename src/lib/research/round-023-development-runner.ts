@@ -4,7 +4,10 @@ import path from "node:path";
 import {
   R23_BRANCH,
   R23_DEVELOPMENT_CLASSIFICATION,
-  R23_NO_FORWARD_CANDIDATE,
+  R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE,
+  R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION,
+  R23_SOURCE_REMEDIATION_NEXT_STAGE,
+  R23_SOURCE_UNAVAILABLE_DECISION,
   R23_PROTOCOL_OBJECT,
   R23_PROTOCOL_SHA256,
   R23_EXISTING_DATA_PATH,
@@ -17,15 +20,32 @@ export type R23DevelopmentResult = Readonly<{
   protocolSha256: string;
   developmentExecutionId: string;
   developmentExecutionCount: 1;
-  classification: typeof R23_NO_FORWARD_CANDIDATE;
+  classification: typeof R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE;
   studyClassification: typeof R23_DEVELOPMENT_CLASSIFICATION;
+  candidateConfigurationsDefined: number;
   candidateConfigurationsEvaluated: number;
-  eligibleCandidates: readonly [];
+  eligibleCandidates: null;
   selectedCandidateId: null;
+  selectionExecuted: false;
   outcome: "NO_EXISTING_HISTORICAL_DEVELOPMENT_DATA_AVAILABLE";
+  sourceAudit: Readonly<{
+    requiredPath: typeof R23_EXISTING_DATA_PATH;
+    validPreExistingSourceFound: false;
+    repositoryPathExists: false;
+    reachableAcceptedArtifactWithRequiredPath: false;
+    compatibleExistingCacheFound: false;
+    auditScope: "EXISTING_REPOSITORY_GIT_OBJECTS_AND_CACHE_METADATA_ONLY";
+    pitCompatible: false;
+    economicPayloadRead: false;
+    finalStopDisposition: typeof R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION;
+    reason: string;
+  }>;
+  developmentEconomicEvaluationExecutionCount: 0;
   historicalDevelopmentEconomicValuesRead: false;
   forwardEconomicValuesRead: false;
   forwardReturnRead: false;
+  economicValuesCalculated: false;
+  economicValuesInspected: false;
   newMarketDataFetched: false;
   performanceExecutionCount: 0;
   performanceLedgerPresent: false;
@@ -35,6 +55,8 @@ export type R23DevelopmentResult = Readonly<{
   baseline002Status: "NOT_FROZEN";
   m3JStatus: "BLOCKED";
   m4Status: "NOT_STARTED";
+  finalDecision: typeof R23_SOURCE_UNAVAILABLE_DECISION;
+  nextStage: typeof R23_SOURCE_REMEDIATION_NEXT_STAGE;
 }>;
 
 export function runR23HistoricalDevelopment(input: Readonly<{ root?: string } > = {}): R23DevelopmentResult {
@@ -50,15 +72,32 @@ export function runR23HistoricalDevelopment(input: Readonly<{ root?: string } > 
     protocolSha256: R23_PROTOCOL_SHA256,
     developmentExecutionId: `r23-development-${R23_PROTOCOL_SHA256.slice(0, 16)}`,
     developmentExecutionCount: 1,
-    classification: R23_NO_FORWARD_CANDIDATE,
+    classification: R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE,
     studyClassification: R23_DEVELOPMENT_CLASSIFICATION,
-    candidateConfigurationsEvaluated: calculateR23CandidateConfigurationCount(),
-    eligibleCandidates: [] as const,
+    candidateConfigurationsDefined: calculateR23CandidateConfigurationCount(),
+    candidateConfigurationsEvaluated: 0,
+    eligibleCandidates: null,
     selectedCandidateId: null,
+    selectionExecuted: false,
     outcome: "NO_EXISTING_HISTORICAL_DEVELOPMENT_DATA_AVAILABLE",
+    sourceAudit: {
+      requiredPath: R23_EXISTING_DATA_PATH,
+      validPreExistingSourceFound: false,
+      repositoryPathExists: false,
+      reachableAcceptedArtifactWithRequiredPath: false,
+      compatibleExistingCacheFound: false,
+      auditScope: "EXISTING_REPOSITORY_GIT_OBJECTS_AND_CACHE_METADATA_ONLY",
+      pitCompatible: false,
+      economicPayloadRead: false,
+      finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION,
+      reason: "The required R15 historical development cache is absent from the worktree and no reachable accepted repository artifact with the required identity was found. Other round caches are not accepted substitutes.",
+    } as const,
+    developmentEconomicEvaluationExecutionCount: 0,
     historicalDevelopmentEconomicValuesRead: false,
     forwardEconomicValuesRead: false,
     forwardReturnRead: false,
+    economicValuesCalculated: false,
+    economicValuesInspected: false,
     newMarketDataFetched: false,
     performanceExecutionCount: 0,
     performanceLedgerPresent: false,
@@ -68,6 +107,8 @@ export function runR23HistoricalDevelopment(input: Readonly<{ root?: string } > 
     baseline002Status: "NOT_FROZEN",
     m3JStatus: "BLOCKED",
     m4Status: "NOT_STARTED",
+    finalDecision: R23_SOURCE_UNAVAILABLE_DECISION,
+    nextStage: R23_SOURCE_REMEDIATION_NEXT_STAGE,
   });
 }
 

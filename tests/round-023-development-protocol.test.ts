@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { R13_FEATURE_NAMES, R13_FOLDS } from "@/lib/research/m3-r13-round-013-protocol";
-import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_START_ISO, R23_EXISTING_DATA_MANIFEST_PATH, R23_EXISTING_DATA_PATH, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_NO_FORWARD_CANDIDATE, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
+import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_START_ISO, R23_EXISTING_DATA_MANIFEST_PATH, R23_EXISTING_DATA_PATH, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE, R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SOURCE_REMEDIATION_NEXT_STAGE, R23_SOURCE_UNAVAILABLE_DECISION, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
 import { runR23HistoricalDevelopment } from "@/lib/research/round-023-development-runner";
 
 type JsonRecord = Record<string, unknown>;
@@ -113,33 +113,54 @@ describe("Round-023 A0 development protocol", () => {
     expect(record(document.governance)).toMatchObject({ performanceExecutionCount: 0, performanceLedgerPresent: false, economicValuesRead: false, newMarketDataFetched: false, automaticTrading: false });
   });
 
-  it("fails closed without existing historical data and does not read economics", () => {
+  it("fails closed without existing historical data and does not evaluate economics", () => {
     const result = runR23HistoricalDevelopment({ root: path.join(process.cwd(), ".tmp-r23-missing-data") });
-    expect(result.classification).toBe(R23_NO_FORWARD_CANDIDATE);
+    expect(result.classification).toBe(R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE);
     expect(result.developmentExecutionCount).toBe(1);
-    expect(result.candidateConfigurationsEvaluated).toBe(4);
-    expect(result.eligibleCandidates).toEqual([]);
+    expect(result.candidateConfigurationsDefined).toBe(4);
+    expect(result.candidateConfigurationsEvaluated).toBe(0);
+    expect(result.eligibleCandidates).toBeNull();
     expect(result.selectedCandidateId).toBeNull();
+    expect(result.selectionExecuted).toBe(false);
+    expect(result.developmentEconomicEvaluationExecutionCount).toBe(0);
+    expect(result.finalDecision).toBe(R23_SOURCE_UNAVAILABLE_DECISION);
+    expect(result.nextStage).toBe(R23_SOURCE_REMEDIATION_NEXT_STAGE);
+    expect(result.sourceAudit).toMatchObject({
+      requiredPath: R23_EXISTING_DATA_PATH,
+      validPreExistingSourceFound: false,
+      compatibleExistingCacheFound: false,
+      economicPayloadRead: false,
+      finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION,
+    });
     expect(result.historicalDevelopmentEconomicValuesRead).toBe(false);
     expect(result.forwardEconomicValuesRead).toBe(false);
     expect(result.forwardReturnRead).toBe(false);
+    expect(result.economicValuesCalculated).toBe(false);
+    expect(result.economicValuesInspected).toBe(false);
     expect(result.newMarketDataFetched).toBe(false);
     expect(result.performanceExecutionCount).toBe(0);
   });
 
-  it("publishes the one-shot no-candidate result without an A1 model freeze", () => {
+  it("publishes the source-unavailable result without an A1 model freeze", () => {
     const result = developmentResultDocument();
     expect(result.protocolPhase).toBe("A0_DEVELOPMENT_PROTOCOL_FREEZE");
     expect(result.resultPhase).toBe("B_HISTORICAL_DEVELOPMENT_SEARCH_RESULT");
     expect(result.developmentExecutionId).toBe("r23-development-27a157934982dfef");
     expect(result.developmentExecutionCount).toBe(1);
-    expect(result.classification).toBe(R23_NO_FORWARD_CANDIDATE);
-    expect(result.candidateConfigurationsEvaluated).toBe(4);
-    expect(result.eligibleCandidates).toEqual([]);
+    expect(result.classification).toBe(R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE);
+    expect(result.candidateConfigurationsDefined).toBe(4);
+    expect(result.candidateConfigurationsEvaluated).toBe(0);
+    expect(result.eligibleCandidates).toBeNull();
     expect(result.selectedCandidateId).toBeNull();
+    expect(result.selectionExecuted).toBe(false);
+    expect(result.developmentEconomicEvaluationExecutionCount).toBe(0);
+    expect(result.finalDecision).toBe(R23_SOURCE_UNAVAILABLE_DECISION);
+    expect(result.nextStage).toBe(R23_SOURCE_REMEDIATION_NEXT_STAGE);
     expect(record(result.modelFreeze)).toMatchObject({ finalModelArtifactCommitted: false, forwardContractCommitted: false, selectedCandidateId: null });
     expect(record(result.economicReadBoundary)).toMatchObject({ performanceExecutionCount: 0, performanceLedgerPresent: false, forwardEconomicValuesRead: false, forwardReturnRead: false });
     expect(record(result.sourceCheck)).toMatchObject({ newMarketDataFetched: false, existingCacheOnly: true, networkAcquired: false });
+    expect(record(result.sourceAudit)).toMatchObject({ requiredPath: R23_EXISTING_DATA_PATH, validPreExistingSourceFound: false, compatibleExistingCacheFound: false, economicPayloadRead: false, finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION });
+    expect(record(result.economicReadBoundary)).toMatchObject({ economicValuesCalculated: false, economicValuesInspected: false });
     expect(record(result.governance)).toMatchObject({ automaticTrading: false, productionUnchanged: true });
   });
 

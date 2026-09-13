@@ -11,11 +11,14 @@
   "protocolSha256": "27a157934982dfef8966550d1326465448f3f7adc03b662dbf4879ff3e11d08a",
   "developmentExecutionId": "r23-development-27a157934982dfef",
   "developmentExecutionCount": 1,
-  "classification": "NO_FORWARD_CANDIDATE",
+  "classification": "DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE",
   "studyClassification": "HISTORICAL_CANDIDATE_DEVELOPMENT",
-  "candidateConfigurationsEvaluated": 4,
-  "eligibleCandidates": [],
+  "candidateConfigurationsDefined": 4,
+  "candidateConfigurationsEvaluated": 0,
+  "eligibleCandidates": null,
   "selectedCandidateId": null,
+  "selectionExecuted": false,
+  "developmentEconomicEvaluationExecutionCount": 0,
   "outcome": "NO_EXISTING_HISTORICAL_DEVELOPMENT_DATA_AVAILABLE",
   "sourceCheck": {
     "manifestPath": "docs/research/round-015-observation-freeze.json",
@@ -23,7 +26,22 @@
     "sourceStatusAtA0": "REQUIRED_EXISTING_CACHE_NOT_MATERIALIZED",
     "existingCacheOnly": true,
     "networkAcquired": false,
-    "newMarketDataFetched": false
+    "newMarketDataFetched": false,
+    "requiredSourcePathMaterialized": false,
+    "reachableAcceptedArtifactWithRequiredPath": false,
+    "compatibleExistingCacheFound": false
+  },
+  "sourceAudit": {
+    "requiredPath": ".cache/tradepulse/round-015/observations.ndjson",
+    "validPreExistingSourceFound": false,
+    "repositoryPathExists": false,
+    "reachableAcceptedArtifactWithRequiredPath": false,
+    "compatibleExistingCacheFound": false,
+    "auditScope": "EXISTING_REPOSITORY_GIT_OBJECTS_AND_CACHE_METADATA_ONLY",
+    "pitCompatible": false,
+    "economicPayloadRead": false,
+    "finalStopDisposition": "ROUND-023 DEVELOPMENT BLOCKED — NO VALID PRE-OUTCOME HISTORICAL SOURCE",
+    "reason": "The required R15 historical development cache is absent from the worktree and no reachable accepted repository artifact with the required identity was found. Other round caches are not accepted substitutes."
   },
   "economicReadBoundary": {
     "historicalDevelopmentEconomicValuesRead": false,
@@ -33,7 +51,8 @@
     "economicValuesInspected": false,
     "performanceExecuted": false,
     "performanceExecutionCount": 0,
-    "performanceLedgerPresent": false
+    "performanceLedgerPresent": false,
+    "developmentEconomicEvaluationExecutionCount": 0
   },
   "forwardValidation": {
     "authorized": false,
@@ -47,7 +66,7 @@
   },
   "selection": {
     "selectionExecuted": false,
-    "reason": "No configuration could be evaluated without the required existing historical development cache."
+    "reason": "Selection was not applicable because no candidate received economic evaluation without the required existing historical development cache."
   },
   "governance": {
     "automaticTrading": false,
@@ -62,6 +81,6 @@
     "newPostFreezeMarketDataFetched": false,
     "emailRestorationAuthorized": false
   },
-  "finalDecision": "ROUND-023 NO FORWARD CANDIDATE",
-  "nextStage": "STOP_CANDIDATE_REDESIGN_REQUIRED"
+  "finalDecision": "ROUND-023 DEVELOPMENT NOT EVALUABLE — SOURCE DATA UNAVAILABLE",
+  "nextStage": "PRE_OUTCOME_SOURCE_REMEDIATION_REQUIRED"
 }
