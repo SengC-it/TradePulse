@@ -1,0 +1,248 @@
+{
+  "schemaVersion": "m3-r23-forward-net-expectancy-development-protocol-001",
+  "researchRoundId": "baseline-002-research-round-023",
+  "branch": "research/round-023-forward-net-expectancy-validation",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "6924783d26e377a543bfc0d438a2bf6e6c40ba8a"
+  },
+  "phase": "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+  "r15ForwardCandidate": {
+    "rejected": true,
+    "rejectionReasons": [
+      "R15 is not a forward candidate: its final decision was ineligible, its selectedCandidateId was null, no immutable final model artifact was committed, and reproducing it requires fit/refit.",
+      "Do not refit, recover approximate coefficients, average folds, choose the best fold, or synthesize a final R15 model."
+    ],
+    "provenanceOnly": {
+      "firstSpecCommit": "f46e06083894f99eaf84bec818bf19b564c8603a",
+      "resultPublicationCommit": "c3986653f8b7ef26bb0e58b545fa3426386605e4",
+      "finalDecision": "NO BETA-ALPHA DEVELOPMENT CANDIDATE — ROUND-015",
+      "forwardShadowEligible": false,
+      "selectedCandidateId": null
+    }
+  },
+  "developmentData": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "manifestPath": "docs/research/round-015-observation-freeze.json",
+    "manifestSha256": "214b263282be58908b631f4c4f63c85daab0a1ffee5b6ef24cb4a3c79af7d1bc",
+    "observationDataPath": ".cache/tradepulse/round-015/observations.ndjson",
+    "observationDataSha256": "6f16065a7c1a763a2da35f2f60afc5c2b2a95cf44da5586abcfa760fdc7a1574",
+    "sourceStatusAtA0": "REQUIRED_EXISTING_CACHE_NOT_MATERIALIZED",
+    "sourcePolicy": "EXISTING_HISTORICAL_CACHE_ONLY_NO_NETWORK",
+    "networkAcquired": false,
+    "postBoundaryExcluded": true
+  },
+  "searchSpace": {
+    "maximumModelFamilies": 3,
+    "maximumThresholdsPerFamily": 3,
+    "maximumFeatureSubsetsPerFamily": 3,
+    "maximumCandidateConfigurations": 20,
+    "modelFamilies": [
+      {
+        "modelFamilyId": "R23_RIDGE_R13_ALL_EXISTING_FEATURES",
+        "model": "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
+        "lambda": 10,
+        "featureSubsetId": "R13_ALL_EXISTING_FEATURES",
+        "featureNames": [
+          "F01_directionAdjustedClose4hMinusEma200Atr",
+          "F02_directionAdjustedEma50MinusEma200Atr",
+          "F03_directionAdjustedEma200FiveBarSlopeAtr",
+          "F04_directionAdjustedReturn1hAtrPriceScale",
+          "F05_directionAdjustedEma20MinusEma50Atr",
+          "F06_directionAdjustedEma20ThreeBarSlopeAtr",
+          "F07_directionAdjustedReturn4hAtrPriceScale",
+          "F08_directionAdjustedReturn12hAtrPriceScale",
+          "F09_directionAdjustedClose1hMinusEma20Atr",
+          "F10_atr14OverClose1h",
+          "F11_rollingAtrPricePercentile30d",
+          "F12_logClippedQuoteVolumeOverPast20hMedian",
+          "F13_directionAdjustedTakerImbalance",
+          "F14_directionAdjustedSymbolMinusBtcReturn12h",
+          "F15_directionAdjustedSymbolMinusBtcReturn24h",
+          "F16_directionAdjustedSettledFundingBurden",
+          "F17_directionAdjustedEma50Breadth",
+          "F18_directionAdjustedMomentumBreadth12h"
+        ]
+      },
+      {
+        "modelFamilyId": "R23_RIDGE_R13_TREND_CONTEXT_SUBSET",
+        "model": "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
+        "lambda": 10,
+        "featureSubsetId": "R13_TREND_CONTEXT_EXISTING_FEATURES",
+        "featureNames": [
+          "F01_directionAdjustedClose4hMinusEma200Atr",
+          "F02_directionAdjustedEma50MinusEma200Atr",
+          "F03_directionAdjustedEma200FiveBarSlopeAtr",
+          "F05_directionAdjustedEma20MinusEma50Atr",
+          "F06_directionAdjustedEma20ThreeBarSlopeAtr",
+          "F09_directionAdjustedClose1hMinusEma20Atr",
+          "F10_atr14OverClose1h",
+          "F11_rollingAtrPricePercentile30d"
+        ]
+      }
+    ],
+    "thresholdValues": [0.05, 0.1],
+    "candidateConfigurationCount": 4,
+    "featureSource": "EXISTING_R13_FEATURE_DEFINITIONS_ONLY",
+    "noNewIndicators": true
+  },
+  "universe": {
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "directions": ["LONG", "SHORT"],
+    "timeframe": "1h decision / 4h horizon",
+    "horizonHours": 4
+  },
+  "folds": {
+    "ids": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "source": "RESEARCH_FOLDS_FROM_EXISTING_REPOSITORY",
+    "sourcePath": "src/lib/research/folds.ts",
+    "definitionIdentity": "RESEARCH_FOLDS / R13_FOLDS",
+    "definitions": {
+      "F1": {
+        "foldId": "F1",
+        "research": { "startTime": 1672531200000, "endTime": 1704067199999 },
+        "validation": { "startTime": 1704067200000, "endTime": 1719791999999 }
+      },
+      "F2": {
+        "foldId": "F2",
+        "research": { "startTime": 1672531200000, "endTime": 1719791999999 },
+        "validation": { "startTime": 1719792000000, "endTime": 1735689599999 }
+      },
+      "F3": {
+        "foldId": "F3",
+        "research": { "startTime": 1672531200000, "endTime": 1735689599999 },
+        "validation": { "startTime": 1735689600000, "endTime": 1751327999999 }
+      },
+      "F4": {
+        "foldId": "F4",
+        "research": { "startTime": 1672531200000, "endTime": 1751327999999 },
+        "validation": { "startTime": 1751328000000, "endTime": 1767225599999 }
+      },
+      "F5": {
+        "foldId": "F5",
+        "research": { "startTime": 1672531200000, "endTime": 1767225599999 },
+        "validation": { "startTime": 1767225600000, "endTime": 1775001599999 }
+      },
+      "F6": {
+        "foldId": "F6",
+        "research": { "startTime": 1672531200000, "endTime": 1775001599999 },
+        "validation": { "startTime": 1775001600000, "endTime": 1786838399999 }
+      }
+    }
+  },
+  "costModel": {
+    "policyVersion": "bt-policy-003",
+    "implementation": [
+      {
+        "path": "src/lib/backtest/constants.ts",
+        "gitBlobSha": "41d4d2b5d20c3013c631851217dff1ce6182caf6",
+        "sha256": "d00794b9bda54321c848efedfac0d8891fcb6d1aec04b2ebab2265bfdf9f1014",
+        "bytes": 2423
+      },
+      {
+        "path": "src/lib/backtest/settlement.ts",
+        "gitBlobSha": "826caace4c99359c5a2551ec8a046b218954fc1f",
+        "sha256": "22da94ff239f3e1d424218242d4ceca25803b32b71b80bf42d247b323cd53180",
+        "bytes": 14073
+      },
+      {
+        "path": "src/lib/backtest/funding.ts",
+        "gitBlobSha": "4a7cd0cac0a02465f382ecf70a8859e69ecdf076",
+        "sha256": "448ccd029451b67ebda2122d50f35d4e997b41f209ec33f5180c3bd59654a9ae",
+        "bytes": 7478
+      }
+    ],
+    "feeRule": {
+      "ratePerSide": 0.0005,
+      "formula": "entryFill * feeRate + exitFill * feeRate"
+    },
+    "slippageRule": {
+      "ratePerSide": 0.0005,
+      "formula": "direction-adjusted adverse fill on entry and exit"
+    },
+    "fundingRule": {
+      "source": "actual funding timestamp/rate events during the held interval",
+      "longSign": "-fundingRate * markPrice",
+      "shortSign": "+fundingRate * markPrice",
+      "noCrossedEvent": "zero only when no funding event is strictly inside the held interval",
+      "missingMarkPrice": "FAIL_CLOSED"
+    },
+    "settlementRule": {
+      "entry": "first complete 1m open at or after signalTime + 7 minutes",
+      "exit": "first causally resolved TP/SL event, otherwise 4h time exit",
+      "sameCandle": "bt-policy-003 1m resolution when required; unresolved ambiguity is NOT_EVALUABLE",
+      "optimisticTpSelection": false
+    },
+    "netFormula": "netReturn = grossReturn - feeCost - slippageCost - fundingCost",
+    "stress": "1.5x total fee + slippage + funding cost"
+  },
+  "statisticalContract": {
+    "validation": "blocked temporal walk-forward; train only on earlier observations; validation predict-only",
+    "split": "RESEARCH_FOLD_ROLE_THEN_VALIDATION_ROLE",
+    "randomShuffle": false,
+    "purgeEmbargoHours": 24,
+    "bootstrap": "temporal decision-time block bootstrap for the later forward result only",
+    "bootstrapSeed": 230023,
+    "bootstrapResamples": 10000,
+    "confidenceInterval": "one-sided 95 percent lower confidence bound",
+    "iidAssumption": false
+  },
+  "developmentGates": {
+    "minimumSettledAlerts": 50,
+    "minimumDistinctUtcDecisionDates": 10,
+    "minimumAggregateMeanNetExpectancy": 0,
+    "minimumAggregateNetProfitFactor": 1.1,
+    "minimumPositiveTemporalFolds": 4,
+    "maximumCatastrophicFolds": 0,
+    "costStress": {
+      "multiplier": 1.5,
+      "minimumMeanNetExpectancy": 0,
+      "minimumProfitFactor": 1.05
+    },
+    "manualLatencyPrimary": {
+      "minutes": 7,
+      "minimumMeanNetExpectancy": 0,
+      "minimumProfitFactor": 1.05
+    },
+    "maximumPositiveSymbolContributionShare": 0.5,
+    "maximumSinglePositiveObservationContribution": 0.05,
+    "unresolvedDataOrAmbiguity": "NO_FORWARD_CANDIDATE_OR_INVALID_DATA"
+  },
+  "candidateSelection": {
+    "algorithm": [
+      "PASS_ALL_HARD_GATES",
+      "HIGHEST_WORST_FOLD_NET_EXPECTANCY",
+      "HIGHEST_COST_STRESS_EXPECTANCY",
+      "LOWEST_MAXIMUM_DRAWDOWN_R",
+      "SIMPLER_MODEL_FEWER_PARAMETERS",
+      "CANDIDATE_CONFIGURATION_ID_LEXICAL_ASCENDING"
+    ],
+    "noBestHistoricalReturnSelection": true
+  },
+  "governance": {
+    "phase": "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+    "r15ForwardCandidateRejected": true,
+    "candidateProtocolFrozenForValidation": true,
+    "historicalDevelopmentAllowedAfterA0RemoteFreeze": true,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "newMarketDataFetched": false,
+    "newPostFreezeMarketDataFetched": false,
+    "forwardPerformanceExecutionCount": 0,
+    "performanceAuthorized": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "observationExecuted": false,
+    "historicalBackfillExecuted": false,
+    "economicValuesRead": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "mainUnchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "emailRestorationAuthorized": false
+  }
+}
