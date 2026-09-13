@@ -203,6 +203,8 @@ function sourceText(): string {
     // boundary with a dedicated fail-closed suite.
     // Round-021 positioning-crowding data design is a separate metadata-only
     // boundary with a dedicated fail-closed suite.
+    // Round-023 finite candidate development is a separate bounded
+    // research boundary with a dedicated protocol suite.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -219,6 +221,7 @@ function sourceText(): string {
       !name.startsWith("m3-r18-round-018-") &&
       !name.startsWith("m3-r20-") &&
       !name.startsWith("m3-r21-positioning-crowding-") &&
+      !name.startsWith("round-023-development-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&

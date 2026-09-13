@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "m3-r23-development-result-001",
+  "researchRoundId": "baseline-002-research-round-023",
+  "protocolPhase": "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+  "resultPhase": "B_HISTORICAL_DEVELOPMENT_SEARCH_RESULT",
+  "branch": "research/round-023-forward-net-expectancy-validation",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "6924783d26e377a543bfc0d438a2bf6e6c40ba8a"
+  },
+  "protocolSha256": "27a157934982dfef8966550d1326465448f3f7adc03b662dbf4879ff3e11d08a",
+  "developmentExecutionId": "r23-development-27a157934982dfef",
+  "developmentExecutionCount": 1,
+  "classification": "NO_FORWARD_CANDIDATE",
+  "studyClassification": "HISTORICAL_CANDIDATE_DEVELOPMENT",
+  "candidateConfigurationsEvaluated": 4,
+  "eligibleCandidates": [],
+  "selectedCandidateId": null,
+  "outcome": "NO_EXISTING_HISTORICAL_DEVELOPMENT_DATA_AVAILABLE",
+  "sourceCheck": {
+    "manifestPath": "docs/research/round-015-observation-freeze.json",
+    "observationDataPath": ".cache/tradepulse/round-015/observations.ndjson",
+    "sourceStatusAtA0": "REQUIRED_EXISTING_CACHE_NOT_MATERIALIZED",
+    "existingCacheOnly": true,
+    "networkAcquired": false,
+    "newMarketDataFetched": false
+  },
+  "economicReadBoundary": {
+    "historicalDevelopmentEconomicValuesRead": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "economicValuesCalculated": false,
+    "economicValuesInspected": false,
+    "performanceExecuted": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false
+  },
+  "forwardValidation": {
+    "authorized": false,
+    "executed": false,
+    "independentOosValidationExecuted": false
+  },
+  "modelFreeze": {
+    "finalModelArtifactCommitted": false,
+    "forwardContractCommitted": false,
+    "selectedCandidateId": null
+  },
+  "selection": {
+    "selectionExecuted": false,
+    "reason": "No configuration could be evaluated without the required existing historical development cache."
+  },
+  "governance": {
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "mainUnchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "observationExecuted": false,
+    "historicalBackfillExecuted": false,
+    "newPostFreezeMarketDataFetched": false,
+    "emailRestorationAuthorized": false
+  },
+  "finalDecision": "ROUND-023 NO FORWARD CANDIDATE",
+  "nextStage": "STOP_CANDIDATE_REDESIGN_REQUIRED"
+}
