@@ -20,11 +20,21 @@ export const R23_R15_REJECTION_REASON =
 
 export const R23_DEVELOPMENT_DATA_START_ISO = "2023-01-01T00:00:00.000Z" as const;
 export const R23_DEVELOPMENT_DATA_END_ISO = "2026-08-15T23:59:59.999Z" as const;
-export const R23_EXISTING_DATA_MANIFEST_PATH = "docs/research/round-015-observation-freeze.json" as const;
-export const R23_EXISTING_DATA_PATH = ".cache/tradepulse/round-015/observations.ndjson" as const;
-export const R23_EXISTING_DATA_MANIFEST_SHA256 = "214b263282be58908b631f4c4f63c85daab0a1ffee5b6ef24cb4a3c79af7d1bc" as const;
-export const R23_EXISTING_DATA_SHA256 = "6f16065a7c1a763a2da35f2f60afc5c2b2a95cf44da5586abcfa760fdc7a1574" as const;
-export const R23_EXISTING_DATA_SOURCE_STATUS = "REQUIRED_EXISTING_CACHE_NOT_MATERIALIZED" as const;
+export const R23_DEVELOPMENT_DATA_MANIFEST_PATH = "docs/research/round-023-development-data-manifest.json" as const;
+export const R23_DEVELOPMENT_DATA_PATH = ".cache/tradepulse/round-023/observations.ndjson" as const;
+export const R23_DEVELOPMENT_DATA_MANIFEST_SHA256 = "365c6d0aadb009f9671e02fa486acc8229255ab56ab7987500dcfbed25ea830a" as const;
+export const R23_DEVELOPMENT_DATA_SHA256 = "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359" as const;
+export const R23_DEVELOPMENT_DATA_SOURCE_STATUS = "ACCEPTED_EXISTING_R14_OBSERVATION_FREEZE_REUSED" as const;
+export const R23_SOURCE_ACQUISITION_AMENDMENT_PATH = "docs/research/round-023-source-acquisition-amendment.json" as const;
+export const R23_SOURCE_ACQUISITION_AMENDMENT_ID = "R23-SOURCE-ACQUISITION-001" as const;
+export const R23_SOURCE_ACQUISITION_AMENDMENT_COMMIT = "adfe7ae2453815748cbd331784376a63695dc45d" as const;
+export const R23_SOURCE_ACQUISITION_AMENDMENT_PARENT = "3646432a3edb204852cf1f09fa08b69d021dffd8" as const;
+export const R23_SOURCE_ACQUISITION_AMENDMENT_SHA256 = "a76b6cf2137ff4f4339c38ab72d19993cf625da4c1b018fef578c1ab96176240" as const;
+export const R23_EXISTING_DATA_MANIFEST_PATH = R23_DEVELOPMENT_DATA_MANIFEST_PATH;
+export const R23_EXISTING_DATA_PATH = R23_DEVELOPMENT_DATA_PATH;
+export const R23_EXISTING_DATA_MANIFEST_SHA256 = R23_DEVELOPMENT_DATA_MANIFEST_SHA256;
+export const R23_EXISTING_DATA_SHA256 = R23_DEVELOPMENT_DATA_SHA256;
+export const R23_EXISTING_DATA_SOURCE_STATUS = R23_DEVELOPMENT_DATA_SOURCE_STATUS;
 
 export const R23_SYMBOLS = Object.freeze(["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"] as const);
 export const R23_DIRECTIONS = Object.freeze(["LONG", "SHORT"] as const);
@@ -204,7 +214,7 @@ export const R23_STATISTICAL_CONTRACT = deepFreeze({
 } as const);
 
 export const R23_GOVERNANCE = deepFreeze({
-  phase: "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+  phase: "A1_DEVELOPMENT_DATASET_FREEZE",
   r15ForwardCandidateRejected: true,
   candidateProtocolFrozenForValidation: true,
   historicalDevelopmentAllowedAfterA0RemoteFreeze: true,
@@ -234,7 +244,7 @@ export const R23_PROTOCOL_OBJECT = deepFreeze({
   researchRoundId: R23_RESEARCH_ROUND_ID,
   branch: R23_BRANCH,
   base: { branch: R23_BASE_BRANCH, sha: R23_BASE_SHA },
-  phase: "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+  phase: "A1_DEVELOPMENT_DATASET_FREEZE",
   r15ForwardCandidate: {
     rejected: true,
     rejectionReasons: [R23_R15_REJECTION_REASON, "Do not refit, recover approximate coefficients, average folds, choose the best fold, or synthesize a final R15 model."],
@@ -246,16 +256,38 @@ export const R23_PROTOCOL_OBJECT = deepFreeze({
       selectedCandidateId: null,
     },
   },
+  sourceAcquisitionAmendment: {
+    path: R23_SOURCE_ACQUISITION_AMENDMENT_PATH,
+    amendmentId: R23_SOURCE_ACQUISITION_AMENDMENT_ID,
+    commit: R23_SOURCE_ACQUISITION_AMENDMENT_COMMIT,
+    parentProtocolSha256: "27a157934982dfef8966550d1326465448f3f7adc03b662dbf4879ff3e11d08a",
+    parentCommit: R23_SOURCE_ACQUISITION_AMENDMENT_PARENT,
+    artifactSha256: R23_SOURCE_ACQUISITION_AMENDMENT_SHA256,
+    scope: "DATA_SOURCE_ONLY",
+    sourcePolicy: "PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED",
+  },
   developmentData: {
     start: R23_DEVELOPMENT_DATA_START_ISO,
     end: R23_DEVELOPMENT_DATA_END_ISO,
-    manifestPath: R23_EXISTING_DATA_MANIFEST_PATH,
-    manifestSha256: R23_EXISTING_DATA_MANIFEST_SHA256,
-    observationDataPath: R23_EXISTING_DATA_PATH,
-    observationDataSha256: R23_EXISTING_DATA_SHA256,
-    sourceStatusAtA0: R23_EXISTING_DATA_SOURCE_STATUS,
-    sourcePolicy: "EXISTING_HISTORICAL_CACHE_ONLY_NO_NETWORK",
+    manifestPath: R23_DEVELOPMENT_DATA_MANIFEST_PATH,
+    manifestSha256: R23_DEVELOPMENT_DATA_MANIFEST_SHA256,
+    observationDataPath: R23_DEVELOPMENT_DATA_PATH,
+    observationDataSha256: R23_DEVELOPMENT_DATA_SHA256,
+    sourceStatusAtA0: R23_DEVELOPMENT_DATA_SOURCE_STATUS,
+    sourcePolicy: "PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED",
+    acceptedSource: {
+      round: "R14",
+      observationPath: ".cache/tradepulse/round-014/observations.ndjson",
+      observationDataSha256: R23_DEVELOPMENT_DATA_SHA256,
+      observationDataBytes: 1893811055,
+      freezeManifestPath: "docs/research/round-014-observation-freeze.json",
+      freezeManifestFileSha256: "79c8e56560cd6e1ed2de1772071bd0d92ecd2fac4b4ae065cf65f11f583b3e18",
+      freezeManifestSha256: "7d03b1a59f85509c3e350c0ab10053b8ff84193357322b11a1437002c9d25af6",
+      freezeCommit: "44d630dd387e75ed9a46713a94f38221fa48ab0f",
+      freezeManifestBlobSha: "73fef453b288e340f3f5b8ab32154f500efbd05e",
+    },
     networkAcquired: false,
+    newHistoricalDevelopmentDataFetched: false,
     postBoundaryExcluded: true,
   },
   searchSpace: {
@@ -265,12 +297,13 @@ export const R23_PROTOCOL_OBJECT = deepFreeze({
     maximumCandidateConfigurations: 20,
     modelFamilies: R23_MODEL_FAMILIES,
     thresholdValues: R23_THRESHOLD_VALUES,
+    candidateConfigurationCount: 4,
     candidateConfigurations: R23_CANDIDATE_CONFIGURATIONS,
     featureSource: "EXISTING_R13_FEATURE_DEFINITIONS_ONLY",
     noNewIndicators: true,
   },
   universe: { symbols: R23_SYMBOLS, directions: R23_DIRECTIONS, timeframe: "1h decision / 4h horizon", horizonHours: R23_HORIZON_HOURS },
-  folds: { ids: R23_FOLD_IDS, definitions: R23_FOLDS, source: "RESEARCH_FOLDS_FROM_EXISTING_REPOSITORY" },
+  folds: { ids: R23_FOLD_IDS, definitions: R23_FOLDS, source: "RESEARCH_FOLDS_FROM_EXISTING_REPOSITORY", sourcePath: "src/lib/research/folds.ts", definitionIdentity: "RESEARCH_FOLDS / R13_FOLDS" },
   costModel: R23_FROZEN_COST_MODEL,
   statisticalContract: R23_STATISTICAL_CONTRACT,
   developmentGates: R23_DEVELOPMENT_GATES,

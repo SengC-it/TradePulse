@@ -6,7 +6,7 @@
     "branch": "research/round-015-beta-alpha-decomposition",
     "sha": "6924783d26e377a543bfc0d438a2bf6e6c40ba8a"
   },
-  "phase": "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+  "phase": "A1_DEVELOPMENT_DATASET_FREEZE",
   "r15ForwardCandidate": {
     "rejected": true,
     "rejectionReasons": [
@@ -21,16 +21,38 @@
       "selectedCandidateId": null
     }
   },
+  "sourceAcquisitionAmendment": {
+    "path": "docs/research/round-023-source-acquisition-amendment.json",
+    "amendmentId": "R23-SOURCE-ACQUISITION-001",
+    "commit": "adfe7ae2453815748cbd331784376a63695dc45d",
+    "parentProtocolSha256": "27a157934982dfef8966550d1326465448f3f7adc03b662dbf4879ff3e11d08a",
+    "parentCommit": "3646432a3edb204852cf1f09fa08b69d021dffd8",
+    "artifactSha256": "a76b6cf2137ff4f4339c38ab72d19993cf625da4c1b018fef578c1ab96176240",
+    "scope": "DATA_SOURCE_ONLY",
+    "sourcePolicy": "PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED"
+  },
   "developmentData": {
     "start": "2023-01-01T00:00:00.000Z",
     "end": "2026-08-15T23:59:59.999Z",
-    "manifestPath": "docs/research/round-015-observation-freeze.json",
-    "manifestSha256": "214b263282be58908b631f4c4f63c85daab0a1ffee5b6ef24cb4a3c79af7d1bc",
-    "observationDataPath": ".cache/tradepulse/round-015/observations.ndjson",
-    "observationDataSha256": "6f16065a7c1a763a2da35f2f60afc5c2b2a95cf44da5586abcfa760fdc7a1574",
-    "sourceStatusAtA0": "REQUIRED_EXISTING_CACHE_NOT_MATERIALIZED",
-    "sourcePolicy": "EXISTING_HISTORICAL_CACHE_ONLY_NO_NETWORK",
+    "manifestPath": "docs/research/round-023-development-data-manifest.json",
+    "manifestSha256": "365c6d0aadb009f9671e02fa486acc8229255ab56ab7987500dcfbed25ea830a",
+    "observationDataPath": ".cache/tradepulse/round-023/observations.ndjson",
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "sourceStatusAtA0": "ACCEPTED_EXISTING_R14_OBSERVATION_FREEZE_REUSED",
+    "sourcePolicy": "PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED",
+    "acceptedSource": {
+      "round": "R14",
+      "observationPath": ".cache/tradepulse/round-014/observations.ndjson",
+      "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+      "observationDataBytes": 1893811055,
+      "freezeManifestPath": "docs/research/round-014-observation-freeze.json",
+      "freezeManifestFileSha256": "79c8e56560cd6e1ed2de1772071bd0d92ecd2fac4b4ae065cf65f11f583b3e18",
+      "freezeManifestSha256": "7d03b1a59f85509c3e350c0ab10053b8ff84193357322b11a1437002c9d25af6",
+      "freezeCommit": "44d630dd387e75ed9a46713a94f38221fa48ab0f",
+      "freezeManifestBlobSha": "73fef453b288e340f3f5b8ab32154f500efbd05e"
+    },
     "networkAcquired": false,
+    "newHistoricalDevelopmentDataFetched": false,
     "postBoundaryExcluded": true
   },
   "searchSpace": {
@@ -84,6 +106,100 @@
     ],
     "thresholdValues": [0.05, 0.1],
     "candidateConfigurationCount": 4,
+    "candidateConfigurations": [
+      {
+        "candidateConfigurationId": "R23_RIDGE_R13_ALL_EXISTING_FEATURES_THRESHOLD_0.05",
+        "modelFamilyId": "R23_RIDGE_R13_ALL_EXISTING_FEATURES",
+        "model": "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
+        "lambda": 10,
+        "featureSubsetId": "R13_ALL_EXISTING_FEATURES",
+        "featureNames": [
+          "F01_directionAdjustedClose4hMinusEma200Atr",
+          "F02_directionAdjustedEma50MinusEma200Atr",
+          "F03_directionAdjustedEma200FiveBarSlopeAtr",
+          "F04_directionAdjustedReturn1hAtrPriceScale",
+          "F05_directionAdjustedEma20MinusEma50Atr",
+          "F06_directionAdjustedEma20ThreeBarSlopeAtr",
+          "F07_directionAdjustedReturn4hAtrPriceScale",
+          "F08_directionAdjustedReturn12hAtrPriceScale",
+          "F09_directionAdjustedClose1hMinusEma20Atr",
+          "F10_atr14OverClose1h",
+          "F11_rollingAtrPricePercentile30d",
+          "F12_logClippedQuoteVolumeOverPast20hMedian",
+          "F13_directionAdjustedTakerImbalance",
+          "F14_directionAdjustedSymbolMinusBtcReturn12h",
+          "F15_directionAdjustedSymbolMinusBtcReturn24h",
+          "F16_directionAdjustedSettledFundingBurden",
+          "F17_directionAdjustedEma50Breadth",
+          "F18_directionAdjustedMomentumBreadth12h"
+        ],
+        "threshold": 0.05
+      },
+      {
+        "candidateConfigurationId": "R23_RIDGE_R13_ALL_EXISTING_FEATURES_THRESHOLD_0.10",
+        "modelFamilyId": "R23_RIDGE_R13_ALL_EXISTING_FEATURES",
+        "model": "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
+        "lambda": 10,
+        "featureSubsetId": "R13_ALL_EXISTING_FEATURES",
+        "featureNames": [
+          "F01_directionAdjustedClose4hMinusEma200Atr",
+          "F02_directionAdjustedEma50MinusEma200Atr",
+          "F03_directionAdjustedEma200FiveBarSlopeAtr",
+          "F04_directionAdjustedReturn1hAtrPriceScale",
+          "F05_directionAdjustedEma20MinusEma50Atr",
+          "F06_directionAdjustedEma20ThreeBarSlopeAtr",
+          "F07_directionAdjustedReturn4hAtrPriceScale",
+          "F08_directionAdjustedReturn12hAtrPriceScale",
+          "F09_directionAdjustedClose1hMinusEma20Atr",
+          "F10_atr14OverClose1h",
+          "F11_rollingAtrPricePercentile30d",
+          "F12_logClippedQuoteVolumeOverPast20hMedian",
+          "F13_directionAdjustedTakerImbalance",
+          "F14_directionAdjustedSymbolMinusBtcReturn12h",
+          "F15_directionAdjustedSymbolMinusBtcReturn24h",
+          "F16_directionAdjustedSettledFundingBurden",
+          "F17_directionAdjustedEma50Breadth",
+          "F18_directionAdjustedMomentumBreadth12h"
+        ],
+        "threshold": 0.1
+      },
+      {
+        "candidateConfigurationId": "R23_RIDGE_R13_TREND_CONTEXT_SUBSET_THRESHOLD_0.05",
+        "modelFamilyId": "R23_RIDGE_R13_TREND_CONTEXT_SUBSET",
+        "model": "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
+        "lambda": 10,
+        "featureSubsetId": "R13_TREND_CONTEXT_EXISTING_FEATURES",
+        "featureNames": [
+          "F01_directionAdjustedClose4hMinusEma200Atr",
+          "F02_directionAdjustedEma50MinusEma200Atr",
+          "F03_directionAdjustedEma200FiveBarSlopeAtr",
+          "F05_directionAdjustedEma20MinusEma50Atr",
+          "F06_directionAdjustedEma20ThreeBarSlopeAtr",
+          "F09_directionAdjustedClose1hMinusEma20Atr",
+          "F10_atr14OverClose1h",
+          "F11_rollingAtrPricePercentile30d"
+        ],
+        "threshold": 0.05
+      },
+      {
+        "candidateConfigurationId": "R23_RIDGE_R13_TREND_CONTEXT_SUBSET_THRESHOLD_0.10",
+        "modelFamilyId": "R23_RIDGE_R13_TREND_CONTEXT_SUBSET",
+        "model": "DETERMINISTIC_INTERPRETABLE_RIDGE_LINEAR_REGRESSION",
+        "lambda": 10,
+        "featureSubsetId": "R13_TREND_CONTEXT_EXISTING_FEATURES",
+        "featureNames": [
+          "F01_directionAdjustedClose4hMinusEma200Atr",
+          "F02_directionAdjustedEma50MinusEma200Atr",
+          "F03_directionAdjustedEma200FiveBarSlopeAtr",
+          "F05_directionAdjustedEma20MinusEma50Atr",
+          "F06_directionAdjustedEma20ThreeBarSlopeAtr",
+          "F09_directionAdjustedClose1hMinusEma20Atr",
+          "F10_atr14OverClose1h",
+          "F11_rollingAtrPricePercentile30d"
+        ],
+        "threshold": 0.1
+      }
+    ],
     "featureSource": "EXISTING_R13_FEATURE_DEFINITIONS_ONLY",
     "noNewIndicators": true
   },
@@ -221,7 +337,7 @@
     "noBestHistoricalReturnSelection": true
   },
   "governance": {
-    "phase": "A0_DEVELOPMENT_PROTOCOL_FREEZE",
+    "phase": "A1_DEVELOPMENT_DATASET_FREEZE",
     "r15ForwardCandidateRejected": true,
     "candidateProtocolFrozenForValidation": true,
     "historicalDevelopmentAllowedAfterA0RemoteFreeze": true,

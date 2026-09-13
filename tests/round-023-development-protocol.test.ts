@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { R13_FEATURE_NAMES, R13_FOLDS } from "@/lib/research/m3-r13-round-013-protocol";
-import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_START_ISO, R23_EXISTING_DATA_MANIFEST_PATH, R23_EXISTING_DATA_PATH, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE, R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SOURCE_REMEDIATION_NEXT_STAGE, R23_SOURCE_UNAVAILABLE_DECISION, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
+import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_MANIFEST_PATH, R23_DEVELOPMENT_DATA_PATH, R23_DEVELOPMENT_DATA_SHA256, R23_DEVELOPMENT_DATA_SOURCE_STATUS, R23_DEVELOPMENT_DATA_START_ISO, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE, R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SOURCE_REMEDIATION_NEXT_STAGE, R23_SOURCE_UNAVAILABLE_DECISION, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
 import { runR23HistoricalDevelopment } from "@/lib/research/round-023-development-runner";
 
 type JsonRecord = Record<string, unknown>;
@@ -33,7 +33,7 @@ describe("Round-023 A0 development protocol", () => {
     expect(R23_BASE_SHA).toBe("6924783d26e377a543bfc0d438a2bf6e6c40ba8a");
     expect(R23_BRANCH).toBe("research/round-023-forward-net-expectancy-validation");
     expect(R23_PROTOCOL_OBJECT.schemaVersion).toBe(R23_PROTOCOL_SCHEMA_VERSION);
-    expect(R23_PROTOCOL_OBJECT.phase).toBe("A0_DEVELOPMENT_PROTOCOL_FREEZE");
+    expect(R23_PROTOCOL_OBJECT.phase).toBe("A1_DEVELOPMENT_DATASET_FREEZE");
     expect(acceptedBlobSha("docs/research/round-015-spec.json")).toMatch(/^[a-f0-9]{40}$/u);
   });
 
@@ -71,14 +71,17 @@ describe("Round-023 A0 development protocol", () => {
     expect(R13_FEATURE_NAMES.length).toBe(18);
   });
 
-  it("freezes the historical boundary and existing-cache-only policy", () => {
+  it("freezes the historical boundary and amended accepted-source policy", () => {
     const data = record(R23_PROTOCOL_OBJECT.developmentData);
     expect(data.start).toBe(R23_DEVELOPMENT_DATA_START_ISO);
     expect(data.end).toBe(R23_DEVELOPMENT_DATA_END_ISO);
-    expect(data.manifestPath).toBe(R23_EXISTING_DATA_MANIFEST_PATH);
-    expect(data.observationDataPath).toBe(R23_EXISTING_DATA_PATH);
-    expect(data.sourcePolicy).toBe("EXISTING_HISTORICAL_CACHE_ONLY_NO_NETWORK");
+    expect(data.manifestPath).toBe(R23_DEVELOPMENT_DATA_MANIFEST_PATH);
+    expect(data.observationDataPath).toBe(R23_DEVELOPMENT_DATA_PATH);
+    expect(data.observationDataSha256).toBe(R23_DEVELOPMENT_DATA_SHA256);
+    expect(data.sourceStatusAtA0).toBe(R23_DEVELOPMENT_DATA_SOURCE_STATUS);
+    expect(data.sourcePolicy).toBe("PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED");
     expect(data.networkAcquired).toBe(false);
+    expect(data.newHistoricalDevelopmentDataFetched).toBe(false);
     expect(data.postBoundaryExcluded).toBe(true);
   });
 
@@ -106,7 +109,8 @@ describe("Round-023 A0 development protocol", () => {
     const document = protocolDocument();
     expect(document.schemaVersion).toBe(R23_PROTOCOL_SCHEMA_VERSION);
     expect(document.base).toEqual({ branch: R23_BASE_BRANCH, sha: R23_BASE_SHA });
-    expect(record(document.developmentData).observationDataPath).toBe(R23_EXISTING_DATA_PATH);
+    expect(record(document.developmentData).observationDataPath).toBe(R23_DEVELOPMENT_DATA_PATH);
+    expect(record(document.developmentData).manifestPath).toBe(R23_DEVELOPMENT_DATA_MANIFEST_PATH);
     expect(record(document.searchSpace).candidateConfigurationCount).toBe(4);
     expect(record(document.folds).definitions).toEqual(R23_FOLDS);
     expect(record(document.costModel).implementation).toEqual(R23_FROZEN_COST_MODEL.implementation);
@@ -126,7 +130,7 @@ describe("Round-023 A0 development protocol", () => {
     expect(result.finalDecision).toBe(R23_SOURCE_UNAVAILABLE_DECISION);
     expect(result.nextStage).toBe(R23_SOURCE_REMEDIATION_NEXT_STAGE);
     expect(result.sourceAudit).toMatchObject({
-      requiredPath: R23_EXISTING_DATA_PATH,
+      requiredPath: R23_DEVELOPMENT_DATA_PATH,
       validPreExistingSourceFound: false,
       compatibleExistingCacheFound: false,
       economicPayloadRead: false,
@@ -159,7 +163,7 @@ describe("Round-023 A0 development protocol", () => {
     expect(record(result.modelFreeze)).toMatchObject({ finalModelArtifactCommitted: false, forwardContractCommitted: false, selectedCandidateId: null });
     expect(record(result.economicReadBoundary)).toMatchObject({ performanceExecutionCount: 0, performanceLedgerPresent: false, forwardEconomicValuesRead: false, forwardReturnRead: false });
     expect(record(result.sourceCheck)).toMatchObject({ newMarketDataFetched: false, existingCacheOnly: true, networkAcquired: false });
-    expect(record(result.sourceAudit)).toMatchObject({ requiredPath: R23_EXISTING_DATA_PATH, validPreExistingSourceFound: false, compatibleExistingCacheFound: false, economicPayloadRead: false, finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION });
+    expect(record(result.sourceAudit)).toMatchObject({ requiredPath: ".cache/tradepulse/round-015/observations.ndjson", validPreExistingSourceFound: false, compatibleExistingCacheFound: false, economicPayloadRead: false, finalStopDisposition: R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION });
     expect(record(result.economicReadBoundary)).toMatchObject({ economicValuesCalculated: false, economicValuesInspected: false });
     expect(record(result.governance)).toMatchObject({ automaticTrading: false, productionUnchanged: true });
   });
@@ -179,6 +183,5 @@ describe("Round-023 A0 development protocol", () => {
       m3JStatus: "BLOCKED",
       m4Status: "NOT_STARTED",
     });
-    expect(existsSync(path.join(process.cwd(), ".cache/tradepulse/round-023"))).toBe(false);
   });
 });
