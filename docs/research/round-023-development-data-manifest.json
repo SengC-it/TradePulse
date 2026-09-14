@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "m3-r23-development-data-manifest-001",
+  "researchRoundId": "baseline-002-research-round-023",
+  "datasetId": "r23-r14-r13-h4-5b0e62f93526052d",
+  "sourcePolicy": "PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED",
+  "sourceStatus": "ACCEPTED_EXISTING_R14_OBSERVATION_FREEZE_REUSED",
+  "provider": "ACCEPTED_BINANCE_VISION_PUBLIC_ARCHIVE_LINEAGE",
+  "endpoints": [
+    "https://data.binance.vision/data/futures/um/daily/klines/{symbol}/",
+    "https://data.binance.vision/data/futures/um/daily/fundingRate/{symbol}/",
+    "https://data.binance.vision/data/futures/um/daily/markPriceKlines/{symbol}/"
+  ],
+  "dataTypes": [
+    "R13_FEATURE_VECTOR",
+    "BT_POLICY_003_H4_SETTLEMENT_LABEL",
+    "BT_POLICY_003_H4_LATENCY_STRESS_LABEL"
+  ],
+  "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+  "directions": ["LONG", "SHORT"],
+  "timeframe": "1h decision / 4h horizon",
+  "window": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "eventTimeInclusive": true,
+    "postBoundaryDataRejected": true
+  },
+  "acceptedSource": {
+    "round": "R14",
+    "observationPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "observationDataBytes": 1893811055,
+    "freezeManifestPath": "docs/research/round-014-observation-freeze.json",
+    "freezeManifestFileSha256": "79c8e56560cd6e1ed2de1772071bd0d92ecd2fac4b4ae065cf65f11f583b3e18",
+    "freezeManifestSha256": "7d03b1a59f85509c3e350c0ab10053b8ff84193357322b11a1437002c9d25af6",
+    "freezeCommit": "44d630dd387e75ed9a46713a94f38221fa48ab0f",
+    "freezeManifestBlobSha": "73fef453b288e340f3f5b8ab32154f500efbd05e"
+  },
+  "normalizedObservationPath": ".cache/tradepulse/round-023/observations.ndjson",
+  "rawDataset": {
+    "datasetIdentitySha256": "cf836dd3344ef4a896c7a9520c65a648c19f2fa25f5f849ea6ab4e9050d32e26",
+    "datasetFreezePath": "docs/research/round-013-dataset-freeze.json",
+    "datasetFreezeCommit": "3235d08da1cadf2f98a7b4974dc183a8e50b919e",
+    "datasetFreezeBlobSha": "51aacd43b3110fba3a2da96a1a9cfa5ea8a2ccee",
+    "sourceManifestIdentitySha256": "2ffa7eda3a53edfeaa2e4443812c4380d0a15dd581442eec47e3f8cd82557175",
+    "coarseCacheIdentitySha256": "43251e252041c66b393588397a069708624e93d937b4d8eabf57d623b9763088",
+    "archiveCount": 290
+  },
+  "counts": {
+    "observations": 244810,
+    "perSymbol": {
+      "BTCUSDT": 48962,
+      "ETHUSDT": 48962,
+      "SOLUSDT": 48962,
+      "XRPUSDT": 48962,
+      "BNBUSDT": 48962
+    },
+    "perDirection": {"LONG": 122405, "SHORT": 122405},
+    "primaryH4Status": {
+      "EXECUTED": 244760,
+      "NO_ENTRY": 10,
+      "DATA_INCOMPLETE": 0,
+      "PERIOD_END_CENSORED": 40
+    },
+    "latencyH4Status": {
+      "EXECUTED": 244760,
+      "NO_ENTRY": 10,
+      "DATA_INCOMPLETE": 0,
+      "PERIOD_END_CENSORED": 40
+    }
+  },
+  "earliestDecisionTime": 1698710399999,
+  "latestDecisionTime": 1786838399999,
+  "rawObservationSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+  "normalizedObservationSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+  "rawObservationBytes": 1893811055,
+  "normalizedObservationBytes": 1893811055,
+  "normalizationVersion": "R14_EXACT_R13_OBSERVATION_SCHEMA",
+  "featureSource": {
+    "protocolPath": "src/lib/research/m3-r13-round-013-protocol.ts",
+    "protocolBlobSha": "fd149404f47410fb9f8d40e5b14c6f78af503c57",
+    "implementationPath": "src/lib/research/m3-r13-round-013-features.ts",
+    "implementationBlobSha": "0006678ef47a2c6adf1f6f91cb976dbcbee9caac"
+  },
+  "acquisitionTimestamp": "2026-09-13T15:58:10.981Z",
+  "acquisitionCodeSha256": "a89e0e2008ab981236b5299338c40e5dd69b1f31067c5f6a6fb955cd5cf77858",
+  "networkAcquired": false,
+  "newHistoricalDevelopmentDataFetched": false,
+  "postBoundaryRows": 0,
+  "duplicateObservationIds": 0,
+  "noFutureInformationLeakage": true,
+  "decisionTimeBounded": true,
+  "fundingChronologyValidatedByAcceptedR14Freeze": true,
+  "pitValidation": {
+    "informationAsOfBoundedByDecisionTime": true,
+    "settlementUsesAcceptedBtPolicy003": true,
+    "noFutureInformationLeakage": true
+  },
+  "integrity": "COMPLETE",
+  "integrityErrors": [],
+  "frozen": true,
+  "manifestSha256": "365c6d0aadb009f9671e02fa486acc8229255ab56ab7987500dcfbed25ea830a"
+}
