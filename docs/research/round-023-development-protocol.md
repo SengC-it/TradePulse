@@ -80,7 +80,9 @@ expectancy with PF at least 1.05, and the frozen concentration limits. Missing
 data or unresolved ambiguity cannot produce a positive claim.
 
 All four configurations must be evaluated. If none passes every hard gate,
-the frozen classification is `NO_FORWARD_CANDIDATE`. If more than one passes,
+the preregistered candidate-evaluation classification is `NO_FORWARD_CANDIDATE`.
+That label is not an authoritative preregistered conclusion unless the complete
+executable economic evaluator was frozen before outcome read. If more than one passes,
 the frozen lexicographic rule is: pass all hard gates, highest worst-fold net
 expectancy, highest cost-stress expectancy, lowest maximum drawdown, simpler
 model, then lexical configuration ID. No result may modify these rules.
@@ -108,3 +110,40 @@ settlement, gate, or selection change is permitted. The independent forward
 phase, if ever separately authorized, starts only after a remote immutable
 final model freeze; this round has no such model because all four development
 configurations failed the frozen gates.
+
+## Post-outcome semantic closure
+
+The historical candidate results are preserved as observed development evidence,
+but they are not authoritative preregistered proof. The immutable dataset was
+frozen at commit `b516354438f25977fcc86c3a613e303c80441052`; the economic runner
+was not frozen before outcome read:
+
+- `economicRunnerFrozenBeforeOutcomeRead=false`
+- `datasetFrozenBeforeOutcomeRead=true`
+- `candidateFamiliesFrozenBeforeOutcomeRead=true`
+- `thresholdsFrozenBeforeOutcomeRead=true`
+- `foldsFrozenBeforeOutcomeRead=true`
+- `costModelFrozenBeforeOutcomeRead=true`
+- `gatesMostlyFrozenBeforeOutcomeRead=true`
+- `executableSelectionSemanticsFullyFrozenBeforeOutcomeRead=false`
+
+The unresolved methodology issue includes the top-one-per-decision-time
+selection rule, the catastrophic-fold implementation threshold, and the full
+executable evaluator not being independently frozen in a remote commit before
+the outcome read. Therefore the result classification is
+`HISTORICAL_DEVELOPMENT_RESULT_NON_AUTHORITATIVE` and the final decision is
+`ROUND-023 HISTORICAL DEVELOPMENT RESULT — NOT AUTHORITATIVE`.
+
+All four observed candidates had negative mean net R, net PF below 1,
+negative cost-stress mean net R, and negative seven-minute latency mean net R.
+Their operational disposition is `DO_NOT_ADVANCE_TO_FORWARD`: there is not
+enough basis to spend forward-validation observations on these candidates.
+This is not a claim that profitability is scientifically impossible.
+
+`historicalResultsObserved=true`, `historicalWindowNowSeen=true`, and
+`rerunSameWindowForbidden=true`. The same historical window must not be reused
+for an authoritative evaluation, so
+`historicalWindowReuseForAuthoritativeEvaluation=false`. A future authoritative
+candidate must first have its complete executable runner frozen remotely, with
+an immutable model and unchanged parameters, and only then accumulate
+prospective post-freeze observations with the frozen cost and latency contract.

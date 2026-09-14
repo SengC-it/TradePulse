@@ -1,8 +1,16 @@
 # Round-023 Development Result
 
-Status: `NO_FORWARD_CANDIDATE`
+Classification: `HISTORICAL_DEVELOPMENT_RESULT_NON_AUTHORITATIVE`
 
-The one permitted Round-023 candidate-development economic evaluation was executed only after the remote immutable dataset freeze. All four frozen configurations were evaluated with the existing R13 features, R23 frozen folds, 24-hour purge/embargo, seven-minute latency, and bt-policy-003 economics. This is historical development evidence only; it is not the later independent forward/OOS phase.
+The one permitted Round-023 candidate-development economic evaluation was
+observed after the immutable dataset freeze. All four historical configurations
+and their results are preserved, but this result is not authoritative
+preregistered proof because `economicRunnerFrozenBeforeOutcomeRead=false`.
+The dataset, candidate families, thresholds, folds, cost model, and most gates
+were frozen before outcome read; the complete executable evaluator and
+selection semantics were not independently frozen before outcome read. This is
+historical development evidence only; it is not the later independent
+forward/OOS phase.
 
 ## Frozen execution
 
@@ -12,6 +20,11 @@ The one permitted Round-023 candidate-development economic evaluation was execut
 - Development execution ID: `r23-development-4cf4ca109ce72015`
 - Development economic evaluation execution count: `1`
 - Candidate configurations defined/evaluated: `4/4`
+- Historical results observed: `true`
+- Historical window now seen: `true`
+- Rerun of the same window forbidden: `true`
+- Historical-window reuse for authoritative evaluation: `false`
+- Economic runner frozen before outcome read: `false`
 
 ## Candidate outcomes
 
@@ -24,7 +37,15 @@ The one permitted Round-023 candidate-development economic evaluation was execut
 
 Eligible candidates: `[]`
 Selected candidate: `null`
-Classification: `NO_FORWARD_CANDIDATE`
+Candidate operational disposition: `DO_NOT_ADVANCE_TO_FORWARD`
+
+All four observed candidates had mean net R below zero, net PF below one,
+negative cost-stress mean net R, and negative seven-minute latency mean net R.
+The disposition means there is not enough basis to spend forward-validation
+observations on these candidates; it does not claim that profitability is
+scientifically impossible.
+
+The historical numeric results above are unchanged from the observed result.
 
 ## Source and economic boundary
 
@@ -35,6 +56,26 @@ Classification: `NO_FORWARD_CANDIDATE`
 - Forward economic values/read: `false/false`
 - Performance executed/ledger present: `false/false`
 - New market data fetched: `false`
+
+## Methodology issue
+
+```json
+{
+  "economicRunnerFrozenBeforeOutcomeRead": false,
+  "datasetFrozenBeforeOutcomeRead": true,
+  "candidateFamiliesFrozenBeforeOutcomeRead": true,
+  "thresholdsFrozenBeforeOutcomeRead": true,
+  "foldsFrozenBeforeOutcomeRead": true,
+  "costModelFrozenBeforeOutcomeRead": true,
+  "gatesMostlyFrozenBeforeOutcomeRead": true,
+  "executableSelectionSemanticsFullyFrozenBeforeOutcomeRead": false
+}
+```
+
+The issue is specifically that the top-one-per-decision-time selection rule,
+the catastrophic-fold implementation threshold, and the full executable
+economic evaluator were not frozen by an independent remote commit before the
+outcome read.
 
 ## Governance
 
@@ -48,6 +89,6 @@ Classification: `NO_FORWARD_CANDIDATE`
 
 ## Final decision
 
-`ROUND-023 NO FORWARD CANDIDATE`
+`ROUND-023 HISTORICAL DEVELOPMENT RESULT — NOT AUTHORITATIVE`
 
-Next stage: `STOP`
+Next stage: `DESIGN_NEW_CANDIDATE_WITH_PRE_OUTCOME_EXECUTABLE_FREEZE`

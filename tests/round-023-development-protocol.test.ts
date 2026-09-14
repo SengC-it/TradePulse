@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { R13_FEATURE_NAMES, R13_FOLDS } from "@/lib/research/m3-r13-round-013-protocol";
-import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_MANIFEST_PATH, R23_DEVELOPMENT_DATA_PATH, R23_DEVELOPMENT_DATA_SHA256, R23_DEVELOPMENT_DATA_SOURCE_STATUS, R23_DEVELOPMENT_DATA_START_ISO, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_MODEL_FAMILIES, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
+import { R23_BASE_BRANCH, R23_BASE_SHA, R23_BRANCH, R23_CANDIDATE_CONFIGURATIONS, R23_DEVELOPMENT_GATES, R23_DEVELOPMENT_DATA_END_ISO, R23_DEVELOPMENT_DATA_MANIFEST_PATH, R23_DEVELOPMENT_DATA_PATH, R23_DEVELOPMENT_DATA_SHA256, R23_DEVELOPMENT_DATA_SOURCE_STATUS, R23_DEVELOPMENT_DATA_START_ISO, R23_FOLDS, R23_FOLD_IDS, R23_FROZEN_COST_MODEL, R23_GOVERNANCE, R23_HISTORICAL_RESULT_METHODOLOGY_ISSUE, R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_CLASSIFICATION, R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_DECISION, R23_HISTORICAL_RESULT_SEMANTIC_CLOSURE, R23_CANDIDATE_OPERATIONAL_DISPOSITION, R23_MODEL_FAMILIES, R23_NEW_CANDIDATE_NEXT_STAGE, R23_PROTOCOL_OBJECT, R23_PROTOCOL_SCHEMA_VERSION, R23_R15_FIRST_SPEC_COMMIT, R23_R15_RESULT_PUBLICATION_COMMIT, R23_R15_REJECTION_REASON, R23_SELECTION_ALGORITHM, R23_SYMBOLS, R23_THRESHOLD_VALUES, calculateR23CandidateConfigurationCount, isR23ExistingFeatureName, r23FoldDefinitionsEqualFrozenSource } from "@/lib/research/round-023-development-protocol";
 import { R23_RUNNER_IDENTITIES, runR23HistoricalDevelopment } from "@/lib/research/round-023-development-runner";
 
 type JsonRecord = Record<string, unknown>;
@@ -121,13 +121,21 @@ describe("Round-023 A0 development protocol", () => {
     await expect(runR23HistoricalDevelopment({ root: path.join(process.cwd(), ".tmp-r23-missing-data") })).rejects.toThrow("source is unavailable");
   });
 
-  it("publishes the single four-configuration development result", () => {
+  it("publishes the observed four-configuration result as non-authoritative", () => {
     const result = developmentResultDocument();
     expect(result.protocolPhase).toBe("A1_DEVELOPMENT_DATASET_FREEZE");
     expect(result.resultPhase).toBe("B_HISTORICAL_DEVELOPMENT_EVALUATION_RESULT");
     expect(result.developmentExecutionId).toBe(`r23-development-${String(result.protocolSha256).slice(0, 16)}`);
     expect(result.developmentExecutionCount).toBe(1);
-    expect(result.classification).toBe("NO_FORWARD_CANDIDATE");
+    expect(result.classification).toBe(R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_CLASSIFICATION);
+    expect(result.finalDecision).toBe(R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_DECISION);
+    expect(result.candidateOperationalDisposition).toBe(R23_CANDIDATE_OPERATIONAL_DISPOSITION);
+    expect(result.economicRunnerFrozenBeforeOutcomeRead).toBe(false);
+    expect(result.historicalResultsObserved).toBe(true);
+    expect(result.historicalWindowNowSeen).toBe(true);
+    expect(result.rerunSameWindowForbidden).toBe(true);
+    expect(result.historicalWindowReuseForAuthoritativeEvaluation).toBe(false);
+    expect(record(result.methodologyIssue)).toEqual(R23_HISTORICAL_RESULT_METHODOLOGY_ISSUE);
     expect(result.candidateConfigurationsDefined).toBe(4);
     expect(result.candidateConfigurationsEvaluated).toBe(4);
     expect(Array.isArray(result.candidateResults)).toBe(true);
@@ -137,14 +145,45 @@ describe("Round-023 A0 development protocol", () => {
     expect(result.selectedCandidateId).toBeNull();
     expect(result.selectionExecuted).toBe(false);
     expect(result.developmentEconomicEvaluationExecutionCount).toBe(1);
-    expect(result.finalDecision).toBe("ROUND-023 NO FORWARD CANDIDATE");
-    expect(result.nextStage).toBe("STOP");
+    expect(result.finalDecision).toBe(R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_DECISION);
+    expect(result.nextStage).toBe(R23_NEW_CANDIDATE_NEXT_STAGE);
     expect(record(result.modelFreeze)).toMatchObject({ finalModelArtifactCommitted: false, forwardContractCommitted: false, selectedCandidateId: null });
     expect(record(result.economicReadBoundary)).toMatchObject({ historicalDevelopmentEconomicValuesRead: true, performanceExecutionCount: 0, performanceLedgerPresent: false, forwardEconomicValuesRead: false, forwardReturnRead: false });
     expect(record(result.sourceCheck)).toMatchObject({ sourceStatus: R23_DEVELOPMENT_DATA_SOURCE_STATUS, newMarketDataFetched: false, newHistoricalDevelopmentDataFetched: false, networkAcquired: false, pitCompatible: true });
     expect(record(result.sourceAudit)).toMatchObject({ requiredPath: R23_DEVELOPMENT_DATA_PATH, validPreExistingSourceFound: true, compatibleExistingCacheFound: true, economicPayloadRead: true, pitCompatible: true });
     expect(record(result.economicReadBoundary)).toMatchObject({ economicValuesCalculated: true, economicValuesInspected: true });
     expect(record(result.governance)).toMatchObject({ automaticTrading: false, productionUnchanged: true });
+  });
+
+  it("preserves every observed historical candidate metric exactly", () => {
+    const result = developmentResultDocument();
+    const expected = [
+      ["R23_RIDGE_R13_ALL_EXISTING_FEATURES_THRESHOLD_0.05", 2370, -0.0964743202769956, 0.7937227280691866, -0.14492170462574794, 0.7071264883228993, -0.0957560819759816, 0.7959015886594664, 0, 4, -250.8901549284351, 16],
+      ["R23_RIDGE_R13_ALL_EXISTING_FEATURES_THRESHOLD_0.10", 1585, -0.035123049287018406, 0.9190568928562055, -0.077883423533116, 0.8295632891818023, -0.03280812931572318, 0.9244900060672316, 2, 2, -97.51184572315789, 13],
+      ["R23_RIDGE_R13_TREND_CONTEXT_SUBSET_THRESHOLD_0.05", 1239, -0.017349564588412136, 0.957259500570848, -0.048714517205888846, 0.8846956457651155, -0.016044351771110826, 0.9608061237450429, 3, 3, -114.83566158931244, 22],
+      ["R23_RIDGE_R13_TREND_CONTEXT_SUBSET_THRESHOLD_0.10", 772, -0.009771032670228014, 0.9754573953140632, -0.03676481177846848, 0.9107248516707187, -0.005877564836617925, 0.9852433704352954, 1, 3, -61.895862086923515, 20],
+    ] as const;
+    for (const [candidateId, selectedAlerts, meanNetExpectancy, netProfitFactor, costStressMeanNetExpectancy, costStressProfitFactor, latencyStressMeanNetExpectancy, latencyStressProfitFactor, positiveTemporalFolds, catastrophicFolds, maximumDrawdownR, maximumLosingStreak] of expected) {
+      const candidate = (result.candidateResults as JsonRecord[]).find((item) => item.candidateConfigurationId === candidateId);
+      expect(candidate).toBeDefined();
+      const metrics = record(candidate?.metrics);
+      expect(metrics).toMatchObject({ selectedAlerts, meanNetExpectancy, netProfitFactor, costStressMeanNetExpectancy, costStressProfitFactor, latencyStressMeanNetExpectancy, latencyStressProfitFactor, positiveTemporalFolds, catastrophicFolds, maximumDrawdownR, maximumLosingStreak });
+    }
+  });
+
+  it("binds the result document to the post-outcome semantic closure", () => {
+    const result = developmentResultDocument();
+    expect({
+      classification: result.classification,
+      finalDecision: result.finalDecision,
+      candidateOperationalDisposition: result.candidateOperationalDisposition,
+      nextStage: result.nextStage,
+      historicalResultsObserved: result.historicalResultsObserved,
+      historicalWindowNowSeen: result.historicalWindowNowSeen,
+      rerunSameWindowForbidden: result.rerunSameWindowForbidden,
+      historicalWindowReuseForAuthoritativeEvaluation: result.historicalWindowReuseForAuthoritativeEvaluation,
+      methodologyIssue: result.methodologyIssue,
+    }).toEqual(R23_HISTORICAL_RESULT_SEMANTIC_CLOSURE);
   });
 
   it("freezes the accepted source identities before the single evaluation", () => {

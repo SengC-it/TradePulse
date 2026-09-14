@@ -320,6 +320,33 @@ export const R23_DEVELOPMENT_NOT_EVALUABLE_DATA_UNAVAILABLE = "DEVELOPMENT_NOT_E
 export const R23_SOURCE_UNAVAILABLE_DECISION = "ROUND-023 DEVELOPMENT NOT EVALUABLE — SOURCE DATA UNAVAILABLE" as const;
 export const R23_SOURCE_REMEDIATION_NEXT_STAGE = "PRE_OUTCOME_SOURCE_REMEDIATION_REQUIRED" as const;
 export const R23_NO_VALID_PRE_OUTCOME_SOURCE_DECISION = "ROUND-023 DEVELOPMENT BLOCKED — NO VALID PRE-OUTCOME HISTORICAL SOURCE" as const;
+export const R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_CLASSIFICATION = "HISTORICAL_DEVELOPMENT_RESULT_NON_AUTHORITATIVE" as const;
+export const R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_DECISION = "ROUND-023 HISTORICAL DEVELOPMENT RESULT — NOT AUTHORITATIVE" as const;
+export const R23_CANDIDATE_OPERATIONAL_DISPOSITION = "DO_NOT_ADVANCE_TO_FORWARD" as const;
+export const R23_NEW_CANDIDATE_NEXT_STAGE = "DESIGN_NEW_CANDIDATE_WITH_PRE_OUTCOME_EXECUTABLE_FREEZE" as const;
+
+export const R23_HISTORICAL_RESULT_METHODOLOGY_ISSUE = deepFreeze({
+  economicRunnerFrozenBeforeOutcomeRead: false,
+  datasetFrozenBeforeOutcomeRead: true,
+  candidateFamiliesFrozenBeforeOutcomeRead: true,
+  thresholdsFrozenBeforeOutcomeRead: true,
+  foldsFrozenBeforeOutcomeRead: true,
+  costModelFrozenBeforeOutcomeRead: true,
+  gatesMostlyFrozenBeforeOutcomeRead: true,
+  executableSelectionSemanticsFullyFrozenBeforeOutcomeRead: false,
+} as const);
+
+export const R23_HISTORICAL_RESULT_SEMANTIC_CLOSURE = deepFreeze({
+  classification: R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_CLASSIFICATION,
+  finalDecision: R23_HISTORICAL_RESULT_NON_AUTHORITATIVE_DECISION,
+  candidateOperationalDisposition: R23_CANDIDATE_OPERATIONAL_DISPOSITION,
+  nextStage: R23_NEW_CANDIDATE_NEXT_STAGE,
+  historicalResultsObserved: true,
+  historicalWindowNowSeen: true,
+  rerunSameWindowForbidden: true,
+  historicalWindowReuseForAuthoritativeEvaluation: false,
+  methodologyIssue: R23_HISTORICAL_RESULT_METHODOLOGY_ISSUE,
+} as const);
 
 export function calculateR23CandidateConfigurationCount(): number {
   return R23_MODEL_FAMILIES.length * R23_THRESHOLD_VALUES.length;
