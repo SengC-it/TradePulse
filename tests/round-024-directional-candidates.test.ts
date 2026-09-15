@@ -115,3 +115,94 @@ describe("Round-024 independent directional candidate families", () => {
     expect(R24_GOVERNANCE.productionUnchanged).toBe(true);
   });
 });
+
+describe("Round-024 no-champion semantic closure", () => {
+  type GovernanceArtifact = Readonly<{
+    forwardEconomicValuesRead: boolean;
+    forwardReturnRead: boolean;
+    performanceExecutionCount: number;
+    performanceLedgerPresent: boolean;
+    automaticTrading: boolean;
+  }>;
+
+  type ResultArtifact = Readonly<{
+    developmentCompleted: boolean;
+    candidateConfigurationsDefined: number;
+    candidateConfigurationsEvaluated: number;
+    longChampionId: string | null;
+    shortChampionId: string | null;
+    candidateExecutableFrozen: boolean;
+    forwardCandidateExists: boolean;
+    forwardValidationAuthorized: boolean;
+    developmentClassification: string;
+    finalDecision: string;
+    nextStage: string;
+    developmentEconomicEvaluationExecutionCount: number;
+    forwardEconomicValuesRead: boolean;
+    forwardReturnRead: boolean;
+    performanceExecutionCount: number;
+    performanceLedgerPresent: boolean;
+    automaticTrading: boolean;
+    productionUnchanged: boolean;
+  }>;
+
+  type FreezeArtifact = Readonly<{
+    candidateExecutableFrozen: boolean;
+    forwardCandidateExists: boolean;
+    forwardValidationAuthorized: boolean;
+    forwardStart: string | null;
+    forwardRule: string;
+    forwardRuleActive: boolean;
+    finalDecision: string;
+    nextStage: string;
+    governance: GovernanceArtifact;
+  }>;
+
+  function readArtifact<T>(name: string): T {
+    return JSON.parse(readFileSync(path.resolve(process.cwd(), "docs/research", name), "utf8")) as T;
+  }
+
+  it("closes development result without inventing a champion or changing cardinality", () => {
+    const result = readArtifact<ResultArtifact>("round-024-directional-development-result.json");
+    expect(result.developmentCompleted).toBe(true);
+    expect(result.candidateConfigurationsDefined).toBe(8);
+    expect(result.candidateConfigurationsEvaluated).toBe(8);
+    expect(result.longChampionId).toBeNull();
+    expect(result.shortChampionId).toBeNull();
+    expect(result.candidateExecutableFrozen).toBe(false);
+    expect(result.forwardCandidateExists).toBe(false);
+    expect(result.forwardValidationAuthorized).toBe(false);
+    expect(result.developmentClassification).toBe("NO_DEVELOPMENT_CHAMPION");
+    expect(result.finalDecision).toBe("ROUND-024 DIRECTIONAL DEVELOPMENT COMPLETE — NO DEVELOPMENT CHAMPION / NO FORWARD CANDIDATE");
+    expect(result.nextStage).toBe("DIRECTIONAL_CANDIDATE_REDESIGN_REQUIRED");
+  });
+
+  it("records freeze timestamp as closure identity rather than a forward start", () => {
+    const freeze = readArtifact<FreezeArtifact>("round-024-forward-freeze.json");
+    expect(freeze.candidateExecutableFrozen).toBe(false);
+    expect(freeze.forwardCandidateExists).toBe(false);
+    expect(freeze.forwardValidationAuthorized).toBe(false);
+    expect(freeze.forwardStart).toBeNull();
+    expect(freeze.forwardRuleActive).toBe(false);
+    expect(freeze.forwardRule).toBe("signalTime > freezeTimestamp");
+    expect(freeze.finalDecision).toBe("ROUND-024 DIRECTIONAL DEVELOPMENT COMPLETE — NO DEVELOPMENT CHAMPION / NO FORWARD CANDIDATE");
+    expect(freeze.nextStage).toBe("DIRECTIONAL_CANDIDATE_REDESIGN_REQUIRED");
+  });
+
+  it("keeps forward, performance, and production governance disabled", () => {
+    const result = readArtifact<ResultArtifact>("round-024-directional-development-result.json");
+    const freeze = readArtifact<FreezeArtifact>("round-024-forward-freeze.json");
+    expect(result.developmentEconomicEvaluationExecutionCount).toBe(1);
+    expect(result.forwardEconomicValuesRead).toBe(false);
+    expect(result.forwardReturnRead).toBe(false);
+    expect(result.performanceExecutionCount).toBe(0);
+    expect(result.performanceLedgerPresent).toBe(false);
+    expect(result.automaticTrading).toBe(false);
+    expect(result.productionUnchanged).toBe(true);
+    expect(freeze.governance.forwardEconomicValuesRead).toBe(false);
+    expect(freeze.governance.forwardReturnRead).toBe(false);
+    expect(freeze.governance.performanceExecutionCount).toBe(0);
+    expect(freeze.governance.performanceLedgerPresent).toBe(false);
+    expect(freeze.governance.automaticTrading).toBe(false);
+  });
+});

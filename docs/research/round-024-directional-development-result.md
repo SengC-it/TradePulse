@@ -43,6 +43,8 @@ LONG and SHORT have separate feature subsets, model artifacts, thresholds, and i
 
 ## Final decision
 
-`ROUND-024 DEVELOPMENT COMPLETE — PRE-OUTCOME FREEZE REQUIRED`
+`ROUND-024 DIRECTIONAL DEVELOPMENT COMPLETE — NO DEVELOPMENT CHAMPION / NO FORWARD CANDIDATE`
 
-Next stage: `PRE_OUTCOME_EXECUTABLE_FREEZE`
+The development run is complete: all 8 defined configurations were evaluated, but neither the LONG nor SHORT family produced an eligible champion. Because no champion exists, there is no candidate that can enter a prospective pre-outcome freeze or forward validation window.
+
+Next stage: `DIRECTIONAL_CANDIDATE_REDESIGN_REQUIRED`
