@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "m3-r18-round-018-governance-erratum-001",
+  "researchRoundId": "baseline-002-research-round-018",
+  "executionId": "r18-d328ac05-868b-4647-b5b3-6039e49dbe39",
+  "performanceExecutionCount": 1,
+  "finalDecision": "NO ROBUST COMPONENT-CONSENSUS EDGE — ROUND-018",
+  "checkpointCounterTerminology": {
+    "legacyFieldName": "recomputedCompletedCheckpoints",
+    "legacyFieldValue": 6,
+    "legacyFieldMeaningForThisExecution": "newlyComputedFoldCheckpoints",
+    "newlyComputedFoldCheckpoints": 6,
+    "reusedCompletedCheckpoints": 0,
+    "completedCheckpointRecomputations": 0,
+    "completedCheckpointRuleViolated": false
+  },
+  "claimCommitDeviation": {
+    "implementationCommit": "862c17209f5bf5fe65ef295f07f98f77e9c61254",
+    "claimCommit": "3cb742d910f5782ea3cdaccd93e922762571c2ac",
+    "changedFilesObserved": [
+      "docs/research/round-018-performance-ledger.json",
+      "scripts/m3-r18-performance.ts"
+    ],
+    "executableChangeScope": "verifyExecutionCheckout() and its invocation only",
+    "claimCommitLedgerOnlyRequirementConformed": false,
+    "claimStageEconomicLogicChanged": false,
+    "claimStageGateLogicChanged": false,
+    "claimStageSelectorChanged": false,
+    "claimStageInputIdentityChanged": false,
+    "unmodifiedEconomicAndGovernancePaths": [
+      "src/lib/research/m3-r18-round-018-performance.ts",
+      "metric functions",
+      "profitFactor",
+      "drawdown",
+      "economic join",
+      "selector",
+      "G08-G15",
+      "checkpoint writer semantics",
+      "input hashes",
+      "executionId"
+    ]
+  },
+  "lockedArtifacts": {
+    "results": {
+      "path": "docs/M3_R18_ROUND_018_RESULTS.md",
+      "sha256": "42d34eda15ffb4e14b81ae6055242722265b90ce1178f4b0665ba6936c9936da"
+    },
+    "summary": {
+      "path": "docs/evidence/M3_R18_ROUND_018_SUMMARY.json",
+      "sha256": "22b0717faf43b8bd66c061b523910ac8cca5d9d078ef9c97b25462e2c025ca09"
+    },
+    "audit": {
+      "path": "docs/evidence/M3_R18_ROUND_018_AUDIT.json",
+      "sha256": "6d8808e3c7d59cc11dff368467a8eb37e2f9f6d22782c1f7b972ca904f414632"
+    },
+    "selectionJson": {
+      "path": "docs/evidence/M3_R18_ROUND_018_SELECTION.json",
+      "sha256": "3990a087e3cebcfb131191cb1bfb5bde7ac6151141f02ffb6f72ce0ce22c0620"
+    },
+    "selectionMarkdown": {
+      "path": "docs/evidence/M3_R18_ROUND_018_SELECTION.md",
+      "sha256": "e000223e1269066d0eee0b165a81496f20ba1762b2c843daeb1f19fa1e8d99b1"
+    },
+    "foldCheckpoints": {
+      "F1": {
+        "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/folds/F1.json",
+        "sha256": "651c14b49b48e32074a143a0a61d61de3e2ab3819019f73eea58bc2f0a150e2c"
+      },
+      "F2": {
+        "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/folds/F2.json",
+        "sha256": "cca192f38579d12e365c2f893a5cf898d6535d5f75b36c61ee57ae2ecec95653"
+      },
+      "F3": {
+        "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/folds/F3.json",
+        "sha256": "ab8ccc7ebd3267b6552df0d0df3c32e952c9c4c448094a91809d75ef26fdd2ff"
+      },
+      "F4": {
+        "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/folds/F4.json",
+        "sha256": "28b73b379ea9476f58b10ea8e7c78dc61c1d0c68801ab92fc6dbb866680fbc54"
+      },
+      "F5": {
+        "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/folds/F5.json",
+        "sha256": "64b703e1fbc6cf77f111d5ceba22f81fe3602bd69f5793882770bac496cf2a82"
+      },
+      "F6": {
+        "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/folds/F6.json",
+        "sha256": "f0c5edf78fa81715187b2ec031d91f32c55c1625660aeb8a700bbe550d8ba3b9"
+      }
+    },
+    "finalPerformanceCheckpoint": {
+      "path": ".cache/tradepulse/round-018/executions/r18-d328ac05-868b-4647-b5b3-6039e49dbe39/performance.json",
+      "sha256": "03304dc4c983e0441c3ed052aabd8781a349af31ff57896b987b3f82d0109980"
+    }
+  },
+  "ledgerLockedOutputHashes": {
+    "resultSha256": "42d34eda15ffb4e14b81ae6055242722265b90ce1178f4b0665ba6936c9936da",
+    "summarySha256": "22b0717faf43b8bd66c061b523910ac8cca5d9d078ef9c97b25462e2c025ca09",
+    "auditSha256": "6d8808e3c7d59cc11dff368467a8eb37e2f9f6d22782c1f7b972ca904f414632",
+    "selectionSha256": "3990a087e3cebcfb131191cb1bfb5bde7ac6151141f02ffb6f72ce0ce22c0620"
+  },
+  "governance": {
+    "performanceRerun": false,
+    "newMarketDataFetched": false,
+    "economicResultChanged": false
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "m3-r22-observation-source-remediation-design-001",
+  "researchRoundId": "baseline-002-research-round-022",
+  "phase": "SOURCE_REMEDIATION_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "repository": "SengC-it/TradePulse",
+    "baseBranch": "research/round-015-beta-alpha-decomposition",
+    "requiredBaseHead": "f2d563467a2249bd7cbcb9ae8b9995ccdf1ae036"
+  },
+  "branch": "research/round-022-observation-source-remediation-design",
+  "purpose": "Design the minimum prospective runtime remediation needed to make Round-022 observation sources implementable and testable without claiming current source readiness.",
+  "currentReadiness": {
+    "S01": {"artifactType": "QUALITY_SNAPSHOT", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "evaluateSignalQuality exists but has no non-test production call site, advisory identity, or informationAsOf."},
+    "S02": {"artifactType": "MARKET_CONTEXT", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "Regime helpers and DTOs are caller-supplied and lack a producer-owned PIT source."},
+    "S03": {"artifactType": "RISK_ADVISORY", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "Risk helpers exist but no authoritative prospective producer and PIT identity are persisted."},
+    "S04": {"artifactType": "HISTORICAL_REVIEW_METADATA", "status": "FAIL", "sourceStatus": "SOURCE_ABSENT", "reason": "historical-review-protocol.ts is design-only and signal-review is settlement state, not prospective historical metadata."},
+    "S05": {"artifactType": "ALERT_INTELLIGENCE", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "The builder is caller-supplied with no non-test production invocation or durable input linkage."},
+    "S06": {"artifactType": "PRESENTATION", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "Email/dashboard render call sites exist, but rendering is not identity-linked evidence."},
+    "S07": {"artifactType": "TIMESTAMP_CAUSALITY", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "Required cross-source causal validation is not an authoritative runtime evidence boundary."},
+    "S08": {"artifactType": "REVIEW_STARTED", "status": "FAIL", "sourceStatus": "SOURCE_ABSENT", "reason": "No server-side human-review start event exists."},
+    "S09": {"artifactType": "REVIEW_SUBMITTED", "status": "FAIL", "sourceStatus": "SOURCE_ABSENT", "reason": "No server-side human-review submit event exists."},
+    "S10": {"artifactType": "IDENTITY_PIT_PROVENANCE", "status": "FAIL", "sourceStatus": "SOURCE_UNVERIFIED", "reason": "No shared append-only evidence writer validates identity, hashes, PIT, and causality for all sources."}
+  },
+  "supportingPrerequisites": {
+    "P01": {"status": "SOURCE_READY", "producer": "src/app/api/cron/signal-advisory/route.ts -> runSignalAdvisoryScan -> buildAdvisory -> claimSignal", "identity": "buildDeterministicSignalId(symbol,direction,signalTime,strategyVersion)", "limitation": "P01 is not an R22 snapshot and cannot make S01-S06 ready."},
+    "P02": {"status": "FAIL", "producer": "src/lib/advisory-evaluation/evaluator.ts helpers only", "limitation": "No non-test call site or persistence; P02 cannot substitute for upstream evidence."}
+  },
+  "sourceInspection": {
+    "acceptedSourceInspected": true,
+    "paths": [
+      "src/lib/signal-advisory/types.ts",
+      "src/lib/signal-advisory/identity.ts",
+      "src/lib/signal-advisory/notification-evidence.ts",
+      "src/lib/signal-advisory/scan.ts",
+      "src/lib/signal-advisory/store.ts",
+      "src/lib/signal-quality/evaluator.ts",
+      "src/lib/alert-intelligence/index.ts",
+      "src/lib/advisory-evaluation/evaluator.ts",
+      "src/lib/research/historical-review-protocol.ts",
+      "src/lib/research/round-022-observation-instrumentation-protocol.ts",
+      "src/lib/research/round-022-observation-source-readiness-protocol.ts",
+      "src/app/api/cron/signal-advisory/route.ts",
+      "src/app/dashboard/dashboard-ui.tsx",
+      "src/app/dashboard/signals/page.tsx",
+      "src/app/dashboard/reviews/page.tsx",
+      "supabase/migrations/20260823000000_signal_advisory.sql",
+      "supabase/migrations/20260826000000_signal_review_v1.sql"
+    ],
+    "findings": [
+      "P01 route and advisory store are real service-side call sites.",
+      "S01-S03 helpers are not called by the advisory scan in the accepted source.",
+      "S04 has no runtime producer; signal-review is a settlement/review ledger and is not a Historical Review substitute.",
+      "S05 wrapper and S06 renderers exist, but neither creates R22 evidence with identity/PIT provenance.",
+      "O05 notification evidence is already implemented as a best-effort sidecar and is not redesigned here.",
+      "Existing migrations contain advisory delivery and settlement-review tables, not the future observation evidence writer designed here."
+    ]
+  },
+  "remediationDag": [
+    {"id":"P01","currentStatus":"SOURCE_READY","requiredFutureProducer":"Existing runSignalAdvisoryScan -> buildAdvisory -> claimSignal","requiredRuntimeCallSite":"src/app/api/cron/signal-advisory/route.ts -> runSignalAdvisoryScan","authoritativeIdentitySource":"buildDeterministicSignalId and tp_signal_advisories.signal_id","informationAsOfSource":"Closed-candle signalTime; future snapshots require cutoff <= signalTime","capturedAtSource":"Server database created_at","persistenceRequirement":"Existing advisory registry; not observation evidence","appendOnlyOrIdempotencyRequirement":"signal_id primary key and existing claim/retry CAS","causalTimestampConstraints":["signalTime <= advisoryCreationTime"],"upstreamDependencies":[],"downstreamConsumers":["S01","S02","S03","S04","S05","S06","S07","S08","S09","S10"],"foundationStage":"CURRENT","integrationStage":"CURRENT","readinessClosureStage":"CURRENT","acceptanceEvidence":"Accepted source scan, identity, route, and persistence call sites","failureMode":"Missing identity or signalTime makes dependents NOT_EVALUABLE"},
+    {"id":"S01","currentStatus":"FAIL","requiredFutureProducer":"Future buildQualitySnapshotFromAdvisoryInputs","requiredRuntimeCallSite":"Future scan boundary after buildAdvisory and before notification","authoritativeIdentitySource":"P01 signalId and immutable advisory identity","informationAsOfSource":"Versioned closed-candle/strategy input cutoff <= signalTime","capturedAtSource":"Server wall-clock at append","persistenceRequirement":"Append-only QUALITY_SNAPSHOT evidence","appendOnlyOrIdempotencyRequirement":"evidence_id, artifact_id, stable idempotency key; retry replay","causalTimestampConstraints":["informationAsOf <= signalTime","signalTime <= capturedAt"],"upstreamDependencies":["P01"],"downstreamConsumers":["S05","S06","P02"],"foundationStage":"R1","integrationStage":"R2","readinessClosureStage":"R2","acceptanceEvidence":"Identity-linked PIT snapshot and append acknowledgement","failureMode":"Caller-only or missing PIT input is NOT_EVALUABLE"},
+    {"id":"S02","currentStatus":"FAIL","requiredFutureProducer":"Future buildMarketContextSnapshotFromClosedCandleInputs","requiredRuntimeCallSite":"Future scan context boundary before S05","authoritativeIdentitySource":"P01 signalId plus BTC/symbol regime source identity","informationAsOfSource":"Closed-candle regime source manifest cutoff <= signalTime","capturedAtSource":"Server wall-clock at append","persistenceRequirement":"Append-only MARKET_CONTEXT evidence","appendOnlyOrIdempotencyRequirement":"Shared immutable snapshot hash/idempotency semantics","causalTimestampConstraints":["informationAsOf <= signalTime","signalTime <= capturedAt"],"upstreamDependencies":["P01"],"downstreamConsumers":["S05","S06","P02"],"foundationStage":"R1","integrationStage":"R3","readinessClosureStage":"R3","acceptanceEvidence":"Producer-owned source identity, cutoff, hash, and durable append","failureMode":"Unproven context provenance is NOT_EVALUABLE"},
+    {"id":"S03","currentStatus":"FAIL","requiredFutureProducer":"Future buildRiskAdvisorySnapshotFromAdvisoryGeometry","requiredRuntimeCallSite":"Future risk snapshot boundary before S05","authoritativeIdentitySource":"P01 signalId and immutable advisory geometry","informationAsOfSource":"Decision-time advisory geometry source cutoff <= signalTime","capturedAtSource":"Server wall-clock at append","persistenceRequirement":"Append-only RISK_ADVISORY evidence","appendOnlyOrIdempotencyRequirement":"Shared immutable content/evidence hash and idempotency contract","causalTimestampConstraints":["informationAsOf <= signalTime","signalTime <= capturedAt"],"upstreamDependencies":["P01"],"downstreamConsumers":["S05","S06","P02"],"foundationStage":"R1","integrationStage":"R4","readinessClosureStage":"R4","acceptanceEvidence":"Finite identity-bound PIT risk snapshot","failureMode":"Invalid or caller-only geometry is NOT_EVALUABLE"},
+    {"id":"S04","currentStatus":"FAIL","requiredFutureProducer":"Future buildProspectiveHistoricalReviewMetadata; never historical-review-protocol.ts at runtime","requiredRuntimeCallSite":"Future pre-S05 boundary reading only approved pre-signal context registry","authoritativeIdentitySource":"P01 signalId and exact prior-reference identity keys","informationAsOfSource":"Prior identity/context metadata with event time <= signalTime","capturedAtSource":"Server wall-clock when the prospective metadata snapshot is appended","persistenceRequirement":"Append-only HISTORICAL_REVIEW_METADATA evidence","appendOnlyOrIdempotencyRequirement":"Immutable reference set and missing input remains NOT_EVALUABLE","causalTimestampConstraints":["informationAsOf <= signalTime","signalTime <= capturedAt"],"upstreamDependencies":["P01"],"downstreamConsumers":["S05","S06","P02"],"foundationStage":"R1","integrationStage":"R5","readinessClosureStage":"R5","acceptanceEvidence":"Prospective input source, PIT cutoff, exact matching, schema, missing behavior, and append tests","failureMode":"Future/outcome/PnL/backfill/settlement substitution is DESIGN_INELIGIBLE"},
+    {"id":"S05","currentStatus":"FAIL","requiredFutureProducer":"Future buildAlertIntelligenceSnapshot using complete S01-S04","requiredRuntimeCallSite":"Future scan boundary after S01-S04 and before presentation","authoritativeIdentitySource":"P01 signalId and S01-S04 artifact identities","informationAsOfSource":"Validated maximum consumed cutoff <= signalTime","capturedAtSource":"Server wall-clock at append","persistenceRequirement":"Append-only ALERT_INTELLIGENCE evidence","appendOnlyOrIdempotencyRequirement":"Input hashes and stable snapshot idempotency key; no fallback","causalTimestampConstraints":["all input informationAsOf <= signalTime","signalTime <= capturedAt"],"upstreamDependencies":["P01","S01","S02","S03","S04"],"downstreamConsumers":["S06","P02"],"foundationStage":"R1","integrationStage":"R6","readinessClosureStage":"R6","acceptanceEvidence":"Production invocation and durable complete-input linkage","failureMode":"Missing upstream evidence is NOT_EVALUABLE"},
+    {"id":"S06","currentStatus":"FAIL","requiredFutureProducer":"Future buildPresentationSnapshot around exact email/web payload","requiredRuntimeCallSite":"Future presentation boundary before renderSignalAdvisoryEmail and dashboard serialization","authoritativeIdentitySource":"P01 signalId, S01-S05 artifacts, and serialized payload","informationAsOfSource":"Referenced artifacts only; no future/economic input","capturedAtSource":"Server wall-clock at presentation evidence append","persistenceRequirement":"Append-only PRESENTATION evidence; rendering alone is not evidence","appendOnlyOrIdempotencyRequirement":"Exact payload hash and stable idempotency key","causalTimestampConstraints":["referenced informationAsOf <= signalTime","signalTime <= capturedAt"],"upstreamDependencies":["P01","S01","S02","S03","S04","S05"],"downstreamConsumers":["P02"],"foundationStage":"R1","integrationStage":"R7","readinessClosureStage":"R7","acceptanceEvidence":"Immutable identity-linked payload captured before render/response","failureMode":"Rendered-only presentation is NOT_EVALUABLE"},
+    {"id":"P02","currentStatus":"FAIL","requiredFutureProducer":"Future advisory-evaluation runner consuming completed evidence only","requiredRuntimeCallSite":"Future downstream evaluation job; no current non-test call site","authoritativeIdentitySource":"Completed evidence identities","informationAsOfSource":"Inherited evidence cutoffs; no new market/outcome input","capturedAtSource":"Separate evaluation-run server time","persistenceRequirement":"Downstream report only; cannot substitute upstream evidence","appendOnlyOrIdempotencyRequirement":"Independent evaluation-run identity and no feedback into generation","causalTimestampConstraints":["evaluation cannot alter signalTime or source capturedAt"],"upstreamDependencies":["S01","S02","S03","S04","S05","S06","S07","S08","S09","S10"],"downstreamConsumers":[],"foundationStage":"R10","integrationStage":"R10","readinessClosureStage":"NOT_APPLICABLE","acceptanceEvidence":"Complete-evidence-only evaluation test","failureMode":"Incomplete evidence is NOT_EVALUABLE; no backfill"},
+    {"id":"S07","currentStatus":"FAIL","requiredFutureProducer":"Future shared causal timestamp validator","requiredRuntimeCallSite":"All R2-R9 producers and writer","authoritativeIdentitySource":"Event/artifact identity carrying signalTime","informationAsOfSource":"Each producer-owned source cutoff","capturedAtSource":"Server wall-clock append; observedAt/review timestamps server-owned","persistenceRequirement":"Persist and reject inversion","appendOnlyOrIdempotencyRequirement":"No correction/backdating","causalTimestampConstraints":["informationAsOf <= signalTime <= capturedAt","signalTime <= advisoryCreationTime","signalTime <= notificationObservedAt","signalTime <= reviewStartedAt <= reviewSubmittedAt"],"upstreamDependencies":["P01"],"downstreamConsumers":["S01","S02","S03","S04","S05","S06","S08","S09","P02"],"foundationStage":"R1","integrationStage":"R8","readinessClosureStage":"R9","acceptanceEvidence":"Synthetic inversion tests and server timestamps","failureMode":"Any inversion is NOT_EVALUABLE"},
+    {"id":"S08","currentStatus":"FAIL","requiredFutureProducer":"Future server-side REVIEW_STARTED handler","requiredRuntimeCallSite":"Future human-review start action","authoritativeIdentitySource":"reviewObservationId + advisory identity + REVIEW_STARTED","informationAsOfSource":"Linked advisory/source evidence only","capturedAtSource":"Server reviewStartedAt","persistenceRequirement":"Append-only REVIEW_STARTED evidence","appendOnlyOrIdempotencyRequirement":"REVIEW|reviewObservationId|START replay key","causalTimestampConstraints":["signalTime <= reviewStartedAt"],"upstreamDependencies":["P01","S07"],"downstreamConsumers":["S09","P02"],"foundationStage":"R1","integrationStage":"R9","readinessClosureStage":"R9","acceptanceEvidence":"Server start event, replay, and inversion tests","failureMode":"Client/synthetic/pre-signal start is NOT_EVALUABLE"},
+    {"id":"S09","currentStatus":"FAIL","requiredFutureProducer":"Future server-side REVIEW_SUBMITTED handler","requiredRuntimeCallSite":"Future human-review submit action","authoritativeIdentitySource":"reviewObservationId + advisory identity + REVIEW_SUBMITTED","informationAsOfSource":"Linked evidence and user labels only","capturedAtSource":"Server reviewSubmittedAt","persistenceRequirement":"Append-only REVIEW_SUBMITTED evidence","appendOnlyOrIdempotencyRequirement":"REVIEW|reviewObservationId|SUBMIT independent replay key","causalTimestampConstraints":["signalTime <= reviewStartedAt <= reviewSubmittedAt"],"upstreamDependencies":["P01","S07","S08"],"downstreamConsumers":["P02"],"foundationStage":"R1","integrationStage":"R9","readinessClosureStage":"R9","acceptanceEvidence":"Server submit event, separate identity, labels-only payload, and ordering tests","failureMode":"Pre-signal/missing-start/client timestamp is NOT_EVALUABLE"},
+    {"id":"S10","currentStatus":"FAIL","requiredFutureProducer":"Future shared evidence identity/PIT validator and append-only writer","requiredRuntimeCallSite":"Every producer immediately before persistence","authoritativeIdentitySource":"P01 identity, artifact/event type, sourceRef, and immutable logical idempotency key","informationAsOfSource":"Producer-specific manifest/cutoff; no fuzzy/nearest/reconstructed source","capturedAtSource":"Server wall-clock writer timestamp","persistenceRequirement":"Future service-side append-only evidence table with evidence_id and service-only access","appendOnlyOrIdempotencyRequirement":"Server validates hashes/idempotency; conflicts are NOT_EVALUABLE, never UPDATE","causalTimestampConstraints":["informationAsOf <= signalTime <= capturedAt","event-specific notification/review ordering"],"upstreamDependencies":["P01"],"downstreamConsumers":["P02"],"foundationStage":"R1","integrationStage":"R1","readinessClosureStage":"R10","acceptanceEvidence":"Identity, hash, PIT, append-only, access, conflict, and no-economic-field tests","failureMode":"Missing identity/hash/provenance/causality is NOT_EVALUABLE"}
+  ],
+  "implementationStages": [
+    {"id":"R1","name":"Advisory identity, signal-time, and shared evidence foundation","dependsOn":["P01"],"introducesCapabilities":["sharedEvidenceIdentity","snapshotHashingAndIdempotency","appendOnlyWriter","pitValidatorPrimitives","basicCausalValidatorPrimitives"],"closesReadinessNodes":[],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R2","name":"Prospective QUALITY_SNAPSHOT producer","dependsOn":["R1"],"introducesCapabilities":["qualitySnapshotProducer"],"closesReadinessNodes":["S01"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R3","name":"Prospective MARKET_CONTEXT producer","dependsOn":["R1"],"introducesCapabilities":["marketContextProducer"],"closesReadinessNodes":["S02"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R4","name":"Prospective RISK_ADVISORY producer","dependsOn":["R1"],"introducesCapabilities":["riskAdvisoryProducer"],"closesReadinessNodes":["S03"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R5","name":"Prospective identity-only HISTORICAL_REVIEW_METADATA producer","dependsOn":["R1"],"introducesCapabilities":["prospectiveHistoricalReviewMetadataProducer"],"closesReadinessNodes":["S04"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R6","name":"ALERT_INTELLIGENCE producer with complete-input gate","dependsOn":["R2","R3","R4","R5"],"introducesCapabilities":["alertIntelligenceProducer"],"closesReadinessNodes":["S05"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R7","name":"Presentation payload evidence boundary","dependsOn":["R6"],"introducesCapabilities":["presentationPayloadEvidenceBoundary"],"closesReadinessNodes":["S06"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R8","name":"Notification and cross-source causal evidence integration","dependsOn":["R1"],"introducesCapabilities":["notificationObservedAt","crossSourceNotificationCausality"],"closesReadinessNodes":[],"mergeableIndependently":true,"authorization":"separate future approval required; preserve O05"},
+    {"id":"R9","name":"Server-side REVIEW_STARTED and REVIEW_SUBMITTED lifecycle","dependsOn":["R1","R2","R3","R4","R5","R6","R7","R8"],"introducesCapabilities":["reviewStartedAt","reviewSubmittedAt","humanReviewTimestampCausality"],"closesReadinessNodes":["S07","S08","S09"],"mergeableIndependently":true,"authorization":"separate future approval required"},
+    {"id":"R10","name":"Downstream Advisory Evaluation and evidence completeness closure","dependsOn":["R2","R3","R4","R5","R6","R7","R8","R9"],"introducesCapabilities":["advisoryEvaluationEvidenceCompleteness"],"closesReadinessNodes":["S10"],"mergeableIndependently":true,"authorization":"separate future approval required"}
+  ],
+  "readinessNodeStageOwnership": {
+    "R1FoundationOnly": ["S07", "S10"],
+    "uniqueClosureOwner": {
+      "S01": "R2",
+      "S02": "R3",
+      "S03": "R4",
+      "S04": "R5",
+      "S05": "R6",
+      "S06": "R7",
+      "S07": "R9",
+      "S08": "R9",
+      "S09": "R9",
+      "S10": "R10"
+    },
+    "stageFieldSemantics": {
+      "foundationStage": "Introduces shared or node-specific foundation capability; does not close readiness by itself.",
+      "integrationStage": "Introduces the producer or cross-source integration capability.",
+      "readinessClosureStage": "The only stage allowed to close the node readiness gate."
+    }
+  },
+  "snapshotContract": {
+    "requiredFields": ["evidenceId","artifactId","artifactType","schemaVersion","advisoryIdentity","signalId","informationAsOf","capturedAt","sourceRef","payload","contentHash","evidenceHash","idempotencyKey"],
+    "artifactTypes": ["QUALITY_SNAPSHOT","MARKET_CONTEXT","RISK_ADVISORY","HISTORICAL_REVIEW_METADATA","ALERT_INTELLIGENCE","PRESENTATION"],
+    "identity": "signalId from P01 plus the immutable advisory identity tuple; no random or wall-clock identity",
+    "hashing": {"algorithm":"SHA-256","canonicalSerialization":"existing stableStringify semantics","contentHashPreimage":"schemaVersion + artifactType + advisoryIdentity + informationAsOf + sourceRef + payload","evidenceHashPreimage":"contentHash + capturedAt + timestampAuthority + artifactId","capturedAtExcludedFromContentHash":true,"artifactIdExcludedFromContentHash":true,"idempotencyKey":"SHA-256(SNAPSHOT|signalId|artifactType|schemaVersion|informationAsOf|contentHash)"},
+    "persistence": {"model":"future append-only service-side evidence table; no migration in this PR","physicalPrimaryKey":"evidence_id","logicalSnapshotKey":"artifact_id","rls":"future service-side writer/read path only","conflict":"NOT_EVALUABLE; never UPDATE/overwrite/last-write-wins"},
+    "causality": {"snapshot":"informationAsOf <= signalTime <= capturedAt","advisory":"signalTime <= advisoryCreationTime","notification":"signalTime <= notificationObservedAt","humanReview":"signalTime <= reviewStartedAt <= reviewSubmittedAt","capturedAt":"truthful server wall-clock UTC; may be after signalTime; never backdated"}
+  },
+  "historicalReviewProducerDesign": {
+    "status":"DESIGN_READY_PROSPECTIVE_ONLY",
+    "producer":"future buildProspectiveHistoricalReviewMetadata",
+    "inputs":["current P01 advisory identity","exact prior identity/context references whose source event time is <= signalTime","approved source manifest"],
+    "pitCutoff":"signalTime; no input after signalTime is permitted",
+    "output":"HISTORICAL_REVIEW_METADATA snapshot with exact reference identities, sourceRef, informationAsOf, hashes, and identity-only context",
+    "missing":"NOT_EVALUABLE; no fabricated or substituted metadata",
+    "forbidden":["future outcome of current signal","forward return","realized PnL","retrospective backfill","signal-review settlement state","fuzzy/nearest matching"],
+    "runtimeStatus":"CURRENTLY_ABSENT; this design does not make S04 SOURCE_READY"
+  },
+  "humanReviewLifecycle": {
+    "status":"DESIGN_READY_FUTURE_RUNTIME_ONLY",
+    "events":[{"eventType":"REVIEW_STARTED","serverTimestamp":"reviewStartedAt","idempotencyKey":"REVIEW|reviewObservationId|START"},{"eventType":"REVIEW_SUBMITTED","serverTimestamp":"reviewSubmittedAt","idempotencyKey":"REVIEW|reviewObservationId|SUBMIT"}],
+    "linkage":"advisory identity + reviewObservationId",
+    "ordering":"signalTime <= reviewStartedAt <= reviewSubmittedAt",
+    "clientTimestampsAuthoritative":false,
+    "abandonment":"No fabricated submission; missing submit is NOT_EVALUABLE",
+    "persistence":"Append-only, separate event rows; duplicate exact replay only"
+  },
+  "o05Compatibility": {
+    "status":"PRESERVED",
+    "o05RemediationImplemented":true,
+    "notificationDecisionId":"scanId + signalId + EMAIL + exact decisionType",
+    "terminalIdentity":"terminalEventId + terminalOutcome + failureCode",
+    "deliveryTruth":["DELIVERY_ATTEMPTED immediately before sendSignalEmail","DELIVERED only after sendSignalEmail resolves","DELIVERY_FAILED only when sendSignalEmail rejects/throws"],
+    "sidecar":"Observation remediation consumes O05 evidence additively; it does not change notification identity, terminal replay, conflict, or same-scan retry semantics"
+  },
+  "designGates": [
+    {"id":"R01","status":"PASS"},{"id":"R02","status":"PASS"},{"id":"R03","status":"PASS"},{"id":"R04","status":"PASS"},{"id":"R05","status":"PASS"},{"id":"R06","status":"PASS"},{"id":"R07","status":"PASS"},{"id":"R08","status":"PASS"},{"id":"R09","status":"PASS"},{"id":"R10","status":"PASS","rule":"Implementation stages are independently gated and topologically valid; every readiness node has exactly one unique closure owner."},{"id":"R11","status":"PASS"},{"id":"R12","status":"PASS"}
+  ],
+  "forbiddenInputs": ["PnL","forwardReturn","futurePrice","futureCandle","profitFactor","drawdown","realizedPnL","unrealizedPnL","tradeOutcome","historicalBackfill","newMarketData"],
+  "evidenceOutputs": {"designArtifactsOnly":true,"runtimeObservationWriter":false,"historicalReviewRuntimeProducer":false,"humanReviewRuntimeProducer":false,"marketDataAcquisition":false,"performance":false,"backtest":false,"selection":false,"economicEvaluation":false},
+  "governance": {"productionUnchanged":true,"baseline002Status":"NOT_FROZEN","m3JStatus":"BLOCKED","m4Status":"NOT_STARTED","humanDecisionRequired":true,"automaticTrading":false,"observationInstrumentationImplemented":false,"observationAuthorized":false,"observationExecuted":false,"performanceAuthorized":false,"performanceExecutionCount":0,"performanceLedgerPresent":false,"economicValuesRead":false,"forwardReturnRead":false,"newMarketDataFetched":false,"historicalBackfillExecuted":false},
+  "finalDesignDecision": "ROUND-022 SOURCE REMEDIATION DESIGN READY",
+  "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+}

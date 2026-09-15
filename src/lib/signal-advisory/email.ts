@@ -134,7 +134,7 @@ function displayTime(value: string): string {
   return `${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
-export function renderSignalAdvisoryEmail(advisory: SignalAdvisory): RenderedSignalEmail {
+export function buildSignalAdvisoryEmailPayload(advisory: SignalAdvisory): RenderedSignalEmail {
   const direction = displayDirection(advisory.direction);
 
   return {
@@ -158,6 +158,8 @@ export function renderSignalAdvisoryEmail(advisory: SignalAdvisory): RenderedSig
   };
 }
 
+export const renderSignalAdvisoryEmail = buildSignalAdvisoryEmailPayload;
+
 export function createDefaultTransport(configuration: SmtpConfiguration): SignalEmailTransport {
   return nodemailer.createTransport({
     host: configuration.host,
@@ -176,12 +178,13 @@ export async function sendSignalEmail(
   options: Readonly<{
     transport?: SignalEmailTransport;
     configuration?: SmtpConfiguration;
+    rendered?: RenderedSignalEmail;
   }> = {},
 ): Promise<{ emailMessageId: string }> {
   const configuration = options.configuration ?? getSmtpConfiguration();
   const from = getTradePulseFrom(configuration);
   const transport = options.transport ?? createDefaultTransport(configuration);
-  const rendered = renderSignalAdvisoryEmail(advisory);
+  const rendered = options.rendered ?? buildSignalAdvisoryEmailPayload(advisory);
   const mail: SendMailOptions = {
     from,
     to: configuration.to,

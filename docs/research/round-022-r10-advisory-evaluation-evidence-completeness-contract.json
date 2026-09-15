@@ -1,0 +1,119 @@
+{
+  "round": "baseline-002-research-round-022",
+  "phase": "R10_ADVISORY_EVALUATION_EVIDENCE_COMPLETENESS_IMPLEMENTATION_ONLY",
+  "schemaVersion": "m3-r22-r10-advisory-evaluation-evidence-completeness-001",
+  "acceptedSource": "9afcfdc7c0b59d6637dc5b7719b6a76530c9d373",
+  "baseBranch": "research/round-015-beta-alpha-decomposition",
+  "branch": "research/round-022-r10-advisory-evaluation-evidence-completeness",
+  "readOnly": true,
+  "purpose": "Resolve the existing R1-R9 evidence chain and expose advisory-quality evaluation only when the chain is complete.",
+  "requiredEvidence": {
+    "p01": "signal identity supplied by the authoritative advisory",
+    "snapshots": [
+      "QUALITY_SNAPSHOT",
+      "MARKET_CONTEXT",
+      "RISK_ADVISORY",
+      "HISTORICAL_REVIEW_METADATA",
+      "ALERT_INTELLIGENCE",
+      "PRESENTATION"
+    ],
+    "notification": "R8 notification causal evidence from the O05 notification evidence source",
+    "review": [
+      "REVIEW_STARTED",
+      "REVIEW_SUBMITTED"
+    ]
+  },
+  "validation": {
+    "identity": "Every candidate must exactly match signalId, symbol, direction, signalTime, strategyId, and strategyVersion from P01.",
+    "provenance": "R1 candidate validation is authoritative for canonical payload, sourceRef, schemaVersion, contentHash, evidenceHash, idempotencyKey, timestamp authority, and append-only fields.",
+    "pitAndCausality": "informationAsOf <= signalTime <= capturedAt; notification observedAt and review timestamps must also satisfy the frozen causal contract.",
+    "logicalIdentity": "Each required snapshot artifact, notification observation, review event, evidenceId, and idempotencyKey must be unique; contradictory terminal payloads are NOT_EVALUABLE.",
+    "notification": "Notification disposition is derived only from R8/O05 claim and terminal evidence. Same terminal identity with a different terminal payload is not a replay.",
+    "humanReview": "Human-review completeness and unnecessaryAlert are derived only from persisted R9 REVIEW_STARTED and explicit REVIEW_SUBMITTED labels.",
+    "failClosed": "Missing, mismatched, duplicated, corrupt, non-canonical, forbidden, PIT-invalid, causally-invalid, or unreadable evidence returns NOT_EVALUABLE.",
+    "forbidden": [
+      "pnl",
+      "profit",
+      "loss",
+      "return",
+      "forwardReturn",
+      "futurePrice",
+      "realizedPnL",
+      "performance",
+      "winLoss",
+      "drawdown"
+    ]
+  },
+  "p02SourceMapping": {
+    "signalIdentity": "P01_SIGNAL_IDENTITY",
+    "qualitySnapshot": "S01_QUALITY_SNAPSHOT",
+    "marketContext": "S02_MARKET_CONTEXT",
+    "riskAdvisory": "S03_RISK_ADVISORY",
+    "historicalReviewMetadata": "S04_HISTORICAL_REVIEW_METADATA",
+    "alertIntelligence": "S05_ALERT_INTELLIGENCE",
+    "presentation": "S06_PRESENTATION",
+    "notificationDisposition": "R8_NOTIFICATION_CAUSAL_EVIDENCE",
+    "unnecessaryAlert": "S09_REVIEW_SUBMITTED_EXPLICIT_LABEL",
+    "humanReview": "S08_REVIEW_STARTED_AND_S09_REVIEW_SUBMITTED"
+  },
+  "outputs": [
+    "signalClarity",
+    "explanationCompleteness",
+    "riskVisibility",
+    "contextCompleteness",
+    "unnecessaryAlertRate",
+    "ignoreRatio",
+    "duplicateAlertRate",
+    "reviewCompleteness",
+    "informationSufficiency",
+    "decisionLatencyProxyMs"
+  ],
+  "noFeedbackTo": [
+    "signal generation",
+    "quality generation",
+    "risk advisory",
+    "alert intelligence",
+    "email delivery",
+    "scheduler",
+    "selection",
+    "trading"
+  ],
+  "governance": {
+    "r10AdvisoryEvaluationEvidenceCompletenessImplemented": true,
+    "introducesCapabilities": [
+      "advisoryEvaluationEvidenceCompleteness"
+    ],
+    "closesReadinessNodes": [
+      "S10"
+    ],
+    "s01S09": "SOURCE_READY",
+    "s10": "SOURCE_READY_PENDING_ACCEPTANCE",
+    "s10AcceptedReady": false,
+    "observationAuthorized": false,
+    "observationExecuted": false,
+    "performanceAuthorized": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "economicValuesRead": false,
+    "forwardReturnRead": false,
+    "newMarketDataFetched": false,
+    "historicalBackfillExecuted": false,
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "productionUnchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  },
+  "outOfScope": [
+    "Observation execution",
+    "Performance",
+    "Backtest",
+    "Selection",
+    "Economic evaluation",
+    "Historical backfill",
+    "New market-data acquisition",
+    "Production changes",
+    "Automatic trading"
+  ]
+}

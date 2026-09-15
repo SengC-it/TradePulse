@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "m3-r23-source-acquisition-amendment-001",
+  "amendmentId": "R23-SOURCE-ACQUISITION-001",
+  "researchRoundId": "baseline-002-research-round-023",
+  "parentProtocolSha256": "27a157934982dfef8966550d1326465448f3f7adc03b662dbf4879ff3e11d08a",
+  "parentCommit": "3646432a3edb204852cf1f09fa08b69d021dffd8",
+  "reason": "REQUIRED_EXISTING_R15_CACHE_NOT_AVAILABLE",
+  "amendmentScope": "DATA_SOURCE_ONLY",
+  "supersedes": {
+    "sourcePolicy": "EXISTING_HISTORICAL_CACHE_ONLY_NO_NETWORK",
+    "replacementSourcePolicy": "PUBLIC_HISTORICAL_SOURCE_ACQUISITION_ALLOWED"
+  },
+  "frozenDevelopmentWindow": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "eventTimeInclusive": true,
+    "postBoundaryDataRejected": true
+  },
+  "unchangedFrozenContract": {
+    "candidateConfigurations": 4,
+    "modelFamiliesUnchanged": true,
+    "featureSubsetsUnchanged": true,
+    "lambdaUnchanged": true,
+    "thresholdsUnchanged": true,
+    "universeUnchanged": true,
+    "directionsUnchanged": true,
+    "foldsUnchanged": true,
+    "purgeEmbargoUnchanged": true,
+    "costModelUnchanged": true,
+    "latencyUnchanged": true,
+    "settlementUnchanged": true,
+    "developmentGatesUnchanged": true,
+    "selectionAlgorithmUnchanged": true
+  },
+  "allowedSources": {
+    "provider": "BINANCE_VISION_PUBLIC_ARCHIVE",
+    "publicOnly": true,
+    "privateBinanceApi": false,
+    "sourceTypes": [
+      "1h_OHLCV_QUOTE_VOLUME",
+      "1m_EXECUTION_RESOLUTION_CANDLES",
+      "TAKER_BUY_SELL_INFORMATION_IF_REQUIRED_BY_FROZEN_FEATURES",
+      "BTC_REFERENCE_SERIES_FOR_FROZEN_RELATIVE_FEATURES",
+      "USD_M_FUNDING_EVENTS",
+      "MARK_PRICE_FOR_FUNDING_SETTLEMENT"
+    ],
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "minimalRequiredDataOnly": true,
+    "reuseExistingRepositoryAcquisitionCodePreferred": true
+  },
+  "preAcquisitionGate": {
+    "remoteAmendmentFreezeRequired": true,
+    "networkRequestsAllowedBeforeRemoteFreeze": false,
+    "marketDataPayloadReadBeforeRemoteFreeze": false,
+    "economicValuesReadBeforeRemoteFreeze": false,
+    "requiredCommitMessage": "Authorize Round-023 historical source acquisition",
+    "requiredParent": "3646432a3edb204852cf1f09fa08b69d021dffd8",
+    "remoteHeadMustBeVerifiedBeforeAcquisition": true
+  },
+  "postAcquisitionRequirements": {
+    "immutableDatasetManifestRequired": true,
+    "rawAndNormalizedHashesRequired": true,
+    "perSymbolCountsRequired": true,
+    "noPostBoundaryRows": true,
+    "noDuplicatePrimaryIdentities": true,
+    "chronologicalOrderingRequired": true,
+    "requiredSymbolsComplete": true,
+    "fundingChronologyRequired": true,
+    "pitCompatibilityRequired": true,
+    "datasetFreezeRequiredBeforeEconomicEvaluation": true
+  },
+  "governance": {
+    "newHistoricalDevelopmentDataFetched": false,
+    "newPostFreezeForwardDataFetched": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "forwardPerformanceExecutionCount": 0,
+    "developmentEconomicEvaluationExecutionCount": 0,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "mainUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}

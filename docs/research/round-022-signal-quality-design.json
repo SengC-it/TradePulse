@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "m3-r22-signal-quality-design-001",
+  "researchRoundId": "baseline-002-research-round-022",
+  "phase": "SIGNAL_QUALITY_RISK_ADVISORY_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "1a8b9c04c9dc9fa6614a7114a01addc4c6744579",
+    "requiredBaseHead": "1a8b9c04c9dc9fa6614a7114a01addc4c6744579"
+  },
+  "branch": "research/round-022-signal-quality-design",
+  "scope": {
+    "product": "SIGNAL_ADVISORY_ONLY",
+    "outputs": ["LONG", "SHORT", "NO_SIGNAL"],
+    "qualityGrades": ["A", "B", "C", "IGNORE"],
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "noOrderPlacement": true,
+    "noPositionSizing": true,
+    "noAutomaticStopsOrTargets": true,
+    "noFundManagement": true
+  },
+  "signalQualityEngine": {
+    "purpose": "Classify the integrity and review priority of an already-generated formal advisory without estimating future outcome.",
+    "requiredInputFacts": [
+      "direction",
+      "referencePrice",
+      "stopLoss",
+      "takeProfit",
+      "closedCandle",
+      "freshData",
+      "identityComplete",
+      "strategySnapshotComplete",
+      "marketRegime"
+    ],
+    "criticalIgnoreConditions": [
+      "direction=NO_SIGNAL",
+      "closedCandle=false",
+      "freshData=false",
+      "identityComplete=false",
+      "strategySnapshotComplete=false",
+      "directionalRiskGeometryInvalid=true"
+    ],
+    "gradeRules": {
+      "A": "Valid LONG or SHORT, all critical facts valid, market context SUPPORTIVE, and risk state STANDARD.",
+      "B": "Valid LONG or SHORT, all critical facts valid, and neither the A nor C rule applies.",
+      "C": "Valid LONG or SHORT, all critical facts valid, but market context is ADVERSE or UNAVAILABLE.",
+      "IGNORE": "NO_SIGNAL or any critical fact/geometry validation fails. No advisory email is produced by this layer."
+    },
+    "deterministicImplementation": "src/lib/research/m3-r22-signal-quality-design-protocol.ts::assessR22SignalQuality"
+  },
+  "longQualityAssessment": {
+    "direction": "LONG",
+    "riskOrdering": "stopLoss < referencePrice < takeProfit",
+    "supportiveRegime": "BULL",
+    "adverseRegime": "BEAR",
+    "neutralRegime": "NEUTRAL",
+    "invalidDirectionOrGeometry": "IGNORE"
+  },
+  "shortQualityAssessment": {
+    "direction": "SHORT",
+    "riskOrdering": "takeProfit < referencePrice < stopLoss",
+    "supportiveRegime": "BEAR",
+    "adverseRegime": "BULL",
+    "neutralRegime": "NEUTRAL",
+    "invalidDirectionOrGeometry": "IGNORE"
+  },
+  "marketContextAdvisory": {
+    "regimes": ["BULL", "NEUTRAL", "BEAR", "UNKNOWN"],
+    "alignment": ["SUPPORTIVE", "NEUTRAL", "ADVERSE", "UNAVAILABLE", "NOT_APPLICABLE"],
+    "rule": "LONG aligns with BULL and SHORT aligns with BEAR; opposite regimes are ADVERSE; NEUTRAL remains NEUTRAL; UNKNOWN is UNAVAILABLE.",
+    "doesNotChangeDirection": true,
+    "doesNotAuthorizeExecution": true,
+    "source": "EXISTING_SIGNAL_SNAPSHOT_CONTEXT_ONLY",
+    "newMarketDataAcquisition": false
+  },
+  "riskAdvisory": {
+    "purpose": "Expose pre-trade geometry and caution without sizing or execution.",
+    "riskDistance": "abs(referencePrice - stopLoss)",
+    "rewardDistance": "abs(takeProfit - referencePrice)",
+    "riskRewardRatio": "rewardDistance / riskDistance",
+    "states": {
+      "STANDARD": "Valid direction-aware geometry and riskRewardRatio >= 1.",
+      "CAUTION": "Valid direction-aware geometry and riskRewardRatio < 1.",
+      "UNAVAILABLE": "Missing, non-positive, non-finite, or directionally invalid geometry.",
+      "NOT_APPLICABLE": "NO_SIGNAL."
+    },
+    "noPositionSizing": true,
+    "noAutomaticStopOrTarget": true,
+    "noOutcomeEvaluation": true
+  },
+  "historicalSignalReview": {
+    "status": "IDENTITY_ONLY_DESIGN",
+    "source": "public.tp_signal_advisories",
+    "identityFields": ["signalId", "symbol", "direction", "signalTime", "strategyId", "strategyVersion"],
+    "reviewFields": ["qualityGrade", "marketContextAlignment", "riskAdvisoryState", "reviewStatus"],
+    "resultLinkage": "NOT_DEFINED_IN_ROUND_022",
+    "tpSignalResultsConsumed": false,
+    "futureOutcomeValuesRead": false,
+    "performanceMetricsGenerated": false,
+    "reviewStatusValues": ["NOT_REVIEWED", "IDENTITY_ONLY", "UNAVAILABLE"]
+  },
+  "outputContract": {
+    "required": ["direction", "qualityGrade", "qualityStatus", "marketContext", "riskAdvisory", "reasons", "humanDecisionRequired", "automaticTrading"],
+    "directionValues": ["LONG", "SHORT", "NO_SIGNAL"],
+    "qualityGradeValues": ["A", "B", "C", "IGNORE"],
+    "automaticTrading": false,
+    "humanDecisionRequired": true
+  },
+  "designGates": [
+    {"id": "D01_SIGNAL_SCOPE", "status": "PASS", "definition": "Advisory-only LONG/SHORT/NO_SIGNAL output."},
+    {"id": "D02_DIRECTIONAL_ASSESSMENT", "status": "PASS", "definition": "Both LONG and SHORT use direction-aware validation."},
+    {"id": "D03_QUALITY_GRADING", "status": "PASS", "definition": "A/B/C/IGNORE are deterministic and outcome-independent."},
+    {"id": "D04_MARKET_CONTEXT_ADVISORY", "status": "PASS", "definition": "Context is advisory only and does not change direction."},
+    {"id": "D05_RISK_ADVISORY", "status": "PASS", "definition": "Risk geometry does not size or execute a trade."},
+    {"id": "D06_HISTORICAL_REVIEW_BOUNDARY", "status": "PASS", "definition": "Historical review is identity-only until a separate linkage contract is approved."},
+    {"id": "D07_DESIGN_ONLY_GOVERNANCE", "status": "PASS", "definition": "Performance, backtest, selection, optimization, economics, and production operations are forbidden."}
+  ],
+  "governance": {
+    "designOnly": true,
+    "performanceExecuted": false,
+    "backtestExecuted": false,
+    "selectionExecuted": false,
+    "parameterOptimizationExecuted": false,
+    "economicEvaluationExecuted": false,
+    "newMarketDataFetched": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false,
+    "humanDecisionRequired": true
+  },
+  "decision": {
+    "finalDecision": "ROUND-022 SIGNAL QUALITY AND RISK ADVISORY DESIGN ONLY",
+    "performanceAuthorized": false,
+    "backtestAuthorized": false,
+    "selectionAuthorized": false,
+    "nextStage": "STOP_PENDING_DESIGN_ACCEPTANCE"
+  },
+  "forbiddenOperations": [
+    "PERFORMANCE",
+    "BACKTEST",
+    "SELECTION",
+    "PARAMETER_OPTIMIZATION",
+    "ECONOMIC_EVALUATION",
+    "FORWARD_RETURN_READ",
+    "NEW_MARKET_DATA_ACQUISITION",
+    "AUTOMATIC_TRADING"
+  ],
+  "evidenceOutputs": {
+    "designArtifacts": [
+      "docs/research/round-022-signal-quality-design.json",
+      "docs/research/round-022-signal-quality-design.md",
+      "src/lib/research/m3-r22-signal-quality-design-protocol.ts",
+      "tests/m3-r22-signal-quality-design.test.ts"
+    ],
+    "performanceOutputs": "NOT_CREATED",
+    "backtestOutputs": "NOT_CREATED",
+    "selectionOutputs": "NOT_CREATED",
+    "performanceLedger": "ABSENT"
+  }
+}

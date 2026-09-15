@@ -1,0 +1,411 @@
+{
+  "schemaVersion": "m3-r21-positioning-crowding-data-design-001",
+  "researchRoundId": "baseline-002-research-round-021",
+  "phase": "DATA_ACQUISITION_DESIGN_ONLY",
+  "acceptedResearchSource": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "commit": "7710eae9b69218bb157c5448209bcf2595199252",
+    "requiredBaseHead": "7710eae9b69218bb157c5448209bcf2595199252"
+  },
+  "branch": "research/round-021-positioning-crowding-data-design",
+  "baseBranch": "research/round-015-beta-alpha-decomposition",
+  "hypothesisIdentity": {
+    "acceptedArtifactPath": "docs/research/round-021-positioning-crowding-design.json",
+    "acceptedArtifactCommit": "7710eae9b69218bb157c5448209bcf2595199252",
+    "mechanismFamily": "POSITIONING_CROWDING_STATE",
+    "hypothesisId": "R21-TOP-TRADER-POSITION-CONCENTRATION-UNWIND",
+    "directionalThesis": "CONTRARIAN CROWD-UNWIND",
+    "primitiveInputs": [
+      "topTraderAccountLongShortRatio",
+      "topTraderPositionLongShortRatio",
+      "globalAccountLongShortRatio"
+    ],
+    "predicates": {
+      "longCrowd": "P > 0 && P > A && A > G",
+      "shortCrowd": "P < 0 && P < A && A < G",
+      "longCrowdAdvisoryDirection": "SHORT",
+      "shortCrowdAdvisoryDirection": "LONG",
+      "otherwise": "NO_SIGNAL"
+    },
+    "sourceStatus": "FROZEN_FROM_ACCEPTED_R21_DESIGN"
+  },
+  "researchBoundary": {
+    "venue": "BINANCE_USDM",
+    "market": "USD_M_PERPETUALS",
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "timezoneArithmetic": "UTC_EPOCH_MILLISECONDS_ONLY",
+    "boundaryStatus": "FROZEN_NO_CHANGE"
+  },
+  "sourceContract": {
+    "sourceFamily": "BINANCE_VISION_USDM_METRICS_ARCHIVE",
+    "allowedProvider": "Official Binance Vision USD-M metrics archive only",
+    "alternativeProvidersAllowed": false,
+    "sourceFields": [
+      "count_toptrader_long_short_ratio",
+      "sum_toptrader_long_short_ratio",
+      "count_long_short_ratio"
+    ],
+    "fieldMapping": {
+      "topTraderAccountLongShortRatio": "count_toptrader_long_short_ratio",
+      "topTraderPositionLongShortRatio": "sum_toptrader_long_short_ratio",
+      "globalAccountLongShortRatio": "count_long_short_ratio"
+    },
+    "mappingMayNotBeInferredFromFieldName": true,
+    "archiveFieldMappingProven": false,
+    "liveSeriesSemanticMappingProven": true,
+    "sourceFieldMappingStatus": "ARCHIVE_FIELD_MAPPING_UNPROVEN_FAIL_CLOSED",
+    "officialMappingEvidence": [],
+    "officialMappingEvidenceScope": "EXACT_ARCHIVE_FIELD_MAPPING_ONLY",
+    "liveSeriesSemanticEvidence": [
+      "https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data"
+    ],
+    "requiredTier1Proof": [
+      "official Binance documentation defining each exact field",
+      "official binance/binance-public-data source, changelog, or schema record",
+      "official archive object identity showing the fields belong to USD-M metrics"
+    ],
+    "networkAcquired": false,
+    "marketDataPayloadDownloaded": false,
+    "futureAcquisitionMustBindImmutableIdentity": true
+  },
+  "evidenceHierarchy": {
+    "tier1RequiredForAcceptance": [
+      "official Binance documentation",
+      "official binance/binance-public-data repository documentation/source/changelog",
+      "official archive listing or object metadata",
+      "official checksum or update records"
+    ],
+    "issuesAndCommunityEvidence": "RISK_EVIDENCE_ONLY_NOT_PROOF",
+    "thirdPartyProviders": "NOT_ADMISSIBLE",
+    "currentStatus": "NO_TIER1_ARCHIVE_FIELD_MAPPING_OR_PIT_AVAILABILITY_PROOF_IN_ACCEPTED_SOURCE"
+  },
+  "tier1Evidence": {
+    "liveUsdMSeriesDocumentation": {
+      "status": "PROVEN_TIER1",
+      "url": "https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data",
+      "market": "USD-M / USDS-M Futures",
+      "endpoints": [
+        "/futures/data/globalLongShortAccountRatio",
+        "/futures/data/topLongShortAccountRatio",
+        "/futures/data/topLongShortPositionRatio"
+      ],
+      "symbolExample": "BTCUSDT",
+      "supportedPeriods": ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"],
+      "periodEndTimestampSemantics": "End time of the period",
+      "seriesSemantics": {
+        "topTraderAccountRatio": "top-trader account-count long/short ratio",
+        "topTraderPositionRatio": "top-trader position-size long/short ratio",
+        "globalAccountRatio": "all-trader account long/short ratio"
+      },
+      "historicalQueryLimit": "LATEST_30_DAYS",
+      "payloadReadInThisStage": false
+    },
+    "historicalUsdMEndpointExistence": {
+      "status": "PROVEN_TIER1",
+      "repository": "binance/binance-futures-connector-python",
+      "commit": "d30576a6d8e6edb706c8b013eb11167b58e9c33a",
+      "date": "2022-08-29",
+      "path": "binance/um_futures/market.py",
+      "url": "https://github.com/binance/binance-futures-connector-python/blob/d30576a6d8e6edb706c8b013eb11167b58e9c33a/binance/um_futures/market.py",
+      "endpoints": [
+        "/futures/data/topLongShortPositionRatio",
+        "/futures/data/globalLongShortAccountRatio",
+        "/futures/data/topLongShortAccountRatio"
+      ],
+      "targetStart": "2023-01-01T00:00:00.000Z",
+      "preTargetStartEndpointExistence": true,
+      "provesArchiveMapping": false,
+      "provesPublicationLatency": false,
+      "provesArchiveNativeCadence": false
+    }
+  },
+  "usdMContract": {
+    "requiredMarket": "USD-M / USDS-M Futures",
+    "usdMDocumentationStatus": "ENDPOINT_AND_SERIES_SEMANTICS_PROVEN",
+    "usdMEndpointDocumentationProven": true,
+    "usdMSemanticSeriesProven": true,
+    "usdMSupportedPeriodsProven": true,
+    "usdMPeriodTimestampSemanticsProven": true,
+    "historicalUsdMEndpointExistenceProven": true,
+    "historicalEndpointEvidenceDate": "2022-08-29",
+    "historicalEndpointEvidenceCommit": "d30576a6d8e6edb706c8b013eb11167b58e9c33a",
+    "preTargetStartEndpointExistence": true,
+    "liveEndpointMinimumSupportedPeriod": "5m",
+    "liveEndpointPeriodOptionsProven": true,
+    "coinMDocumentationStatus": "ANALOGOUS_REFERENCE_ONLY",
+    "coinMDocsMaySubstitute": false,
+    "proofMustBeMarketSpecific": true
+  },
+  "pointInTimeContract": {
+    "decisionTimestamps": "EVERY_UTC_HOUR_ONLY_IF_CADENCE_GATE_PASSES",
+    "sourceObservationTimeRule": "sourceObservationTime <= decisionTime",
+    "publicationAvailableTimeRule": "publicationAvailableTime <= decisionTime",
+    "sameSymbolAndTimestampRequired": true,
+    "allThreePrimitivesSameObservationRequired": true,
+    "contemporaneousPublicAvailabilityStatus": "UNPROVEN_FAIL_CLOSED",
+    "historicalEndpointExistenceProven": true,
+    "periodEndTimestampSemanticsProven": true,
+    "archiveNextDayReleaseProven": true,
+    "archiveToLiveSeriesEquivalenceProven": false,
+    "publicationLatencyUpperBoundProven": false,
+    "decisionTimeAvailabilityRuleProven": false,
+    "currentDownloadTimeProvesHistoricalAvailability": false,
+    "currentLastModifiedProvesHistoricalAvailability": false,
+    "currentObjectExistenceProvesHistoricalAvailability": false,
+    "forbiddenMethods": [
+      "FORWARD_FILL",
+      "BACKFILL",
+      "INTERPOLATION",
+      "NEAREST_TIMESTAMP",
+      "CROSS_FILE_JOIN",
+      "CARRY_FORWARD"
+    ],
+    "missingObservationResult": "NO_OBSERVATION"
+  },
+  "archiveReleaseSemantics": {
+    "dailyArchiveRelease": "NEXT_DAY",
+    "monthlyArchiveRelease": "FIRST_MONDAY_OF_MONTH",
+    "archiveReleaseIsNotMetricAvailability": true,
+    "archiveReleaseDoesNotProveContemporaneousPIT": true,
+    "historicalAvailabilityProofStatus": "UNPROVEN_FAIL_CLOSED",
+    "historicalEndpointExistenceProven": true,
+    "periodEndTimestampSemanticsProven": true,
+    "archiveNextDayReleaseProven": true,
+    "archiveToLiveSeriesEquivalenceProven": false,
+    "publicationLatencyUpperBoundProven": false,
+    "decisionTimeAvailabilityRuleProven": false
+  },
+  "cadenceAndHorizonContract": {
+    "liveEndpointMinimumSupportedPeriod": "5m",
+    "liveEndpointPeriodOptionsProven": true,
+    "nativeCadenceEvidenceStatus": "UNPROVEN_FAIL_CLOSED",
+    "nativeCadenceMinutes": null,
+    "decisionCadence": null,
+    "primaryHoldingHorizon": null,
+    "requiredNativeCadenceMaximumMinutes": 60,
+    "conditionalFreezeIfAuthoritativelyProven": {
+      "decisionCadence": "1h",
+      "primaryHoldingHorizon": "4h"
+    },
+    "cadenceFailureOutcome": "ROUND-021 DATA ACQUISITION DESIGN INELIGIBLE",
+    "horizonSweep": false,
+    "noResultDependentHorizonChoice": true
+  },
+  "decisionObservationContract": {
+    "selectionRule": "latest complete PIT-valid observation at or before T",
+    "decisionTimezone": "UTC",
+    "sameSymbol": true,
+    "sameTimestamp": true,
+    "sameNativeCadence": true,
+    "allThreePrimitivesFiniteAndStrictlyPositive": true,
+    "missingOrInvalidResult": "NO_OBSERVATION",
+    "noForwardFill": true,
+    "noBackfill": true,
+    "noInterpolation": true,
+    "noNearestTimestamp": true,
+    "noCrossFileSubstitution": true
+  },
+  "futureObjectMatrixContract": {
+    "stage": "DATA_ACQUISITION_PREFLIGHT_ONLY",
+    "payloadReadAllowedNow": false,
+    "allowedMetadataMethods": ["OFFICIAL_LISTING_METADATA", "HEAD"],
+    "bodyGetAllowedNow": false,
+    "rangeGetAllowedNow": false,
+    "fields": [
+      "symbol",
+      "utcDate",
+      "expectedObjectKey",
+      "objectExists",
+      "checksumObjectExists",
+      "contentLength",
+      "etag",
+      "lastModified"
+    ],
+    "expectedObjectKeyRule": "deterministic official Binance Vision USD-M metrics object key for symbol and UTC date",
+    "symbolUniverse": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "futureOnly": true
+  },
+  "acquisitionIdentityContract": {
+    "requiredFields": [
+      "sourceFamily",
+      "symbol",
+      "utcDate",
+      "objectKey",
+      "officialChecksumSha256",
+      "downloadedSha256",
+      "contentLength",
+      "etag",
+      "observedLastModified",
+      "retrievedAt"
+    ],
+    "objectAndChecksumEqualityRequired": true,
+    "manifestSha256Required": true,
+    "identityStatus": "FROZEN_FOR_FUTURE_PREFLIGHT"
+  },
+  "revisionPolicy": {
+    "checksumChangeStatus": "ARCHIVE_REVISION_DETECTED",
+    "silentOverwriteAllowed": false,
+    "preserveOldAndNewIdentity": true,
+    "requiredRevisionFields": [
+      "oldObjectIdentity",
+      "newObjectIdentity",
+      "oldChecksum",
+      "newChecksum",
+      "firstObservedRevisionTime",
+      "officialChangelogReference"
+    ],
+    "revisionHandling": "FAIL_CLOSED_UNTIL_EXPLICIT_AUDIT"
+  },
+  "duplicatePolicy": {
+    "classes": [
+      "PRESENT_UNIQUE",
+      "MISSING",
+      "EXACT_DUPLICATE",
+      "CONFLICTING_DUPLICATE",
+      "INVALID_ROW"
+    ],
+    "exactDuplicateDefinition": "same symbol, timestamp, and all three R21 primitive values",
+    "conflictingDuplicateResult": "AMBIGUOUS_SOURCE_VALUE",
+    "conflictingDuplicateFailsClosed": true,
+    "deduplicationDeterministic": true
+  },
+  "coverageContract": {
+    "overallValidDecisionCoveragePerSymbolMinimum": 0.98,
+    "calendarMonthValidDecisionCoveragePerSymbolMinimum": 0.9,
+    "maximumContiguousMissingWindowHours": 24,
+    "conflictingDuplicateCountMustEqual": 0,
+    "anySymbolFailureFailsEntireRound": true,
+    "coverageStatus": "FROZEN_FOR_FUTURE_PREFLIGHT"
+  },
+  "knownContinuityRisk": {
+    "id": "BINANCE_USDM_METRICS_ARCHIVE_KNOWN_CONTINUITY_RISK",
+    "scope": "BTCUSDT and ETHUSDT 2023-2025 missing/duplicate risk",
+    "sourceClassification": "NON_AUTHORITATIVE_ISSUE_REPORT",
+    "use": "audit risk only; never proof and never a result-based exemption",
+    "doesNotAuthorizePayloadRead": true
+  },
+  "restApiRole": {
+    "role": "schema_and_PIT_documentation_reference_only",
+    "archiveSubstitute": false,
+    "recentThirtyDayProxy": false,
+    "historicalBackfill": false
+  },
+  "futurePreflightPlan": {
+    "nextStageOnlyIfAllGatesPass": "DATA_ACQUISITION_PREFLIGHT",
+    "checks": [
+      "P01_OFFICIAL_OBJECT_MATRIX",
+      "P02_CHECKSUM_IDENTITY",
+      "P03_USDM_FIELD_MAPPING",
+      "P04_PIT_PUBLICATION_AVAILABILITY",
+      "P05_NATIVE_CADENCE",
+      "P06_ROW_SHAPE_AND_DUPLICATES",
+      "P07_COVERAGE_AND_CONTINUITY",
+      "P08_MANIFEST_REPRODUCIBILITY"
+    ],
+    "noAcquisitionInThisStage": true,
+    "noPayloadReadInThisStage": true
+  },
+  "designGates": [
+    {
+      "id": "A01_ACCEPTED_SOURCE",
+      "status": "PASS",
+      "definition": "acceptedResearchSource.commit equals 7710eae9b69218bb157c5448209bcf2595199252"
+    },
+    {
+      "id": "A02_SINGLE_SOURCE_FAMILY",
+      "status": "PASS",
+      "definition": "Only BINANCE_VISION_USDM_METRICS_ARCHIVE is admissible"
+    },
+    {
+      "id": "A03_OFFICIAL_FIELD_MAPPING",
+      "status": "FAIL",
+      "definition": "USD-M live-series semantics are proven, but exact Binance Vision archive-field-to-live-series mapping lacks Tier-1 proof"
+    },
+    {
+      "id": "A04_CONTEMPORANEOUS_PIT_AVAILABILITY",
+      "status": "FAIL",
+      "definition": "The USD-M series existed before the target start and period-end timestamps are documented, but exact archive/live-series equivalence plus a historical publication-latency bound sufficient to guarantee publicationAvailableTime <= decisionTime is not proven"
+    },
+    {
+      "id": "A05_NATIVE_CADENCE_AND_HORIZON",
+      "status": "FAIL",
+      "definition": "Live endpoint period options are proven, but the native cadence of the Binance Vision USD-M metrics archive is not yet proven by Tier-1 archive documentation without reading market-data payloads"
+    },
+    {
+      "id": "A06_COVERAGE_AND_CONTINUITY_CONTRACT",
+      "status": "PASS",
+      "definition": "Five-symbol identity, duplicate policy, continuity risk, and fail-closed thresholds are frozen"
+    },
+    {
+      "id": "A07_REPRODUCIBILITY_CONTRACT",
+      "status": "PASS",
+      "definition": "Object identity, checksum equality, revision handling, and manifest identity are frozen"
+    },
+    {
+      "id": "A08_ZERO_ECONOMIC_READ",
+      "status": "PASS",
+      "definition": "No economic or forward values are read, calculated, or inspected"
+    },
+    {
+      "id": "A09_GOVERNANCE",
+      "status": "PASS",
+      "definition": "Acquisition, preflight, performance, selection, production, and trading remain unauthorized"
+    }
+  ],
+  "evidenceOutputs": {
+    "dataAcquisition": "NOT_CREATED",
+    "preflight": "NOT_CREATED",
+    "performance": "NOT_CREATED",
+    "selection": "NOT_CREATED",
+    "performanceLedger": "ABSENT",
+    "selectionLedger": "ABSENT"
+  },
+  "governance": {
+    "newMarketDataFetched": false,
+    "marketDataPayloadDownloaded": false,
+    "preflightExecuted": false,
+    "performanceExecuted": false,
+    "selectionExecuted": false,
+    "economicValuesRead": false,
+    "forwardReturnsRead": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "baseline001Unchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "automaticTrading": false
+  },
+  "forbiddenOperations": [
+    "DATA_ACQUISITION",
+    "DATA_ACQUISITION_PREFLIGHT",
+    "BACKTEST",
+    "PERFORMANCE",
+    "SELECTION",
+    "ECONOMIC_VALUE_READ",
+    "FORWARD_VALUE_READ",
+    "NEW_MARKET_DATA_ACQUISITION",
+    "PRODUCTION_MODIFICATION",
+    "SHADOW_ACTIVATION",
+    "SCHEDULER_ACTIVATION",
+    "AUTOMATIC_TRADING"
+  ],
+  "forbiddenArtifactsAtDesignStage": [
+    "scripts/m3-r21-positioning-crowding-acquire.ts",
+    "scripts/m3-r21-positioning-crowding-preflight.ts",
+    "scripts/m3-r21-positioning-crowding-performance.ts",
+    "docs/research/round-021-positioning-crowding-performance-ledger.json"
+  ],
+  "decision": {
+    "finalDecision": "ROUND-021 DATA ACQUISITION DESIGN INELIGIBLE",
+    "activeHypothesis": "R21-TOP-TRADER-POSITION-CONCENTRATION-UNWIND",
+    "nextStage": "STOP",
+    "dataAcquisitionAuthorized": false,
+    "performanceAuthorized": false,
+    "selectionAuthorized": false,
+    "reason": "A03, A04, and A05 retain fail-closed status: live USD-M endpoint semantics and pre-target endpoint existence are proven, but archive field mapping, archive/live equivalence with publication-latency bounds, and archive native cadence remain unproven."
+  }
+}
