@@ -32,11 +32,11 @@ function syntheticFeatures(index: number): Readonly<Record<string, number>> {
 }
 
 function syntheticLongExamples(): readonly Readonly<{ features: Readonly<Record<string, number>>; targetNetR: number }>[] {
-  return Object.freeze(Array.from({ length: 12 }, (_, index) => ({ features: syntheticFeatures(index), targetNetR: (index - 5) / 100 }))); 
+  return Object.freeze(Array.from({ length: 12 }, (_, index) => ({ features: syntheticFeatures(index), targetNetR: (index - 5) / 100 })));
 }
 
 function syntheticShortExamples(): readonly Readonly<{ features: Readonly<Record<string, number>>; targetNetR: number }>[] {
-  return Object.freeze(Array.from({ length: 12 }, (_, index) => ({ features: syntheticFeatures(index), targetNetR: ((index % 3) - 1) / 50 }))); 
+  return Object.freeze(Array.from({ length: 12 }, (_, index) => ({ features: syntheticFeatures(index), targetNetR: ((index % 3) - 1) / 50 })));
 }
 
 describe("Round-024 independent directional candidate families", () => {
@@ -45,8 +45,8 @@ describe("Round-024 independent directional candidate families", () => {
     expect(SHORT_CANDIDATE_CONFIGURATIONS).toHaveLength(4);
     expect(LONG_CANDIDATE_CONFIGURATIONS.every((configuration) => configuration.direction === "LONG")).toBe(true);
     expect(SHORT_CANDIDATE_CONFIGURATIONS.every((configuration) => configuration.direction === "SHORT")).toBe(true);
-    expect(LONG_CANDIDATE_CONFIGURATIONS.some((configuration) => configuration.direction === "SHORT")).toBe(false);
-    expect(SHORT_CANDIDATE_CONFIGURATIONS.some((configuration) => configuration.direction === "LONG")).toBe(false);
+    expect(LONG_CANDIDATE_CONFIGURATIONS.some((configuration) => String(configuration.direction) === "SHORT")).toBe(false);
+    expect(SHORT_CANDIDATE_CONFIGURATIONS.some((configuration) => String(configuration.direction) === "LONG")).toBe(false);
   });
 
   it("does not implement SHORT as LONG result multiplied by -1", () => {

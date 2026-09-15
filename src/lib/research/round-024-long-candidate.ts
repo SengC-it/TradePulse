@@ -149,4 +149,3 @@ export const LONG_CANDIDATE_CONFIGURATIONS: readonly LongCandidateConfiguration[
   { candidateConfigurationId: "R24_LONG_SLOPE_VOLATILITY_FLOW_THRESHOLD_0.05", family: "LONG-CANDIDATE-FAMILY", direction: "LONG", featureSubsetId: "LONG_SLOPE_VOLATILITY_FLOW", featureNames: LONG_ALTERNATE_FEATURE_NAMES, threshold: 0.05, horizonHours: 4, regimeGate: null, selectionPolicy: "INDEPENDENT_TOP_ONE_PER_DECISION_TIME" },
   { candidateConfigurationId: "R24_LONG_SLOPE_VOLATILITY_FLOW_THRESHOLD_0.10", family: "LONG-CANDIDATE-FAMILY", direction: "LONG", featureSubsetId: "LONG_SLOPE_VOLATILITY_FLOW", featureNames: LONG_ALTERNATE_FEATURE_NAMES, threshold: 0.1, horizonHours: 4, regimeGate: null, selectionPolicy: "INDEPENDENT_TOP_ONE_PER_DECISION_TIME" },
 ]);
-

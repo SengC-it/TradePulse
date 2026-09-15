@@ -150,4 +150,3 @@ export const SHORT_CANDIDATE_CONFIGURATIONS: readonly ShortCandidateConfiguratio
   { candidateConfigurationId: "R24_SHORT_RELATIVE_FLOW_FUNDING_THRESHOLD_0.05", family: "SHORT-CANDIDATE-FAMILY", direction: "SHORT", featureSubsetId: "SHORT_RELATIVE_FLOW_FUNDING", featureNames: SHORT_ALTERNATE_FEATURE_NAMES, threshold: 0.05, horizonHours: 4, regimeGate: null, selectionPolicy: "INDEPENDENT_TOP_ONE_PER_DECISION_TIME" },
   { candidateConfigurationId: "R24_SHORT_RELATIVE_FLOW_FUNDING_THRESHOLD_0.10", family: "SHORT-CANDIDATE-FAMILY", direction: "SHORT", featureSubsetId: "SHORT_RELATIVE_FLOW_FUNDING", featureNames: SHORT_ALTERNATE_FEATURE_NAMES, threshold: 0.1, horizonHours: 4, regimeGate: null, selectionPolicy: "INDEPENDENT_TOP_ONE_PER_DECISION_TIME" },
 ]);
-

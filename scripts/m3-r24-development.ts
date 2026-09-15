@@ -20,4 +20,3 @@ console.log(JSON.stringify({
   forwardReturnRead: result.forwardReturnRead,
   newPostFreezeForwardDataFetched: result.newPostFreezeForwardDataFetched,
 }, null, 2));
-

@@ -115,4 +115,3 @@ export const R24_PROTOCOL_SHA256 = createHash("sha256").update(stableStringify(R
 export type R24Direction = (typeof R24_DIRECTIONS)[number];
 export type R24FoldId = (typeof R24_FOLD_IDS)[number];
 export type R24Symbol = (typeof R24_SYMBOLS)[number];
-
