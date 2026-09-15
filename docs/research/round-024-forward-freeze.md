@@ -22,9 +22,9 @@ This artifact freezes the executable directional family contract before any unse
 
 ## Governance
 
-`forwardEconomicValuesRead=false`  
-`forwardReturnRead=false`  
-`performanceExecutionCount=0`  
-`automaticTrading=false`  
-`Production unchanged`  
+`forwardEconomicValuesRead=false`
+`forwardReturnRead=false`
+`performanceExecutionCount=0`
+`automaticTrading=false`
+`Production unchanged`
 `emailRestorationAuthorized=false`
