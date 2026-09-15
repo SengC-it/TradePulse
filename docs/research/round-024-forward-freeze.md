@@ -2,13 +2,13 @@
 
 This artifact freezes the executable directional family contract before any unseen/forward outcome is read.
 
-- Freeze commit: `c3eb33054ddb87e825ca05fd68122766c05b2d3d`
-- Freeze timestamp: `2026-09-15T08:50:17.2629756Z`
+- Freeze commit: `0f1735c96b5ca887b5d90c26c9d0f4c5529fefc9`
+- Freeze timestamp: `2026-09-15T08:51:18.1573757Z`
 - Forward rule: `signalTime > freezeTimestamp`
 - Candidate executable frozen: `false`
 - LONG champion: `null` / `null`
 - SHORT champion: `null` / `null`
-- Runner hash: `b79b632ca855958314a4da0056d7eb44c2cfa440b55e553f77a539065eac40d7`
+- Runner hash: `a93c8fb2f8b0ca4e958d427b27b2c51a14d39de7c1133408f2443266f35b0fb3`
 - Cost policy hash: `b6f6fa8fc2154f09ca585bb7ff32b3c2aa1e38601691564f8433e6861818c586`
 - Settlement hash: `22da94ff239f3e1d424218242d4ceca25803b32b71b80bf42d247b323cd53180`
 
@@ -22,9 +22,9 @@ This artifact freezes the executable directional family contract before any unse
 
 ## Governance
 
-`forwardEconomicValuesRead=false`  
-`forwardReturnRead=false`  
-`performanceExecutionCount=0`  
-`automaticTrading=false`  
-`Production unchanged`  
+`forwardEconomicValuesRead=false`
+`forwardReturnRead=false`
+`performanceExecutionCount=0`
+`automaticTrading=false`
+`Production unchanged`
 `emailRestorationAuthorized=false`
