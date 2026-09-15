@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { ResearchFoldId } from "./constants.ts";
@@ -7,7 +7,6 @@ import { calculateR13Drawdown } from "./r13-drawdown.ts";
 import { getResearchFoldRoleRange } from "./folds.ts";
 import {
   LONG_CANDIDATE_CONFIGURATIONS,
-  buildLongFeaturePipeline,
   fitLongCandidateModel,
   predictLongCandidate,
   type LongCandidateConfiguration,
@@ -16,7 +15,6 @@ import {
 } from "./round-024-long-candidate.ts";
 import {
   SHORT_CANDIDATE_CONFIGURATIONS,
-  buildShortFeaturePipeline,
   fitShortCandidateModel,
   predictShortCandidate,
   type ShortCandidateConfiguration,
@@ -39,7 +37,6 @@ import {
   R24_HORIZON_HOURS,
   R24_MANUAL_LATENCY_MINUTES,
   R24_PHASE,
-  R24_PROTOCOL_OBJECT,
   R24_PROTOCOL_SHA256,
   R24_PURGE_EMBARGO_HOURS,
   R24_RESEARCH_ROUND_ID,
