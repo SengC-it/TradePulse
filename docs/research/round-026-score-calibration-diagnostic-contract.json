@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "m3-r26-score-calibration-diagnostic-contract-001",
+  "researchRoundId": "baseline-002-research-round-026",
+  "phase": "SCORE_DIAGNOSTIC_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "99ecad9cfca8487c17a31fbf2c8878e5c9c71ed1"
+  },
+  "source": {
+    "canonicalObservationPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "observationDataBytes": 1893811055,
+    "observationCount": 244810,
+    "windowStart": "2023-01-01T00:00:00.000Z",
+    "windowEnd": "2026-08-15T23:59:59.999Z",
+    "classification": "SEEN_DEVELOPMENT_DIAGNOSTIC_ONLY",
+    "networkAcquired": false
+  },
+  "configurationContract": {
+    "candidateConfigurations": 6,
+    "folds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "candidateFoldExecutions": 36,
+    "normalization": "CROSS_SECTIONAL_ZSCORE_PER_DECISION_TIME",
+    "purgeEmbargoHours": 24,
+    "selectionReference": "TOP_ONE_PER_DECISION_TIME_SCORE_COUNT_ONLY",
+    "tieBreak": ["predictionDescending", "R25_SYMBOL_ORDER", "observationIdLexicalAscending"]
+  },
+  "validationReadBoundary": {
+    "allowedFields": ["decisionTime", "symbol", "direction", "features"],
+    "forbiddenFields": ["labels", "latencyStressLabels", "netForwardAtr", "netForwardAtrCostStress", "PnL", "profitFactor", "drawdown", "forwardReturn"],
+    "researchTargetRead": "historical training rows only"
+  },
+  "classifications": [
+    "PIPELINE_INTEGRITY_FAILURE",
+    "FIXED_RAW_THRESHOLD_SCALE_DRIFT",
+    "MODEL_POSITIVE_SCORE_COLLAPSE",
+    "SCORE_SCALE_OK_MODEL_EDGE_REDESIGN_REQUIRED"
+  ],
+  "governance": {
+    "diagnosticOnly": true,
+    "economicEvaluationPerformed": false,
+    "validationEconomicValuesRead": false,
+    "scoreCalibrationDiagnosticExecutionCount": 1,
+    "developmentEconomicEvaluationExecutionCount": 1,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "mainUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "newMarketDataFetched": false,
+    "selectionExecuted": false,
+    "forwardValidationAuthorized": false
+  },
+  "prohibited": [
+    "R25 economics rerun",
+    "validation outcome read",
+    "forward data read",
+    "candidate selection",
+    "new market-data acquisition",
+    "Production change",
+    "automatic trading"
+  ]
+}
