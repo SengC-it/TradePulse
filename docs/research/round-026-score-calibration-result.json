@@ -1,0 +1,2650 @@
+{
+  "automaticTrading": false,
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "99ecad9cfca8487c17a31fbf2c8878e5c9c71ed1"
+  },
+  "candidateConfigurationsDefined": 6,
+  "candidateConfigurationsEvaluated": 6,
+  "candidateDiagnostics": [
+    {
+      "acceptedR25SelectedAlertCount": 378,
+      "candidateConfigurationId": "R25_LONG_TREND_PULLBACK_VOLUME_NEUTRALIZED_LAMBDA_30_THRESHOLD_0.10",
+      "direction": "LONG",
+      "family": "LONG-CANDIDATE-FAMILY",
+      "folds": [
+        {
+          "foldId": "F1",
+          "modelScale": {
+            "coefficientL1Norm": 0.17368674963038472,
+            "coefficientL2Norm": 0.09787084183647085,
+            "intercept": -0.15425160907210672,
+            "maximumAbsCoefficient": 0.08230072615017403
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "724108a2cfa6b1210bfe99cf38e238a0e54f6bacd901e512a9052d82fbbb43d0",
+            "expectedTrainingExamples": 7325,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "724108a2cfa6b1210bfe99cf38e238a0e54f6bacd901e512a9052d82fbbb43d0",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 7325,
+            "validationDecisionTimeCount": 4368,
+            "validationRowCount": 21840
+          },
+          "predictionDistribution": {
+            "count": 21840,
+            "max": 0.170992814105334,
+            "mean": -0.15425160907210642,
+            "min": -0.4019971438803234,
+            "p50": -0.17294190805645537,
+            "p75": -0.07814068795141144,
+            "p90": 0.005307087290714909,
+            "p95": 0.05249888529119872,
+            "p99": 0.11725608216415856,
+            "stddev": 0.11004611382166951
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": false,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": false,
+            "thresholdAboveTopP99": false,
+            "thresholdExceedanceCount": 378,
+            "thresholdExceedanceRate": 0.08653846153846154,
+            "topMaxToThresholdRatio": 1.70992814105334,
+            "topP95ToThresholdRatio": 1.172647384559527,
+            "topP99ToThresholdRatio": 1.4682151249691224,
+            "topScoreGreaterThanZeroCount": 2319,
+            "topScoreGreaterThanZeroRate": 0.5309065934065934
+          },
+          "topPredictionDistribution": {
+            "count": 4368,
+            "max": 0.170992814105334,
+            "mean": 0.010559051756908156,
+            "min": -0.14202165289525212,
+            "p50": 0.004798681752947412,
+            "p75": 0.052554203402550216,
+            "p90": 0.09548785945887614,
+            "p95": 0.11726473845595271,
+            "p99": 0.14682151249691225,
+            "stddev": 0.059698759584026394
+          }
+        },
+        {
+          "foldId": "F2",
+          "modelScale": {
+            "coefficientL1Norm": 0.14022953465504348,
+            "coefficientL2Norm": 0.07665329168587573,
+            "intercept": -0.22033798607660318,
+            "maximumAbsCoefficient": 0.06488116870141758
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "594c476f8df7f1531c36bef38aa516dd11f4f997cf57764e4635ac6c1ad3704b",
+            "expectedTrainingExamples": 29165,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "594c476f8df7f1531c36bef38aa516dd11f4f997cf57764e4635ac6c1ad3704b",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 29165,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": 0.048182747771222195,
+            "mean": -0.22033798607660282,
+            "min": -0.43618834005075113,
+            "p50": -0.2348350099467904,
+            "p75": -0.16713336216118407,
+            "p90": -0.08757466068215411,
+            "p95": -0.048934992410072826,
+            "p99": 0.008203642397444326,
+            "stddev": 0.08832106978037123
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": 0.48182747771222195,
+            "topP95ToThresholdRatio": 0.08205803625986934,
+            "topP99ToThresholdRatio": 0.30319149820157976,
+            "topScoreGreaterThanZeroCount": 295,
+            "topScoreGreaterThanZeroRate": 0.06680253623188406
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": 0.048182747771222195,
+            "mean": -0.08595106170018571,
+            "min": -0.19747683341364944,
+            "p50": -0.08814448754466993,
+            "p75": -0.04892629816483971,
+            "p90": -0.012330825114484426,
+            "p95": 0.008205803625986934,
+            "p99": 0.03031914982015798,
+            "stddev": 0.052615983589545605
+          }
+        },
+        {
+          "foldId": "F3",
+          "modelScale": {
+            "coefficientL1Norm": 0.11784061358496262,
+            "coefficientL2Norm": 0.07016549040122005,
+            "intercept": -0.218059192996554,
+            "maximumAbsCoefficient": 0.061515864940521144
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "15dfc609721cb55f19ff10bd64882e51213e105459a4f7e2fed2a49ddf81eddb",
+            "expectedTrainingExamples": 51245,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "15dfc609721cb55f19ff10bd64882e51213e105459a4f7e2fed2a49ddf81eddb",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 51245,
+            "validationDecisionTimeCount": 4344,
+            "validationRowCount": 21720
+          },
+          "predictionDistribution": {
+            "count": 21720,
+            "max": 0.004011937913307062,
+            "mean": -0.21805919299655266,
+            "min": -0.3980445013920946,
+            "p50": -0.22357042568510685,
+            "p75": -0.16840110511443745,
+            "p90": -0.11503090333216051,
+            "p95": -0.0860122521643447,
+            "p99": -0.04351911567396157,
+            "stddev": 0.07394560613380768
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": 0.04011937913307062,
+            "topP95ToThresholdRatio": -0.4351686760709593,
+            "topP99ToThresholdRatio": -0.18812103852412293,
+            "topScoreGreaterThanZeroCount": 4,
+            "topScoreGreaterThanZeroRate": 0.0009208103130755065
+          },
+          "topPredictionDistribution": {
+            "count": 4344,
+            "max": 0.004011937913307062,
+            "mean": -0.11269126368916799,
+            "min": -0.20045541654974136,
+            "p50": -0.11567186929734383,
+            "p75": -0.0860095400893118,
+            "p90": -0.05858113168705408,
+            "p95": -0.04351686760709594,
+            "p99": -0.018812103852412294,
+            "stddev": 0.03924594141345665
+          }
+        },
+        {
+          "foldId": "F4",
+          "modelScale": {
+            "coefficientL1Norm": 0.11194179517396055,
+            "coefficientL2Norm": 0.07785056015595408,
+            "intercept": -0.23344518395767982,
+            "maximumAbsCoefficient": 0.07269396150266946
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "50958c4dc4eb1e43f8d9a7d525c9df47fcb121b29cabdb65e8d38e99ce31b022",
+            "expectedTrainingExamples": 72965,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "50958c4dc4eb1e43f8d9a7d525c9df47fcb121b29cabdb65e8d38e99ce31b022",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 72965,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.023899823508405887,
+            "mean": -0.23344518395767913,
+            "min": -0.4346832263506584,
+            "p50": -0.22961330414903816,
+            "p75": -0.17326103694788378,
+            "p90": -0.12945040043971717,
+            "p95": -0.1036533503321088,
+            "p99": -0.06408729278306524,
+            "stddev": 0.0810070399837201
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.23899823508405887,
+            "topP95ToThresholdRatio": -0.6408400045995568,
+            "topP99ToThresholdRatio": -0.4505818944377367,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.023899823508405887,
+            "mean": -0.12600919598042107,
+            "min": -0.20102723526467717,
+            "p50": -0.12989923144655313,
+            "p75": -0.10365006969816318,
+            "p90": -0.07646742632678853,
+            "p95": -0.06408400045995569,
+            "p99": -0.045058189443773676,
+            "stddev": 0.033839217548127735
+          }
+        },
+        {
+          "foldId": "F5",
+          "modelScale": {
+            "coefficientL1Norm": 0.10716659255344747,
+            "coefficientL2Norm": 0.0798371586102393,
+            "intercept": -0.23715351493373774,
+            "maximumAbsCoefficient": 0.07753041422942954
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "41eb9a2b6b1adf5a2d5a311d56b20826fdf4efb2a8b592650ae0e53dcd0c1666",
+            "expectedTrainingExamples": 95045,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "41eb9a2b6b1adf5a2d5a311d56b20826fdf4efb2a8b592650ae0e53dcd0c1666",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 95045,
+            "validationDecisionTimeCount": 2160,
+            "validationRowCount": 10800
+          },
+          "predictionDistribution": {
+            "count": 10800,
+            "max": -0.04407585255774191,
+            "mean": -0.23715351493373743,
+            "min": -0.4186700376141861,
+            "p50": -0.2353578404728381,
+            "p75": -0.16962951941656118,
+            "p90": -0.13361666828133395,
+            "p95": -0.11291064093675146,
+            "p99": -0.08060940332611732,
+            "stddev": 0.08017237679801964
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.44075852557741907,
+            "topP95ToThresholdRatio": -0.8060760727051093,
+            "topP99ToThresholdRatio": -0.5786621535409919,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 2160,
+            "max": -0.04407585255774191,
+            "mean": -0.13092890343356067,
+            "min": -0.196513588415226,
+            "p50": -0.13379777693522713,
+            "p75": -0.11290640227700209,
+            "p90": -0.09176742900582466,
+            "p95": -0.08060760727051093,
+            "p99": -0.0578662153540992,
+            "stddev": 0.027709469329959317
+          }
+        },
+        {
+          "foldId": "F6",
+          "modelScale": {
+            "coefficientL1Norm": 0.10165481582871647,
+            "coefficientL2Norm": 0.07871904757523834,
+            "intercept": -0.2501253126987317,
+            "maximumAbsCoefficient": 0.07720706801306691
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "11de1cf9cddc981e35768e0aee4c802993e344aa4379f4c865f48f3767a21a11",
+            "expectedTrainingExamples": 105845,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "11de1cf9cddc981e35768e0aee4c802993e344aa4379f4c865f48f3767a21a11",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 105845,
+            "validationDecisionTimeCount": 3288,
+            "validationRowCount": 16440
+          },
+          "predictionDistribution": {
+            "count": 16440,
+            "max": -0.05453313465123577,
+            "mean": -0.2501253126987317,
+            "min": -0.43309815620902103,
+            "p50": -0.2536120690748936,
+            "p75": -0.18458698958882164,
+            "p90": -0.1397181020763931,
+            "p95": -0.11832318543201889,
+            "p99": -0.0806174285405804,
+            "stddev": 0.08081072483488456
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.5453313465123577,
+            "topP95ToThresholdRatio": -0.8061674020099775,
+            "topP99ToThresholdRatio": -0.6661007419960613,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 3288,
+            "max": -0.05453313465123577,
+            "mean": -0.13621950313386383,
+            "min": -0.20188644998836178,
+            "p50": -0.13973286033090493,
+            "p75": -0.11832289567272841,
+            "p90": -0.09500092965393034,
+            "p95": -0.08061674020099775,
+            "p99": -0.06661007419960613,
+            "stddev": 0.028609078108580835
+          }
+        }
+      ],
+      "foldsThresholdAboveMax": 5,
+      "foldsThresholdAboveP99": 5,
+      "foldsWithZeroThresholdExceedances": 5,
+      "modelScaleDriftByFold": [
+        {
+          "coefficientL1DeltaFromF1": 0,
+          "coefficientL2DeltaFromF1": 0,
+          "foldId": "F1",
+          "interceptDeltaFromF1": 0,
+          "maximumAbsCoefficientDeltaFromF1": 0
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.03345721497534124,
+          "coefficientL2DeltaFromF1": -0.02121755015059512,
+          "foldId": "F2",
+          "interceptDeltaFromF1": -0.06608637700449646,
+          "maximumAbsCoefficientDeltaFromF1": -0.01741955744875645
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.0558461360454221,
+          "coefficientL2DeltaFromF1": -0.027705351435250797,
+          "foldId": "F3",
+          "interceptDeltaFromF1": -0.06380758392444727,
+          "maximumAbsCoefficientDeltaFromF1": -0.020784861209652887
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.06174495445642417,
+          "coefficientL2DeltaFromF1": -0.02002028168051677,
+          "foldId": "F4",
+          "interceptDeltaFromF1": -0.0791935748855731,
+          "maximumAbsCoefficientDeltaFromF1": -0.009606764647504568
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.06652015707693724,
+          "coefficientL2DeltaFromF1": -0.018033683226231556,
+          "foldId": "F5",
+          "interceptDeltaFromF1": -0.08290190586163101,
+          "maximumAbsCoefficientDeltaFromF1": -0.004770311920744494
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.07203193380166825,
+          "coefficientL2DeltaFromF1": -0.019151794261232508,
+          "foldId": "F6",
+          "interceptDeltaFromF1": -0.095873703626625,
+          "maximumAbsCoefficientDeltaFromF1": -0.005093658137107118
+        }
+      ],
+      "reproducedR25SelectedAlertCount": 378,
+      "selectedAlertCountReproduced": true,
+      "shareOfExceedancesInLargestFold": 1,
+      "threshold": 0.1,
+      "thresholdExceedancesByFold": {
+        "F1": 378,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      }
+    },
+    {
+      "acceptedR25SelectedAlertCount": 35,
+      "candidateConfigurationId": "R25_LONG_TREND_PULLBACK_VOLUME_NEUTRALIZED_LAMBDA_10_THRESHOLD_0.15",
+      "direction": "LONG",
+      "family": "LONG-CANDIDATE-FAMILY",
+      "folds": [
+        {
+          "foldId": "F1",
+          "modelScale": {
+            "coefficientL1Norm": 0.17396179733241032,
+            "coefficientL2Norm": 0.09810284553183636,
+            "intercept": -0.15425160907210672,
+            "maximumAbsCoefficient": 0.08253032029125072
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "defa51319b2e85f09cca092970ddafd200d894e420c84beeca0203c44be2caec",
+            "expectedTrainingExamples": 7325,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "defa51319b2e85f09cca092970ddafd200d894e420c84beeca0203c44be2caec",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 7325,
+            "validationDecisionTimeCount": 4368,
+            "validationRowCount": 21840
+          },
+          "predictionDistribution": {
+            "count": 21840,
+            "max": 0.17156677483849048,
+            "mean": -0.1542516090721065,
+            "min": -0.40255520683679236,
+            "p50": -0.17299265866515576,
+            "p75": -0.07793914397202291,
+            "p90": 0.005570027431936034,
+            "p95": 0.05299917171000063,
+            "p99": 0.11775295742166986,
+            "stddev": 0.11027270495446011
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.15,
+            "thresholdAboveTopMax": false,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 35,
+            "thresholdExceedanceRate": 0.008012820512820512,
+            "topMaxToThresholdRatio": 1.14377849892327,
+            "topP95ToThresholdRatio": 0.7850917489727284,
+            "topP99ToThresholdRatio": 0.9827526281465288,
+            "topScoreGreaterThanZeroCount": 2332,
+            "topScoreGreaterThanZeroRate": 0.5338827838827839
+          },
+          "topPredictionDistribution": {
+            "count": 4368,
+            "max": 0.17156677483849048,
+            "mean": 0.01092631081428504,
+            "min": -0.14211045431317848,
+            "p50": 0.0050748184509687155,
+            "p75": 0.05304594964105241,
+            "p90": 0.09599175802691927,
+            "p95": 0.11776376234590925,
+            "p99": 0.1474128942219793,
+            "stddev": 0.059792087066176086
+          }
+        },
+        {
+          "foldId": "F2",
+          "modelScale": {
+            "coefficientL1Norm": 0.14029558666823316,
+            "coefficientL2Norm": 0.07669683817737045,
+            "intercept": -0.22033798607660318,
+            "maximumAbsCoefficient": 0.06492371881122985
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "1ec8f449aca4d199f53ed59639ad902b8a6ab3b55d1b9ba0c41b43e8621b0d22",
+            "expectedTrainingExamples": 29165,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "1ec8f449aca4d199f53ed59639ad902b8a6ab3b55d1b9ba0c41b43e8621b0d22",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 29165,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": 0.048310235354720094,
+            "mean": -0.22033798607660213,
+            "min": -0.4362966302516704,
+            "p50": -0.2348485576513149,
+            "p75": -0.16710870559838778,
+            "p90": -0.08750122768050989,
+            "p95": -0.048828371106202424,
+            "p99": 0.008320292947354445,
+            "stddev": 0.08836634833120977
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.15,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": 0.322068235698134,
+            "topP95ToThresholdRatio": 0.055480713617162745,
+            "topP99ToThresholdRatio": 0.20295451579233578,
+            "topScoreGreaterThanZeroCount": 297,
+            "topScoreGreaterThanZeroRate": 0.06725543478260869
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": 0.048310235354720094,
+            "mean": -0.08587893266514351,
+            "min": -0.19748133487273453,
+            "p50": -0.08807181395513583,
+            "p75": -0.04882263659395619,
+            "p90": -0.012224352640041111,
+            "p95": 0.008322107042574411,
+            "p99": 0.030443177368850365,
+            "stddev": 0.05263904441523634
+          }
+        },
+        {
+          "foldId": "F3",
+          "modelScale": {
+            "coefficientL1Norm": 0.11787181684775933,
+            "coefficientL2Norm": 0.07018959388460273,
+            "intercept": -0.218059192996554,
+            "maximumAbsCoefficient": 0.06153922136921081
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "c324f3aba124fe12a56cbf51a2c526e17821fbe1535183a4d7434648be01ba02",
+            "expectedTrainingExamples": 51245,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "c324f3aba124fe12a56cbf51a2c526e17821fbe1535183a4d7434648be01ba02",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 51245,
+            "validationDecisionTimeCount": 4344,
+            "validationRowCount": 21720
+          },
+          "predictionDistribution": {
+            "count": 21720,
+            "max": 0.004071506969948846,
+            "mean": -0.21805919299655319,
+            "min": -0.3980946260668708,
+            "p50": -0.22357426325218765,
+            "p75": -0.1683851094419778,
+            "p90": -0.11499846142680895,
+            "p95": -0.08596312882610145,
+            "p99": -0.04346983854386468,
+            "stddev": 0.07396955332818485
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.15,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": 0.027143379799658973,
+            "topP95ToThresholdRatio": -0.28978505801792964,
+            "topP99ToThresholdRatio": -0.1250259395247157,
+            "topScoreGreaterThanZeroCount": 4,
+            "topScoreGreaterThanZeroRate": 0.0009208103130755065
+          },
+          "topPredictionDistribution": {
+            "count": 4344,
+            "max": 0.004071506969948846,
+            "mean": -0.11265799636149694,
+            "min": -0.2004341544599671,
+            "p50": -0.11564429878113036,
+            "p75": -0.0859617343068835,
+            "p90": -0.05853258611892063,
+            "p95": -0.043467758702689444,
+            "p99": -0.018753890928707353,
+            "stddev": 0.039255324537281144
+          }
+        },
+        {
+          "foldId": "F4",
+          "modelScale": {
+            "coefficientL1Norm": 0.11196668308746582,
+            "coefficientL2Norm": 0.07787149255216323,
+            "intercept": -0.23344518395767982,
+            "maximumAbsCoefficient": 0.07271375293839331
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "4a9302eea91be67fd32a7f0d08d09861f8e078dfdbc107109c5878a7b594ef93",
+            "expectedTrainingExamples": 72965,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "4a9302eea91be67fd32a7f0d08d09861f8e078dfdbc107109c5878a7b594ef93",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 72965,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.023854968406038207,
+            "mean": -0.2334451839576795,
+            "min": -0.4347319709159989,
+            "p50": -0.22961539912041498,
+            "p75": -0.1732462025530485,
+            "p90": -0.1294221727409574,
+            "p95": -0.10362008209347541,
+            "p99": -0.06404927869304751,
+            "stddev": 0.08102737145419557
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.15,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.15903312270692138,
+            "topP95ToThresholdRatio": -0.4269738620469671,
+            "topP99ToThresholdRatio": -0.30009261973455376,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.023854968406038207,
+            "mean": -0.12598248675396864,
+            "min": -0.20101287451947478,
+            "p50": -0.12987243235377588,
+            "p75": -0.10361701716248506,
+            "p90": -0.07643544056067604,
+            "p95": -0.06404607930704506,
+            "p99": -0.045013892960183065,
+            "stddev": 0.03384645552424708
+          }
+        },
+        {
+          "foldId": "F5",
+          "modelScale": {
+            "coefficientL1Norm": 0.10718423915312672,
+            "coefficientL2Norm": 0.07985347304125619,
+            "intercept": -0.23715351493373774,
+            "maximumAbsCoefficient": 0.07754666914979562
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "3ba06bf4ed7a17e8a25bdc65cb917ba129966f85380879fed444c50ea8ad9098",
+            "expectedTrainingExamples": 95045,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "3ba06bf4ed7a17e8a25bdc65cb917ba129966f85380879fed444c50ea8ad9098",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 95045,
+            "validationDecisionTimeCount": 2160,
+            "validationRowCount": 10800
+          },
+          "predictionDistribution": {
+            "count": 10800,
+            "max": -0.04404309343987317,
+            "mean": -0.23715351493373774,
+            "min": -0.41870194005485106,
+            "p50": -0.23535404734599086,
+            "p75": -0.16961632491395762,
+            "p90": -0.13359564134306842,
+            "p95": -0.1128857465439379,
+            "p99": -0.08058255085479893,
+            "stddev": 0.08018834369518679
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.15,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.2936206229324878,
+            "topP95ToThresholdRatio": -0.5372052357787162,
+            "topP99ToThresholdRatio": -0.38556802249063343,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 2160,
+            "max": -0.04404309343987317,
+            "mean": -0.1309077888356947,
+            "min": -0.19650184360013545,
+            "p50": -0.13377964149016341,
+            "p75": -0.11288151911411859,
+            "p90": -0.09173700517479405,
+            "p95": -0.08058078536680742,
+            "p99": -0.05783520337359501,
+            "stddev": 0.02771341592745678
+          }
+        },
+        {
+          "foldId": "F6",
+          "modelScale": {
+            "coefficientL1Norm": 0.10167232776291696,
+            "coefficientL2Norm": 0.07873362038619208,
+            "intercept": -0.2501253126987317,
+            "maximumAbsCoefficient": 0.07722162026948494
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "077e0ae9ebf0b643d7cf2629d91485dbe05a1c6219cc75a481178e74e2e00a07",
+            "expectedTrainingExamples": 105845,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "077e0ae9ebf0b643d7cf2629d91485dbe05a1c6219cc75a481178e74e2e00a07",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 105845,
+            "validationDecisionTimeCount": 3288,
+            "validationRowCount": 16440
+          },
+          "predictionDistribution": {
+            "count": 16440,
+            "max": -0.054502879226522,
+            "mean": -0.2501253126987314,
+            "min": -0.43312801899546655,
+            "p50": -0.25361170175411457,
+            "p75": -0.18457242752747732,
+            "p90": -0.13969614386324952,
+            "p95": -0.11830314989122914,
+            "p99": -0.08058980837480255,
+            "stddev": 0.08082510550542929
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.15,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.36335252817681335,
+            "topP95ToThresholdRatio": -0.5372615955978216,
+            "topP99ToThresholdRatio": -0.4438722682203178,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 3288,
+            "max": -0.054502879226522,
+            "mean": -0.1361994976466492,
+            "min": -0.20187530525593828,
+            "p50": -0.13971233678206407,
+            "p75": -0.11830232013926675,
+            "p90": -0.09497354290556585,
+            "p95": -0.08058923933967324,
+            "p99": -0.06658084023304767,
+            "stddev": 0.028613041634004348
+          }
+        }
+      ],
+      "foldsThresholdAboveMax": 5,
+      "foldsThresholdAboveP99": 6,
+      "foldsWithZeroThresholdExceedances": 5,
+      "modelScaleDriftByFold": [
+        {
+          "coefficientL1DeltaFromF1": 0,
+          "coefficientL2DeltaFromF1": 0,
+          "foldId": "F1",
+          "interceptDeltaFromF1": 0,
+          "maximumAbsCoefficientDeltaFromF1": 0
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.03366621066417716,
+          "coefficientL2DeltaFromF1": -0.021406007354465906,
+          "foldId": "F2",
+          "interceptDeltaFromF1": -0.06608637700449646,
+          "maximumAbsCoefficientDeltaFromF1": -0.01760660148002087
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.056089980484651,
+          "coefficientL2DeltaFromF1": -0.027913251647233628,
+          "foldId": "F3",
+          "interceptDeltaFromF1": -0.06380758392444727,
+          "maximumAbsCoefficientDeltaFromF1": -0.02099109892203991
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.0619951142449445,
+          "coefficientL2DeltaFromF1": -0.02023135297967313,
+          "foldId": "F4",
+          "interceptDeltaFromF1": -0.0791935748855731,
+          "maximumAbsCoefficientDeltaFromF1": -0.009816567352857408
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.0667775581792836,
+          "coefficientL2DeltaFromF1": -0.018249372490580174,
+          "foldId": "F5",
+          "interceptDeltaFromF1": -0.08290190586163101,
+          "maximumAbsCoefficientDeltaFromF1": -0.004983651141455103
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.07228946956949336,
+          "coefficientL2DeltaFromF1": -0.019369225145644278,
+          "foldId": "F6",
+          "interceptDeltaFromF1": -0.095873703626625,
+          "maximumAbsCoefficientDeltaFromF1": -0.005308700021765783
+        }
+      ],
+      "reproducedR25SelectedAlertCount": 35,
+      "selectedAlertCountReproduced": true,
+      "shareOfExceedancesInLargestFold": 1,
+      "threshold": 0.15,
+      "thresholdExceedancesByFold": {
+        "F1": 35,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      }
+    },
+    {
+      "acceptedR25SelectedAlertCount": 377,
+      "candidateConfigurationId": "R25_LONG_TREND_PULLBACK_NO_VOLUME_NEUTRALIZED_LAMBDA_30_THRESHOLD_0.10",
+      "direction": "LONG",
+      "family": "LONG-CANDIDATE-FAMILY",
+      "folds": [
+        {
+          "foldId": "F1",
+          "modelScale": {
+            "coefficientL1Norm": 0.1576474466540095,
+            "coefficientL2Norm": 0.0974532084220986,
+            "intercept": -0.15425160907210672,
+            "maximumAbsCoefficient": 0.08202664577089788
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "54323076d5eb40420cafb32500484ad888749856fee802b114dd8619762ff41b",
+            "expectedTrainingExamples": 7325,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "54323076d5eb40420cafb32500484ad888749856fee802b114dd8619762ff41b",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 7325,
+            "validationDecisionTimeCount": 4368,
+            "validationRowCount": 21840
+          },
+          "predictionDistribution": {
+            "count": 21840,
+            "max": 0.1483971091403471,
+            "mean": -0.15425160907210664,
+            "min": -0.4107239940310142,
+            "p50": -0.17134605956077847,
+            "p75": -0.07938425680300835,
+            "p90": 0.0031947830737903585,
+            "p95": 0.05268071367570968,
+            "p99": 0.11156264331236879,
+            "stddev": 0.10889933543153818
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": false,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": false,
+            "thresholdAboveTopP99": false,
+            "thresholdExceedanceCount": 377,
+            "thresholdExceedanceRate": 0.08630952380952381,
+            "topMaxToThresholdRatio": 1.483971091403471,
+            "topP95ToThresholdRatio": 1.1156402021812855,
+            "topP99ToThresholdRatio": 1.3068812547657849,
+            "topScoreGreaterThanZeroCount": 2253,
+            "topScoreGreaterThanZeroRate": 0.5157967032967034
+          },
+          "topPredictionDistribution": {
+            "count": 4368,
+            "max": 0.1483971091403471,
+            "mean": 0.008264791728510882,
+            "min": -0.13677195489421293,
+            "p50": 0.0028301561347182785,
+            "p75": 0.05268684268047297,
+            "p90": 0.09590099803395577,
+            "p95": 0.11156402021812854,
+            "p99": 0.1306881254765785,
+            "stddev": 0.05930115744743341
+          }
+        },
+        {
+          "foldId": "F2",
+          "modelScale": {
+            "coefficientL1Norm": 0.12571614489254535,
+            "coefficientL2Norm": 0.07569270968732561,
+            "intercept": -0.22033798607660318,
+            "maximumAbsCoefficient": 0.06488442111032991
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "5cf9170d2473df7fa30b7512a532cdff139a82e828722fa4e3e9d91ed183d60d",
+            "expectedTrainingExamples": 29165,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "5cf9170d2473df7fa30b7512a532cdff139a82e828722fa4e3e9d91ed183d60d",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 29165,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": 0.021729835751385956,
+            "mean": -0.2203379860766051,
+            "min": -0.4147984113296517,
+            "p50": -0.23523196004782165,
+            "p75": -0.16838752087638725,
+            "p90": -0.08813365995847779,
+            "p95": -0.04847123459380789,
+            "p99": -0.0025283357221636818,
+            "stddev": 0.08678502092927527
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": 0.21729835751385956,
+            "topP95ToThresholdRatio": -0.025220653627893996,
+            "topP99ToThresholdRatio": 0.13163644541701033,
+            "topScoreGreaterThanZeroCount": 185,
+            "topScoreGreaterThanZeroRate": 0.041893115942028984
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": 0.021729835751385956,
+            "mean": -0.08768949823964886,
+            "min": -0.20831819130448398,
+            "p50": -0.0887976889478399,
+            "p75": -0.04846276678451727,
+            "p90": -0.01706076962076518,
+            "p95": -0.0025220653627893996,
+            "p99": 0.013163644541701033,
+            "stddev": 0.050771905521082586
+          }
+        },
+        {
+          "foldId": "F3",
+          "modelScale": {
+            "coefficientL1Norm": 0.10976269751304507,
+            "coefficientL2Norm": 0.0701549920562321,
+            "intercept": -0.218059192996554,
+            "maximumAbsCoefficient": 0.06153097988947398
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "ee90d376fec300b4f8a1059cd9d9aeeb85ae06d12f8ee114b17bb9426e73a789",
+            "expectedTrainingExamples": 51245,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "ee90d376fec300b4f8a1059cd9d9aeeb85ae06d12f8ee114b17bb9426e73a789",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 51245,
+            "validationDecisionTimeCount": 4344,
+            "validationRowCount": 21720
+          },
+          "predictionDistribution": {
+            "count": 21720,
+            "max": -0.010614100810381194,
+            "mean": -0.2180591929965539,
+            "min": -0.39379854558604066,
+            "p50": -0.22394375813026868,
+            "p75": -0.16892765944200364,
+            "p90": -0.11559710834754394,
+            "p95": -0.08688920817109494,
+            "p99": -0.04565802640679013,
+            "stddev": 0.07336245566661755
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.10614100810381194,
+            "topP95ToThresholdRatio": -0.4565269889373787,
+            "topP99ToThresholdRatio": -0.2543792901271172,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4344,
+            "max": -0.010614100810381194,
+            "mean": -0.11336143129590762,
+            "min": -0.2011211199051859,
+            "p50": -0.11615275556224604,
+            "p75": -0.08688182978699263,
+            "p90": -0.060162127320741055,
+            "p95": -0.045652698893737874,
+            "p99": -0.02543792901271172,
+            "stddev": 0.03827540849572749
+          }
+        },
+        {
+          "foldId": "F4",
+          "modelScale": {
+            "coefficientL1Norm": 0.10624725735166618,
+            "coefficientL2Norm": 0.0780623407294292,
+            "intercept": -0.23344518395767982,
+            "maximumAbsCoefficient": 0.0727532439645078
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "fa407bed6a42682abe39ac46010937e7fc7fe682431a15dbb432d19862c023fa",
+            "expectedTrainingExamples": 72965,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "fa407bed6a42682abe39ac46010937e7fc7fe682431a15dbb432d19862c023fa",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 72965,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.03290234759255278,
+            "mean": -0.23344518395767871,
+            "min": -0.4314389328295632,
+            "p50": -0.22938032617643825,
+            "p75": -0.17315695446344886,
+            "p90": -0.12930943499894276,
+            "p95": -0.10401441678867578,
+            "p99": -0.06536517193878566,
+            "stddev": 0.08093715958338697
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.32902347592552783,
+            "topP95ToThresholdRatio": -0.6536060318743794,
+            "topP99ToThresholdRatio": -0.49003030477279247,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.03290234759255278,
+            "mean": -0.1262270576456009,
+            "min": -0.20298022446360633,
+            "p50": -0.12967810862438303,
+            "p75": -0.10401136414249575,
+            "p90": -0.07878385005826392,
+            "p95": -0.06536060318743794,
+            "p99": -0.04900303047727925,
+            "stddev": 0.03322444213841335
+          }
+        },
+        {
+          "foldId": "F5",
+          "modelScale": {
+            "coefficientL1Norm": 0.10501894549341315,
+            "coefficientL2Norm": 0.07989139310457893,
+            "intercept": -0.23715351493373774,
+            "maximumAbsCoefficient": 0.0775434383135331
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "cf929725af17f93438bfbdac9424ec57e5079dc160d9c8b16b46296a8c0afb27",
+            "expectedTrainingExamples": 95045,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "cf929725af17f93438bfbdac9424ec57e5079dc160d9c8b16b46296a8c0afb27",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 95045,
+            "validationDecisionTimeCount": 2160,
+            "validationRowCount": 10800
+          },
+          "predictionDistribution": {
+            "count": 10800,
+            "max": -0.04655657897222898,
+            "mean": -0.23715351493373807,
+            "min": -0.4189089258558999,
+            "p50": -0.23472429692790236,
+            "p75": -0.16977355544122297,
+            "p90": -0.13330749580945658,
+            "p95": -0.11278337799960682,
+            "p99": -0.08083320159925425,
+            "stddev": 0.0801997511531119
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.4655657897222898,
+            "topP95ToThresholdRatio": -0.8082930470492594,
+            "topP99ToThresholdRatio": -0.5979511034186962,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 2160,
+            "max": -0.04655657897222898,
+            "mean": -0.13084359111482735,
+            "min": -0.19902100816350063,
+            "p50": -0.13361213948134834,
+            "p75": -0.1127705817875583,
+            "p90": -0.09198353139184881,
+            "p95": -0.08082930470492594,
+            "p99": -0.05979511034186962,
+            "stddev": 0.027665924875169112
+          }
+        },
+        {
+          "foldId": "F6",
+          "modelScale": {
+            "coefficientL1Norm": 0.09861815223506631,
+            "coefficientL2Norm": 0.078732443493185,
+            "intercept": -0.2501253126987317,
+            "maximumAbsCoefficient": 0.07722083426876439
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "5437883c2374fa38c0e07b784f7acf4d8fbf0225ae4d17f248bba6b0cc7d5a05",
+            "expectedTrainingExamples": 105845,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "5437883c2374fa38c0e07b784f7acf4d8fbf0225ae4d17f248bba6b0cc7d5a05",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 105845,
+            "validationDecisionTimeCount": 3288,
+            "validationRowCount": 16440
+          },
+          "predictionDistribution": {
+            "count": 16440,
+            "max": -0.05850060644818306,
+            "mean": -0.2501253126987314,
+            "min": -0.43191490150278267,
+            "p50": -0.25380180464666374,
+            "p75": -0.1845513615994061,
+            "p90": -0.13959750084265382,
+            "p95": -0.11823506018686755,
+            "p99": -0.08032320406810184,
+            "stddev": 0.08080950243395346
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.1,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -0.5850060644818306,
+            "topP95ToThresholdRatio": -0.8032159155501276,
+            "topP99ToThresholdRatio": -0.6648804901815095,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 3288,
+            "max": -0.05850060644818306,
+            "mean": -0.1362688443916172,
+            "min": -0.2033349504365479,
+            "p50": -0.13964059076640717,
+            "p75": -0.11823395174131948,
+            "p90": -0.09440624942801988,
+            "p95": -0.08032159155501277,
+            "p99": -0.06648804901815096,
+            "stddev": 0.02862519679949618
+          }
+        }
+      ],
+      "foldsThresholdAboveMax": 5,
+      "foldsThresholdAboveP99": 5,
+      "foldsWithZeroThresholdExceedances": 5,
+      "modelScaleDriftByFold": [
+        {
+          "coefficientL1DeltaFromF1": 0,
+          "coefficientL2DeltaFromF1": 0,
+          "foldId": "F1",
+          "interceptDeltaFromF1": 0,
+          "maximumAbsCoefficientDeltaFromF1": 0
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.031931301761464165,
+          "coefficientL2DeltaFromF1": -0.021760498734772996,
+          "foldId": "F2",
+          "interceptDeltaFromF1": -0.06608637700449646,
+          "maximumAbsCoefficientDeltaFromF1": -0.017142224660567973
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.04788474914096444,
+          "coefficientL2DeltaFromF1": -0.027298216365866504,
+          "foldId": "F3",
+          "interceptDeltaFromF1": -0.06380758392444727,
+          "maximumAbsCoefficientDeltaFromF1": -0.020495665881423902
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.05140018930234333,
+          "coefficientL2DeltaFromF1": -0.0193908676926694,
+          "foldId": "F4",
+          "interceptDeltaFromF1": -0.0791935748855731,
+          "maximumAbsCoefficientDeltaFromF1": -0.00927340180639008
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.052628501160596364,
+          "coefficientL2DeltaFromF1": -0.01756181531751967,
+          "foldId": "F5",
+          "interceptDeltaFromF1": -0.08290190586163101,
+          "maximumAbsCoefficientDeltaFromF1": -0.004483207457364788
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.059029294418943196,
+          "coefficientL2DeltaFromF1": -0.0187207649289136,
+          "foldId": "F6",
+          "interceptDeltaFromF1": -0.095873703626625,
+          "maximumAbsCoefficientDeltaFromF1": -0.004805811502133495
+        }
+      ],
+      "reproducedR25SelectedAlertCount": 377,
+      "selectedAlertCountReproduced": true,
+      "shareOfExceedancesInLargestFold": 1,
+      "threshold": 0.1,
+      "thresholdExceedancesByFold": {
+        "F1": 377,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      }
+    },
+    {
+      "acceptedR25SelectedAlertCount": 0,
+      "candidateConfigurationId": "R25_SHORT_TREND_VOLATILITY_FUNDING_NEUTRALIZED_LAMBDA_30_THRESHOLD_0.03",
+      "direction": "SHORT",
+      "family": "SHORT-CANDIDATE-FAMILY",
+      "folds": [
+        {
+          "foldId": "F1",
+          "modelScale": {
+            "coefficientL1Norm": 0.12250117417180217,
+            "coefficientL2Norm": 0.07140058121186889,
+            "intercept": -0.3464855283919237,
+            "maximumAbsCoefficient": 0.050106210757803187
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "eff20deb3f5cb9970726eb96892a2084d24d729ce1585944dd31bb028b26d4b9",
+            "expectedTrainingExamples": 7325,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "eff20deb3f5cb9970726eb96892a2084d24d729ce1585944dd31bb028b26d4b9",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 7325,
+            "validationDecisionTimeCount": 4368,
+            "validationRowCount": 21840
+          },
+          "predictionDistribution": {
+            "count": 21840,
+            "max": -0.12097954805575467,
+            "mean": -0.3464855283919245,
+            "min": -0.5716519135373812,
+            "p50": -0.3480982772214767,
+            "p75": -0.30137982068353486,
+            "p90": -0.2555014102186334,
+            "p95": -0.22808488730085058,
+            "p99": -0.18795728329515965,
+            "stddev": 0.06847114012996641
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -4.032651601858489,
+            "topP95ToThresholdRatio": -6.265138720828037,
+            "topP99ToThresholdRatio": -5.371410013697928,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4368,
+            "max": -0.12097954805575467,
+            "mean": -0.2550834311287664,
+            "min": -0.3351452427167557,
+            "p50": -0.25863408302738183,
+            "p75": -0.2283868605296123,
+            "p90": -0.20307757410344585,
+            "p95": -0.1879541616248411,
+            "p99": -0.16114230041093783,
+            "stddev": 0.03865809889695791
+          }
+        },
+        {
+          "foldId": "F2",
+          "modelScale": {
+            "coefficientL1Norm": 0.09612716431067642,
+            "coefficientL2Norm": 0.05040986200085944,
+            "intercept": -0.28495177664789556,
+            "maximumAbsCoefficient": 0.03698496361613431
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "34fb7674e1333f0057f89dc68bad69f8e32a22c1cd946f92be4be2cc722e210f",
+            "expectedTrainingExamples": 29165,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "34fb7674e1333f0057f89dc68bad69f8e32a22c1cd946f92be4be2cc722e210f",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 29165,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.12684917891940828,
+            "mean": -0.28494617315508924,
+            "min": -0.45037924179201155,
+            "p50": -0.2845867666829033,
+            "p75": -0.2509112242362875,
+            "p90": -0.2199951814239717,
+            "p95": -0.20065628257717788,
+            "p99": -0.16771828417511736,
+            "stddev": 0.0506569025017806
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -4.228305963980276,
+            "topP95ToThresholdRatio": -5.590556635119913,
+            "topP99ToThresholdRatio": -4.999515713782595,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.12684917891940828,
+            "mean": -0.21873817567472578,
+            "min": -0.2798894742077822,
+            "p50": -0.22196524382829197,
+            "p75": -0.2009205665735272,
+            "p90": -0.1801207548393071,
+            "p95": -0.1677166990535974,
+            "p99": -0.14998547141347784,
+            "stddev": 0.02733830413804821
+          }
+        },
+        {
+          "foldId": "F3",
+          "modelScale": {
+            "coefficientL1Norm": 0.09812128467654863,
+            "coefficientL2Norm": 0.05189602809588625,
+            "intercept": -0.27527134116425583,
+            "maximumAbsCoefficient": 0.03788365119949075
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "678662e9645e2d14fc5e2a2ad49e5777260be2079d65da12476e1ff60e1a2279",
+            "expectedTrainingExamples": 51245,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "678662e9645e2d14fc5e2a2ad49e5777260be2079d65da12476e1ff60e1a2279",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 51245,
+            "validationDecisionTimeCount": 4344,
+            "validationRowCount": 21720
+          },
+          "predictionDistribution": {
+            "count": 21720,
+            "max": -0.1252325726281888,
+            "mean": -0.27527415290730267,
+            "min": -0.43704767900536934,
+            "p50": -0.27513323012985763,
+            "p75": -0.24231663570894313,
+            "p90": -0.2120823796989002,
+            "p95": -0.19518976035706162,
+            "p99": -0.16754697264053126,
+            "stddev": 0.04854806098555899
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -4.174419087606293,
+            "topP95ToThresholdRatio": -5.5848592633943674,
+            "topP99ToThresholdRatio": -4.959324673951355,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4344,
+            "max": -0.1252325726281888,
+            "mean": -0.21272866690421602,
+            "min": -0.2725449760562561,
+            "p50": -0.21447448306195943,
+            "p75": -0.19523507510906854,
+            "p90": -0.1780346911382772,
+            "p95": -0.167545777901831,
+            "p99": -0.14877974021854065,
+            "stddev": 0.025820694357819297
+          }
+        },
+        {
+          "foldId": "F4",
+          "modelScale": {
+            "coefficientL1Norm": 0.07689049276635074,
+            "coefficientL2Norm": 0.03776989003533579,
+            "intercept": -0.2632958334363308,
+            "maximumAbsCoefficient": 0.025758653348386867
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "59430c21b3f838e1fe7e1ae3418fcf01afbf5abebbd13686984b0a89051f5b93",
+            "expectedTrainingExamples": 72965,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "59430c21b3f838e1fe7e1ae3418fcf01afbf5abebbd13686984b0a89051f5b93",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 72965,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.14080530900617833,
+            "mean": -0.2632976006945368,
+            "min": -0.40112546833658536,
+            "p50": -0.26231266371150797,
+            "p75": -0.23748247681248646,
+            "p90": -0.21465320802675145,
+            "p95": -0.20255511109794253,
+            "p99": -0.18119478835540312,
+            "stddev": 0.03771016764396102
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -4.693510300205944,
+            "topP95ToThresholdRatio": -6.039807140655411,
+            "topP99ToThresholdRatio": -5.496016608766906,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.14080530900617833,
+            "mean": -0.2153309404906577,
+            "min": -0.2600007980050607,
+            "p50": -0.21666791862122242,
+            "p75": -0.2029009313858804,
+            "p90": -0.1892659549821616,
+            "p95": -0.1811942142196623,
+            "p99": -0.16488049826300719,
+            "stddev": 0.01933012300659138
+          }
+        },
+        {
+          "foldId": "F5",
+          "modelScale": {
+            "coefficientL1Norm": 0.06656133574774664,
+            "coefficientL2Norm": 0.03169701746601305,
+            "intercept": -0.2728679636309774,
+            "maximumAbsCoefficient": 0.021840222730013258
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "07b6d014fc08cae850ab8520c05084ce44d92eb649d12bd1df2da8527e8f261a",
+            "expectedTrainingExamples": 95045,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "07b6d014fc08cae850ab8520c05084ce44d92eb649d12bd1df2da8527e8f261a",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 95045,
+            "validationDecisionTimeCount": 2160,
+            "validationRowCount": 10800
+          },
+          "predictionDistribution": {
+            "count": 10800,
+            "max": -0.1628762141755718,
+            "mean": -0.2728691139345119,
+            "min": -0.3742190692279095,
+            "p50": -0.2721519596807306,
+            "p75": -0.2518329520935194,
+            "p90": -0.23372592020013086,
+            "p95": -0.22276519718861548,
+            "p99": -0.20350590628724777,
+            "stddev": 0.03077297529438988
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.429207139185727,
+            "topP95ToThresholdRatio": -6.783521150553072,
+            "topP99ToThresholdRatio": -6.274037985821775,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 2160,
+            "max": -0.1628762141755718,
+            "mean": -0.2327192497735717,
+            "min": -0.2688222966027446,
+            "p50": -0.2349041676575927,
+            "p75": -0.22285530787630745,
+            "p90": -0.2104828348852696,
+            "p95": -0.20350563451659215,
+            "p99": -0.18822113957465325,
+            "stddev": 0.016374607322469797
+          }
+        },
+        {
+          "foldId": "F6",
+          "modelScale": {
+            "coefficientL1Norm": 0.05919436448079659,
+            "coefficientL2Norm": 0.029654465854840183,
+            "intercept": -0.2623366308153335,
+            "maximumAbsCoefficient": 0.022124059599553242
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "acf389fca7dd8239b36846c4760bdeb433667d4d39916393469e0e2fdcd24059",
+            "expectedTrainingExamples": 105845,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "acf389fca7dd8239b36846c4760bdeb433667d4d39916393469e0e2fdcd24059",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 105845,
+            "validationDecisionTimeCount": 3288,
+            "validationRowCount": 16440
+          },
+          "predictionDistribution": {
+            "count": 16440,
+            "max": -0.16289472465283478,
+            "mean": -0.26233767724205787,
+            "min": -0.3566099398760543,
+            "p50": -0.2629770052313707,
+            "p75": -0.24237675103857043,
+            "p90": -0.22484496704528498,
+            "p95": -0.2151492420120464,
+            "p99": -0.19816119326773332,
+            "stddev": 0.02849522511698222
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.429824155094493,
+            "topP95ToThresholdRatio": -6.605150156786648,
+            "topP99ToThresholdRatio": -6.176209608196645,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 3288,
+            "max": -0.16289472465283478,
+            "mean": -0.22469156105148624,
+            "min": -0.25882908448652725,
+            "p50": -0.22604306091895485,
+            "p75": -0.21536685314001583,
+            "p90": -0.20428276526528807,
+            "p95": -0.19815450470359944,
+            "p99": -0.18528628824589935,
+            "stddev": 0.014941523775231568
+          }
+        }
+      ],
+      "foldsThresholdAboveMax": 6,
+      "foldsThresholdAboveP99": 6,
+      "foldsWithZeroThresholdExceedances": 6,
+      "modelScaleDriftByFold": [
+        {
+          "coefficientL1DeltaFromF1": 0,
+          "coefficientL2DeltaFromF1": 0,
+          "foldId": "F1",
+          "interceptDeltaFromF1": 0,
+          "maximumAbsCoefficientDeltaFromF1": 0
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.026374009861125758,
+          "coefficientL2DeltaFromF1": -0.02099071921100945,
+          "foldId": "F2",
+          "interceptDeltaFromF1": 0.06153375174402814,
+          "maximumAbsCoefficientDeltaFromF1": -0.013121247141668874
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.02437988949525355,
+          "coefficientL2DeltaFromF1": -0.01950455311598264,
+          "foldId": "F3",
+          "interceptDeltaFromF1": 0.07121418722766787,
+          "maximumAbsCoefficientDeltaFromF1": -0.012222559558312439
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.045610681405451436,
+          "coefficientL2DeltaFromF1": -0.0336306911765331,
+          "foldId": "F4",
+          "interceptDeltaFromF1": 0.08318969495559292,
+          "maximumAbsCoefficientDeltaFromF1": -0.02434755740941632
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.05593983842405553,
+          "coefficientL2DeltaFromF1": -0.03970356374585584,
+          "foldId": "F5",
+          "interceptDeltaFromF1": 0.07361756476094633,
+          "maximumAbsCoefficientDeltaFromF1": -0.02826598802778993
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.06330680969100558,
+          "coefficientL2DeltaFromF1": -0.041746115357028706,
+          "foldId": "F6",
+          "interceptDeltaFromF1": 0.08414889757659022,
+          "maximumAbsCoefficientDeltaFromF1": -0.027982151158249945
+        }
+      ],
+      "reproducedR25SelectedAlertCount": 0,
+      "selectedAlertCountReproduced": true,
+      "shareOfExceedancesInLargestFold": 0,
+      "threshold": 0.03,
+      "thresholdExceedancesByFold": {
+        "F1": 0,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      }
+    },
+    {
+      "acceptedR25SelectedAlertCount": 0,
+      "candidateConfigurationId": "R25_SHORT_RELATIVE_FLOW_FUNDING_NEUTRALIZED_LAMBDA_30_THRESHOLD_0.03",
+      "direction": "SHORT",
+      "family": "SHORT-CANDIDATE-FAMILY",
+      "folds": [
+        {
+          "foldId": "F1",
+          "modelScale": {
+            "coefficientL1Norm": 0.10963693680300565,
+            "coefficientL2Norm": 0.04935213681450886,
+            "intercept": -0.3464855283919237,
+            "maximumAbsCoefficient": 0.030141728224890016
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "def346e0135c191bb12a561e201e5d8dceec22247701e9eccbbd19c6a01dbf3c",
+            "expectedTrainingExamples": 7325,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "def346e0135c191bb12a561e201e5d8dceec22247701e9eccbbd19c6a01dbf3c",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 7325,
+            "validationDecisionTimeCount": 4368,
+            "validationRowCount": 21840
+          },
+          "predictionDistribution": {
+            "count": 21840,
+            "max": -0.17697890160614202,
+            "mean": -0.3464855283919248,
+            "min": -0.5306648502815353,
+            "p50": -0.34732185973383967,
+            "p75": -0.30915808748223383,
+            "p90": -0.27474018635543634,
+            "p95": -0.25698482876820494,
+            "p99": -0.22754122561347742,
+            "stddev": 0.05357597941058505
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.899296720204735,
+            "topP95ToThresholdRatio": -7.584662811959258,
+            "topP99ToThresholdRatio": -6.986510109647507,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4368,
+            "max": -0.17697890160614202,
+            "mean": -0.27440886672386877,
+            "min": -0.33684628374443315,
+            "p50": -0.27559013414533173,
+            "p75": -0.25712264357494796,
+            "p90": -0.23858099050943543,
+            "p95": -0.22753988435877773,
+            "p99": -0.20959530328942522,
+            "stddev": 0.02662278322416122
+          }
+        },
+        {
+          "foldId": "F2",
+          "modelScale": {
+            "coefficientL1Norm": 0.0849247330898034,
+            "coefficientL2Norm": 0.040331530092496994,
+            "intercept": -0.28495177664789556,
+            "maximumAbsCoefficient": 0.02895565131573677
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "86bc8feae05086da5f2f285df6f9ebc6d6176365003b47bff652994a9f847446",
+            "expectedTrainingExamples": 29165,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "86bc8feae05086da5f2f285df6f9ebc6d6176365003b47bff652994a9f847446",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 29165,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.15845611591808498,
+            "mean": -0.2849517766478965,
+            "min": -0.42094896176688745,
+            "p50": -0.2839991510356218,
+            "p75": -0.2537110254967936,
+            "p90": -0.22944696571470327,
+            "p95": -0.21523467172918198,
+            "p99": -0.19288922165899713,
+            "stddev": 0.043089430914359
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.281870530602832,
+            "topP95ToThresholdRatio": -6.429563278753946,
+            "topP99ToThresholdRatio": -5.932489384363437,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.15845611591808498,
+            "mean": -0.22898527768496013,
+            "min": -0.2782861106846125,
+            "p50": -0.2308963401980635,
+            "p75": -0.21534690391016664,
+            "p90": -0.20143594853601426,
+            "p95": -0.19288689836261838,
+            "p99": -0.17797468153090312,
+            "stddev": 0.02031685500774455
+          }
+        },
+        {
+          "foldId": "F3",
+          "modelScale": {
+            "coefficientL1Norm": 0.07434950444493166,
+            "coefficientL2Norm": 0.033804330082630916,
+            "intercept": -0.27527134116425583,
+            "maximumAbsCoefficient": 0.02111168583757879
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "534fb06adb695ce7b23b0d5833be29f27e6486afcf15fcb34445711a736cff7d",
+            "expectedTrainingExamples": 51245,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "534fb06adb695ce7b23b0d5833be29f27e6486afcf15fcb34445711a736cff7d",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 51245,
+            "validationDecisionTimeCount": 4344,
+            "validationRowCount": 21720
+          },
+          "predictionDistribution": {
+            "count": 21720,
+            "max": -0.16775114266255212,
+            "mean": -0.2752713411642557,
+            "min": -0.40155150043722876,
+            "p50": -0.2739574973169763,
+            "p75": -0.24926477747180048,
+            "p90": -0.22867021536761398,
+            "p95": -0.2175566258212992,
+            "p99": -0.19841613239462796,
+            "stddev": 0.036376664510865214
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.591704755418404,
+            "topP95ToThresholdRatio": -6.6138661225325714,
+            "topP99ToThresholdRatio": -6.151699901422022,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4344,
+            "max": -0.16775114266255212,
+            "mean": -0.22886038128427494,
+            "min": -0.27145019410916776,
+            "p50": -0.23015362703454423,
+            "p75": -0.21767779806892854,
+            "p90": -0.20576324777464058,
+            "p95": -0.19841598367597713,
+            "p99": -0.18455099704266065,
+            "stddev": 0.01721148809169868
+          }
+        },
+        {
+          "foldId": "F4",
+          "modelScale": {
+            "coefficientL1Norm": 0.05924067120077185,
+            "coefficientL2Norm": 0.03112865168459483,
+            "intercept": -0.2632958334363308,
+            "maximumAbsCoefficient": 0.021974703478483574
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "e8b15bdbc1a4252570e45982c8ca1e93dce7c024ad849a4ca232826d02e17c37",
+            "expectedTrainingExamples": 72965,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "e8b15bdbc1a4252570e45982c8ca1e93dce7c024ad849a4ca232826d02e17c37",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 72965,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.1688137146249373,
+            "mean": -0.2632958334363289,
+            "min": -0.36714351229119646,
+            "p50": -0.2617513912598386,
+            "p75": -0.2405164490453376,
+            "p90": -0.22312300945280844,
+            "p95": -0.21336635529404865,
+            "p99": -0.19665850925333508,
+            "stddev": 0.031890991321352126
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.627123820831244,
+            "topP95ToThresholdRatio": -6.55506033783145,
+            "topP99ToThresholdRatio": -6.220700778488886,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.1688137146249373,
+            "mean": -0.22293695472727215,
+            "min": -0.25945522855662456,
+            "p50": -0.22412464829982082,
+            "p75": -0.21341371951199958,
+            "p90": -0.20291712578090398,
+            "p95": -0.19665181013494348,
+            "p99": -0.18662102335466657,
+            "stddev": 0.01465097547748256
+          }
+        },
+        {
+          "foldId": "F5",
+          "modelScale": {
+            "coefficientL1Norm": 0.05870775856953603,
+            "coefficientL2Norm": 0.028350212192915683,
+            "intercept": -0.2728679636309774,
+            "maximumAbsCoefficient": 0.015862346339312508
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "e6901ff89c60649e636329a5642ea326176670cca79cf14e95dad27d4e9df8e6",
+            "expectedTrainingExamples": 95045,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "e6901ff89c60649e636329a5642ea326176670cca79cf14e95dad27d4e9df8e6",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 95045,
+            "validationDecisionTimeCount": 2160,
+            "validationRowCount": 10800
+          },
+          "predictionDistribution": {
+            "count": 10800,
+            "max": -0.18847671181113393,
+            "mean": -0.272867963630976,
+            "min": -0.3625588312117836,
+            "p50": -0.27281599188326305,
+            "p75": -0.25414280615800416,
+            "p90": -0.23818088179315497,
+            "p95": -0.2282519995422098,
+            "p99": -0.2128091548190584,
+            "stddev": 0.026930783744784983
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -6.282557060371131,
+            "topP95ToThresholdRatio": -7.093315658038316,
+            "topP99ToThresholdRatio": -6.658981746968913,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 2160,
+            "max": -0.18847671181113393,
+            "mean": -0.23754026333887715,
+            "min": -0.26813207170597375,
+            "p50": -0.23906799825920033,
+            "p75": -0.22831462063394947,
+            "p90": -0.21849689633858527,
+            "p95": -0.21279946974114947,
+            "p99": -0.19976945240906738,
+            "stddev": 0.014051784390822565
+          }
+        },
+        {
+          "foldId": "F6",
+          "modelScale": {
+            "coefficientL1Norm": 0.049925923794342145,
+            "coefficientL2Norm": 0.02426296711291241,
+            "intercept": -0.2623366308153335,
+            "maximumAbsCoefficient": 0.015941208051724342
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "4ff43238bb2749dc0211e40b1039906c5831975bcf8bb6dd732ec5f547d6841b",
+            "expectedTrainingExamples": 105845,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "4ff43238bb2749dc0211e40b1039906c5831975bcf8bb6dd732ec5f547d6841b",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 105845,
+            "validationDecisionTimeCount": 3288,
+            "validationRowCount": 16440
+          },
+          "predictionDistribution": {
+            "count": 16440,
+            "max": -0.18722324876976337,
+            "mean": -0.2623366308153341,
+            "min": -0.3427417472189861,
+            "p50": -0.2621574190667218,
+            "p75": -0.24458543803213023,
+            "p90": -0.22986461116114618,
+            "p95": -0.22235402388922662,
+            "p99": -0.20848666525210724,
+            "stddev": 0.02471321720640328
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -6.240774958992112,
+            "topP95ToThresholdRatio": -6.9495372318653015,
+            "topP99ToThresholdRatio": -6.645374252216288,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 3288,
+            "max": -0.18722324876976337,
+            "mean": -0.23010977944365163,
+            "min": -0.25952893838229996,
+            "p50": -0.23087040748387083,
+            "p75": -0.22244995950498644,
+            "p90": -0.21431822983094806,
+            "p95": -0.20848611695595903,
+            "p99": -0.19936122756648864,
+            "stddev": 0.01188612092723465
+          }
+        }
+      ],
+      "foldsThresholdAboveMax": 6,
+      "foldsThresholdAboveP99": 6,
+      "foldsWithZeroThresholdExceedances": 6,
+      "modelScaleDriftByFold": [
+        {
+          "coefficientL1DeltaFromF1": 0,
+          "coefficientL2DeltaFromF1": 0,
+          "foldId": "F1",
+          "interceptDeltaFromF1": 0,
+          "maximumAbsCoefficientDeltaFromF1": 0
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.02471220371320225,
+          "coefficientL2DeltaFromF1": -0.009020606722011867,
+          "foldId": "F2",
+          "interceptDeltaFromF1": 0.06153375174402814,
+          "maximumAbsCoefficientDeltaFromF1": -0.001186076909153247
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.035287432358073995,
+          "coefficientL2DeltaFromF1": -0.015547806731877944,
+          "foldId": "F3",
+          "interceptDeltaFromF1": 0.07121418722766787,
+          "maximumAbsCoefficientDeltaFromF1": -0.009030042387311227
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.0503962656022338,
+          "coefficientL2DeltaFromF1": -0.018223485129914032,
+          "foldId": "F4",
+          "interceptDeltaFromF1": 0.08318969495559292,
+          "maximumAbsCoefficientDeltaFromF1": -0.008167024746406442
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.050929178233469624,
+          "coefficientL2DeltaFromF1": -0.021001924621593178,
+          "foldId": "F5",
+          "interceptDeltaFromF1": 0.07361756476094633,
+          "maximumAbsCoefficientDeltaFromF1": -0.014279381885577508
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.05971101300866351,
+          "coefficientL2DeltaFromF1": -0.025089169701596453,
+          "foldId": "F6",
+          "interceptDeltaFromF1": 0.08414889757659022,
+          "maximumAbsCoefficientDeltaFromF1": -0.014200520173165674
+        }
+      ],
+      "reproducedR25SelectedAlertCount": 0,
+      "selectedAlertCountReproduced": true,
+      "shareOfExceedancesInLargestFold": 0,
+      "threshold": 0.03,
+      "thresholdExceedancesByFold": {
+        "F1": 0,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      }
+    },
+    {
+      "acceptedR25SelectedAlertCount": 0,
+      "candidateConfigurationId": "R25_SHORT_RELATIVE_FLOW_FUNDING_NEUTRALIZED_LAMBDA_100_THRESHOLD_0.03",
+      "direction": "SHORT",
+      "family": "SHORT-CANDIDATE-FAMILY",
+      "folds": [
+        {
+          "foldId": "F1",
+          "modelScale": {
+            "coefficientL1Norm": 0.10848027354846149,
+            "coefficientL2Norm": 0.048855159556103686,
+            "intercept": -0.3464855283919237,
+            "maximumAbsCoefficient": 0.029903534551719648
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "b9f9329b96ba9df8762f338071ddf1dc691be637425b8649722ab3b750feff22",
+            "expectedTrainingExamples": 7325,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "b9f9329b96ba9df8762f338071ddf1dc691be637425b8649722ab3b750feff22",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 7325,
+            "validationDecisionTimeCount": 4368,
+            "validationRowCount": 21840
+          },
+          "predictionDistribution": {
+            "count": 21840,
+            "max": -0.17872345283814928,
+            "mean": -0.34648552839192326,
+            "min": -0.528831366562097,
+            "p50": -0.3473416376146925,
+            "p75": -0.3093789827365975,
+            "p90": -0.27531381800756827,
+            "p95": -0.2577068153659357,
+            "p99": -0.22849270230590563,
+            "stddev": 0.05316742212591012
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.957448427938309,
+            "topP95ToThresholdRatio": -7.61642119739909,
+            "topP99ToThresholdRatio": -7.02697579288313,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4368,
+            "max": -0.17872345283814928,
+            "mean": -0.27495697180729084,
+            "min": -0.3368570072344429,
+            "p50": -0.2760774956379466,
+            "p75": -0.2577650863529238,
+            "p90": -0.23941231070100116,
+            "p95": -0.2284926359219727,
+            "p99": -0.2108092737864939,
+            "stddev": 0.026391196788592818
+          }
+        },
+        {
+          "foldId": "F2",
+          "modelScale": {
+            "coefficientL1Norm": 0.08470673689730773,
+            "coefficientL2Norm": 0.04020015248115312,
+            "intercept": -0.28495177664789556,
+            "maximumAbsCoefficient": 0.028817354733677532
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "6f6dc2f88afd7f14753e07fd5f44a74b8bf4acdbc64fc5209e654138dd49e782",
+            "expectedTrainingExamples": 29165,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "6f6dc2f88afd7f14753e07fd5f44a74b8bf4acdbc64fc5209e654138dd49e782",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 29165,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.15870498833928304,
+            "mean": -0.28495177664789323,
+            "min": -0.42059780349472387,
+            "p50": -0.2840091267778331,
+            "p75": -0.253750277987701,
+            "p90": -0.22956879196734542,
+            "p95": -0.21537098908155972,
+            "p99": -0.19309398829772945,
+            "stddev": 0.04300638326519571
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.290166277976102,
+            "topP95ToThresholdRatio": -6.436354026637796,
+            "topP99ToThresholdRatio": -5.937538124524363,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.15870498833928304,
+            "mean": -0.22909177288425783,
+            "min": -0.27843297438766107,
+            "p50": -0.23099636131167045,
+            "p75": -0.21544737549194487,
+            "p90": -0.20160237108988907,
+            "p95": -0.19309062079913386,
+            "p99": -0.17812614373573088,
+            "stddev": 0.02027702056217978
+          }
+        },
+        {
+          "foldId": "F3",
+          "modelScale": {
+            "coefficientL1Norm": 0.0742437193275953,
+            "coefficientL2Norm": 0.03375461399759309,
+            "intercept": -0.27527134116425583,
+            "maximumAbsCoefficient": 0.02106269019297458
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "6313e683a191a36b5db96777d66e269d2891f51382e8c4dbcabf71f6375e59fd",
+            "expectedTrainingExamples": 51245,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "6313e683a191a36b5db96777d66e269d2891f51382e8c4dbcabf71f6375e59fd",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 51245,
+            "validationDecisionTimeCount": 4344,
+            "validationRowCount": 21720
+          },
+          "predictionDistribution": {
+            "count": 21720,
+            "max": -0.16788211372539802,
+            "mean": -0.2752713411642582,
+            "min": -0.40139539072953534,
+            "p50": -0.27396177049629034,
+            "p75": -0.2492810131407016,
+            "p90": -0.2287106747868651,
+            "p95": -0.2176073898241845,
+            "p99": -0.19847508789631105,
+            "stddev": 0.03633899751406309
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.596070457513267,
+            "topP95ToThresholdRatio": -6.61583317133774,
+            "topP99ToThresholdRatio": -6.154783864379923,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4344,
+            "max": -0.16788211372539802,
+            "mean": -0.22890817437568498,
+            "min": -0.27143164628820615,
+            "p50": -0.23018498573289548,
+            "p75": -0.21774674224285903,
+            "p90": -0.20581198080056776,
+            "p95": -0.1984749951401322,
+            "p99": -0.1846435159313977,
+            "stddev": 0.01719363769792653
+          }
+        },
+        {
+          "foldId": "F4",
+          "modelScale": {
+            "coefficientL1Norm": 0.05917957018425765,
+            "coefficientL2Norm": 0.03108229035028506,
+            "intercept": -0.2632958334363308,
+            "maximumAbsCoefficient": 0.021926523722406048
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "5c9c6ee2775268e6c3b62150312b0a7884c0a028ff860cb2f271a91b7364806a",
+            "expectedTrainingExamples": 72965,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "5c9c6ee2775268e6c3b62150312b0a7884c0a028ff860cb2f271a91b7364806a",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 72965,
+            "validationDecisionTimeCount": 4416,
+            "validationRowCount": 22080
+          },
+          "predictionDistribution": {
+            "count": 22080,
+            "max": -0.16889962499270078,
+            "mean": -0.26329583343632945,
+            "min": -0.3670908598799323,
+            "p50": -0.2617437828039275,
+            "p75": -0.24055475585032904,
+            "p90": -0.22316284097374742,
+            "p95": -0.21339904052669578,
+            "p99": -0.19669966964687918,
+            "stddev": 0.0318637887041595
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -5.629987499756693,
+            "topP95ToThresholdRatio": -6.556421248756112,
+            "topP99ToThresholdRatio": -6.223230913340052,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 4416,
+            "max": -0.16889962499270078,
+            "mean": -0.2229726461230877,
+            "min": -0.2594881044206462,
+            "p50": -0.22416075413493228,
+            "p75": -0.21345792849869796,
+            "p90": -0.20296213663640753,
+            "p95": -0.19669263746268334,
+            "p99": -0.18669692740020155,
+            "stddev": 0.014638439767411604
+          }
+        },
+        {
+          "foldId": "F5",
+          "modelScale": {
+            "coefficientL1Norm": 0.05861969588957018,
+            "coefficientL2Norm": 0.028318882424237298,
+            "intercept": -0.2728679636309774,
+            "maximumAbsCoefficient": 0.015851369362565523
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "bcb9aae83a2f30907d9c2bb9d23660821f51b1b26166ff4cb690c9f350436ceb",
+            "expectedTrainingExamples": 95045,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "bcb9aae83a2f30907d9c2bb9d23660821f51b1b26166ff4cb690c9f350436ceb",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 95045,
+            "validationDecisionTimeCount": 2160,
+            "validationRowCount": 10800
+          },
+          "predictionDistribution": {
+            "count": 10800,
+            "max": -0.1885223714289972,
+            "mean": -0.27286796363097865,
+            "min": -0.36251273060611594,
+            "p50": -0.27280842075605094,
+            "p75": -0.2541516479022862,
+            "p90": -0.23820746413683705,
+            "p95": -0.2282843979228937,
+            "p99": -0.21285273824287693,
+            "stddev": 0.02691153485052527
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -6.28407904763324,
+            "topP95ToThresholdRatio": -7.094734101873779,
+            "topP99ToThresholdRatio": -6.66127653398532,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 2160,
+            "max": -0.1885223714289972,
+            "mean": -0.23756556992058792,
+            "min": -0.2681392658517847,
+            "p50": -0.23908282552552967,
+            "p75": -0.22834727173447875,
+            "p90": -0.21856292138174876,
+            "p95": -0.21284202305621336,
+            "p99": -0.1998382960195596,
+            "stddev": 0.014041367710047468
+          }
+        },
+        {
+          "foldId": "F6",
+          "modelScale": {
+            "coefficientL1Norm": 0.049861168175341246,
+            "coefficientL2Norm": 0.02424012312664591,
+            "intercept": -0.2623366308153335,
+            "maximumAbsCoefficient": 0.015931093317190503
+          },
+          "pipeline": {
+            "expectedModelIdentitySha256": "6be2049538da6df096a0a6a48a38522262f29dd553e2d13abf56be7a18881c53",
+            "expectedTrainingExamples": 105845,
+            "modelIdentityMatched": true,
+            "modelIdentitySha256": "6be2049538da6df096a0a6a48a38522262f29dd553e2d13abf56be7a18881c53",
+            "nonFinitePredictionCount": 0,
+            "peerCountMax": 5,
+            "peerCountMin": 5,
+            "peerCountsValid": true,
+            "trainingExamples": 105845,
+            "validationDecisionTimeCount": 3288,
+            "validationRowCount": 16440
+          },
+          "predictionDistribution": {
+            "count": 16440,
+            "max": -0.1872820287687995,
+            "mean": -0.26233663081533415,
+            "min": -0.3427065842935417,
+            "p50": -0.2621504454690742,
+            "p75": -0.24459214386427486,
+            "p90": -0.2298799772166716,
+            "p95": -0.2223738294409523,
+            "p99": -0.20852173222339154,
+            "stddev": 0.024697559399744672
+          },
+          "thresholdDiagnostics": {
+            "threshold": 0.03,
+            "thresholdAboveTopMax": true,
+            "thresholdAboveTopP90": true,
+            "thresholdAboveTopP95": true,
+            "thresholdAboveTopP99": true,
+            "thresholdExceedanceCount": 0,
+            "thresholdExceedanceRate": 0,
+            "topMaxToThresholdRatio": -6.242734292293317,
+            "topP95ToThresholdRatio": -6.950717166882612,
+            "topP99ToThresholdRatio": -6.646764727238897,
+            "topScoreGreaterThanZeroCount": 0,
+            "topScoreGreaterThanZeroRate": 0
+          },
+          "topPredictionDistribution": {
+            "count": 3288,
+            "max": -0.1872820287687995,
+            "mean": -0.23013009912522187,
+            "min": -0.25953283548367395,
+            "p50": -0.23089938882989905,
+            "p75": -0.22248239819947702,
+            "p90": -0.21434583819330974,
+            "p95": -0.20852151500647834,
+            "p99": -0.1994029418171669,
+            "stddev": 0.011878425163250689
+          }
+        }
+      ],
+      "foldsThresholdAboveMax": 6,
+      "foldsThresholdAboveP99": 6,
+      "foldsWithZeroThresholdExceedances": 6,
+      "modelScaleDriftByFold": [
+        {
+          "coefficientL1DeltaFromF1": 0,
+          "coefficientL2DeltaFromF1": 0,
+          "foldId": "F1",
+          "interceptDeltaFromF1": 0,
+          "maximumAbsCoefficientDeltaFromF1": 0
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.023773536651153754,
+          "coefficientL2DeltaFromF1": -0.008655007074950566,
+          "foldId": "F2",
+          "interceptDeltaFromF1": 0.06153375174402814,
+          "maximumAbsCoefficientDeltaFromF1": -0.0010861798180421163
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.03423655422086619,
+          "coefficientL2DeltaFromF1": -0.015100545558510599,
+          "foldId": "F3",
+          "interceptDeltaFromF1": 0.07121418722766787,
+          "maximumAbsCoefficientDeltaFromF1": -0.008840844358745069
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.049300703364203835,
+          "coefficientL2DeltaFromF1": -0.017772869205818626,
+          "foldId": "F4",
+          "interceptDeltaFromF1": 0.08318969495559292,
+          "maximumAbsCoefficientDeltaFromF1": -0.0079770108293136
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.049860577658891306,
+          "coefficientL2DeltaFromF1": -0.020536277131866388,
+          "foldId": "F5",
+          "interceptDeltaFromF1": 0.07361756476094633,
+          "maximumAbsCoefficientDeltaFromF1": -0.014052165189154125
+        },
+        {
+          "coefficientL1DeltaFromF1": -0.05861910537312024,
+          "coefficientL2DeltaFromF1": -0.024615036429457775,
+          "foldId": "F6",
+          "interceptDeltaFromF1": 0.08414889757659022,
+          "maximumAbsCoefficientDeltaFromF1": -0.013972441234529145
+        }
+      ],
+      "reproducedR25SelectedAlertCount": 0,
+      "selectedAlertCountReproduced": true,
+      "shareOfExceedancesInLargestFold": 0,
+      "threshold": 0.03,
+      "thresholdExceedancesByFold": {
+        "F1": 0,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      }
+    }
+  ],
+  "candidateFoldExecutionCount": 36,
+  "developmentEconomicEvaluationExecutionCount": 1,
+  "diagnosticOnly": true,
+  "economicEvaluationPerformed": false,
+  "emailRestorationAuthorized": false,
+  "finalDecision": "ROUND-026 SCORE CALIBRATION DIAGNOSTIC COMPLETE",
+  "forbiddenValidationFields": [
+    "labels",
+    "latencyStressLabels",
+    "netForwardAtr",
+    "netForwardAtrCostStress",
+    "PnL",
+    "profitFactor",
+    "drawdown",
+    "forwardReturn"
+  ],
+  "forwardEconomicValuesRead": false,
+  "forwardReturnRead": false,
+  "forwardValidationAuthorized": false,
+  "governance": {
+    "automaticTrading": false,
+    "developmentEconomicEvaluationExecutionCount": 1,
+    "diagnosticOnly": true,
+    "economicEvaluationPerformed": false,
+    "emailRestorationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "humanDecisionRequired": true,
+    "mainUnchanged": true,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "scoreCalibrationDiagnosticExecutionCount": 1,
+    "validationEconomicValuesRead": false
+  },
+  "historicalTrainingTargetValuesRead": true,
+  "humanDecisionRequired": true,
+  "mainUnchanged": true,
+  "newMarketDataFetched": false,
+  "nextStage": "DIRECTIONAL_FEATURE_MODEL_REDESIGN_REQUIRED",
+  "performanceExecutionCount": 0,
+  "performanceLedgerPresent": false,
+  "phase": "SCORE_DIAGNOSTIC_ONLY",
+  "pipelineIntegrity": {
+    "deterministic": true,
+    "modelIdentitiesMatched": true,
+    "nonFinitePredictions": 0,
+    "peerCountsValid": true,
+    "pipelineNormal": true,
+    "r25SelectedAlertCountsReproduced": true
+  },
+  "primaryLongClassification": "MODEL_POSITIVE_SCORE_COLLAPSE",
+  "primaryShortClassification": "MODEL_POSITIVE_SCORE_COLLAPSE",
+  "productionUnchanged": true,
+  "purpose": "DIAGNOSTIC_SCORE_DISTRIBUTIONS_ONLY",
+  "recommendedNextDesign": "DIRECTIONAL_FEATURE_MODEL_REDESIGN_REQUIRED",
+  "researchRoundId": "baseline-002-research-round-026",
+  "schemaVersion": "m3-r26-score-calibration-diagnostic-001",
+  "scoreCalibrationDiagnosticExecutionCount": 1,
+  "selectionExecuted": false,
+  "source": {
+    "actualPath": "E:\\Codex\\TradePulse\\.worktrees\\round-014-r13-execution-replay\\.cache\\tradepulse\\round-014\\observations.ndjson",
+    "canonicalObservationPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "classification": "SEEN_DEVELOPMENT_DIAGNOSTIC_ONLY",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "networkAcquired": false,
+    "observationCount": 244810,
+    "observationDataBytes": 1893811055,
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359"
+  },
+  "validationEconomicValuesRead": false,
+  "validationFieldsRead": [
+    "decisionTime",
+    "symbol",
+    "direction",
+    "features"
+  ]
+}
