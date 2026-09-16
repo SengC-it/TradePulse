@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { LONG_FEATURE_NAMES } from "./round-024-long-candidate.ts";
 import { SHORT_ALTERNATE_FEATURE_NAMES, SHORT_FEATURE_NAMES } from "./round-024-short-candidate.ts";
-import { R25_COST_POLICY, R25_COST_POLICY_HASH, R25_DEVELOPMENT_DATA_SOURCE, R25_FOLDS_SOURCE, R25_SETTLEMENT_HASH } from "./round-025-protocol.ts";
+import { R25_COST_POLICY, R25_COST_POLICY_HASH, R25_FOLDS_SOURCE, R25_SETTLEMENT_HASH } from "./round-025-protocol.ts";
 import { stableStringify } from "./utils.ts";
 
 export const R27_RESEARCH_ROUND_ID = "baseline-002-research-round-027" as const;
