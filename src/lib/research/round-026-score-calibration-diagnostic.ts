@@ -28,7 +28,6 @@ import {
   R26_ALLOWED_VALIDATION_FIELDS,
   R26_BASE_BRANCH,
   R26_BASE_SHA,
-  R26_BRANCH,
   R26_FORBIDDEN_VALIDATION_FIELDS,
   R26_GOVERNANCE,
   R26_PHASE,
@@ -106,12 +105,6 @@ function requiredString(record: JsonRecord, key: string, label: string): string 
 function requiredSafeInteger(record: JsonRecord, key: string, label: string): number {
   const value = record[key];
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(`${label}.${key} must be a non-negative safe integer.`);
-  return value;
-}
-
-function requiredFiniteNumber(record: JsonRecord, key: string, label: string): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${label}.${key} must be finite.`);
   return value;
 }
 
@@ -449,8 +442,13 @@ export async function runR26ScoreCalibrationDiagnostic(options: Readonly<{ root?
     purpose: R26_PURPOSE,
     diagnosticOnly: true,
     economicEvaluationPerformed: false,
-    validationEconomicValuesRead: false,
+    validationEconomicValuesRead: true,
     historicalTrainingTargetValuesRead: true,
+    globalHistoricalEconomicLabelsRead: true,
+    sameFoldValidationEconomicValuesUsedForFit: false,
+    sameFoldValidationEconomicValuesUsedForScoring: false,
+    validationOutcomeInfluencedDiagnostic: false,
+    crossFoldExpandingWindowResearchReuse: true,
     validationFieldsRead: Object.freeze([...R26_ALLOWED_VALIDATION_FIELDS]),
     forbiddenValidationFields: Object.freeze([...R26_FORBIDDEN_VALIDATION_FIELDS]),
     scoreCalibrationDiagnosticExecutionCount: 1,
@@ -501,8 +499,12 @@ export function renderR26DiagnosticMarkdown(result: R26DiagnosticResult): string
     `- Purpose: \`${R26_PURPOSE}\``,
     `- Diagnostic only: \`${result.diagnosticOnly}\``,
     `- Economic evaluation performed: \`${result.economicEvaluationPerformed}\``,
-    `- Validation economic values read: \`${result.validationEconomicValuesRead}\``,
-    `- Historical training targets read only for research fitting: \`${result.historicalTrainingTargetValuesRead}\``,
+    `- Global historical economic labels read for later-fold expanding-window research reuse: \`${result.globalHistoricalEconomicLabelsRead}\``,
+    `- Same-fold validation economic values used for fit: \`${result.sameFoldValidationEconomicValuesUsedForFit}\``,
+    `- Same-fold validation economic values used for scoring: \`${result.sameFoldValidationEconomicValuesUsedForScoring}\``,
+    `- Validation outcome influenced diagnostic: \`${result.validationOutcomeInfluencedDiagnostic}\``,
+    `- Cross-fold expanding-window research reuse: \`${result.crossFoldExpandingWindowResearchReuse}\``,
+    `- Historical training target values read: \`${result.historicalTrainingTargetValuesRead}\``,
     "",
     "## Immutable source",
     "",
@@ -567,7 +569,7 @@ export function renderR26DiagnosticMarkdown(result: R26DiagnosticResult): string
     `- productionUnchanged: ${result.productionUnchanged}`,
     `- newMarketDataFetched: ${result.newMarketDataFetched}`,
     "",
-    "No validation labels, settlement fields, returns, PnL, profit factor, drawdown, cost stress, latency outcome, selection, forward data, or economic result values are read by this diagnostic.",
+    "This does NOT mean same-fold validation leakage. F1-F5 validation periods later become RESEARCH periods of subsequent expanding-window folds, so their historical training targets are read when serving as later-fold research data. For every fold, that fold's validation labels are not used by that fold's model fit or score calculation. No settlement fields, PnL, profit factor, drawdown, cost stress, latency outcome, selection, forward data, or forward economic result values are read by this diagnostic.",
   );
   return `${lines.join("\n")}\n`;
 }

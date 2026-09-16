@@ -45,7 +45,13 @@ export const R26_FORBIDDEN_VALIDATION_FIELDS = Object.freeze([
 export const R26_GOVERNANCE = Object.freeze({
   diagnosticOnly: true,
   economicEvaluationPerformed: false,
-  validationEconomicValuesRead: false,
+  validationEconomicValuesRead: true,
+  historicalTrainingTargetValuesRead: true,
+  globalHistoricalEconomicLabelsRead: true,
+  sameFoldValidationEconomicValuesUsedForFit: false,
+  sameFoldValidationEconomicValuesUsedForScoring: false,
+  validationOutcomeInfluencedDiagnostic: false,
+  crossFoldExpandingWindowResearchReuse: true,
   scoreCalibrationDiagnosticExecutionCount: 1,
   developmentEconomicEvaluationExecutionCount: 1,
   forwardEconomicValuesRead: false,
@@ -165,8 +171,13 @@ export type R26DiagnosticResult = Readonly<{
   }>;
   diagnosticOnly: true;
   economicEvaluationPerformed: false;
-  validationEconomicValuesRead: false;
+  validationEconomicValuesRead: true;
   historicalTrainingTargetValuesRead: true;
+  globalHistoricalEconomicLabelsRead: true;
+  sameFoldValidationEconomicValuesUsedForFit: false;
+  sameFoldValidationEconomicValuesUsedForScoring: false;
+  validationOutcomeInfluencedDiagnostic: false;
+  crossFoldExpandingWindowResearchReuse: true;
   validationFieldsRead: readonly string[];
   forbiddenValidationFields: readonly string[];
   scoreCalibrationDiagnosticExecutionCount: 1;

@@ -207,6 +207,11 @@ function sourceText(): string {
     // research boundary with a dedicated protocol suite.
     // Round-024 directional candidate development is a separate bounded
     // research boundary with a dedicated protocol suite.
+    // Round-025 targeted directional development is a separate bounded
+    // research boundary with a dedicated directional candidate suite.
+    //
+    // Round-026 score calibration diagnostic is a separate score-only
+    // diagnostic boundary with a dedicated fail-closed suite.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -225,6 +230,8 @@ function sourceText(): string {
       !name.startsWith("m3-r21-positioning-crowding-") &&
       !name.startsWith("round-023-development-") &&
       !name.startsWith("round-024-") &&
+      !name.startsWith("round-025-") &&
+      !name.startsWith("round-026-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&

@@ -5,8 +5,12 @@
 - Purpose: `DIAGNOSTIC_SCORE_DISTRIBUTIONS_ONLY`
 - Diagnostic only: `true`
 - Economic evaluation performed: `false`
-- Validation economic values read: `false`
-- Historical training targets read only for research fitting: `true`
+- Global historical economic labels read for later-fold expanding-window research reuse: `true`
+- Same-fold validation economic values used for fit: `false`
+- Same-fold validation economic values used for scoring: `false`
+- Validation outcome influenced diagnostic: `false`
+- Cross-fold expanding-window research reuse: `true`
+- Historical training target values read: `true`
 
 ## Immutable source
 
@@ -131,6 +135,13 @@
 
 - scoreCalibrationDiagnosticExecutionCount: 1
 - developmentEconomicEvaluationExecutionCount: 1
+- validationEconomicValuesRead (compatibility field): true
+- historicalTrainingTargetValuesRead: true
+- globalHistoricalEconomicLabelsRead: true
+- sameFoldValidationEconomicValuesUsedForFit: false
+- sameFoldValidationEconomicValuesUsedForScoring: false
+- validationOutcomeInfluencedDiagnostic: false
+- crossFoldExpandingWindowResearchReuse: true
 - forwardEconomicValuesRead: false
 - forwardReturnRead: false
 - performanceExecutionCount: 0
@@ -139,4 +150,4 @@
 - productionUnchanged: true
 - newMarketDataFetched: false
 
-No validation labels, settlement fields, returns, PnL, profit factor, drawdown, cost stress, latency outcome, selection, forward data, or economic result values are read by this diagnostic.
+This does NOT mean same-fold validation leakage. F1-F5 validation periods later become RESEARCH periods of subsequent expanding-window folds, so their historical training targets are read when serving as later-fold research data. For every fold, that fold's validation labels are not used by that fold's model fit or score calculation. No settlement fields, PnL, profit factor, drawdown, cost stress, latency outcome, selection, forward data, or forward economic result values are read by this diagnostic.

@@ -29,7 +29,17 @@
   "validationReadBoundary": {
     "allowedFields": ["decisionTime", "symbol", "direction", "features"],
     "forbiddenFields": ["labels", "latencyStressLabels", "netForwardAtr", "netForwardAtrCostStress", "PnL", "profitFactor", "drawdown", "forwardReturn"],
-    "researchTargetRead": "historical training rows only"
+    "researchTargetRead": "historical training rows only",
+    "readSemantics": {
+      "historicalTrainingTargetValuesRead": true,
+      "globalHistoricalEconomicLabelsRead": true,
+      "sameFoldValidationEconomicValuesUsedForFit": false,
+      "sameFoldValidationEconomicValuesUsedForScoring": false,
+      "validationOutcomeInfluencedDiagnostic": false,
+      "crossFoldExpandingWindowResearchReuse": true,
+      "validationEconomicValuesReadCompatibility": true,
+      "compatibilityFieldExplanation": "The compatibility field is true because F1-F5 validation periods later become RESEARCH periods of subsequent expanding-window folds. This does not mean same-fold validation leakage."
+    }
   },
   "classifications": [
     "PIPELINE_INTEGRITY_FAILURE",
@@ -40,7 +50,13 @@
   "governance": {
     "diagnosticOnly": true,
     "economicEvaluationPerformed": false,
-    "validationEconomicValuesRead": false,
+    "validationEconomicValuesRead": true,
+    "historicalTrainingTargetValuesRead": true,
+    "globalHistoricalEconomicLabelsRead": true,
+    "sameFoldValidationEconomicValuesUsedForFit": false,
+    "sameFoldValidationEconomicValuesUsedForScoring": false,
+    "validationOutcomeInfluencedDiagnostic": false,
+    "crossFoldExpandingWindowResearchReuse": true,
     "scoreCalibrationDiagnosticExecutionCount": 1,
     "developmentEconomicEvaluationExecutionCount": 1,
     "forwardEconomicValuesRead": false,

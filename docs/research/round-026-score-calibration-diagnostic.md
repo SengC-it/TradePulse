@@ -16,7 +16,7 @@ Round-026 diagnoses the score pipeline behind the already observed Round-025 dir
 
 The diagnostic reuses the exact R25 configurations, R25 ridge model implementation, cross-sectional closed-candle normalization, six frozen folds, 24-hour purge, symbol order, and top-one deterministic tie-break. It performs six candidate-fold fits for each of the six predeclared configurations, for 36 deterministic candidate-fold diagnostics.
 
-Research-only rows may provide the historical training target required to reproduce the already frozen model identity. Validation rows are projected to `decisionTime`, `symbol`, `direction`, and `features` only. Validation labels, settlement values, returns, PnL, profit factor, drawdown, cost-stress outcomes, latency outcomes, and other economic fields are not read.
+The raw source loader reads historical training target values globally for rows that are RESEARCH in at least one expanding-window fold. Consequently, F1-F5 validation periods later become RESEARCH periods of subsequent folds and their historical training targets are read when serving as later-fold research data. The compatibility field `validationEconomicValuesRead=true` records that global source fact; it does NOT mean same-fold validation leakage. For every fold, that fold's validation labels are not used by that fold's model fit or score calculation. Validation scoring rows are still projected to `decisionTime`, `symbol`, `direction`, and `features` only, and no validation outcome influences the diagnostic.
 
 ## Diagnostic outputs
 
@@ -33,6 +33,6 @@ Classification is deterministic and fail-closed. Pipeline integrity is checked b
 
 ## Governance
 
-`scoreCalibrationDiagnosticExecutionCount=1` is the single permitted Round-026 diagnostic execution. `developmentEconomicEvaluationExecutionCount=1` remains unchanged. `economicEvaluationPerformed=false`, `validationEconomicValuesRead=false`, `forwardEconomicValuesRead=false`, `forwardReturnRead=false`, `performanceExecutionCount=0`, `automaticTrading=false`, `humanDecisionRequired=true`, `productionUnchanged=true`, and `emailRestorationAuthorized=false`.
+`scoreCalibrationDiagnosticExecutionCount=1` is the single permitted Round-026 diagnostic execution. `developmentEconomicEvaluationExecutionCount=1` remains unchanged. `economicEvaluationPerformed=false`, `historicalTrainingTargetValuesRead=true`, `globalHistoricalEconomicLabelsRead=true`, `validationEconomicValuesRead=true` (the compatibility field described above), `sameFoldValidationEconomicValuesUsedForFit=false`, `sameFoldValidationEconomicValuesUsedForScoring=false`, `validationOutcomeInfluencedDiagnostic=false`, `crossFoldExpandingWindowResearchReuse=true`, `forwardEconomicValuesRead=false`, `forwardReturnRead=false`, `performanceExecutionCount=0`, `automaticTrading=false`, `humanDecisionRequired=true`, `productionUnchanged=true`, and `emailRestorationAuthorized=false`.
 
 No Round-025 economics command is called by the Round-026 diagnostic. No new market data is fetched. No forward validation, performance, selection, or production action is authorized.
