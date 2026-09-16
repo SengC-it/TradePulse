@@ -5,6 +5,8 @@
 - Data classification: `DEVELOPMENT_ONLY`; the seen historical window is not authoritative forward proof.
 - Source: `.cache/tradepulse/round-014/observations.ndjson` (5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359)
 - Development economic evaluation execution count: `1`
+- `economicRunnerFrozenBeforeOutcomeRead=false`; the runner and result were first published in the same commit, so this historical development result is not an authoritative forward/OOS proof.
+- `developmentOnly=true`; a pre-outcome remote executable freeze is required before any future forward validation.
 - Protocol SHA-256: `20996bc70c5af58fc6d0607d56da4766a245aec820508e1b5f40a77a050f0193`
 
 ## Bounded search contract

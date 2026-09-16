@@ -154,7 +154,7 @@ export type R25DevelopmentResult = Readonly<{
   historicalResultsObserved: true;
   historicalWindowNowSeen: true;
   historicalWindowReuseForAuthoritativeEvaluation: false;
-  economicRunnerFrozenBeforeOutcomeRead: true;
+  economicRunnerFrozenBeforeOutcomeRead: false;
   forwardEconomicValuesRead: false;
   forwardReturnRead: false;
   economicValuesCalculated: true;
@@ -515,7 +515,7 @@ export async function runR25Development(input: Readonly<{ root?: string }> = {})
     historicalResultsObserved: true,
     historicalWindowNowSeen: true,
     historicalWindowReuseForAuthoritativeEvaluation: false,
-    economicRunnerFrozenBeforeOutcomeRead: true,
+    economicRunnerFrozenBeforeOutcomeRead: false,
     forwardEconomicValuesRead: false,
     forwardReturnRead: false,
     economicValuesCalculated: true,

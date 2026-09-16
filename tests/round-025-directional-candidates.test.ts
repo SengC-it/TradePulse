@@ -98,6 +98,7 @@ describe("Round-025 bounded directional redesign contract", () => {
       candidateConfigurationsEvaluated: number;
       candidateResults: readonly unknown[];
       developmentEconomicEvaluationExecutionCount: number;
+      economicRunnerFrozenBeforeOutcomeRead: boolean;
       developmentClassification: string;
       longChampionId: string | null;
       shortChampionId: string | null;
@@ -121,6 +122,7 @@ describe("Round-025 bounded directional redesign contract", () => {
     expect(result.candidateConfigurationsEvaluated).toBe(6);
     expect(result.candidateResults).toHaveLength(6);
     expect(result.developmentEconomicEvaluationExecutionCount).toBe(1);
+    expect(result.economicRunnerFrozenBeforeOutcomeRead).toBe(false);
     expect(result.developmentClassification).toBe("NO_DEVELOPMENT_CHAMPION");
     expect(result.longChampionId).toBeNull();
     expect(result.shortChampionId).toBeNull();
