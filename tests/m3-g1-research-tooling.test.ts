@@ -232,6 +232,7 @@ function sourceText(): string {
       !name.startsWith("round-024-") &&
       !name.startsWith("round-025-") &&
       !name.startsWith("round-026-") &&
+      !name.startsWith("round-027-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&
