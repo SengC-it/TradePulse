@@ -3,6 +3,15 @@ import { RESEARCH_SYMBOLS, STRATEGY_VERSION, type ResearchSymbol } from "../conf
 import { createSupabaseAdminClient } from "../supabase/admin.ts";
 import { hasDashboardAccess } from "./access.ts";
 import { calculateReviewMetrics, countPendingReviews } from "./metrics.ts";
+import {
+  appendDashboardWebPresentationEvidence as appendWebPresentationEvidence,
+  observationEvidenceCandidateFromRow,
+} from "./presentation.ts";
+import {
+  SupabaseObservationEvidenceStore,
+  type ObservationEvidenceClient,
+} from "../observation-evidence/store.ts";
+import type { ObservationEvidenceCandidate } from "../observation-evidence/types.ts";
 import type {
   DashboardAdvisory,
   DashboardBacktestSummary,
@@ -159,6 +168,41 @@ export async function getDetectionPage(filters: DashboardFilters = {}): Promise<
 const advisorySelect = "signal_id,symbol,direction,strategy_version,signal_time,signal_valid_until,score,grade,current_reference_price,suggested_entry_reference,stop_loss,take_profit,risk_reward,delivery_status,sent_at,data_freshness";
 const reviewSelect = "signal_id,status,entry_candle_time,exit_candle_time,exit_reference,result_r,last_evaluated_candle_time,reason";
 
+async function appendDashboardWebPresentationEvidence(
+  client: DashboardClient,
+  advisories: readonly DashboardAdvisory[],
+): Promise<void> {
+  if (advisories.length === 0) return;
+
+  const evidenceResult = await client
+    .from("tp_observation_evidence")
+    .select("*")
+    .eq("event_kind", "SNAPSHOT")
+    .eq("artifact_type", "ALERT_INTELLIGENCE")
+    .in("signal_id", advisories.map((advisory) => advisory.signalId));
+  if (evidenceResult.error) return;
+
+  const alertIntelligenceBySignalId = new Map<string, ObservationEvidenceCandidate>();
+  for (const row of evidenceResult.data ?? []) {
+    const candidate = observationEvidenceCandidateFromRow(row as Record<string, unknown>);
+    if (candidate && !alertIntelligenceBySignalId.has(candidate.signalId)) {
+      alertIntelligenceBySignalId.set(candidate.signalId, candidate);
+    }
+  }
+
+  const appender = new SupabaseObservationEvidenceStore(
+    client as unknown as ObservationEvidenceClient,
+  );
+  await Promise.all(advisories.map(async (advisory) => {
+    await appendWebPresentationEvidence({
+      advisory,
+      alertIntelligenceEvidence: alertIntelligenceBySignalId.get(advisory.signalId) ?? null,
+      appender,
+      capturedAt: new Date().toISOString(),
+    });
+  }));
+}
+
 export async function getSignalAdvisories(): Promise<readonly DashboardAdvisory[]> {
   return withDashboardClient<readonly DashboardAdvisory[]>([], async (client) => {
     const result = await client
@@ -167,7 +211,9 @@ export async function getSignalAdvisories(): Promise<readonly DashboardAdvisory[
       .order("signal_time", { ascending: false })
       .limit(ADVISORY_LIMIT);
     if (result.error) throw result.error;
-    return (result.data ?? []).map((row) => toAdvisory(row as Record<string, unknown>));
+    const advisories = (result.data ?? []).map((row) => toAdvisory(row as Record<string, unknown>));
+    await appendDashboardWebPresentationEvidence(client, advisories);
+    return advisories;
   });
 }
 
@@ -189,7 +235,7 @@ export async function getReviews(): Promise<readonly DashboardReview[]> {
     const reviewBySignalId = new Map(
       (reviews.data ?? []).map((row) => [String(row.signal_id), row as Record<string, unknown>]),
     );
-    return (advisories.data ?? [])
+    const dashboardReviews = (advisories.data ?? [])
       .map((row) => toAdvisory(row as Record<string, unknown>))
       .filter((advisory) => advisory.deliveryStatus === "SENT")
       .map((advisory) => {
@@ -215,6 +261,8 @@ export async function getReviews(): Promise<readonly DashboardReview[]> {
           reviewReason: stringValue(review?.reason),
         };
       });
+    await appendDashboardWebPresentationEvidence(client, dashboardReviews);
+    return dashboardReviews;
   });
 }
 

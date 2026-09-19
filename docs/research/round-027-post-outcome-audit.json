@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "m3-r27-post-outcome-audit-001",
+  "auditType": "POST_OUTCOME_IMPLEMENTATION_AUDIT",
+  "researchRoundId": "baseline-002-research-round-027",
+  "sourceResult": {
+    "jsonPath": "docs/research/round-027-directional-development-result.json",
+    "markdownPath": "docs/research/round-027-directional-development-result.md",
+    "jsonSha256": "cd6c168c17e7dc45cb29f720ae4e9867eb7e84a41c72878c39ac4533274cd829",
+    "markdownSha256": "982693523ceb21bcd585c8659009f9bdd848db87a0138bd0edb378f3162778b6",
+    "preservedWithoutRegeneration": true
+  },
+  "auditFacts": {
+    "economicRerunPerformed": false,
+    "modelRefitPerformed": false,
+    "selectionRerunPerformed": false,
+    "numericDevelopmentResultsChanged": false,
+    "pairwiseValidationPrimaryStatusUsedBeforeSelection": true,
+    "globalValidationStatusMaterializedBeforeSelection": true,
+    "positiveLogitValidationOutcomeInfluencedSelection": false,
+    "pairwiseValidationOutcomeInfluencedSelection": true,
+    "pairwiseSelectionBoundaryCompliant": false,
+    "pairwiseEconomicMetricsAuthoritative": false,
+    "positiveLogitSelectionUsesValidationFeaturesOnly": true
+  },
+  "implementationObservation": {
+    "pairwiseSelectionGuard": "peers.some((row) => row.primaryStatus !== \"EXECUTED\")",
+    "pairwiseSelectionGuardLocation": "src/lib/research/round-027-development-runner.ts:551",
+    "observedSelectionOrder": [
+      "SCORE_VALIDATION_FEATURES",
+      "SELECT_FROZEN_ALERTS",
+      "READ_SELECTED_VALIDATION_ECONOMIC_LABELS"
+    ],
+    "observedPairwiseOrder": [
+      "MATERIALIZE_PRIMARY_STATUS",
+      "SCORE_PAIRWISE_AND_POSITIVE_FEATURES",
+      "SELECT_FROZEN_ALERTS",
+      "READ_SELECTED_VALIDATION_ECONOMIC_LABELS"
+    ],
+    "rowFromObservationLocation": "src/lib/research/round-027-development-runner.ts:353",
+    "rowFromObservationEagerlyMaterializes": [
+      "primaryStatus",
+      "latencyStatus"
+    ],
+    "readBoundaryHygieneIssue": true,
+    "correctiveImplementationDeferredToNextRound": true
+  },
+  "positiveLogitCandidates": [
+    "R27_LONG_POSITIVE_LOGIT_TREND_PULLBACK_VOLUME",
+    "R27_LONG_POSITIVE_LOGIT_TREND_PULLBACK_NO_VOLUME",
+    "R27_SHORT_POSITIVE_LOGIT_TREND_VOLATILITY_FUNDING",
+    "R27_SHORT_POSITIVE_LOGIT_RELATIVE_FLOW_FUNDING"
+  ],
+  "positiveLogitBoundaryFact": {
+    "selectionUsesValidationFeaturesOnlyBeforeThreshold": true,
+    "forbiddenBeforeSelection": [
+      "netR",
+      "costStressNetR",
+      "latencyNetR",
+      "primaryStatus",
+      "latencyStatus"
+    ],
+    "economicReadAfterSelectionCall": "selectedEconomicOutcome(top.row)"
+  },
+  "noChampionInvarianceProof": {
+    "long": {
+      "positiveCandidate": "R27_LONG_POSITIVE_LOGIT_TREND_PULLBACK_VOLUME",
+      "selectedByFold": {
+        "F1": 2096,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      },
+      "failureReason": null,
+      "pairwiseCandidate": "R27_LONG_PAIRWISE_RANK_POSITIVE_GATE_TREND_PULLBACK_VOLUME",
+      "pairwiseUsesSamePositiveFeatureSubset": true,
+      "pairwiseUsesSamePositiveLogisticModel": true,
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": 0.6,
+      "foldsBlockedBySharedPositiveGate": [
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6"
+      ],
+      "minimumSelectedAlertsPerFold": 10,
+      "pairwiseEligibilityCouldBecomeChampionAfterBoundaryFix": false
+    },
+    "short": {
+      "positiveCandidate": "R27_SHORT_POSITIVE_LOGIT_TREND_VOLATILITY_FUNDING",
+      "selectedByFold": {
+        "F1": 0,
+        "F2": 0,
+        "F3": 0,
+        "F4": 0,
+        "F5": 0,
+        "F6": 0
+      },
+      "failureReason": null,
+      "pairwiseCandidate": "R27_SHORT_PAIRWISE_RANK_POSITIVE_GATE_TREND_VOLATILITY_FUNDING",
+      "pairwiseUsesSamePositiveFeatureSubset": true,
+      "pairwiseUsesSamePositiveLogisticModel": true,
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": 0.6,
+      "minimumSelectedAlertsPerFold": 10,
+      "pairwiseEligibilityCouldBecomeChampionAfterBoundaryFix": false
+    }
+  },
+  "conclusion": {
+    "longChampionId": null,
+    "shortChampionId": null,
+    "developmentClassification": "NO_DEVELOPMENT_CHAMPION",
+    "nextStage": "FEATURE_INFORMATION_OR_MODEL_CAPACITY_REASSESSMENT_REQUIRED",
+    "noChampionConclusionRobust": true,
+    "pairwiseNumericalMetricsRetainedForHistoricalTraceability": true,
+    "pairwiseNumericalMetricsAuthoritative": false,
+    "rationale": "No additional Round-027 economic evaluation is scientifically justified because the frozen per-fold eligibility gate already makes both pairwise candidates incapable of becoming champions."
+  },
+  "governance": {
+    "r27DevelopmentEconomicEvaluationExecutionCount": 1,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "mainUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}

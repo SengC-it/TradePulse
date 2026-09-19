@@ -191,6 +191,27 @@ function sourceText(): string {
     // research boundary with dedicated offline suites.
     // Round-014 crash-safe replay machinery is a separate bounded
     // research boundary with dedicated offline suites.
+    // Round-015 beta/alpha decomposition machinery is a separate bounded
+    // research boundary with dedicated offline suites.
+    // Round-016 derivatives microstructure machinery is a separate bounded
+    // research boundary with dedicated offline suites.
+    // Round-017 thesis lifecycle machinery is a separate bounded
+    // research boundary with dedicated offline suites.
+    // Round-018 structural preflight machinery is a separate bounded
+    // research boundary with dedicated offline suites.
+    // Round-020 liquidation data preflight machinery is a separate metadata-only
+    // boundary with a dedicated fail-closed suite.
+    // Round-021 positioning-crowding data design is a separate metadata-only
+    // boundary with a dedicated fail-closed suite.
+    // Round-023 finite candidate development is a separate bounded
+    // research boundary with a dedicated protocol suite.
+    // Round-024 directional candidate development is a separate bounded
+    // research boundary with a dedicated protocol suite.
+    // Round-025 targeted directional development is a separate bounded
+    // research boundary with a dedicated directional candidate suite.
+    //
+    // Round-026 score calibration diagnostic is a separate score-only
+    // diagnostic boundary with a dedicated fail-closed suite.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -201,12 +222,25 @@ function sourceText(): string {
       !name.startsWith("m3-r11-round-011-") &&
       !name.startsWith("m3-r13-round-013-") &&
       !name.startsWith("m3-r14-round-014-") &&
+      !name.startsWith("m3-r15-round-015-") &&
+      !name.startsWith("m3-r16-round-016-") &&
+      !name.startsWith("m3-r17-round-017-") &&
+      !name.startsWith("m3-r18-round-018-") &&
+      !name.startsWith("m3-r20-") &&
+      !name.startsWith("m3-r21-positioning-crowding-") &&
+      !name.startsWith("round-023-development-") &&
+      !name.startsWith("round-024-") &&
+      !name.startsWith("round-025-") &&
+      !name.startsWith("round-026-") &&
+      !name.startsWith("round-027-") &&
+      !name.startsWith("round-028-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&
       name !== "selection-gates-round-009.ts" &&
       name !== "selection-gates-round-010.ts" &&
       name !== "selection-gates-round-011.ts" &&
+      name !== "selection-gates-round-015.ts" &&
       name !== "m3-r5-h17-funding-qualification.ts" &&
       name !== "m3-r5-round-005-performance.ts" &&
       name !== "m3-r5-round-005-settlement.ts",

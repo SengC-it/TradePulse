@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "m3-r27-directional-target-model-redesign-protocol-001",
+  "researchRoundId": "baseline-002-research-round-027",
+  "phase": "BOUNDED_DEVELOPMENT_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "919265491bb85e2cc780acab4c6ebc18a42cfe9a"
+  },
+  "branch": "research/round-027-directional-target-model-redesign",
+  "developmentWindow": {
+    "start": "2023-01-01T00:00:00.000Z",
+    "end": "2026-08-15T23:59:59.999Z",
+    "classification": "DEVELOPMENT_ONLY / ALREADY_SEEN"
+  },
+  "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+  "directions": ["LONG", "SHORT"],
+  "horizonHours": 4,
+  "purgeEmbargoHours": 24,
+  "folds": {
+    "path": "src/lib/research/folds.ts",
+    "definitionIdentity": "RESEARCH_FOLDS / R13_FOLDS"
+  },
+  "source": {
+    "status": "ACCEPTED_EXISTING_R14_OBSERVATION_FREEZE_REUSED",
+    "canonicalObservationPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "observationDataSha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "observationDataBytes": 1893811055,
+    "observationCount": 244810,
+    "networkAcquired": false,
+    "newHistoricalDevelopmentDataFetched": false,
+    "postBoundaryDataFetched": false,
+    "developmentOnly": true
+  },
+  "searchSpace": {
+    "maximumLongConfigurations": 3,
+    "maximumShortConfigurations": 3,
+    "maximumTotalConfigurations": 6,
+    "completeEvaluationExecutionCount": 1,
+    "noThresholdSweep": true,
+    "noLambdaSweep": true,
+    "noFeatureCombinatorialSearch": true,
+    "noHorizonExpansion": true
+  },
+  "configurations": [
+    {
+      "candidateConfigurationId": "R27_LONG_POSITIVE_LOGIT_TREND_PULLBACK_VOLUME",
+      "direction": "LONG",
+      "targetType": "POSITIVE_NET_PROBABILITY",
+      "featureSubsetId": "LONG_TREND_PULLBACK_VOLUME",
+      "featureNames": ["F01_directionAdjustedClose4hMinusEma200Atr", "F05_directionAdjustedEma20MinusEma50Atr", "F09_directionAdjustedClose1hMinusEma20Atr", "F10_atr14OverClose1h", "F12_logClippedQuoteVolumeOverPast20hMedian", "F17_directionAdjustedEma50Breadth"],
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": null,
+      "selectionPolicy": "TOP_ONE_PER_DECISION_TIME"
+    },
+    {
+      "candidateConfigurationId": "R27_LONG_POSITIVE_LOGIT_TREND_PULLBACK_NO_VOLUME",
+      "direction": "LONG",
+      "targetType": "POSITIVE_NET_PROBABILITY",
+      "featureSubsetId": "LONG_TREND_PULLBACK_NO_VOLUME",
+      "featureNames": ["F01_directionAdjustedClose4hMinusEma200Atr", "F05_directionAdjustedEma20MinusEma50Atr", "F09_directionAdjustedClose1hMinusEma20Atr", "F10_atr14OverClose1h", "F17_directionAdjustedEma50Breadth"],
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": null,
+      "selectionPolicy": "TOP_ONE_PER_DECISION_TIME"
+    },
+    {
+      "candidateConfigurationId": "R27_LONG_PAIRWISE_RANK_POSITIVE_GATE_TREND_PULLBACK_VOLUME",
+      "direction": "LONG",
+      "targetType": "CROSS_SECTIONAL_PAIRWISE_RANKING_PLUS_POSITIVE_NET_PROBABILITY_GATE",
+      "featureSubsetId": "LONG_TREND_PULLBACK_VOLUME",
+      "featureNames": ["F01_directionAdjustedClose4hMinusEma200Atr", "F05_directionAdjustedEma20MinusEma50Atr", "F09_directionAdjustedClose1hMinusEma20Atr", "F10_atr14OverClose1h", "F12_logClippedQuoteVolumeOverPast20hMedian", "F17_directionAdjustedEma50Breadth"],
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": 0.6,
+      "selectionPolicy": "TOP_ONE_PAIRWISE_SCORE_WITH_POSITIVE_PROBABILITY_GATE"
+    },
+    {
+      "candidateConfigurationId": "R27_SHORT_POSITIVE_LOGIT_TREND_VOLATILITY_FUNDING",
+      "direction": "SHORT",
+      "targetType": "POSITIVE_NET_PROBABILITY",
+      "featureSubsetId": "SHORT_TREND_VOLATILITY_FUNDING",
+      "featureNames": ["F03_directionAdjustedEma200FiveBarSlopeAtr", "F07_directionAdjustedReturn4hAtrPriceScale", "F08_directionAdjustedReturn12hAtrPriceScale", "F11_rollingAtrPricePercentile30d", "F16_directionAdjustedSettledFundingBurden", "F18_directionAdjustedMomentumBreadth12h"],
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": null,
+      "selectionPolicy": "TOP_ONE_PER_DECISION_TIME"
+    },
+    {
+      "candidateConfigurationId": "R27_SHORT_POSITIVE_LOGIT_RELATIVE_FLOW_FUNDING",
+      "direction": "SHORT",
+      "targetType": "POSITIVE_NET_PROBABILITY",
+      "featureSubsetId": "SHORT_RELATIVE_FLOW_FUNDING",
+      "featureNames": ["F02_directionAdjustedEma50MinusEma200Atr", "F04_directionAdjustedReturn1hAtrPriceScale", "F09_directionAdjustedClose1hMinusEma20Atr", "F13_directionAdjustedTakerImbalance", "F14_directionAdjustedSymbolMinusBtcReturn12h", "F16_directionAdjustedSettledFundingBurden"],
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": null,
+      "selectionPolicy": "TOP_ONE_PER_DECISION_TIME"
+    },
+    {
+      "candidateConfigurationId": "R27_SHORT_PAIRWISE_RANK_POSITIVE_GATE_TREND_VOLATILITY_FUNDING",
+      "direction": "SHORT",
+      "targetType": "CROSS_SECTIONAL_PAIRWISE_RANKING_PLUS_POSITIVE_NET_PROBABILITY_GATE",
+      "featureSubsetId": "SHORT_TREND_VOLATILITY_FUNDING",
+      "featureNames": ["F03_directionAdjustedEma200FiveBarSlopeAtr", "F07_directionAdjustedReturn4hAtrPriceScale", "F08_directionAdjustedReturn12hAtrPriceScale", "F11_rollingAtrPricePercentile30d", "F16_directionAdjustedSettledFundingBurden", "F18_directionAdjustedMomentumBreadth12h"],
+      "positiveProbabilityThreshold": 0.5,
+      "pairwiseScoreThreshold": 0.6,
+      "selectionPolicy": "TOP_ONE_PAIRWISE_SCORE_WITH_POSITIVE_PROBABILITY_GATE"
+    }
+  ],
+  "modelTargets": {
+    "positive": {
+      "target": "EXECUTED primary 4h netForwardAtr > 0 => 1; EXECUTED netForwardAtr <= 0 => 0; non-EXECUTED excluded",
+      "model": "BINARY_LOGISTIC_L2",
+      "lambda": 10,
+      "intercept": "UNPENALIZED",
+      "maxIterations": 100,
+      "tolerance": 1e-10,
+      "predictorClamp": {
+        "min": -30,
+        "max": 30
+      }
+    },
+    "pairwise": {
+      "target": "same-direction same-time unordered pairs; ten pairs, two directed samples; equal netR skipped",
+      "model": "BINARY_LOGISTIC_L2",
+      "lambda": 10,
+      "intercept": "FIXED_ZERO",
+      "maxIterations": 100,
+      "tolerance": 1e-10,
+      "antiSymmetry": true
+    }
+  },
+  "normalization": "CROSS_SECTIONAL_ZSCORE_PER_DECISION_TIME",
+  "peerRequirement": "EXACTLY_FIVE_SYMBOLS_PER_DIRECTION_AND_DECISION_TIME_OR_FAIL_CLOSED",
+  "selection": {
+    "positiveThreshold": 0.5,
+    "pairwiseThreshold": 0.6,
+    "tieBreak": ["score DESC", "frozen symbol order", "observationId lexical ASC"],
+    "topOnePerDecisionTime": true
+  },
+  "validationOrder": [
+    "FIT_RESEARCH_ONLY",
+    "SCORE_VALIDATION_FEATURES",
+    "SELECT_FROZEN_ALERTS",
+    "READ_SELECTED_VALIDATION_ECONOMIC_LABELS",
+    "COMPUTE_DEVELOPMENT_METRICS"
+  ],
+  "developmentGates": {
+    "minimumSelectedAlerts": 50,
+    "minimumSelectedAlertsPerFold": 10,
+    "minimumDistinctUtcDecisionDates": 10,
+    "minimumMeanNetExpectancy": 0,
+    "minimumNetProfitFactor": 1,
+    "minimumPositiveTemporalFolds": 4,
+    "maximumCatastrophicFolds": 0,
+    "catastrophicFoldThreshold": -0.1,
+    "minimumCostStressMeanNetExpectancy": 0,
+    "minimumLatencyMeanNetExpectancy": 0,
+    "maximumPositiveSymbolContributionShare": 0.5
+  },
+  "costPolicy": "bt-policy-003 (fee/slippage 0.0005 per side; actual direction-correct Binance USD-M Funding; 7-minute manual latency; causal settlement; ambiguous intrabar NOT_EVALUABLE; 1.5x total-cost stress)",
+  "governance": {
+    "humanDecisionRequired": true,
+    "automaticTrading": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "forwardValidationAuthorized": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}
