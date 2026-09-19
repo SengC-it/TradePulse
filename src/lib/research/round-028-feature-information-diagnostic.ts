@@ -247,10 +247,6 @@ function targetValue(outcome: R28DiagnosticOutcomeProjection, target: R28TargetI
   return outcome.latencyPositive;
 }
 
-function targetContinuous(outcome: R28DiagnosticOutcomeProjection): number | null {
-  return outcome.primaryContinuous;
-}
-
 function labelTarget(label: R13ForwardLabel): 0 | 1 | null {
   if (label.status !== "EXECUTED" || label.netForwardAtr === null || !Number.isFinite(label.netForwardAtr)) return null;
   return label.netForwardAtr > 0 ? 1 : 0;
