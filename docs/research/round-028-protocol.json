@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "m3-r28-feature-information-capacity-reassessment-protocol-001",
+  "researchRoundId": "baseline-002-research-round-028",
+  "phase": "FEATURE_INFORMATION_DIAGNOSTIC_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "aef30226d4caa9cc3a579621579170ea8d8f872e"
+  },
+  "branch": "research/round-028-feature-information-capacity-reassessment",
+  "source": {
+    "status": "ACCEPTED_R14_OBSERVATION_FREEZE_REUSED",
+    "canonicalPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "sha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "manifestSha256": "7d03b1a59f85509c3e350c0ab10053b8ff84193357322b11a1437002c9d25af6",
+    "bytes": 1893811055,
+    "observationCount": 244810,
+    "window": {
+      "start": "2023-01-01T00:00:00.000Z",
+      "end": "2026-08-15T23:59:59.999Z"
+    },
+    "classification": "DEVELOPMENT_ONLY / ALREADY_SEEN",
+    "networkAcquired": false,
+    "postBoundaryDataFetched": false
+  },
+  "features": "R13_FEATURE_NAMES",
+  "directions": ["LONG", "SHORT"],
+  "folds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+  "purgeEmbargoHours": 24,
+  "representations": ["RAW_PIT", "CROSS_SECTIONAL_ZSCORE_PER_DECISION_TIME"],
+  "modelProbes": [
+    { "id": "XS_LINEAR_ALL18", "terms": 18, "target": "PRIMARY_POSITIVE" },
+    { "id": "RAW_LINEAR_ALL18", "terms": 18, "target": "PRIMARY_POSITIVE" },
+    { "id": "RAW_QUADRATIC_TOP4", "topFeatures": 4, "terms": 14, "target": "PRIMARY_POSITIVE" }
+  ],
+  "logistic": {
+    "lambda": 10,
+    "intercept": "UNPENALIZED",
+    "maxIterations": 100,
+    "tolerance": 1e-10
+  },
+  "diagnosticTargets": ["PRIMARY_POSITIVE", "COST_STRESS_POSITIVE", "LATENCY_POSITIVE"],
+  "classificationPriority": [
+    "CROSS_SECTIONAL_NORMALIZATION_INFORMATION_LOSS",
+    "NONLINEAR_CAPACITY_LIMITATION",
+    "INFORMATION_PRESENT_BUT_R27_ARCHITECTURE_MISMATCH",
+    "WEAK_OR_UNSTABLE_INFORMATION_ONLY",
+    "EXISTING_FEATURE_INFORMATION_INSUFFICIENT"
+  ],
+  "validationBoundary": {
+    "featureOnlyKeys": ["observationId", "decisionTime", "symbol", "direction", "features"],
+    "outcomeJoinKey": "observationId",
+    "scoresBeforeOutcomeJoin": true
+  },
+  "governance": {
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "validationOutcomeValuesReadForDiagnostic": true,
+    "globalHistoricalEconomicLabelsRead": true,
+    "sameFoldValidationOutcomeUsedForFit": false,
+    "sameFoldValidationOutcomeUsedForScoring": false,
+    "crossFoldExpandingWindowResearchReuse": true,
+    "newMarketDataFetched": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "emailRestorationAuthorized": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}

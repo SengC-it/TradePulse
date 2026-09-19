@@ -72,6 +72,7 @@
     "research:round025:development": "node --experimental-strip-types --no-warnings scripts/m3-r25-development.ts",
     "research:round026:score-diagnostic": "node --experimental-strip-types --no-warnings scripts/m3-r26-score-calibration.ts",
     "research:round027:development": "node --experimental-strip-types --no-warnings scripts/m3-r27-development.ts",
+    "research:round028:feature-information-diagnostic": "node --experimental-strip-types --no-warnings scripts/m3-r28-feature-information-diagnostic.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "check": "npm run verify"
   },
