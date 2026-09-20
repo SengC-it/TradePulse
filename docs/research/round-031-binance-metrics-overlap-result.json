@@ -1,0 +1,2606 @@
+{
+  "schemaVersion": "m3-r31-binance-metrics-overlap-result-001",
+  "researchRoundId": "baseline-002-research-round-031",
+  "classification": "SOURCE_ADMISSION_REPROBE_ONLY",
+  "protocolCommitSha": "90b89c9fb02942be1606520f3aa41ac94df057b9",
+  "runId": "r31-5aa3b17989071a44187bdaf0",
+  "fixedWindow": {
+    "date": "2026-09-18",
+    "startTime": 1789689600000,
+    "endTime": 1789775999999,
+    "timezone": "UTC"
+  },
+  "inheritedR30Conclusion": {
+    "longSelectedTarget": null,
+    "longClassification": "TARGET_REDESIGN_INSUFFICIENT",
+    "shortSelectedTarget": null,
+    "shortClassification": "TARGET_REDESIGN_INSUFFICIENT",
+    "targetRedesignConclusionRobust": true
+  },
+  "liveLogicalRequests": 25,
+  "liveSuccessfulRequests": 0,
+  "liveFailedRequests": 25,
+  "requestEvidence": [
+    {
+      "symbol": "BTCUSDT",
+      "endpointOrArchivePath": "openInterestHist",
+      "requestUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:46:06.107Z",
+      "completedAt": "2026-09-20T11:46:16.799Z",
+      "localReceiptTimestamp": "2026-09-20T11:46:16.799Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BTCUSDT",
+      "endpointOrArchivePath": "topLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:46:16.799Z",
+      "completedAt": "2026-09-20T11:46:27.470Z",
+      "localReceiptTimestamp": "2026-09-20T11:46:27.470Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BTCUSDT",
+      "endpointOrArchivePath": "topLongShortPositionRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:46:27.470Z",
+      "completedAt": "2026-09-20T11:46:38.122Z",
+      "localReceiptTimestamp": "2026-09-20T11:46:38.122Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BTCUSDT",
+      "endpointOrArchivePath": "globalLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:46:38.122Z",
+      "completedAt": "2026-09-20T11:46:48.832Z",
+      "localReceiptTimestamp": "2026-09-20T11:46:48.832Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BTCUSDT",
+      "endpointOrArchivePath": "takerlongshortRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:46:48.832Z",
+      "completedAt": "2026-09-20T11:46:59.518Z",
+      "localReceiptTimestamp": "2026-09-20T11:46:59.518Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "ETHUSDT",
+      "endpointOrArchivePath": "openInterestHist",
+      "requestUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:46:59.518Z",
+      "completedAt": "2026-09-20T11:47:10.130Z",
+      "localReceiptTimestamp": "2026-09-20T11:47:10.130Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "ETHUSDT",
+      "endpointOrArchivePath": "topLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:47:10.130Z",
+      "completedAt": "2026-09-20T11:47:20.793Z",
+      "localReceiptTimestamp": "2026-09-20T11:47:20.793Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "ETHUSDT",
+      "endpointOrArchivePath": "topLongShortPositionRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:47:20.793Z",
+      "completedAt": "2026-09-20T11:47:31.448Z",
+      "localReceiptTimestamp": "2026-09-20T11:47:31.448Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "ETHUSDT",
+      "endpointOrArchivePath": "globalLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:47:31.449Z",
+      "completedAt": "2026-09-20T11:47:42.151Z",
+      "localReceiptTimestamp": "2026-09-20T11:47:42.151Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "ETHUSDT",
+      "endpointOrArchivePath": "takerlongshortRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:47:42.151Z",
+      "completedAt": "2026-09-20T11:47:52.783Z",
+      "localReceiptTimestamp": "2026-09-20T11:47:52.783Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "SOLUSDT",
+      "endpointOrArchivePath": "openInterestHist",
+      "requestUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:47:52.783Z",
+      "completedAt": "2026-09-20T11:48:03.434Z",
+      "localReceiptTimestamp": "2026-09-20T11:48:03.434Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "SOLUSDT",
+      "endpointOrArchivePath": "topLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:48:03.434Z",
+      "completedAt": "2026-09-20T11:48:14.129Z",
+      "localReceiptTimestamp": "2026-09-20T11:48:14.129Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "SOLUSDT",
+      "endpointOrArchivePath": "topLongShortPositionRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:48:14.129Z",
+      "completedAt": "2026-09-20T11:48:24.747Z",
+      "localReceiptTimestamp": "2026-09-20T11:48:24.747Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "SOLUSDT",
+      "endpointOrArchivePath": "globalLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:48:24.747Z",
+      "completedAt": "2026-09-20T11:48:35.370Z",
+      "localReceiptTimestamp": "2026-09-20T11:48:35.370Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "SOLUSDT",
+      "endpointOrArchivePath": "takerlongshortRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:48:35.370Z",
+      "completedAt": "2026-09-20T11:48:46.097Z",
+      "localReceiptTimestamp": "2026-09-20T11:48:46.097Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "XRPUSDT",
+      "endpointOrArchivePath": "openInterestHist",
+      "requestUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:48:46.097Z",
+      "completedAt": "2026-09-20T11:48:56.752Z",
+      "localReceiptTimestamp": "2026-09-20T11:48:56.752Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "XRPUSDT",
+      "endpointOrArchivePath": "topLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:48:56.752Z",
+      "completedAt": "2026-09-20T11:49:07.415Z",
+      "localReceiptTimestamp": "2026-09-20T11:49:07.415Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "XRPUSDT",
+      "endpointOrArchivePath": "topLongShortPositionRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:49:07.415Z",
+      "completedAt": "2026-09-20T11:49:18.141Z",
+      "localReceiptTimestamp": "2026-09-20T11:49:18.141Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "XRPUSDT",
+      "endpointOrArchivePath": "globalLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:49:18.141Z",
+      "completedAt": "2026-09-20T11:49:28.783Z",
+      "localReceiptTimestamp": "2026-09-20T11:49:28.783Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "XRPUSDT",
+      "endpointOrArchivePath": "takerlongshortRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:49:28.783Z",
+      "completedAt": "2026-09-20T11:49:39.470Z",
+      "localReceiptTimestamp": "2026-09-20T11:49:39.470Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BNBUSDT",
+      "endpointOrArchivePath": "openInterestHist",
+      "requestUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:49:39.470Z",
+      "completedAt": "2026-09-20T11:49:50.126Z",
+      "localReceiptTimestamp": "2026-09-20T11:49:50.126Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BNBUSDT",
+      "endpointOrArchivePath": "topLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:49:50.126Z",
+      "completedAt": "2026-09-20T11:50:00.824Z",
+      "localReceiptTimestamp": "2026-09-20T11:50:00.824Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BNBUSDT",
+      "endpointOrArchivePath": "topLongShortPositionRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:50:00.824Z",
+      "completedAt": "2026-09-20T11:50:11.480Z",
+      "localReceiptTimestamp": "2026-09-20T11:50:11.480Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BNBUSDT",
+      "endpointOrArchivePath": "globalLongShortAccountRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:50:11.480Z",
+      "completedAt": "2026-09-20T11:50:22.192Z",
+      "localReceiptTimestamp": "2026-09-20T11:50:22.192Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    },
+    {
+      "symbol": "BNBUSDT",
+      "endpointOrArchivePath": "takerlongshortRatio",
+      "requestUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "startedAt": "2026-09-20T11:50:22.193Z",
+      "completedAt": "2026-09-20T11:50:32.907Z",
+      "localReceiptTimestamp": "2026-09-20T11:50:32.907Z",
+      "httpStatus": null,
+      "ok": false,
+      "contentType": null,
+      "responseBytes": null,
+      "rawPayloadSha256": null,
+      "responseRowCount": null,
+      "rawLiveRowCount": null,
+      "outOfWindowRowCount": null,
+      "filteredRowCount": null,
+      "exactDuplicateCount": null,
+      "conflictingDuplicateCount": null,
+      "errorClass": "NETWORK",
+      "errorMessage": "fetch failed",
+      "responseBodyPreview": ""
+    }
+  ],
+  "archiveFilesRequested": 5,
+  "archiveFilesAvailable": 5,
+  "checksumValidFiles": 5,
+  "schemaValidFiles": 0,
+  "archiveEvidence": [
+    {
+      "symbol": "BTCUSDT",
+      "url": "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-09-18.zip",
+      "checksumUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-09-18.zip.CHECKSUM",
+      "downloadedAt": "2026-09-20T11:46:00.119Z",
+      "httpStatus": 200,
+      "checksumHttpStatus": 200,
+      "publishedChecksum": "3558afea198d8579ea1fa8c176726ed2204770dbdd2dd05a5dfed6c83d8c7be3",
+      "localSha256": "3558afea198d8579ea1fa8c176726ed2204770dbdd2dd05a5dfed6c83d8c7be3",
+      "checksumValid": true,
+      "bytes": 11743,
+      "schemaValid": false,
+      "rowCount": 0,
+      "firstCreateTime": null,
+      "lastCreateTime": null,
+      "duplicateTimestampCount": 0,
+      "conflictingDuplicateCount": 0,
+      "errorClass": "ARCHIVE",
+      "errorMessage": "Archive create_time is not an integer timestamp.",
+      "zipRequest": {
+        "symbol": "BTCUSDT",
+        "endpointOrArchivePath": "BTCUSDT/BTCUSDT-metrics-2026-09-18.zip",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-09-18.zip",
+        "startedAt": "2026-09-20T11:45:58.153Z",
+        "completedAt": "2026-09-20T11:46:00.119Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:00.119Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 11743,
+        "rawPayloadSha256": "3558afea198d8579ea1fa8c176726ed2204770dbdd2dd05a5dfed6c83d8c7be3",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      },
+      "checksumRequest": {
+        "symbol": "BTCUSDT",
+        "endpointOrArchivePath": "BTCUSDT/BTCUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "startedAt": "2026-09-20T11:46:00.119Z",
+        "completedAt": "2026-09-20T11:46:01.048Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:01.048Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 97,
+        "rawPayloadSha256": "55f2ac274068886c2b136d819b76684ddaec25efc449d7e35769bf470435a57b",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      }
+    },
+    {
+      "symbol": "ETHUSDT",
+      "url": "https://data.binance.vision/data/futures/um/daily/metrics/ETHUSDT/ETHUSDT-metrics-2026-09-18.zip",
+      "checksumUrl": "https://data.binance.vision/data/futures/um/daily/metrics/ETHUSDT/ETHUSDT-metrics-2026-09-18.zip.CHECKSUM",
+      "downloadedAt": "2026-09-20T11:46:01.777Z",
+      "httpStatus": 200,
+      "checksumHttpStatus": 200,
+      "publishedChecksum": "689c8d44f3f3f98091007a25ffa71f218d23583277bf3817c527e6bfd6b52e5a",
+      "localSha256": "689c8d44f3f3f98091007a25ffa71f218d23583277bf3817c527e6bfd6b52e5a",
+      "checksumValid": true,
+      "bytes": 12065,
+      "schemaValid": false,
+      "rowCount": 0,
+      "firstCreateTime": null,
+      "lastCreateTime": null,
+      "duplicateTimestampCount": 0,
+      "conflictingDuplicateCount": 0,
+      "errorClass": "ARCHIVE",
+      "errorMessage": "Archive create_time is not an integer timestamp.",
+      "zipRequest": {
+        "symbol": "ETHUSDT",
+        "endpointOrArchivePath": "ETHUSDT/ETHUSDT-metrics-2026-09-18.zip",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/ETHUSDT/ETHUSDT-metrics-2026-09-18.zip",
+        "startedAt": "2026-09-20T11:46:01.052Z",
+        "completedAt": "2026-09-20T11:46:01.777Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:01.777Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 12065,
+        "rawPayloadSha256": "689c8d44f3f3f98091007a25ffa71f218d23583277bf3817c527e6bfd6b52e5a",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      },
+      "checksumRequest": {
+        "symbol": "ETHUSDT",
+        "endpointOrArchivePath": "ETHUSDT/ETHUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/ETHUSDT/ETHUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "startedAt": "2026-09-20T11:46:01.777Z",
+        "completedAt": "2026-09-20T11:46:02.263Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:02.263Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 97,
+        "rawPayloadSha256": "2bb5294606200860f8d23460d30de92ab06e2fbad8ea540eba7f0ec111fd9b1f",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      }
+    },
+    {
+      "symbol": "SOLUSDT",
+      "url": "https://data.binance.vision/data/futures/um/daily/metrics/SOLUSDT/SOLUSDT-metrics-2026-09-18.zip",
+      "checksumUrl": "https://data.binance.vision/data/futures/um/daily/metrics/SOLUSDT/SOLUSDT-metrics-2026-09-18.zip.CHECKSUM",
+      "downloadedAt": "2026-09-20T11:46:02.761Z",
+      "httpStatus": 200,
+      "checksumHttpStatus": 200,
+      "publishedChecksum": "4fddfea48dfbaf59cc6a2b677f67372d862f0533a339a355dc392fa1524ab3b4",
+      "localSha256": "4fddfea48dfbaf59cc6a2b677f67372d862f0533a339a355dc392fa1524ab3b4",
+      "checksumValid": true,
+      "bytes": 11950,
+      "schemaValid": false,
+      "rowCount": 0,
+      "firstCreateTime": null,
+      "lastCreateTime": null,
+      "duplicateTimestampCount": 0,
+      "conflictingDuplicateCount": 0,
+      "errorClass": "ARCHIVE",
+      "errorMessage": "Archive create_time is not an integer timestamp.",
+      "zipRequest": {
+        "symbol": "SOLUSDT",
+        "endpointOrArchivePath": "SOLUSDT/SOLUSDT-metrics-2026-09-18.zip",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/SOLUSDT/SOLUSDT-metrics-2026-09-18.zip",
+        "startedAt": "2026-09-20T11:46:02.266Z",
+        "completedAt": "2026-09-20T11:46:02.761Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:02.761Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 11950,
+        "rawPayloadSha256": "4fddfea48dfbaf59cc6a2b677f67372d862f0533a339a355dc392fa1524ab3b4",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      },
+      "checksumRequest": {
+        "symbol": "SOLUSDT",
+        "endpointOrArchivePath": "SOLUSDT/SOLUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/SOLUSDT/SOLUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "startedAt": "2026-09-20T11:46:02.761Z",
+        "completedAt": "2026-09-20T11:46:03.233Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:03.233Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 97,
+        "rawPayloadSha256": "be6eb7535fe12902e396fc08c878f20644cb179d12e39067db68e081574fb5ef",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      }
+    },
+    {
+      "symbol": "XRPUSDT",
+      "url": "https://data.binance.vision/data/futures/um/daily/metrics/XRPUSDT/XRPUSDT-metrics-2026-09-18.zip",
+      "checksumUrl": "https://data.binance.vision/data/futures/um/daily/metrics/XRPUSDT/XRPUSDT-metrics-2026-09-18.zip.CHECKSUM",
+      "downloadedAt": "2026-09-20T11:46:03.728Z",
+      "httpStatus": 200,
+      "checksumHttpStatus": 200,
+      "publishedChecksum": "b5d88e786808b80441b4cd16d43404f2a77a2b3e61799f2e93718da37c838e88",
+      "localSha256": "b5d88e786808b80441b4cd16d43404f2a77a2b3e61799f2e93718da37c838e88",
+      "checksumValid": true,
+      "bytes": 12005,
+      "schemaValid": false,
+      "rowCount": 0,
+      "firstCreateTime": null,
+      "lastCreateTime": null,
+      "duplicateTimestampCount": 0,
+      "conflictingDuplicateCount": 0,
+      "errorClass": "ARCHIVE",
+      "errorMessage": "Archive create_time is not an integer timestamp.",
+      "zipRequest": {
+        "symbol": "XRPUSDT",
+        "endpointOrArchivePath": "XRPUSDT/XRPUSDT-metrics-2026-09-18.zip",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/XRPUSDT/XRPUSDT-metrics-2026-09-18.zip",
+        "startedAt": "2026-09-20T11:46:03.234Z",
+        "completedAt": "2026-09-20T11:46:03.728Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:03.728Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 12005,
+        "rawPayloadSha256": "b5d88e786808b80441b4cd16d43404f2a77a2b3e61799f2e93718da37c838e88",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      },
+      "checksumRequest": {
+        "symbol": "XRPUSDT",
+        "endpointOrArchivePath": "XRPUSDT/XRPUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/XRPUSDT/XRPUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "startedAt": "2026-09-20T11:46:03.728Z",
+        "completedAt": "2026-09-20T11:46:04.664Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:04.664Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 97,
+        "rawPayloadSha256": "d636d23f98d797f6333bfc40005a31df6e5aa0ded11a55577c79cba7dc3d339c",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      }
+    },
+    {
+      "symbol": "BNBUSDT",
+      "url": "https://data.binance.vision/data/futures/um/daily/metrics/BNBUSDT/BNBUSDT-metrics-2026-09-18.zip",
+      "checksumUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BNBUSDT/BNBUSDT-metrics-2026-09-18.zip.CHECKSUM",
+      "downloadedAt": "2026-09-20T11:46:05.172Z",
+      "httpStatus": 200,
+      "checksumHttpStatus": 200,
+      "publishedChecksum": "ac6121e416d6a4f5d0e03bc4208f759f8324dc039923bb0aab7bf9c10d00a0ea",
+      "localSha256": "ac6121e416d6a4f5d0e03bc4208f759f8324dc039923bb0aab7bf9c10d00a0ea",
+      "checksumValid": true,
+      "bytes": 11489,
+      "schemaValid": false,
+      "rowCount": 0,
+      "firstCreateTime": null,
+      "lastCreateTime": null,
+      "duplicateTimestampCount": 0,
+      "conflictingDuplicateCount": 0,
+      "errorClass": "ARCHIVE",
+      "errorMessage": "Archive create_time is not an integer timestamp.",
+      "zipRequest": {
+        "symbol": "BNBUSDT",
+        "endpointOrArchivePath": "BNBUSDT/BNBUSDT-metrics-2026-09-18.zip",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BNBUSDT/BNBUSDT-metrics-2026-09-18.zip",
+        "startedAt": "2026-09-20T11:46:04.666Z",
+        "completedAt": "2026-09-20T11:46:05.172Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:05.172Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 11489,
+        "rawPayloadSha256": "ac6121e416d6a4f5d0e03bc4208f759f8324dc039923bb0aab7bf9c10d00a0ea",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      },
+      "checksumRequest": {
+        "symbol": "BNBUSDT",
+        "endpointOrArchivePath": "BNBUSDT/BNBUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "requestUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BNBUSDT/BNBUSDT-metrics-2026-09-18.zip.CHECKSUM",
+        "startedAt": "2026-09-20T11:46:05.172Z",
+        "completedAt": "2026-09-20T11:46:06.100Z",
+        "localReceiptTimestamp": "2026-09-20T11:46:06.100Z",
+        "httpStatus": 200,
+        "ok": true,
+        "contentType": "binary/octet-stream",
+        "responseBytes": 97,
+        "rawPayloadSha256": "249c0dfadfc9f2e11ed71a130491545a178fe2d2f4daf9617f995b39c5c2dcf3",
+        "responseRowCount": null,
+        "rawLiveRowCount": null,
+        "outOfWindowRowCount": null,
+        "filteredRowCount": null,
+        "exactDuplicateCount": null,
+        "conflictingDuplicateCount": null,
+        "errorClass": null,
+        "errorMessage": null,
+        "responseBodyPreview": ""
+      }
+    }
+  ],
+  "mappingEvidence": [
+    {
+      "fieldId": "OPEN_INTEREST",
+      "symbol": "BTCUSDT",
+      "archiveField": "sum_open_interest",
+      "liveEndpoint": "openInterestHist",
+      "liveField": "sumOpenInterest",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "OPEN_INTEREST",
+      "symbol": "ETHUSDT",
+      "archiveField": "sum_open_interest",
+      "liveEndpoint": "openInterestHist",
+      "liveField": "sumOpenInterest",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "OPEN_INTEREST",
+      "symbol": "SOLUSDT",
+      "archiveField": "sum_open_interest",
+      "liveEndpoint": "openInterestHist",
+      "liveField": "sumOpenInterest",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "OPEN_INTEREST",
+      "symbol": "XRPUSDT",
+      "archiveField": "sum_open_interest",
+      "liveEndpoint": "openInterestHist",
+      "liveField": "sumOpenInterest",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "OPEN_INTEREST",
+      "symbol": "BNBUSDT",
+      "archiveField": "sum_open_interest",
+      "liveEndpoint": "openInterestHist",
+      "liveField": "sumOpenInterest",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "symbol": "BTCUSDT",
+      "archiveField": "count_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "symbol": "ETHUSDT",
+      "archiveField": "count_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "symbol": "SOLUSDT",
+      "archiveField": "count_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "symbol": "XRPUSDT",
+      "archiveField": "count_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "symbol": "BNBUSDT",
+      "archiveField": "count_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_POSITION",
+      "symbol": "BTCUSDT",
+      "archiveField": "sum_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortPositionRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_POSITION",
+      "symbol": "ETHUSDT",
+      "archiveField": "sum_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortPositionRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_POSITION",
+      "symbol": "SOLUSDT",
+      "archiveField": "sum_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortPositionRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_POSITION",
+      "symbol": "XRPUSDT",
+      "archiveField": "sum_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortPositionRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TOP_TRADER_POSITION",
+      "symbol": "BNBUSDT",
+      "archiveField": "sum_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortPositionRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "symbol": "BTCUSDT",
+      "archiveField": "count_long_short_ratio",
+      "liveEndpoint": "globalLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "symbol": "ETHUSDT",
+      "archiveField": "count_long_short_ratio",
+      "liveEndpoint": "globalLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "symbol": "SOLUSDT",
+      "archiveField": "count_long_short_ratio",
+      "liveEndpoint": "globalLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "symbol": "XRPUSDT",
+      "archiveField": "count_long_short_ratio",
+      "liveEndpoint": "globalLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "symbol": "BNBUSDT",
+      "archiveField": "count_long_short_ratio",
+      "liveEndpoint": "globalLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "symbol": "BTCUSDT",
+      "archiveField": "sum_taker_long_short_vol_ratio",
+      "liveEndpoint": "takerlongshortRatio",
+      "liveField": "buySellRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "symbol": "ETHUSDT",
+      "archiveField": "sum_taker_long_short_vol_ratio",
+      "liveEndpoint": "takerlongshortRatio",
+      "liveField": "buySellRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "symbol": "SOLUSDT",
+      "archiveField": "sum_taker_long_short_vol_ratio",
+      "liveEndpoint": "takerlongshortRatio",
+      "liveField": "buySellRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "symbol": "XRPUSDT",
+      "archiveField": "sum_taker_long_short_vol_ratio",
+      "liveEndpoint": "takerlongshortRatio",
+      "liveField": "buySellRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "symbol": "BNBUSDT",
+      "archiveField": "sum_taker_long_short_vol_ratio",
+      "liveEndpoint": "takerlongshortRatio",
+      "liveField": "buySellRatio",
+      "timestampChecks": {
+        "EXACT": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_MINUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        },
+        "ARCHIVE_PLUS_5M": {
+          "matchedTimestampRows": 0,
+          "timestampCoverageRate": 0
+        }
+      },
+      "dominantMapping": null,
+      "timestampCoverageRate": 0,
+      "matchedRows": 0,
+      "numericAgreementRows": 0,
+      "numericAgreementRate": 0,
+      "meanAbsoluteError": null,
+      "maxAbsoluteError": null,
+      "meanRelativeError": null,
+      "maxRelativeError": null,
+      "liveDecimalPlaces": {},
+      "status": "ARCHIVE_UNAVAILABLE"
+    }
+  ],
+  "fieldSummaries": [
+    {
+      "fieldId": "OPEN_INTEREST",
+      "archiveField": "sum_open_interest",
+      "liveEndpoint": "openInterestHist",
+      "liveField": "sumOpenInterest",
+      "admitted": false,
+      "dominantMapping": null,
+      "minimumTimestampCoverage": 0,
+      "minimumNumericAgreement": 0,
+      "symbols": [
+        {
+          "fieldId": "OPEN_INTEREST",
+          "symbol": "BTCUSDT",
+          "archiveField": "sum_open_interest",
+          "liveEndpoint": "openInterestHist",
+          "liveField": "sumOpenInterest",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "OPEN_INTEREST",
+          "symbol": "ETHUSDT",
+          "archiveField": "sum_open_interest",
+          "liveEndpoint": "openInterestHist",
+          "liveField": "sumOpenInterest",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "OPEN_INTEREST",
+          "symbol": "SOLUSDT",
+          "archiveField": "sum_open_interest",
+          "liveEndpoint": "openInterestHist",
+          "liveField": "sumOpenInterest",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "OPEN_INTEREST",
+          "symbol": "XRPUSDT",
+          "archiveField": "sum_open_interest",
+          "liveEndpoint": "openInterestHist",
+          "liveField": "sumOpenInterest",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "OPEN_INTEREST",
+          "symbol": "BNBUSDT",
+          "archiveField": "sum_open_interest",
+          "liveEndpoint": "openInterestHist",
+          "liveField": "sumOpenInterest",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "archiveField": "count_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "admitted": false,
+      "dominantMapping": null,
+      "minimumTimestampCoverage": 0,
+      "minimumNumericAgreement": 0,
+      "symbols": [
+        {
+          "fieldId": "TOP_TRADER_ACCOUNT",
+          "symbol": "BTCUSDT",
+          "archiveField": "count_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_ACCOUNT",
+          "symbol": "ETHUSDT",
+          "archiveField": "count_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_ACCOUNT",
+          "symbol": "SOLUSDT",
+          "archiveField": "count_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_ACCOUNT",
+          "symbol": "XRPUSDT",
+          "archiveField": "count_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_ACCOUNT",
+          "symbol": "BNBUSDT",
+          "archiveField": "count_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "fieldId": "TOP_TRADER_POSITION",
+      "archiveField": "sum_toptrader_long_short_ratio",
+      "liveEndpoint": "topLongShortPositionRatio",
+      "liveField": "longShortRatio",
+      "admitted": false,
+      "dominantMapping": null,
+      "minimumTimestampCoverage": 0,
+      "minimumNumericAgreement": 0,
+      "symbols": [
+        {
+          "fieldId": "TOP_TRADER_POSITION",
+          "symbol": "BTCUSDT",
+          "archiveField": "sum_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortPositionRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_POSITION",
+          "symbol": "ETHUSDT",
+          "archiveField": "sum_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortPositionRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_POSITION",
+          "symbol": "SOLUSDT",
+          "archiveField": "sum_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortPositionRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_POSITION",
+          "symbol": "XRPUSDT",
+          "archiveField": "sum_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortPositionRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TOP_TRADER_POSITION",
+          "symbol": "BNBUSDT",
+          "archiveField": "sum_toptrader_long_short_ratio",
+          "liveEndpoint": "topLongShortPositionRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "archiveField": "count_long_short_ratio",
+      "liveEndpoint": "globalLongShortAccountRatio",
+      "liveField": "longShortRatio",
+      "admitted": false,
+      "dominantMapping": null,
+      "minimumTimestampCoverage": 0,
+      "minimumNumericAgreement": 0,
+      "symbols": [
+        {
+          "fieldId": "GLOBAL_LONG_SHORT",
+          "symbol": "BTCUSDT",
+          "archiveField": "count_long_short_ratio",
+          "liveEndpoint": "globalLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "GLOBAL_LONG_SHORT",
+          "symbol": "ETHUSDT",
+          "archiveField": "count_long_short_ratio",
+          "liveEndpoint": "globalLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "GLOBAL_LONG_SHORT",
+          "symbol": "SOLUSDT",
+          "archiveField": "count_long_short_ratio",
+          "liveEndpoint": "globalLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "GLOBAL_LONG_SHORT",
+          "symbol": "XRPUSDT",
+          "archiveField": "count_long_short_ratio",
+          "liveEndpoint": "globalLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "GLOBAL_LONG_SHORT",
+          "symbol": "BNBUSDT",
+          "archiveField": "count_long_short_ratio",
+          "liveEndpoint": "globalLongShortAccountRatio",
+          "liveField": "longShortRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "archiveField": "sum_taker_long_short_vol_ratio",
+      "liveEndpoint": "takerlongshortRatio",
+      "liveField": "buySellRatio",
+      "admitted": false,
+      "dominantMapping": null,
+      "minimumTimestampCoverage": 0,
+      "minimumNumericAgreement": 0,
+      "symbols": [
+        {
+          "fieldId": "TAKER_RATIO",
+          "symbol": "BTCUSDT",
+          "archiveField": "sum_taker_long_short_vol_ratio",
+          "liveEndpoint": "takerlongshortRatio",
+          "liveField": "buySellRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TAKER_RATIO",
+          "symbol": "ETHUSDT",
+          "archiveField": "sum_taker_long_short_vol_ratio",
+          "liveEndpoint": "takerlongshortRatio",
+          "liveField": "buySellRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TAKER_RATIO",
+          "symbol": "SOLUSDT",
+          "archiveField": "sum_taker_long_short_vol_ratio",
+          "liveEndpoint": "takerlongshortRatio",
+          "liveField": "buySellRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TAKER_RATIO",
+          "symbol": "XRPUSDT",
+          "archiveField": "sum_taker_long_short_vol_ratio",
+          "liveEndpoint": "takerlongshortRatio",
+          "liveField": "buySellRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        },
+        {
+          "fieldId": "TAKER_RATIO",
+          "symbol": "BNBUSDT",
+          "archiveField": "sum_taker_long_short_vol_ratio",
+          "liveEndpoint": "takerlongshortRatio",
+          "liveField": "buySellRatio",
+          "timestampChecks": {
+            "EXACT": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_MINUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            },
+            "ARCHIVE_PLUS_5M": {
+              "matchedTimestampRows": 0,
+              "timestampCoverageRate": 0
+            }
+          },
+          "dominantMapping": null,
+          "timestampCoverageRate": 0,
+          "matchedRows": 0,
+          "numericAgreementRows": 0,
+          "numericAgreementRate": 0,
+          "meanAbsoluteError": null,
+          "maxAbsoluteError": null,
+          "meanRelativeError": null,
+          "maxRelativeError": null,
+          "liveDecimalPlaces": {},
+          "status": "ARCHIVE_UNAVAILABLE"
+        }
+      ]
+    }
+  ],
+  "admittedFields": [],
+  "rejectedFields": [
+    "OPEN_INTEREST",
+    "TOP_TRADER_ACCOUNT",
+    "TOP_TRADER_POSITION",
+    "GLOBAL_LONG_SHORT",
+    "TAKER_RATIO"
+  ],
+  "admittedFieldCount": 0,
+  "currentRegimeMappingEstablished": false,
+  "historicalRegimeMappingEstablished": false,
+  "fullHistoricalCoverageCertified": false,
+  "archiveSampleQualityAccepted": false,
+  "sourceClassification": "SOURCE_REPROBE_INCONCLUSIVE_DUE_TO_LIVE_REACHABILITY",
+  "sourceNextStage": "LIVE_ENDPOINT_EXECUTION_ENVIRONMENT_REPROBE_REQUIRED",
+  "economicEvaluationPerformed": false,
+  "tradingEconomicMetricsCalculated": false,
+  "modelFitCount": 0,
+  "candidateCount": 0,
+  "championCount": 0,
+  "selectedAlertCount": 0,
+  "pitPolicyFinalizationPendingHistoricalRegimeAudit": true,
+  "prospectiveCaptureStarted": false,
+  "governance": {
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3GStatus": "EXCLUDED_FROM_ROUND_031",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "round020LiquidationClosureReopened": false
+  }
+}
