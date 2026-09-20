@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "m3-r29-hybrid-directional-architecture-development-protocol-001",
+  "researchRoundId": "baseline-002-research-round-029",
+  "phase": "HYBRID_DIRECTIONAL_ARCHITECTURE_DEVELOPMENT_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "39b0fbec69ba5fc59b5c57d028b654f361ea19ce"
+  },
+  "branch": "research/round-029-hybrid-directional-architecture-development",
+  "acceptedSource": {
+    "status": "ACCEPTED_EXISTING_R14_OBSERVATION_FREEZE_REUSED",
+    "path": ".cache/tradepulse/round-014/observations.ndjson",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "sha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "bytes": 1893811055,
+    "observationCount": 244810,
+    "manifestSha256": "7d03b1a59f85509c3e350c0ab10053b8ff84193357322b11a1437002c9d25af6",
+    "networkAcquired": false,
+    "classification": "DEVELOPMENT_ONLY / ALREADY_SEEN"
+  },
+  "searchSpace": {
+    "longConfigurations": 3,
+    "shortConfigurations": 3,
+    "totalConfigurations": 6,
+    "exactlyOneEconomicEvaluation": true,
+    "noThresholdSweep": true,
+    "noQuantileSweep": true,
+    "noLambdaSweep": true,
+    "noFeatureSubsetGrid": true,
+    "noHorizonSweep": true
+  },
+  "models": {
+    "raw": "binary logistic L2 over all 18 PIT features",
+    "crossSectional": "binary logistic L2 over per-decision-time cross-sectional z-scores",
+    "quadratic": "four research-only primary-positive-AUC features, four squares, six pairwise interactions",
+    "lambda": 10,
+    "intercept": "UNPENALIZED"
+  },
+  "calibration": {
+    "statistic": "candidate-specific research-selected statistic",
+    "quantile": 0.9,
+    "interpolation": "sorted ascending; position=(n-1)*0.90; linear interpolation"
+  },
+  "candidateIds": {
+    "long": [
+      "R29_LONG_RAW_LINEAR_GATE_XS_RANK",
+      "R29_LONG_RAW_QUADRATIC_GATE_XS_RANK",
+      "R29_LONG_RAW_GATE_BLENDED_RANK"
+    ],
+    "short": [
+      "R29_SHORT_XS_TOP_SCORE_Q90",
+      "R29_SHORT_XS_MARGIN_Q90",
+      "R29_SHORT_XS_RANK_RAW_QUADRATIC_GATE"
+    ]
+  },
+  "selection": {
+    "rule": "TOP_ONE_PER_COMPLETE_DECISION_TIME",
+    "tieBreak": ["score DESC", "frozen symbol order", "observationId lexical ASC"],
+    "validationOrder": [
+      "FIT_RESEARCH_ONLY",
+      "CALIBRATE_SELECTION_FROM_RESEARCH_SCORES_ONLY",
+      "SCORE_VALIDATION_FEATURES_ONLY",
+      "SELECT_FROZEN_ALERT_IDS",
+      "READ_ECONOMIC_LABELS_FOR_SELECTED_IDS_ONLY",
+      "COMPUTE_DEVELOPMENT_ECONOMICS"
+    ]
+  },
+  "gates": {
+    "minimumSelectedAlerts": 50,
+    "minimumSelectedAlertsPerFold": 10,
+    "minimumDistinctUtcDecisionDates": 10,
+    "minimumMeanNetExpectancy": 0,
+    "minimumNetProfitFactor": 1,
+    "minimumPositiveTemporalFolds": 4,
+    "maximumCatastrophicFolds": 0,
+    "catastrophicFoldThreshold": -0.1,
+    "minimumCostStressMeanNetExpectancy": 0,
+    "minimumLatencyMeanNetExpectancy": 0,
+    "maximumPositiveSymbolContributionShare": 0.5,
+    "maximumSelectedDecisionTimeRatePerFold": 0.25
+  },
+  "governance": {
+    "developmentOnly": true,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "forwardValidationAuthorized": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002": "NOT_FROZEN",
+    "m3J": "BLOCKED",
+    "m4": "NOT_STARTED"
+  },
+  "m3G1": {
+    "excludedFromGenericResearchTooling": true,
+    "reason": "R29 is a bounded development-only economic evaluation with a dedicated evidence contract."
+  }
+}
