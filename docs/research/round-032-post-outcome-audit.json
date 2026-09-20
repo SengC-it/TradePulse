@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "round-032-post-outcome-audit-001",
+  "classification": "POST_OUTCOME_AUDIT_AND_TEST_HYGIENE_ONLY",
+  "parentCommitSha": "d17f0643bb04c1e9a7625fe890fd3be5e57e2b89",
+  "networkReprobePerformedDuringClosure": false,
+  "networkRequestsDuringClosure": 0,
+  "originalR32Artifacts": [
+    {
+      "path": "docs/research/round-032-execution-receipt.json",
+      "sha256BeforeClosure": "5f2df92d1621f79ff5ea65f7cdd91e93c69ae1943c29a10623b09abe5f859e78",
+      "sha256AfterClosure": "5f2df92d1621f79ff5ea65f7cdd91e93c69ae1943c29a10623b09abe5f859e78",
+      "changed": false,
+      "numericChanged": false
+    },
+    {
+      "path": "docs/research/round-032-binance-metrics-environment-result.json",
+      "sha256BeforeClosure": "7c8e6cee479b4ebba6e57890975d43428cc8d8cbf638a8f02ac3d52c3b99fcb4",
+      "sha256AfterClosure": "7c8e6cee479b4ebba6e57890975d43428cc8d8cbf638a8f02ac3d52c3b99fcb4",
+      "changed": false,
+      "numericChanged": false
+    },
+    {
+      "path": "docs/research/round-032-binance-metrics-environment-result.md",
+      "sha256BeforeClosure": "136a1e15f872632a4be8efd4205bf3fd3cfcfb32163fc858fa2058a936bfae12",
+      "sha256AfterClosure": "136a1e15f872632a4be8efd4205bf3fd3cfcfb32163fc858fa2058a936bfae12",
+      "changed": false,
+      "numericChanged": false
+    }
+  ],
+  "authoritativeR32Conclusion": {
+    "archiveParserRepairAuthoritative": true,
+    "archiveFilesAvailable": 5,
+    "checksumValidFiles": 5,
+    "schemaValidFiles": 5,
+    "timestampParserValidFiles": 5,
+    "conflictingDuplicateCount": 0,
+    "archiveOverlapReady": true,
+    "nodeFetchSuccess": false,
+    "curlPreflightSuccess": true,
+    "selectedTransport": "CURL",
+    "liveLogicalRequests": 25,
+    "liveSuccessfulRequests": 24,
+    "liveFailedRequests": 1,
+    "failedRequest": {
+      "symbol": "XRPUSDT",
+      "endpoint": "openInterestHist",
+      "errorClass": "NETWORK",
+      "curlExit": 28,
+      "error": "connection timeout"
+    },
+    "historicalR32SourceClassification": "SOURCE_REPROBE_INCONCLUSIVE_DUE_TO_LIVE_REACHABILITY",
+    "historicalR32NextStage": "LIVE_TRANSPORT_STABILITY_REQUIRED",
+    "historicalClassificationProtocolCompliant": true
+  },
+  "mappingDiscriminatorAudit": {
+    "timestampMappingSelectionBasis": "MAXIMUM_MATCHED_TIMESTAMP_ROWS",
+    "allowedOffsets": ["EXACT", "ARCHIVE_MINUS_5M", "ARCHIVE_PLUS_5M"],
+    "regularFiveMinuteGridBoundaryBias": true,
+    "timestampMatchCountAloneCanIdentifySemanticOffset": false,
+    "timestampMappingDiscriminatorProtocolRobust": false,
+    "successfulFieldNumericMismatchObserved": true,
+    "mappingSemanticIncompatibilityAuthoritative": false
+  },
+  "observedFieldEvidence": {
+    "TOP_TRADER_ACCOUNT": {
+      "allFiveSymbolsLiveSuccessful": true,
+      "allFiveTimestampCoverage": 1,
+      "allFiveSelectedMapping": "EXACT",
+      "allFiveNumericAgreementBelowAdmissionThreshold": true
+    },
+    "TOP_TRADER_POSITION": {
+      "allFiveSymbolsLiveSuccessful": true,
+      "allFiveTimestampCoverage": 1,
+      "allFiveSelectedMapping": "EXACT",
+      "allFiveNumericAgreementBelowAdmissionThreshold": true
+    },
+    "GLOBAL_LONG_SHORT": {
+      "allFiveSymbolsLiveSuccessful": true,
+      "allFiveTimestampCoverage": 1,
+      "allFiveSelectedMapping": "EXACT",
+      "allFiveNumericAgreementBelowAdmissionThreshold": true
+    },
+    "TAKER_RATIO": {
+      "allFiveSymbolsLiveSuccessful": true,
+      "timestampMappingUnresolvedAcrossAllFive": true
+    },
+    "OPEN_INTEREST": {
+      "allFiveSymbolsEvidenceComplete": false,
+      "missingBecause": "XRPUSDT/openInterestHist network timeout"
+    }
+  },
+  "fullSuiteAudit": {
+    "r31AcceptedBaseline": "PASS",
+    "beforeClosure": {
+      "classification": "FULL_SUITE_REGRESSIONS_PRESENT_ON_R32_WORKTREE",
+      "worktree": "r32-worktree-with-core-autocrlf-true",
+      "totalFiles": 124,
+      "totalTests": 2254,
+      "failingFiles": 9,
+      "failingTests": 12,
+      "passingFiles": 115,
+      "passingTests": 2242,
+      "failureCategoryCounts": {
+        "A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT": 12,
+        "B_MISSING_HISTORICAL_GIT_OBJECT_OR_ALTERNATE": 0,
+        "C_R32_ADDITIVE_RESEARCH_BOUNDARY_NOT_ISOLATED": 0,
+        "D_ACTUAL_R32_BEHAVIOR_REGRESSION": 0,
+        "E_OTHER_ENVIRONMENTAL_NONDETERMINISM": 0
+      }
+    },
+    "afterClosureValidation": {
+      "worktree": "clean canonical-LF validation worktree",
+      "historicalGitObjects": "available through repository object alternates",
+      "totalFiles": 124,
+      "totalTests": 2254,
+      "failingFiles": 0,
+      "failingTests": 0,
+      "passingFiles": 124,
+      "passingTests": 2254,
+      "resolution": "canonical LF checkout and required repository objects; no historical assertions, expected hashes, or R32 logic changed"
+    },
+    "failures": [
+      {"testFile":"tests/m3-r18-round-018-governance-erratum.test.ts","testName":"verifies every locked economic artifact and checkpoint byte hash","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen canonical bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r19-round-019-design.test.ts","testName":"matches every frozen formal provenance blob, including runner.ts","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen provenance bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r20-liquidation-data-preflight.test.ts","testName":"keeps the design JSON and Markdown byte-identical to the accepted design source","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen design bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r3-a-recovery.test.ts","testName":"verifies the immutable Round-001 evidence SHA and contract","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen evidence bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r4-b-round004.test.ts","testName":"132 leaves R4-A diagnosis bytes unchanged","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen diagnosis bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r4-b-round004.test.ts","testName":"133 leaves R4-A protocol bytes unchanged","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen protocol bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r5-b1b-final-freeze.test.ts","testName":"preserves the authoritative H17 JSON bytes","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen H17 JSON bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r5-b1b-final-freeze.test.ts","testName":"preserves the authoritative H17 Markdown bytes","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen H17 Markdown bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r5-b2-performance.test.ts","testName":"requires explicit performance authorization and exact provenance","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen provenance bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/m3-r5-b2-performance.test.ts","testName":"keeps the H17 qualification files byte-stable","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen H17 bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/round-029-post-outcome-audit.test.ts","testName":"keeps both original development result artifacts byte-identical","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen Round-029 result bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"},
+      {"testFile":"tests/round-030-post-outcome-audit.test.ts","testName":"keeps both original result artifacts byte-identical","category":"A_CHECKOUT_LINE_ENDING_OR_BYTE_IDENTITY_ENVIRONMENT","rootCause":"CRLF checkout bytes differed from frozen Round-030 result bytes","evidence":"clean canonical-LF validation passed","resolution":"canonical-LF validation worktree"}
+    ]
+  },
+  "governance": {
+    "economicOutcomeFilesRead": false,
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "modelFitCount": 0,
+    "candidateCount": 0,
+    "championCount": 0,
+    "selectedAlertCount": 0,
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  },
+  "auditNextStage": "LIVE_TRANSPORT_STABILITY_AND_TIMESTAMP_ALIGNMENT_REPROBE_REQUIRED"
+}
