@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "m3-r30-target-source-admission-protocol-001",
+  "researchRoundId": "baseline-002-research-round-030",
+  "phase": "TARGET_AND_SOURCE_DIAGNOSTIC_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "bea7f4bba421e9dcec1a17b8b952cf183fbe35dc"
+  },
+  "branch": "research/round-030-stress-target-source-admission",
+  "inheritedR29Conclusion": {
+    "eligibleLongCandidates": 0,
+    "eligibleShortCandidates": 0,
+    "longChampionId": null,
+    "shortChampionId": null,
+    "developmentClassification": "NO_DEVELOPMENT_CHAMPION",
+    "direction": "CURRENT_FEATURE_INFORMATION_NOT_ECONOMICALLY_ACTIONABLE"
+  },
+  "source": {
+    "status": "ACCEPTED_R14_OBSERVATION_FREEZE_REUSED",
+    "canonicalPath": ".cache/tradepulse/round-014/observations.ndjson",
+    "manifestPath": "docs/research/round-014-observation-freeze.json",
+    "sha256": "5b0e62f93526052d649fdb189792d48d9c2eb0fd0c13cf7af1255efdae517359",
+    "manifestSha256": "7d03b1a59f85509c3e350c0ab10053b8ff84193357322b11a1437002c9d25af6",
+    "bytes": 1893811055,
+    "observationCount": 244810,
+    "window": { "start": "2023-01-01T00:00:00.000Z", "end": "2026-08-15T23:59:59.999Z" },
+    "classification": "DEVELOPMENT_ONLY / ALREADY_SEEN",
+    "networkAcquired": false,
+    "newMarketData": false
+  },
+  "targets": {
+    "T0": "labels[4].status === EXECUTED && netForwardAtr > 0",
+    "T1": "labels[4].status === EXECUTED && netForwardAtrCostStress > 0",
+    "T2": "latencyStressLabels[4].status === EXECUTED && netForwardAtr > 0",
+    "T3": "latencyStressLabels[4].status === EXECUTED && netForwardAtrCostStress > 0"
+  },
+  "finalDiagnosticOutcome": "latencyStressLabels[4].netForwardAtrCostStress",
+  "architectures": { "LONG": "RAW_LINEAR_ALL18", "SHORT": "XS_LINEAR_ALL18" },
+  "model": {
+    "type": "BINARY_LOGISTIC_REGRESSION",
+    "lambda": 10,
+    "intercept": "UNPENALIZED",
+    "maxIterations": 100,
+    "tolerance": 1e-10,
+    "predictorClamp": [-30, 30]
+  },
+  "validationBoundary": {
+    "featureOnlyKeys": ["observationId", "decisionTime", "symbol", "direction", "features"],
+    "scoreBeforeOutcomeJoin": true,
+    "outcomeJoinKey": "observationId"
+  },
+  "executionMatrix": { "directions": 2, "trainingTargets": 4, "folds": 6, "totalFits": 48 },
+  "targetAdmission": {
+    "medianT3Auc": ">= 0.53",
+    "positiveT3AucFolds": ">= 4/6 with each > 0.50",
+    "worstFoldT3Auc": ">= 0.48",
+    "medianStressAlignedRankIc": ">= 0.05",
+    "positiveStressAlignedRankIcFolds": ">= 4/6 with each > 0",
+    "medianT3AucImprovementVsT0": ">= 0.01"
+  },
+  "stageB": {
+    "conditionalTrigger": "LONG selectedTarget === null OR SHORT selectedTarget === null",
+    "sourceFamily": "BINANCE_VISION_USDM_METRICS",
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+    "dates": ["2023-01-03", "2024-01-15", "2025-01-15", "2026-06-24", "2026-06-26", "2026-08-15", "2026-09-18"],
+    "minimumArchiveCoverage": "35/35 exist, checksum-valid, exact-schema-valid",
+    "timestampMapping": ["EXACT", "ARCHIVE_MINUS_5M", "ARCHIVE_PLUS_5M"],
+    "featureAvailableTime": "archive create_time + 5 minutes",
+    "minimumFieldAgreementRate": 0.995,
+    "maximumRelativeError": 1e-8,
+    "minimum5mDeltaRate": 0.99,
+    "maximumConflictingDuplicateCount": 0,
+    "archiveCanBeRevised": true,
+    "archiveNeverProspective": true
+  },
+  "governance": {
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3GStatus": "EXCLUDED_FROM_ROUND_030",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  },
+  "noEconomicEvaluation": true,
+  "commitBoundary": {
+    "commitA": "Freeze Round-030 stress target and source admission protocol",
+    "commitAExcludes": ["Stage-A results", "Stage-B results", "selected target", "source admission result"],
+    "commitB": "Publish Round-030 stress target and source admission result",
+    "runnerExecutionCount": 1
+  }
+}
