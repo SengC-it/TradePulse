@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "m3-r30-post-outcome-audit-001",
+  "auditType": "POST_OUTCOME_AUDIT_ONLY",
+  "parentCommit": "208ca9d9db77d11dfb88a1f49fe9a31ef4d89ab4",
+  "originalResultArtifacts": [
+    {
+      "path": "docs/research/round-030-target-source-result.json",
+      "sha256BeforeClosure": "947645e1b76598c4eed1e0ca60433903d769b4bf1277de03298c06b0b69f0638",
+      "sha256AfterClosure": "947645e1b76598c4eed1e0ca60433903d769b4bf1277de03298c06b0b69f0638",
+      "unchanged": true
+    },
+    {
+      "path": "docs/research/round-030-target-source-result.md",
+      "sha256BeforeClosure": "43e72fc97d46f74c5126c31967b57c9217ec4d64a853faf4afffb49c56a9ccf2",
+      "sha256AfterClosure": "43e72fc97d46f74c5126c31967b57c9217ec4d64a853faf4afffb49c56a9ccf2",
+      "unchanged": true
+    }
+  ],
+  "rerunControls": {
+    "r30DiagnosticRerun": false,
+    "stageARerun": false,
+    "stageBRerun": false,
+    "archiveDownloads": false,
+    "liveBinanceOverlapRequests": false,
+    "r29EconomicRerun": false,
+    "economicEvaluationRerun": false,
+    "numericDiagnosticResultsChanged": false
+  },
+  "historicalExecution": {
+    "targetDiagnosticExecutionCount": 1,
+    "sourcePreflightExecutionCount": 1,
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false
+  },
+  "stageA": {
+    "stageATargetDiagnosticAuthoritative": true,
+    "longSelectedTarget": null,
+    "longClassification": "TARGET_REDESIGN_INSUFFICIENT",
+    "long": {
+      "bestTarget": "T3",
+      "t0MedianT3Auc": 0.5607079528503145,
+      "bestMedianT3Auc": 0.5656435238134828,
+      "improvementVsT0": 0.004935570963168323
+    },
+    "shortSelectedTarget": null,
+    "shortClassification": "TARGET_REDESIGN_INSUFFICIENT",
+    "short": {
+      "bestTarget": "T1",
+      "t0MedianT3Auc": 0.5406919258947558,
+      "bestMedianT3Auc": 0.5430121569276795,
+      "improvementVsT0": 0.0023202310329236697
+    },
+    "frozenThresholds": {
+      "minimumMedianT3AucImprovementVsT0": 0.01
+    },
+    "targetRedesignConclusionRobust": true
+  },
+  "stageBArchiveEvidence": {
+    "archiveFilesRequested": 35,
+    "archiveFilesAvailable": 35,
+    "checksumValidFiles": 35,
+    "schemaValidFiles": 35,
+    "sampleCoverageComplete": true,
+    "checksumsComplete": true,
+    "schemaComplete": true,
+    "cadenceComplete": true,
+    "conflictingDuplicateCount": 0,
+    "archiveSampleQualityAccepted": true,
+    "metricsSourceAdmissionAccepted": false
+  },
+  "stageBLiveOverlapObservability": {
+    "liveOverlapProbeCompleted": false,
+    "liveOverlapFailureCauseObservable": false,
+    "fieldMappingComparisonActuallyPerformed": false,
+    "timestampMappingComparisonActuallyPerformed": false,
+    "recentOverlapMappings": {},
+    "fieldAgreementRates": {},
+    "timestampMappingResolved": false,
+    "fieldMappingStatus": "FIELD_MAPPING_NOT_ESTABLISHED",
+    "timestampMappingStatus": "TIMESTAMP_MAPPING_NOT_ESTABLISHED",
+    "failureDetailsRecorded": {
+      "symbol": false,
+      "endpoint": false,
+      "httpStatus": false,
+      "exceptionMessage": false,
+      "responseBody": false,
+      "failureStage": false
+    }
+  },
+  "sourceAdmission": {
+    "historicalSourceClassification": "METRICS_SOURCE_PREFLIGHT_INELIGIBLE",
+    "sourceAdmissionEvidenceAuthoritative": false,
+    "auditSourceClassification": "SOURCE_PREFLIGHT_INCONCLUSIVE_DUE_TO_UNOBSERVABLE_LIVE_PROBE_FAILURE",
+    "auditNextStage": "BINANCE_METRICS_LIVE_OVERLAP_REPROBE_REQUIRED",
+    "alternativeOrPaidSourceConclusionPermitted": false
+  },
+  "overall": {
+    "historicalOverallClassification": "NEW_INFORMATION_SOURCE_ESCALATION_REQUIRED",
+    "auditOverallClassification": "TARGET_REDESIGN_INSUFFICIENT_AND_SOURCE_PREFLIGHT_INCONCLUSIVE",
+    "auditNextStage": "BINANCE_METRICS_LIVE_OVERLAP_REPROBE_REQUIRED"
+  },
+  "cliImportAudit": {
+    "cliScriptImportHasExecutionSideEffect": true,
+    "scriptPath": "scripts/m3-r30-target-source-diagnostic.ts",
+    "topLevelExecutionCall": "executeR30TargetSourceDiagnostic(...)",
+    "reportedDiagnosticExecutionCount": 1,
+    "durableExecutionCounterPresent": false,
+    "singleExecutionIndependentlyVerifiable": false,
+    "reportedAbortedSmokeAttempt": true,
+    "abortedSmokeAttemptIsIndependentlyPersistedExecution": false,
+    "interpretation": "user-reported aborted smoke is not independently persisted execution evidence; no second full execution is claimed"
+  },
+  "governance": {
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "performanceLedgerPresent": false,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED",
+    "round020LiquidationClosureReopened": false
+  },
+  "closure": {
+    "historicalResultPreserved": true,
+    "newMarketDataAcquiredDuringClosure": false,
+    "finalDecision": "ROUND-030 POST-OUTCOME SOURCE-ADMISSION AUDIT COMPLETE",
+    "nextStage": "STOP_PENDING_INDEPENDENT_ROUND_030_FINAL_ACCEPTANCE"
+  }
+}
