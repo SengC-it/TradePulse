@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "m3-r33-execution-receipt-001",
+  "runId": "r33-654ad602b2dc0f1a247285e4",
+  "protocolCommitSha": "eee8b0f0e2dfcf0e20ac3756a59a189ebb1dfdbd",
+  "startedAt": "2026-09-20T17:46:33.273Z",
+  "executionType": "BINANCE_METRICS_TIMESTAMP_ALIGNMENT_REPROBE",
+  "status": "COMPLETED",
+  "r33ExecutionCount": 1,
+  "completedAt": "2026-09-20T17:48:50.051Z",
+  "resultSha256": "f62ba8aed31d8ade78b4a9299ccaab3b4a204fafbe65a019eccc4a8c99b5e361",
+  "evidenceManifestSha256": "4a09695718434543f27a4368a184998591507b3beb3ab7e5841010e366c63675"
+}

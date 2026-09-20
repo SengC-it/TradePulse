@@ -1,0 +1,280 @@
+{
+  "schemaVersion": "m3-r33-evidence-manifest-001",
+  "researchRoundId": "baseline-002-research-round-033",
+  "generatedAt": "2026-09-20T17:48:50.048Z",
+  "archiveEvidenceFiles": 5,
+  "liveEvidenceFiles": 25,
+  "allEvidenceSha256Present": true,
+  "entries": [
+    {
+      "path": "docs/research/round-033-evidence/archive/BTCUSDT-metrics-2026-09-18.zip",
+      "sourceUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-09-18.zip",
+      "receivedAt": "2026-09-20T17:46:42.284Z",
+      "bytes": 11743,
+      "sha256": "3558afea198d8579ea1fa8c176726ed2204770dbdd2dd05a5dfed6c83d8c7be3",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/archive/ETHUSDT-metrics-2026-09-18.zip",
+      "sourceUrl": "https://data.binance.vision/data/futures/um/daily/metrics/ETHUSDT/ETHUSDT-metrics-2026-09-18.zip",
+      "receivedAt": "2026-09-20T17:46:54.855Z",
+      "bytes": 12065,
+      "sha256": "689c8d44f3f3f98091007a25ffa71f218d23583277bf3817c527e6bfd6b52e5a",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/archive/SOLUSDT-metrics-2026-09-18.zip",
+      "sourceUrl": "https://data.binance.vision/data/futures/um/daily/metrics/SOLUSDT/SOLUSDT-metrics-2026-09-18.zip",
+      "receivedAt": "2026-09-20T17:47:06.466Z",
+      "bytes": 11950,
+      "sha256": "4fddfea48dfbaf59cc6a2b677f67372d862f0533a339a355dc392fa1524ab3b4",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/archive/XRPUSDT-metrics-2026-09-18.zip",
+      "sourceUrl": "https://data.binance.vision/data/futures/um/daily/metrics/XRPUSDT/XRPUSDT-metrics-2026-09-18.zip",
+      "receivedAt": "2026-09-20T17:47:14.832Z",
+      "bytes": 12005,
+      "sha256": "b5d88e786808b80441b4cd16d43404f2a77a2b3e61799f2e93718da37c838e88",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/archive/BNBUSDT-metrics-2026-09-18.zip",
+      "sourceUrl": "https://data.binance.vision/data/futures/um/daily/metrics/BNBUSDT/BNBUSDT-metrics-2026-09-18.zip",
+      "receivedAt": "2026-09-20T17:47:22.990Z",
+      "bytes": 11489,
+      "sha256": "ac6121e416d6a4f5d0e03bc4208f759f8324dc039923bb0aab7bf9c10d00a0ea",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BTCUSDT-openInterestHist.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:29.546Z",
+      "bytes": 49249,
+      "sha256": "f79b7ee7a5f0d1e3591d314483b2fb7c7ce6ce8d56b9c7dbada5b768ad7ef725",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BTCUSDT-topLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:32.913Z",
+      "bytes": 34561,
+      "sha256": "718fbd34aa371ef5a4a9dbefa293d14be9d8189923aceb279170dc2f0343f518",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BTCUSDT-topLongShortPositionRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:35.678Z",
+      "bytes": 34561,
+      "sha256": "5514a89afd26c2155d0619562f2fed9c9b2e7d1004829eff9d8c8b19ebf2a2f8",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BTCUSDT-globalLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:39.368Z",
+      "bytes": 34561,
+      "sha256": "b881e7542857f61a1d4e59ac75ac5292a46c831349fb7a85fd2ecbaa509e9b94",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BTCUSDT-takerlongshortRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:42.098Z",
+      "bytes": 26730,
+      "sha256": "3a0352d86955372a3fadff5250e756a442d1f112ee98962851ebb4937abf04d7",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/ETHUSDT-openInterestHist.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:44.847Z",
+      "bytes": 49825,
+      "sha256": "a1d96e935d4e486f027a1eee9606c96cd6241afa72d36fd3b22c251f08767f05",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/ETHUSDT-topLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:47.894Z",
+      "bytes": 34561,
+      "sha256": "c294a8fd5e25695960a8652410881dafeb0966346add7c4757c13b29172b7386",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/ETHUSDT-topLongShortPositionRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:51.751Z",
+      "bytes": 34561,
+      "sha256": "5528e5bbb831d839fb4e3e7756755a63a30c3e441c8228869765a551e14a1402",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/ETHUSDT-globalLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:56.048Z",
+      "bytes": 34561,
+      "sha256": "d53a1d55bd64300be38b94d9be6db77db9895a6e4c01991bda8055455a8aad55",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/ETHUSDT-takerlongshortRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=ETHUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:47:59.296Z",
+      "bytes": 27507,
+      "sha256": "62aa18dad714efbc12aa0d626deed7bad748fa4765ef19b9a13e73dd54c4b323",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/SOLUSDT-openInterestHist.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:01.476Z",
+      "bytes": 49537,
+      "sha256": "d48545e41b218e1d45abfb0c097b2d541e7ba2f7d0f58add4c4c3a2c26d04874",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/SOLUSDT-topLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:07.443Z",
+      "bytes": 34561,
+      "sha256": "5ab87ff179289554938c97f62e5a6bb68894b5854da8408e75318bfef4c2658b",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/SOLUSDT-topLongShortPositionRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:10.756Z",
+      "bytes": 34561,
+      "sha256": "6a2d0b294cf392d1ac33c69766ebe9f4b349e5b78aaeef02e6a6833e4e5aad52",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/SOLUSDT-globalLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:13.278Z",
+      "bytes": 34561,
+      "sha256": "9750b2cfc2bf71d0d9df62774a2e34122c7c57dfcdb33917fcd71f28dc22ffc4",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/SOLUSDT-takerlongshortRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SOLUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:16.844Z",
+      "bytes": 28006,
+      "sha256": "e49f1b520d9f1eb2c4cdbc6a922b383d21f3f78f5d917891ababa604adb4c1eb",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/XRPUSDT-openInterestHist.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:19.565Z",
+      "bytes": 50689,
+      "sha256": "d4619cb276380d5f292c6c7e4cc9695e5daf28d1ec33d7a804d4cb140c97274a",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/XRPUSDT-topLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:23.552Z",
+      "bytes": 34561,
+      "sha256": "c58105641992d2719b29d09891616639cf7691833c0e6afd578bd5f74d751a2c",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/XRPUSDT-topLongShortPositionRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:26.389Z",
+      "bytes": 34561,
+      "sha256": "6102f57e2175dc7960e0a95b3eaa5698c8f366dc69e66ce8401d2c4a491fc3f0",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/XRPUSDT-globalLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:29.583Z",
+      "bytes": 34561,
+      "sha256": "8cce6a11316fca32233d4649ebf339655d0cc7adba2bc6ac335055f55a8bb500",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/XRPUSDT-takerlongshortRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=XRPUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:33.663Z",
+      "bytes": 28917,
+      "sha256": "79b472865e4b92d683030c4bded63db2a6ca7e8d377b4b780d48d6bc25cff98e",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BNBUSDT-openInterestHist.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/openInterestHist?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:37.666Z",
+      "bytes": 49249,
+      "sha256": "8fe4522ee22cdbfff6af384b0087bdfe97a8f22e4639205a81e6c37c1e660372",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BNBUSDT-topLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:40.879Z",
+      "bytes": 34561,
+      "sha256": "ff9cea6c59490413dad232e21006431dbb4279f3704fbcdd8604562166828e2d",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BNBUSDT-topLongShortPositionRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:43.566Z",
+      "bytes": 34561,
+      "sha256": "fba483888dc56bc8c9f4d6106952df352096d6b0ea0c6313ed4a724768c4cceb",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BNBUSDT-globalLongShortAccountRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:46.390Z",
+      "bytes": 34561,
+      "sha256": "6820adf6599b5b914799b27f8748b0722f917019c746b2f0c26ef0a3c0fc5018",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    },
+    {
+      "path": "docs/research/round-033-evidence/live/BNBUSDT-takerlongshortRatio.json",
+      "sourceUrl": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BNBUSDT&period=5m&startTime=1789689600000&endTime=1789775999999&limit=500",
+      "receivedAt": "2026-09-20T17:48:49.993Z",
+      "bytes": 27068,
+      "sha256": "64c71240889093bf81d97ba24d9400a281abf6da29b1e7a5b5922272e3a66502",
+      "attemptNumber": 1,
+      "httpStatus": 200
+    }
+  ]
+}
