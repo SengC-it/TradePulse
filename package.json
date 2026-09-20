@@ -76,6 +76,7 @@
     "research:round029:development": "node --experimental-strip-types --no-warnings scripts/m3-r29-development.ts",
     "research:round030:diagnostic": "node --experimental-strip-types --no-warnings scripts/m3-r30-target-source-diagnostic.ts",
     "research:round031:overlap": "node --experimental-strip-types --no-warnings scripts/m3-r31-binance-metrics-overlap.ts",
+    "research:round032:environment-reprobe": "node --experimental-strip-types --no-warnings scripts/m3-r32-binance-metrics-environment-reprobe.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "check": "npm run verify"
   },
