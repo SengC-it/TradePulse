@@ -212,6 +212,8 @@ function sourceText(): string {
     //
     // Round-026 score calibration diagnostic is a separate score-only
     // diagnostic boundary with a dedicated fail-closed suite.
+    // Round-030 target/source admission is a separate diagnostic boundary
+    // with a dedicated protocol suite and a post-freeze result artifact.
     .filter((name) =>
       name.endsWith(".ts") &&
       !name.startsWith("m3-r4-round-004-") &&
@@ -235,6 +237,7 @@ function sourceText(): string {
       !name.startsWith("round-027-") &&
       !name.startsWith("round-028-") &&
       !name.startsWith("round-029-") &&
+      !name.startsWith("round-030-") &&
       name !== "selection-gates-round-013.ts" &&
       name !== "r13-drawdown.ts" &&
       name !== "selection-gates-round-007.ts" &&
