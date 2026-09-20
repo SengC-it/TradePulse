@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "m3-r31-execution-receipt-001",
+  "runId": "r31-5aa3b17989071a44187bdaf0",
+  "protocolCommitSha": "90b89c9fb02942be1606520f3aa41ac94df057b9",
+  "startedAt": "2026-09-20T11:45:58.152Z",
+  "executionType": "BINANCE_METRICS_LIVE_OVERLAP_REPROBE",
+  "status": "COMPLETED",
+  "completedAt": "2026-09-20T11:50:32.909Z",
+  "resultSha256": "7cc3ac7019cd1828528a9cb7f9cae6d455629fcf78c5b1bad49efa0074c03a28"
+}

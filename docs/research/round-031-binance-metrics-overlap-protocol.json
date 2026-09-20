@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "m3-r31-binance-metrics-overlap-protocol-001",
+  "researchRoundId": "baseline-002-research-round-031",
+  "classification": "SOURCE_ADMISSION_REPROBE_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "c8b96e633179170c888766d7fa459a7b664a35f5"
+  },
+  "fixedWindow": {
+    "date": "2026-09-18",
+    "startTime": 1789689600000,
+    "endTime": 1789775999999,
+    "timezone": "UTC"
+  },
+  "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+  "live": {
+    "baseUrl": "https://fapi.binance.com/futures/data",
+    "endpoints": ["openInterestHist", "topLongShortAccountRatio", "topLongShortPositionRatio", "globalLongShortAccountRatio", "takerlongshortRatio"],
+    "period": "5m",
+    "limit": 500,
+    "logicalRequests": 25,
+    "networkAttemptsPerLogicalRequest": 1,
+    "noSilentCatch": true,
+    "clientSideUtcFiltering": true
+  },
+  "archive": {
+    "baseUrl": "https://data.binance.vision/data/futures/um/daily/metrics",
+    "zipFiles": 5,
+    "checksumFiles": 5,
+    "schema": ["create_time", "symbol", "sum_open_interest", "sum_open_interest_value", "count_toptrader_long_short_ratio", "sum_toptrader_long_short_ratio", "count_long_short_ratio", "sum_taker_long_short_vol_ratio"]
+  },
+  "fieldMappings": [
+    {"id": "OPEN_INTEREST", "archiveField": "sum_open_interest", "liveEndpoint": "openInterestHist", "liveField": "sumOpenInterest"},
+    {"id": "TOP_TRADER_ACCOUNT", "archiveField": "count_toptrader_long_short_ratio", "liveEndpoint": "topLongShortAccountRatio", "liveField": "longShortRatio"},
+    {"id": "TOP_TRADER_POSITION", "archiveField": "sum_toptrader_long_short_ratio", "liveEndpoint": "topLongShortPositionRatio", "liveField": "longShortRatio"},
+    {"id": "GLOBAL_LONG_SHORT", "archiveField": "count_long_short_ratio", "liveEndpoint": "globalLongShortAccountRatio", "liveField": "longShortRatio"},
+    {"id": "TAKER_RATIO", "archiveField": "sum_taker_long_short_vol_ratio", "liveEndpoint": "takerlongshortRatio", "liveField": "buySellRatio"}
+  ],
+  "timestampMapping": {
+    "options": ["EXACT", "ARCHIVE_MINUS_5M", "ARCHIVE_PLUS_5M"],
+    "minimumCoverage": 0.99,
+    "endpointIndependent": true,
+    "sameEndpointMustAgreeAcrossSymbols": true
+  },
+  "numericAgreement": {
+    "absoluteTolerance": "0.5 * 10^(-liveDecimalPlaces) + 1e-12",
+    "minimumRate": 0.995,
+    "relativeErrorRecorded": true,
+    "fixedRelativeErrorThreshold": false
+  },
+  "governance": {
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "modelFitCount": 0,
+    "candidateCount": 0,
+    "championCount": 0,
+    "selectedAlertCount": 0,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002": "NOT_FROZEN",
+    "M3-J": "BLOCKED",
+    "M4": "NOT_STARTED"
+  }
+}
