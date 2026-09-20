@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "m3-r32-execution-receipt-001",
+  "runId": "r32-9383cf75c96bc554dac21634",
+  "protocolCommitSha": "c4dee696e2d32d5858e82916e0c32d282191d8e1",
+  "startedAt": "2026-09-20T15:36:48.092Z",
+  "executionType": "BINANCE_METRICS_EXECUTION_ENVIRONMENT_REPROBE",
+  "status": "COMPLETED",
+  "r32ExecutionCount": 1,
+  "completedAt": "2026-09-20T15:39:17.962Z",
+  "resultSha256": "fce4c9b44c2e668e3f8d95cab461c3f2ea6e3e37c617faa2040585cd72dc6543"
+}

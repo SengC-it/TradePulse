@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "m3-r32-binance-metrics-execution-environment-protocol-001",
+  "researchRoundId": "baseline-002-research-round-032",
+  "classification": "EXECUTION_ENVIRONMENT_AND_PARSER_REPROBE_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "96f14392b02ea492a1b2c6f20b47334a3bf3234a"
+  },
+  "branch": "research/round-032-binance-metrics-execution-environment-reprobe",
+  "fixedWindow": {
+    "date": "2026-09-18",
+    "timezone": "UTC",
+    "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"]
+  },
+  "endpoints": [
+    "openInterestHist",
+    "topLongShortAccountRatio",
+    "topLongShortPositionRatio",
+    "globalLongShortAccountRatio",
+    "takerlongshortRatio"
+  ],
+  "archive": {
+    "zipFiles": 5,
+    "checksumFiles": 5,
+    "parserModes": ["EPOCH_MS", "EPOCH_SECONDS", "UTC_DATETIME_STRING", "ISO_WITH_ZONE"],
+    "checksumIndependentFromSchema": true,
+    "checksumFormula": "publishedChecksum != null && publishedChecksum === localSha256",
+    "duplicatePolicy": "zero conflicting duplicates"
+  },
+  "transport": {
+    "probeUrl": "https://fapi.binance.com/fapi/v1/time",
+    "nodeTimeoutSeconds": 10,
+    "curlConnectTimeoutSeconds": 10,
+    "curlMaxTimeSeconds": 15,
+    "curlRetry": 0,
+    "selection": ["NODE_FETCH success => NODE_FETCH", "Node failure plus CURL success => CURL", "both failure => null"],
+    "formalRequests": 25,
+    "oneAttemptPerLogicalRequest": true,
+    "proxyEvidence": "presence and scheme only; credentials are never persisted"
+  },
+  "mapping": {
+    "timestampMappings": ["EXACT", "ARCHIVE_MINUS_5M", "ARCHIVE_PLUS_5M"],
+    "numericTolerance": "0.5 * 10^(-liveDecimalPlaces) + 1e-12",
+    "minimumNumericAgreement": 0.995,
+    "minimumTimestampCoverage": 0.99,
+    "historicalRegimeMappingEstablished": false,
+    "fullHistoricalCoverageCertified": false
+  },
+  "receipt": {
+    "path": "docs/research/round-032-execution-receipt.json",
+    "executionType": "BINANCE_METRICS_EXECUTION_ENVIRONMENT_REPROBE",
+    "r32ExecutionCount": 1,
+    "secondInvocation": "FAIL_CLOSED"
+  },
+  "economics": {
+    "economicOutcomeFilesRead": false,
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "modelFitCount": 0,
+    "candidateCount": 0,
+    "championCount": 0,
+    "selectedAlertCount": 0,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0
+  },
+  "governance": {
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3GStatus": "EXCLUDED_FROM_ROUND_032",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}
