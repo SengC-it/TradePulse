@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "m3-r33-post-outcome-audit-001",
+  "researchRoundId": "baseline-002-research-round-033",
+  "classification": "POST_OUTCOME_TEST_BOUNDARY_CLOSURE_ONLY",
+  "parentCommitSha": "ab6d93a3648776d2e3e10eda5ee7676a5fa90beb",
+  "networkRequestsDuringClosure": 0,
+  "r33ReprobeRerun": false,
+  "m3GProtocolStatus": "EXCLUDED_FROM_ROUND_033",
+  "m3GToolingExclusionPresentBeforeClosure": false,
+  "m3GToolingExclusionPresentAfterClosure": true,
+  "scientificResultChanged": false,
+  "r33ResultChanged": false,
+  "r33EvidenceChanged": false,
+  "r33NumericResultChanged": false,
+  "originalArtifacts": {
+    "executionReceiptSha256": "01d265cf23bcd2ee81acbeb1187232ab058a02fc72aaf349dd87f5f6ae3547ca",
+    "evidenceManifestSha256": "09cf8ecfddc3a1c911c9b0b94a61e49c389007430f695fc7ac3c94bee195cde2",
+    "resultJsonSha256": "b5e233ca5614803fc1e36c2055a20902f34d96677e1caefb005daaa2cf8c42ee",
+    "resultMarkdownSha256": "26075addf757ff805e57e45452a53715905aacfab35c73c7b9cd5257d879c991"
+  },
+  "receiptClaims": {
+    "resultSha256": "f62ba8aed31d8ade78b4a9299ccaab3b4a204fafbe65a019eccc4a8c99b5e361",
+    "evidenceManifestSha256": "4a09695718434543f27a4368a184998591507b3beb3ab7e5841010e366c63675"
+  },
+  "frozenScientificResult": {
+    "sourceClassification": "BINANCE_METRICS_PARTIAL_CURRENT_REGIME_MAPPING_ESTABLISHED",
+    "sourceNextStage": "ADMITTED_FIELDS_HISTORICAL_AUDIT_REQUIRED",
+    "r33ExecutionCount": 1,
+    "liveLogicalRequests": 25,
+    "firstAttemptSuccessCount": 25,
+    "retryAttemptCount": 0,
+    "retrySuccessCount": 0,
+    "finalSuccessfulRequests": 25,
+    "finalFailedRequests": 0,
+    "archiveOverlapReady": true,
+    "archiveVersionDrift": false
+  },
+  "archiveEvidence": {
+    "archiveEvidenceFiles": 5,
+    "liveEvidenceFiles": 25,
+    "allEvidenceSha256Present": true,
+    "manifestEntryCount": 30
+  },
+  "admittedFields": [
+    "OPEN_INTEREST",
+    "TOP_TRADER_POSITION"
+  ],
+  "admittedFieldCount": 2,
+  "admittedFieldAudit": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "BNBUSDT"
+    ],
+    "selectedOffset": "ARCHIVE_PLUS_5M",
+    "verdict": "UNIQUE_SEMANTIC_OFFSET",
+    "denominatorRows": 286,
+    "matchedRows": 286,
+    "timestampCoverage": 1,
+    "numericAgreementRate": 1,
+    "selectedOffsetPass": true,
+    "exactPass": false,
+    "archiveMinus5mPass": false,
+    "topTraderPositionMayHaveNonZeroMae": true
+  },
+  "rejectedFields": [
+    {
+      "fieldId": "TOP_TRADER_ACCOUNT",
+      "status": "FIELD_NUMERIC_SEMANTIC_MISMATCH",
+      "admitted": false,
+      "selectedOffset": null
+    },
+    {
+      "fieldId": "GLOBAL_LONG_SHORT",
+      "status": "FIELD_NUMERIC_SEMANTIC_MISMATCH",
+      "admitted": false,
+      "selectedOffset": null
+    },
+    {
+      "fieldId": "TAKER_RATIO",
+      "status": "FIELD_NUMERIC_SEMANTIC_MISMATCH",
+      "admitted": false,
+      "selectedOffset": null
+    }
+  ],
+  "governance": {
+    "economicOutcomeFilesRead": false,
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "modelFitCount": 0,
+    "candidateCount": 0,
+    "championCount": 0,
+    "selectedAlertCount": 0,
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}

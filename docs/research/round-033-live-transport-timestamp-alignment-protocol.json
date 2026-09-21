@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "m3-r33-live-transport-timestamp-alignment-protocol-001",
+  "researchRoundId": "baseline-002-research-round-033",
+  "classification": "SOURCE_SEMANTIC_ALIGNMENT_REPROBE_ONLY",
+  "base": {
+    "branch": "research/round-015-beta-alpha-decomposition",
+    "sha": "dac13c5a0863f60e0bcfc932ef5db7dab7eff282"
+  },
+  "branch": "research/round-033-live-transport-timestamp-alignment",
+  "fixedWindow": {
+    "date": "2026-09-18",
+    "startTime": 1789689600000,
+    "endTime": 1789775999999,
+    "timezone": "UTC"
+  },
+  "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT"],
+  "endpoints": ["openInterestHist", "topLongShortAccountRatio", "topLongShortPositionRatio", "globalLongShortAccountRatio", "takerlongshortRatio"],
+  "request": {
+    "period": "5m",
+    "limit": 500,
+    "transport": "CURL_ONLY",
+    "logicalRequests": 25,
+    "maxAttempts": 2,
+    "retryExitCodes": [6, 7, 28, 35, 52, 55, 56],
+    "retryWaitSeconds": 2,
+    "noThirdAttempt": true,
+    "noRetryFor": ["HTTP_NON_2XX", "NON_JSON", "NON_ARRAY", "SCHEMA", "DUPLICATE"]
+  },
+  "archive": {
+    "zipFiles": 5,
+    "checksumFiles": 5,
+    "commonInterior": {
+      "start": 1789689900000,
+      "end": 1789775400000,
+      "rows": 286,
+      "sameDenominatorForAllOffsets": true
+    },
+    "expectedSha256": {
+      "BTCUSDT": "3558afea198d8579ea1fa8c176726ed2204770dbdd2dd05a5dfed6c83d8c7be3",
+      "ETHUSDT": "689c8d44f3f3f98091007a25ffa71f218d23583277bf3817c527e6bfd6b52e5a",
+      "SOLUSDT": "4fddfea48dfbaf59cc6a2b677f67372d862f0533a339a355dc392fa1524ab3b4",
+      "XRPUSDT": "b5d88e786808b80441b4cd16d43404f2a77a2b3e61799f2e93718da37c838e88",
+      "BNBUSDT": "ac6121e416d6a4f5d0e03bc4208f759f8324dc039923bb0aab7bf9c10d00a0ea"
+    },
+    "parser": "R32_MULTI_FORMAT_UTC_TIMESTAMP"
+  },
+  "timestampAlignment": {
+    "offsets": {
+      "EXACT": 0,
+      "ARCHIVE_MINUS_5M": -300000,
+      "ARCHIVE_PLUS_5M": 300000
+    },
+    "noOtherOffsets": true,
+    "symbolRule": {
+      "onePass": "UNIQUE_SEMANTIC_OFFSET",
+      "zeroPass": "NO_SEMANTIC_OFFSET_MATCH",
+      "multiplePasses": "TIMESTAMP_SEMANTICS_AMBIGUOUS"
+    }
+  },
+  "numericAgreement": {
+    "tolerance": "0.5 * 10^(-liveDecimalPlaces) + 1e-12",
+    "minimumTimestampCoverage": 0.99,
+    "minimumNumericAgreementRate": 0.995,
+    "fullSupportDenominator": "same 286 common interior rows"
+  },
+  "pit": {
+    "historicalFeatureAvailableTime": "archiveCreateTime + 5 minutes",
+    "pitPolicyFinalizationPendingHistoricalRegimeAudit": true,
+    "historicalRegimeMappingEstablished": false,
+    "fullHistoricalCoverageCertified": false
+  },
+  "m3G1": {
+    "status": "EXCLUDED_FROM_ROUND_033",
+    "reason": "Source transport and timestamp alignment only; no economics or performance."
+  },
+  "governance": {
+    "economicOutcomeFilesRead": false,
+    "economicEvaluationPerformed": false,
+    "tradingEconomicMetricsCalculated": false,
+    "candidateExecutableFrozen": false,
+    "forwardCandidateExists": false,
+    "forwardValidationAuthorized": false,
+    "forwardEconomicValuesRead": false,
+    "forwardReturnRead": false,
+    "performanceExecutionCount": 0,
+    "automaticTrading": false,
+    "humanDecisionRequired": true,
+    "productionUnchanged": true,
+    "emailRestorationAuthorized": false,
+    "baseline002Status": "NOT_FROZEN",
+    "m3JStatus": "BLOCKED",
+    "m4Status": "NOT_STARTED"
+  }
+}
